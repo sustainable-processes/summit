@@ -4,14 +4,7 @@ import summit
 import GPyOpt
 from GPyOpt.experiment_design.latin_design import LatinDesign
 
-DATA_PATH   =  summit.__path__[0] + '/data/'
-DESCRIPTOR_DATA_FILE =  DATA_PATH + 'solvent_descriptors.csv'
-METADATA_VARIABLES = ['stenutz_name', 'cosmo_name', 'cas_number', 'chemical_formula']
 
-#Import solvent database
-solvent_candidates = pd.read_csv(DESCRIPTOR_DATA_FILE)
-metadata_df = solvent_candidates.loc[:, METADATA_VARIABLES]
-descriptor_df = solvent_candidates.drop(METADATA_VARIABLES, axis=1)
 
 class Solvent:
     def __init__(self, metadata, descriptors):
@@ -36,7 +29,7 @@ class SolventSelect:
         descriptor_df: A pandas dataframe with molecular descriptors for the solvents. By default uses the solvent database
                                 included with summit.
     '''
-    def __init__(self, metadata_df=metadata_df, descriptors_df=descriptor_df):
+    def __init__(self, metadata_df, descriptors_df):
         self._metadata_df = metadata_df
         self._descriptor_df = descriptors_df
 

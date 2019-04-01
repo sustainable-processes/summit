@@ -83,10 +83,9 @@ class DiscreteVariable(Variable):
 
 class DescriptorSet(Variable):
     def __init__(self, name, description, df, select_subset=None):
-        Varaible.__init__(self, name, description)
+        Variable.__init__(self, name, description)
         self.df = df
         self.select_subset = select_subset
-
 
 class Domain:
     def __init__(self, variables:[Variable]=[]):
