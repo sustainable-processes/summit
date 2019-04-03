@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from typing import List, Optional
+from typing import List, Optional, Type
 
 class Variable:
     """A base class for variables
@@ -133,9 +133,13 @@ class DiscreteVariable(Variable):
         self._levels = levels
 
     @property
-    def levels(self) -> str:
+    def levels(self) -> np.ndarray:
         """`numpy.ndarray`: Potential values of the discrete variable"""
         return np.array(self._levels)
+
+    @property
+    def num_levels(self) -> int:
+        return len(self._levels)
 
     def add_level(self, level):
         """ Add a level to the discrete variable
@@ -193,6 +197,8 @@ class DescriptorsVariable(Variable):
     description
     df
     select_subset
+    num_descriptors
+    num_examples
 
     Notes
     -----
@@ -211,6 +217,14 @@ class DescriptorsVariable(Variable):
         Variable.__init__(self, name, description)
         self.df = df
         self.select_subset = select_subset
+
+    @property
+    def num_descriptors(self) -> int:
+        return self.df.shape[1]
+
+    @property
+    def num_examples(self):
+        return self.df.shape[0]
 
 class Domain:
     """Representation of the optimization domain
@@ -237,8 +251,16 @@ class Domain:
     def variables(self):
         """[List[Type[Variable]]]: List of variables in the domain"""
         return self._variables
+
+    @property
+    def num_variables(self) -> int:
+        """int: Number of variables in the domain"""
+        return len(self.variables)
     
     def __add__(self, var):
         # assert type(var) == Variable
         self._variables.append(var)
         return self
+
+class DomainError(Exception):
+    pass
