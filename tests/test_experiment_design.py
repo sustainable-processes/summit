@@ -24,7 +24,7 @@ def patch_domain_simple(mocker, patch_variable_simple):
 
 def test_design(patch_domain_simple):
     #Test that the design instantiates correctly
-    d = Design(patch_domain_simple , 3)
+    d = Design(patch_domain_simple , 3, 'test')
 
     #Test that 1d designs work properly
     indices =  np.array([[0, 2, 4]]).T
@@ -135,18 +135,6 @@ def test_designers(mocker, patch_domain_full, Designer):
 
     dc_indices = design.get_indices('var_descriptors')
     assert dc_indices.all() < solvent_df.shape[0] -1
-    
-# @pytest.mark.parametrize("criterion", ['center', 'maximin'])
-# def test_latin_design(mocker, patch_domain_full, criterion):
-#     seed=100
-#     num_samples=10
-#     random_state = np.random.RandomState(seed=seed)
-#     lhd = LatinDesign(patch_domain_full, random_state=random_state)
-
-#     design = lhd.generate_experiments(num_samples, criterion=criterion)    
-    
-#     #Check that a Design object is returned
-#     assert isinstance(design, Design)
 
     
     

@@ -1,16 +1,33 @@
 #!/usr/bin/env python
-""" Pandas dataframes with column metadata
-
-Notes:
-    Copied from https://notes.mikejarrett.ca/storing-metadata-in-pandas-dataframes/
-"""
-
-__author__ = "Mike Jarret"
-
 import pandas as pd
+import numpy as np
+from sklearn.preprocessing import StandardScaler
+
+
+def normalize_df(df: pd.DataFrame):
+    s = StandardScaler()
+    transformed_values = s.fit_transform(df.values)
+    return pd.DataFrame(transformed_values,
+                        columns = df.columns,
+                        index=df.index)
+
+def zero_one_scale_df(df: pd.DataFrame):
+    values = df.values
+    maxes = np.max(values, axis=0)
+    mins = np.min(values, axis=0)
+    ranges = maxes-mins
+    scaled = (values-mins)/ranges
+    return pd.DataFrame(scaled,
+                        columns = df.columns,
+                        index = df.index)
+
 
 class MetaDataFrame(pd.DataFrame):
+    """ Pandas dataframes with column metadata
 
+    Notes:
+    Copied from https://notes.mikejarrett.ca/storing-metadata-in-pandas-dataframes/
+    """
     @property  
     def _constructor(self):
         return MetaDataFrame        

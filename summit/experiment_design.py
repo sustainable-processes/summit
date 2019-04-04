@@ -1,10 +1,16 @@
 from summit.domain import (Domain, Variable, ContinuousVariable, 
                           DiscreteVariable, DescriptorsVariable,
                           DomainError)
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from pyDOE import lhs
+
 from abc import ABC, abstractmethod
 from typing import Type, Tuple
-import numpy as np
-from pyDOE import lhs
 
 class Designer(ABC):
     def __init__(self, domain: Domain):
@@ -33,11 +39,13 @@ class Design:
                                     np.array([[100, 120, 150]]))
 
     """ 
-    def __init__(self, domain: Domain, num_samples):
+    def __init__(self, domain: Domain, num_samples, design_type: str):
         self._variable_names = [variable.name for variable in domain.variables]
-        self._indices = domain.num_variables * [np.zeros((num_samples, 1))]
-        self._values = domain.num_variables * [np.zeros((num_samples, 1))]
+        self._indices = domain.num_variables * [0]
+        self._values = domain.num_variables * [0]
         self.num_samples = num_samples
+        self.design_type = design_type
+        self._domain = domain
 
     def add_variable(self, variable_name: str, 
                      values: np.ndarray, indices: np.ndarray=None):
@@ -124,6 +132,17 @@ class Design:
 
         return self._variable_names.index(variable_name)
 
+    def _repr_html_(self):
+        df = pd.DataFrame([])
+        for i, variable in enumerate(self._domain.variables):
+            if variable.variable_type == 'descriptors':
+                descriptors = variable.df.iloc[self.get_indices(variable.name)[:, 0], :]
+                df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
+            else:
+                df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
+        return df.to_html()
+
+
 class RandomDesign(Designer):
     def __init__(self, domain: Domain, random_state: np.random.RandomState=None):
         self.domain = domain
@@ -142,7 +161,7 @@ class RandomDesign(Designer):
         design: `Design`
             A `Design` object with the random design
         """
-        design = Design(self.domain, num_experiments)
+        design = Design(self.domain, num_experiments, 'Random design')
 
         for i, variable in enumerate(self.domain.variables):
             if variable.variable_type == 'continuous':
@@ -170,10 +189,10 @@ class RandomDesign(Designer):
     def _random_discrete(self, variable: DiscreteVariable,
                         num_samples: int) -> Tuple[np.ndarray, np.ndarray]:
         """Generate a random design for a given discrete variable"""
-        indices = self._rstate.randint(0, variable.num_levels-1, size=num_samples)
+        indices = self._rstate.randint(0, variable.num_levels, size=num_samples)
         values = variable.levels[indices, :]
-        values = np.atleast_2d(values).T
-        indices = np.atleast_2d(indices).T
+        values.shape = (num_samples, 1)
+        indices.shape = (num_samples, 1)
         return indices, values
 
     def _random_descriptors(self, variable: DescriptorsVariable,
@@ -181,9 +200,8 @@ class RandomDesign(Designer):
         """Generate a design for a given descriptors variable"""
         indices = self._rstate.randint(0, variable.num_examples-1, size=num_samples)
         values = variable.df.values[indices, :]
-        if values.shape[1] == 1:
-            values = np.atleast_2d(values).T
-        indices = np.atleast_2d(indices).T
+        values.shape = (num_samples, variable.num_descriptors)
+        indices.shape = (num_samples, 1)
         return indices, values
 
 class LatinDesign(Designer):
@@ -202,9 +220,9 @@ class LatinDesign(Designer):
         Returns
         -------
         design: `Design`
-            A `Design` object with the random design
+            A `Design` object with the latin hypercube design
         """
-        design = Design(self.domain, num_experiments)
+        design = Design(self.domain, num_experiments, 'Latin design')
         
         #Instantiate the random design class to be used with discrete variables
         rdesigner = RandomDesign(self.domain, random_state=self._rstate)
@@ -215,11 +233,11 @@ class LatinDesign(Designer):
             samples = lhs(n, samples=num_experiments, criterion=criterion)
         
         k=0
-        
         for variable in self.domain.variables:
             #For continuous variable, use samples directly
             if variable.variable_type == 'continuous':
-                values = samples[:, k]
+                b = variable.lower_bound*np.ones(num_experiments)
+                values = b + samples[:, k]*(variable.upper_bound-variable.lower_bound)
                 values = np.atleast_2d(values).T
                 indices = None
                 k+=1
@@ -233,8 +251,9 @@ class LatinDesign(Designer):
                 num_descriptors = variable.num_descriptors
                 #TODO: to take into account subsetting
                 indices = _closest_point_indices(samples[:, k:k+num_descriptors+1],
-                                                 variable.df.values) 
-                values = variable.df.values[indices, :]
+                                                 variable.normalized.values) 
+                values = variable.df.values[indices[:, 0], :]
+                values.shape = (num_experiments, num_descriptors)
                 k+=num_descriptors-1
 
             else:

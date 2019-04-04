@@ -1,2 +1,2 @@
-from .metadata_frame import MetaDataFrame
+from .dataframe import normalize_df 
 from .check import check

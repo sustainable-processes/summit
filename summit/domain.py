@@ -1,3 +1,4 @@
+from summit.utils.dataframe import zero_one_scale_df
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Type
@@ -240,6 +241,7 @@ class DescriptorsVariable(Variable):
                  select_subset: np.ndarray= None):
         Variable.__init__(self, name, description, 'descriptors')
         self.df = df
+        self._normalized = zero_one_scale_df(self.df)
         self.select_subset = select_subset
 
     @property
@@ -249,6 +251,10 @@ class DescriptorsVariable(Variable):
     @property
     def num_examples(self):
         return self.df.shape[0]
+    
+    @property
+    def normalized(self):
+        return self._normalized 
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_examples} examples of {self.num_descriptors} descriptors")
@@ -308,8 +314,11 @@ class Domain:
         return self
     
     def _repr_html_(self):
-        """
-        Build html string for table display in jupyter notebooks.
+        """Build html string for table display in jupyter notebooks.
+        
+        Notes
+        -----
+        Adapted from https://github.com/GPflow/GPflowOpt/blob/master/gpflowopt/domain.py
         """
         html = ["<table id='domain' width=100%>"]
 
