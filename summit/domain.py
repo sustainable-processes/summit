@@ -17,10 +17,11 @@ class Variable:
     name
     description
     """
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str, variable_type: str):
         Variable._check_name(name)
         self._name = name
         self._description = description
+        self._variable_type = variable_type
 
     @property
     def name(self)-> str:
@@ -40,6 +41,10 @@ class Variable:
     @description.setter
     def description(self, value: str):
         self._description = value
+
+    @property
+    def variable_type(self) -> str:
+        return self._variable_type
     
     @staticmethod
     def _check_name(name: str):
@@ -81,7 +86,7 @@ class ContinuousVariable(Variable):
     """
 
     def __init__(self, name: str, description: str, bounds: list):
-        Variable.__init__(self, name, description)
+        Variable.__init__(self, name, description, 'continuous')
         self._lower_bound = bounds[0]
         self._upper_bound = bounds[1]
 
@@ -125,7 +130,7 @@ class DiscreteVariable(Variable):
 
     """
     def __init__(self, name, description, levels):
-        Variable.__init__(self, name, description)
+        Variable.__init__(self, name, description, 'discrete')
         
         #check that levels are unique
         if len(list({v for v in levels})) != len(levels):
@@ -135,7 +140,8 @@ class DiscreteVariable(Variable):
     @property
     def levels(self) -> np.ndarray:
         """`numpy.ndarray`: Potential values of the discrete variable"""
-        return np.array(self._levels)
+        levels = np.array(self._levels)
+        return np.atleast_2d(levels).T
 
     @property
     def num_levels(self) -> int:
@@ -214,7 +220,7 @@ class DescriptorsVariable(Variable):
     def __init__(self, name: str, description: str, 
                  df: pd.DataFrame, 
                  select_subset: np.ndarray= None):
-        Variable.__init__(self, name, description)
+        Variable.__init__(self, name, description, 'descriptors')
         self.df = df
         self.select_subset = select_subset
 
@@ -256,6 +262,22 @@ class Domain:
     def num_variables(self) -> int:
         """int: Number of variables in the domain"""
         return len(self.variables)
+
+    @property
+    def num_discrete_variables(self) -> int:
+        """int: Number of discrete variables in the domain"""
+        discrete_bool = [hasattr(variable, 'levels') and hasattr(variable, 'num_levels')
+                         for variable in self._variables]
+        return discrete_bool.count(True)
+
+    @property
+    def num_continuous_dimensions(self) -> int:
+        """int: The number of continuous dimensions, including dimensions of descriptors variables"""
+        check_continuous_like = lambda v: (hasattr(v, 'lower_bound') and hasattr(v, 'upper_bound')) or \
+                                          (hasattr(v, 'df') and hasattr(v, 'num_examples'))
+        continuous_bool = [check_continuous_like(variable)
+                           for variable in self._variables]
+        return continuous_bool.count(True)
     
     def __add__(self, var):
         # assert type(var) == Variable

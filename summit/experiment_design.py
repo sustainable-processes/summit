@@ -4,6 +4,7 @@ from summit.domain import (Domain, Variable, ContinuousVariable,
 from abc import ABC, abstractmethod
 from typing import Type, Tuple
 import numpy as np
+from pyDOE import lhs
 
 class Designer(ABC):
     def __init__(self, domain: Domain):
@@ -57,9 +58,11 @@ class Design:
             If indices or values are not a two-dimensional array.
         """
         variable_index = self._get_variable_index(variable_name)
+        if values.ndim < 2:
+            raise ValueError("Values must be 2 dimensional. Use np.atleast_2d.")
         if indices is not None:
-            if indices.ndim < 2 or values.ndim < 2:
-                raise ValueError("Indices and values must be 2 dimensional. Use np.atleast_2d.")
+            if indices.ndim < 2:
+                raise ValueError("Indices must be 2 dimensional. Use np.atleast_2d.")
             self._indices[variable_index] = indices 
         self._values[variable_index] = values
 
@@ -127,7 +130,7 @@ class RandomDesign(Designer):
         self._rstate = random_state if random_state else np.random.RandomState()
     
     def generate_experiments(self, num_experiments: int) -> Design:
-        """ Generate an experimental design 
+        """ Generate a random experimental design 
         
         Parameters
         ---------- 
@@ -142,12 +145,12 @@ class RandomDesign(Designer):
         design = Design(self.domain, num_experiments)
 
         for i, variable in enumerate(self.domain.variables):
-            if hasattr(variable, 'lower_bound') and hasattr(variable, 'upper_bound'):
+            if variable.variable_type == 'continuous':
                 values = self._random_continuous(variable, num_experiments)
                 indices = None
-            elif hasattr(variable, 'levels') and hasattr(variable, 'num_levels'):
+            elif variable.variable_type == 'discrete':
                 indices, values = self._random_discrete(variable, num_experiments)
-            elif hasattr(variable, 'df') and hasattr('num_examples'):
+            elif variable.variable_type == 'descriptors':
                 indices, values = self._random_descriptors(variable, num_experiments)
             else:
                 raise DomainError(f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors).")
@@ -162,13 +165,15 @@ class RandomDesign(Designer):
         sample = self._rstate.rand(num_samples, 1)
         b = variable.lower_bound*np.ones([num_samples, 1])
         values = b + sample*(variable.upper_bound-variable.lower_bound)
-        return values
+        return np.atleast_2d(values).T
 
     def _random_discrete(self, variable: DiscreteVariable,
                         num_samples: int) -> Tuple[np.ndarray, np.ndarray]:
         """Generate a random design for a given discrete variable"""
         indices = self._rstate.randint(0, variable.num_levels-1, size=num_samples)
-        values = variable.levels[indices]
+        values = variable.levels[indices, :]
+        values = np.atleast_2d(values).T
+        indices = np.atleast_2d(indices).T
         return indices, values
 
     def _random_descriptors(self, variable: DescriptorsVariable,
@@ -176,13 +181,87 @@ class RandomDesign(Designer):
         """Generate a design for a given descriptors variable"""
         indices = self._rstate.randint(0, variable.num_examples-1, size=num_samples)
         values = variable.df.values[indices, :]
+        if values.shape[1] == 1:
+            values = np.atleast_2d(values).T
+        indices = np.atleast_2d(indices).T
         return indices, values
 
-class ModifiedLatinDesign(Designer):
-    def __init__(self, domain: Domain):
-        Design.__init__(self, domain)
+class LatinDesign(Designer):
+    def __init__(self, domain: Domain, random_state: np.random.RandomState=None):
+        self.domain = domain
+        self._rstate = random_state if random_state else np.random.RandomState()
 
-    def generate_experiments(self, n_experiments, criterion='maximin'):
-        pass
+    def generate_experiments(self, num_experiments, criterion='center') -> Design:
+        """ Generate latin hypercube experimental design 
         
+        Parameters
+        ---------- 
+        num_experiments: int
+            The number of experiments (i.e., samples) to generate
+        
+        Returns
+        -------
+        design: `Design`
+            A `Design` object with the random design
+        """
+        design = Design(self.domain, num_experiments)
+        
+        #Instantiate the random design class to be used with discrete variables
+        rdesigner = RandomDesign(self.domain, random_state=self._rstate)
+
+        num_discrete = self.domain.num_discrete_variables
+        n = self.domain.num_continuous_dimensions
+        if num_discrete < n:
+            samples = lhs(n, samples=num_experiments, criterion=criterion)
+        
+        k=0
+        
+        for variable in self.domain.variables:
+            #For continuous variable, use samples directly
+            if variable.variable_type == 'continuous':
+                values = samples[:, k]
+                values = np.atleast_2d(values).T
+                indices = None
+                k+=1
+
+            #For discrete variable, randomly choose
+            elif variable.variable_type == 'discrete':
+                indices, values = rdesigner._random_discrete(variable, num_experiments)
+
+            #For descriptors variable, choose closest point by euclidean distance
+            elif variable.variable_type == 'descriptors':
+                num_descriptors = variable.num_descriptors
+                #TODO: to take into account subsetting
+                indices = _closest_point_indices(samples[:, k:k+num_descriptors+1],
+                                                 variable.df.values) 
+                values = variable.df.values[indices, :]
+                k+=num_descriptors-1
+
+            else:
+                raise DomainError(f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors).")
+
+            design.add_variable(variable.name, values, indices=indices)
+        
+        return design      
+
+def _closest_point_indices(design_points, candidate_matrix):
+    '''Return the indices of the closest point in the candidate matrix to each design point'''
+    indices = [_closest_point_index(design_point, candidate_matrix)
+                 for design_point in design_points]
+    indices = np.array(indices)
+    return np.atleast_2d(indices).T
+
+def _closest_point_index(design_point, candidate_matrix):
+    '''Return the index of the closest point in the candidate matrix'''
+    distances = _design_distances(design_point, candidate_matrix)
+    return np.argmin(np.atleast_2d(distances)) 
+
+def _design_distances(design_point,candidate_matrix):
+    ''' Return the distances between a design_point and all candidates'''
+    diff = design_point - candidate_matrix
+    squared = np.power(diff, 2)
+    summed  = np.sum(squared, axis=1)
+    root_square = np.sqrt(summed)
+    return root_square
+
         
