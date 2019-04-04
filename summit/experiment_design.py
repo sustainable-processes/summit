@@ -132,7 +132,7 @@ class Design:
 
         return self._variable_names.index(variable_name)
 
-    def _repr_html_(self):
+    def to_frame(self) -> pd.DataFrame:
         df = pd.DataFrame([])
         for i, variable in enumerate(self._domain.variables):
             if variable.variable_type == 'descriptors':
@@ -140,7 +140,10 @@ class Design:
                 df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
             else:
                 df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
-        return df.to_html()
+        return df
+
+    def _repr_html_(self):
+        return self.to_frame().to_html()
 
 
 class RandomDesign(Designer):
