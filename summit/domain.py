@@ -1,8 +1,9 @@
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Type
+from abc import ABC, abstractmethod
 
-class Variable:
+class Variable(ABC):
     """A base class for variables
     
     Parameters
@@ -58,6 +59,18 @@ class Variable:
     def __repr__(self):
         return f"Variable(name={self.name}, description={self.description})"
 
+    @abstractmethod
+    def _html_table_rows(self):
+        pass
+
+    def _make_html_table_rows(self, value):
+        name_column = f"<td>{self.name}</td>"
+        type_column = f"<td>{self.variable_type}</td>"
+        description_column = f"<td>{self.description}</td>"
+        values_column = f"<td>{value}</td>"
+        return f"<tr>{name_column}{type_column}{description_column}{values_column}</tr>"
+
+
 
 class ContinuousVariable(Variable):
     """Representation of a continuous variable
@@ -104,6 +117,9 @@ class ContinuousVariable(Variable):
     def upper_bound(self):
         """float or int: upper bound of the variable"""
         return self._upper_bound
+
+    def _html_table_rows(self):
+        return self._make_html_table_rows(f"[{self.lower_bound},{self.upper_bound}]")
 
     
 class DiscreteVariable(Variable):
@@ -182,6 +198,8 @@ class DiscreteVariable(Variable):
         except ValueError:
             raise ValueError(f"Level {level} is not in the list of levels.")
 
+    def _html_table_rows(self):
+        return self._make_html_table_rows(f"{self.num_levels} levels")
 
 class DescriptorsVariable(Variable):
     """Representation of a set of descriptors
@@ -232,6 +250,9 @@ class DescriptorsVariable(Variable):
     def num_examples(self):
         return self.df.shape[0]
 
+    def _html_table_rows(self):
+        return self._make_html_table_rows(f"{self.num_examples} examples of {self.num_descriptors} descriptors")
+
 class Domain:
     """Representation of the optimization domain
 
@@ -266,23 +287,49 @@ class Domain:
     @property
     def num_discrete_variables(self) -> int:
         """int: Number of discrete variables in the domain"""
-        discrete_bool = [hasattr(variable, 'levels') and hasattr(variable, 'num_levels')
+        discrete_bool = [variable.variable_type == 'discrete'
                          for variable in self._variables]
         return discrete_bool.count(True)
 
     @property
     def num_continuous_dimensions(self) -> int:
         """int: The number of continuous dimensions, including dimensions of descriptors variables"""
-        check_continuous_like = lambda v: (hasattr(v, 'lower_bound') and hasattr(v, 'upper_bound')) or \
-                                          (hasattr(v, 'df') and hasattr(v, 'num_examples'))
-        continuous_bool = [check_continuous_like(variable)
-                           for variable in self._variables]
-        return continuous_bool.count(True)
+        k = 0
+        for v in self._variables:
+            if v.variable_type == 'continuous':
+                k+=1
+            if v.variable_type == 'descriptors':
+                k+= v.num_descriptors
+        return k
     
     def __add__(self, var):
         # assert type(var) == Variable
         self._variables.append(var)
         return self
+    
+    def _repr_html_(self):
+        """
+        Build html string for table display in jupyter notebooks.
+        """
+        html = ["<table id='domain' width=100%>"]
+
+        # Table header
+        columns = ['Name', 'Type', 'Description', 'Values']
+        header = "<tr>"
+        header += ''.join(map(lambda l: "<td><b>{0}</b></td>".format(l), columns))
+        header += "</tr>"
+        html.append(header)
+
+        # Add parameters
+        html.append(self._html_table_rows())
+        html.append("</table>")
+
+        return ''.join(html)
+
+    def _html_table_rows(self):
+        return ''.join(map(lambda l: l._html_table_rows(), self._variables))
+
+        
 
 class DomainError(Exception):
     pass
