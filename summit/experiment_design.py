@@ -12,14 +12,6 @@ from pyDOE import lhs
 from abc import ABC, abstractmethod
 from typing import Type, Tuple
 
-class Designer(ABC):
-    def __init__(self, domain: Domain):
-        self.domain = domain
-
-    @abstractmethod
-    def generate_experiments(self):
-        raise NotImplementedError("Subclasses should implement this method.")
-
 class Design:
     """Representation of an experimental desgin
     
@@ -28,7 +20,9 @@ class Design:
     domain: summit.domain.Domain
         The domain of the design
     num_samples: int
-        Number of samples in the design  
+        Number of samples in the design 
+    design_type: str
+        The name of the design type 
 
     Examples
     --------
@@ -125,14 +119,12 @@ class Design:
 
         return values
 
-    def _get_variable_index(self, variable_name: str) -> int:
-        '''Method for getting the internal index for a variable'''
-        if not variable_name in self._variable_names:
-            raise ValueError(f"Variable {variable_name} not in domain.")
-
-        return self._variable_names.index(variable_name)
-
     def to_frame(self) -> pd.DataFrame:
+        ''' Get design as a pandas dataframe 
+        Returns
+        -------
+        df: pd.DataFrame
+        ''' 
         df = pd.DataFrame([])
         for i, variable in enumerate(self._domain.variables):
             if variable.variable_type == 'descriptors':
@@ -142,9 +134,22 @@ class Design:
                 df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
         return df
 
+    def _get_variable_index(self, variable_name: str) -> int:
+        '''Method for getting the internal index for a variable'''
+        if not variable_name in self._variable_names:
+            raise ValueError(f"Variable {variable_name} not in domain.")
+        return self._variable_names.index(variable_name)
+
     def _repr_html_(self):
         return self.to_frame().to_html()
 
+class Designer(ABC):
+    def __init__(self, domain: Domain):
+        self.domain = domain
+
+    @abstractmethod
+    def generate_experiments(self):
+        raise NotImplementedError("Subclasses should implement this method.")
 
 class RandomDesign(Designer):
     def __init__(self, domain: Domain, random_state: np.random.RandomState=None):
@@ -254,8 +259,8 @@ class LatinDesign(Designer):
                 num_descriptors = variable.num_descriptors
                 #TODO: to take into account subsetting
                 indices = _closest_point_indices(samples[:, k:k+num_descriptors+1],
-                                                 variable.normalized.values) 
-                values = variable.df.values[indices[:, 0], :]
+                                                 variable.get_subset(zero_to_one=True)) 
+                values = variable.get_subset().values[indices[:, 0], :]
                 values.shape = (num_experiments, num_descriptors)
                 k+=num_descriptors-1
 
