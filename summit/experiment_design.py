@@ -128,7 +128,7 @@ class Design:
         df = pd.DataFrame([])
         for i, variable in enumerate(self._domain.variables):
             if variable.variable_type == 'descriptors':
-                descriptors = variable.df.iloc[self.get_indices(variable.name)[:, 0], :]
+                descriptors = variable.ds.iloc[self.get_indices(variable.name)[:, 0], :]
                 df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
             else:
                 df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
@@ -207,7 +207,7 @@ class RandomDesign(Designer):
                             num_samples: int) -> Tuple[np.ndarray, np.ndarray]:
         """Generate a design for a given descriptors variable"""
         indices = self._rstate.randint(0, variable.num_examples-1, size=num_samples)
-        values = variable.df.values[indices, :]
+        values = variable.ds.descriptors_to_numpy()[indices, :]
         values.shape = (num_samples, variable.num_descriptors)
         indices.shape = (num_samples, 1)
         return indices, values
@@ -257,10 +257,11 @@ class LatinDesign(Designer):
             #For descriptors variable, choose closest point by euclidean distance
             elif variable.variable_type == 'descriptors':
                 num_descriptors = variable.num_descriptors
-                #TODO: to take into account subsetting
+                normal_arr = variable.ds.zero_to_one()
                 indices = _closest_point_indices(samples[:, k:k+num_descriptors+1],
-                                                 variable.get_subset(zero_to_one=True)) 
-                values = variable.get_subset().values[indices[:, 0], :]
+                                                 normal_arr)
+               
+                values = normal_arr[indices[:, 0], :]
                 values.shape = (num_experiments, num_descriptors)
                 k+=num_descriptors-1
 
@@ -269,7 +270,7 @@ class LatinDesign(Designer):
 
             design.add_variable(variable.name, values, indices=indices)
         
-        return design      
+        return design     
 
 def _closest_point_indices(design_points, candidate_matrix):
     '''Return the indices of the closest point in the candidate matrix to each design point'''

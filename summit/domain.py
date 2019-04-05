@@ -1,4 +1,4 @@
-from summit.utils.dataframe import zero_one_scale_df
+from summit.data import DataSet
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Type
@@ -70,8 +70,6 @@ class Variable(ABC):
         description_column = f"<td>{self.description}</td>"
         values_column = f"<td>{value}</td>"
         return f"<tr>{name_column}{type_column}{description_column}{values_column}</tr>"
-
-
 
 class ContinuousVariable(Variable):
     """Representation of a continuous variable
@@ -211,12 +209,8 @@ class DescriptorsVariable(Variable):
         The name of the variable
     description: str
         A short description of the variable 
-    df: pandas.DataFrame
-        A pandas dataframe with the values of descriptors
-    select_subset: numpy.ndarray, optional
-        A subset of index values in the df that should be selected from in all designs and optimizations
-    select_index: str, optional
-        For use with multindex dataframes. This parameter specifies the name of the index to select from.
+    ds: DataSet
+        A dataset object
 
     Attributes
     ---------
@@ -239,76 +233,69 @@ class DescriptorsVariable(Variable):
     >>> solvent = DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
     """    
     def __init__(self, name: str, description: str, 
-                 df: pd.DataFrame, 
-                 select_subset: np.ndarray= None,
-                 select_index: str = None):
+                 ds: DataSet):
         Variable.__init__(self, name, description, 'descriptors')
-        self.df = df
-        self.select_subset = select_subset
-        self.select_index = select_index
+        self.ds = ds
 
     @property
     def num_descriptors(self) -> int:
-        return self.df.shape[1]
+        return self.ds.num_data_columns
 
     @property
     def num_examples(self):
-        return self.df.shape[0]
+        return self.ds.shape[0]
     
-    def zero_to_one(self):
-        return zero_one_scale_df(self.df)
+    # def get_subset(self, select_subset=None, select_index=None, zero_to_one=False):
+    #     ''' Get a subset of the examples of the descriptor 
+        
+    #     Parameters
+    #     ---------- 
+    #     select_subset: list or 1d numpy array, optional
+    #         A list of index keys in the dataframe to select. 
+    #         By default, the select_subset variable from the instance of the class is used.
+    #     select_index: str, optional
+    #         For use with multindex dataframes. This parameter specifies the name of the index to select from.
+    #         By default, the select_index from the instance of the class is used
+    #     zero_to_one: bool, optional
+    #         If true, the descriptors will be scaled to be between 0 and 1. By default, False.
+        
+    #     Returns
+    #     -------
+    #     result: `bool`
+    #         description
+        
+    #     Raises
+    #     ------
+    #     ValueError
+    #         If a select_subset cannot be found        
     
-    def get_subset(self, select_subset=None, select_index=None, zero_to_one=False):
-        ''' Get a subset of the examples of the descriptor 
-        
-        Parameters
-        ---------- 
-        select_subset: list or 1d numpy array, optional
-            A list of index keys in the dataframe to select. 
-            By default, the select_subset variable from the instance of the class is used.
-        select_index: str, optional
-            For use with multindex dataframes. This parameter specifies the name of the index to select from.
-            By default, the select_index from the instance of the class is used
-        zero_to_one: bool, optional
-            If true, the descriptors will be scaled to be between 0 and 1. By default, False.
-        
-        Returns
-        -------
-        result: `bool`
-            description
-        
-        Raises
-        ------
-        ValueError
-            If a select_subset cannot be found        
-    
-        '''
-        if select_subset is not None:
-            pass
-        elif select_subset is None and self.select_subset is not None:
-            select_subset = self.select_subset
-        elif self.select_subset is None:
-            raise ValueError("Cannot get subset because select_subset is None")
+    #     '''
+    #     if select_subset is not None:
+    #         pass
+    #     elif select_subset is None and self.select_subset is not None:
+    #         select_subset = self.select_subset
+    #     elif self.select_subset is None:
+    #         raise ValueError("Cannot get subset because select_subset is None")
 
-        if not select_index and self.select_index:
-            select_index = self.select_index
+    #     if not select_index and self.select_index:
+    #         select_index = self.select_index
 
-        if zero_to_one:
-            df = self.zero_to_one()
-        else:
-            df = self.df
+    #     if zero_to_one:
+    #         df = self.zero_to_one()
+    #     else:
+    #         df = self.df
 
-        if select_index:
-            for i, index in enumerate(select_subset):
-                select = df.xs(index, level=select_index, drop_level=False)
-                if i == 0:
-                    subset_df = select
-                else:
-                    subset_df = pd.concat([subset_df, select])
-        else:
-            subset_df = df.loc[select_subset, :]
+    #     if select_index:
+    #         for i, index in enumerate(select_subset):
+    #             select = df.xs(index, level=select_index, drop_level=False)
+    #             if i == 0:
+    #                 subset_df = select
+    #             else:
+    #                 subset_df = pd.concat([subset_df, select])
+    #     else:
+    #         subset_df = df.loc[select_subset, :]
 
-        return subset_df
+    #     return subset_df
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_examples} examples of {self.num_descriptors} descriptors")
@@ -363,7 +350,6 @@ class Domain:
         return k
     
     def __add__(self, var):
-        # assert type(var) == Variable
         self._variables.append(var)
         return self
     
