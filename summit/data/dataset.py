@@ -1,25 +1,7 @@
 #!/usr/bin/env python
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
 from typing import List
-
-def normalize_df(df: pd.DataFrame):
-    s = StandardScaler()
-    transformed_values = s.fit_transform(df.descriptors_to_numpy())
-    return pd.DataFrame(transformed_values,
-                        columns = df.columns,
-                        index=df.index)
-
-def zero_one_scale_df(df):
-    values = df.descriptors_to_numpy()
-    maxes = np.max(values, axis=0)
-    mins = np.min(values, axis=0)
-    ranges = maxes-mins
-    scaled = (values-mins)/ranges
-    return pd.DataFrame(scaled,
-                        columns = df.columns,
-                        index = df.index)
 
 class DataSet(pd.core.frame.DataFrame):
     """ A represenation of a dataset
@@ -31,6 +13,100 @@ class DataSet(pd.core.frame.DataFrame):
     ----
     Based on https://notes.mikejarrett.ca/storing-metadata-in-pandas-dataframes/
     """
+    @staticmethod
+    def from_df(df: pd.DataFrame, metadata_columns: List=[], 
+                units: List = []):
+        '''Create Dataset from a pandas dataframe
+    
+        Arguments
+        ----------
+        df: pandas.DataFrame
+            Dataframe to be converted to a DataSet
+        metadata_columns: list, optional
+            names of the columns in the dataframe that are metadata columns
+        units: list, optional 
+            A list of objects representing the units of the columns
+        '''
+        column_names = df.columns.to_numpy()
+        if metadata_columns:
+            types = ['METADATA' if x in metadata_columns else 'DATA' for x in df.columns]
+        else:
+            types = ['DATA' for _ in range(len(column_names))]
+        arrays = [column_names, types]
+        levels = ['NAME', 'TYPE']
+        if units:
+            arrays.append(units)
+            levels.append('UNITS')
+        tuples=list(zip(*arrays))
+        columns = pd.MultiIndex.from_tuples(tuples, names=levels)
+
+        return DataSet(df.to_numpy(), columns=columns, index=df.index)
+
+    def zero_to_one(self, small_tol=1.0e-5) -> np.ndarray:
+        ''' Scale the data columns between zero and one 
+
+        Each of the data columns is scaled between zero and one 
+        based on the maximum and minimum values of each column
+
+        Arguments
+        ---------
+        small_tol: float, optional
+            The minimum value of any value in the final scaled array. 
+            This is used to prevent very small values that will cause
+            issues in later calcualtions. Defaults to 1e-5.
+
+        Returns
+        -------
+        scaled: numpy.ndarray
+            A numpy array with the scaled data columns
+
+        Notes
+        ----- 
+        This method does not change the internal values of the data columns in place.
+
+        ''' 
+        values = self.descriptors_to_numpy()
+        values = values.astype(np.float64)
+        maxes = np.max(values, axis=0)
+        mins = np.min(values, axis=0)
+        ranges = maxes-mins
+        scaled = (values-mins)/ranges
+        scaled[abs(scaled) < small_tol] = 0.0
+        return scaled
+
+    def standardize(self, small_tol=1.0e-5) -> np.ndarray:
+        """Standardize data columns by removing the mean and scaling to unit variance
+
+        The standard score of each data column is calculated as:
+            z = (x - u) / s
+        where `u` is the mean of the columns and `s` is the standard deviation of 
+        each data column
+        
+        Parameters
+        ---------- 
+        small_tol: float, optional
+            The minimum value of any value in the final scaled array. 
+            This is used to prevent very small values that will cause
+            issues in later calcualtions. Defaults to 1e-5.
+        
+        Returns
+        -------
+        standard: np.ndarray
+            Numpy array of the standardized data columns
+
+        Notes
+        ----- 
+        This method does not change the internal values of the data columns in place.
+        
+        """
+        values = self.descriptors_to_numpy()
+        values = values.astype(np.float64)
+        mean = np.mean(values, axis=0)
+        sigma = np.std(values, axis=0)
+        standard = (values-mean)/sigma
+        standard[abs(standard) < small_tol] = 0.0
+        return standard
+
     @property  
     def _constructor(self):
         return DataSet       
@@ -86,60 +162,4 @@ class DataSet(pd.core.frame.DataFrame):
     def metadata_columns(self):
         return [column[0] for column in self.columns if column[1]=='METADATA']
 
-    @staticmethod
-    def from_df(df: pd.DataFrame, metadata_columns: List=[], 
-                units: List = []):
-        '''Create Dataset from a pandas dataframe
-    
-        Arguments
-        ----------
-        df: pandas.DataFrame
-            Dataframe to be converted to a DataSet
-        metadata_columns: list, optional
-            names of the columns in the dataframe that are metadata columns
-        units: list, optional 
-            A list of objects representing the units of the columns
-        '''
-        column_names = df.columns.to_numpy()
-        if metadata_columns:
-            types = ['METADATA' if x in metadata_columns else 'DATA' for x in df.columns]
-        else:
-            types = ['DATA' for _ in range(len(column_names))]
-        arrays = [column_names, types]
-        levels = ['NAME', 'TYPE']
-        if units:
-            arrays.append(units)
-            levels.append('UNITS')
-        tuples=list(zip(*arrays))
-        columns = pd.MultiIndex.from_tuples(tuples, names=levels)
-
-        return DataSet(df.to_numpy(), columns=columns, index=df.index)
-
-    def zero_to_one(self, small_tol=1.0e-5):
-        ''' Scale the data columns between zero and one 
-
-        Each of the data columns is scaled between zero and one 
-        based on the maximum and minimum values of each column
-
-        Arguments
-        ---------
-        remove_small: float
-            The minimum value of any value in the final scaled array. 
-            This is used to prevent very small values that will cause
-            issues in later calcualtions
-
-        Returns
-        -------
-        scaled: numpy.ndarray
-            A numpy array with the scaled data columns
-
-        ''' 
-        values = self.descriptors_to_numpy()
-        values = values.astype(np.float64)
-        maxes = np.max(values, axis=0)
-        mins = np.min(values, axis=0)
-        ranges = maxes-mins
-        scaled = (values-mins)/ranges
-        scaled[abs(scaled) < small_tol] = 0.0
-        return scaled
 

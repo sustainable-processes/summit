@@ -1,116 +1,116 @@
-﻿cas_number
-76-05-1
-108-24-7
-1493-13-6
-50-21-5
-64-18-6
-67-19-7
-79-09-4
-75-75-2
-107-21-1
-107-98-2
-108-93-0
-111-70-6
-111-87-5
-123-51-3
-57-55-6
-64-17-5
-67-56-1
-67-63-0
-71-36-3
-71-41-0
-75-65-0
-78-83-1
-78-92-2
-109-86-4
-100-51-6
-504-63-2
-56-81-5
-71-23-8
-75-85-4
-540-84-1
-108-87-2
-110-82-7
-142-82-5
-109-66-0
-110-54-3
-108-88-3
-1330-20-7
-5989-27-5
-8006-64-2
-98-08-8
-98-82-8
-99-87-6
-71-43-2
-108-75-8
-110-86-1
-121-44-8
-105-58-8
-616-38-6
-108-32-7
-4437-85-8
-53716-82-8
-67-68-5
-7226-23-5
-75-05-8
-80-73-9
-96-49-1
-680-31-9
-75-15-0
-75-52-5
-126-33-0
-127-19-5
-68-12-2
-872-50-4
-103-09-3
-108-21-4
-109-60-4
-110-19-0
-111-55-7
-123-86-4
-123-92-2
-141-78-6
-627-93-0
-102-76-1
-107-31-3
-108-29-2
-109-94-4
-141-03-7
-628-63-7
-687-47-8
-79-20-9
-540-88-5
-100-66-3
-994-05-8
-109-99-9
-111-62-6
-123-25-1
-15045-43-9
-20637-49-4
-5306-85-4
-5614-37-9
-637-92-3
-6863-58-7
-96-47-9
-60-29-7
-108-20-3
-110-71-4
-111-96-6
-123-91-1
-1634-04-4
-97-99-4
-98-00-0
-108-90-7
-109-69-3
-107-06-2
-67-66-3
-75-09-2
-108-10-1
-67-64-1
-78-93-3
-108-94-1
-591-78-6
-120-92-3
-25322-68-3
-25322-69-4
-7732-18-5
+﻿cas_number,solvent_class,solvent_name
+76-05-1,Acid,Trifluoroacetic acid (TFA)
+108-24-7,Acid,Acetic anhydride (Ac2O)
+1493-13-6,Acid,Triflic acid
+50-21-5,Acid,Lactic Acid
+64-18-6,Acid,Formic acid
+67-19-7,Acid,Acetic acid
+79-09-4,Acid,Propionic acid
+75-75-2,Acid,Methansulfonic acid
+107-21-1,Alcohol,Ethylene glycol
+107-98-2,Alcohol,1-Methoxypropan-2-ol
+108-93-0,Alcohol,Cyclohexanol
+111-70-6,Alcohol,1-Heptanol
+111-87-5,Alcohol,1-Octanol
+123-51-3,Alcohol,Isoamyl alcohol
+57-55-6,Alcohol,"1,2-Propanediol"
+64-17-5,Alcohol,Ethanol
+67-56-1,Alcohol,Methanol
+67-63-0,Alcohol,2-Propanol (IPA)
+71-36-3,Alcohol,1-Butanol
+71-41-0,Alcohol,1-Pentanol
+75-65-0,Alcohol,t-Butanol
+78-83-1,Alcohol,Isobutanol
+78-92-2,Alcohol,2-Butanol
+109-86-4,Alcohol,2-Methoxy ethanol
+100-51-6,Alcohol,Benzyl Alcohol
+504-63-2,Alcohol,"1,3-Propanediol"
+56-81-5,Alcohol,Glycerol
+71-23-8,Alcohol,1-Propanol
+75-85-4,Alcohol,t-Amyl alcohol
+540-84-1,Alkane,Isooctane
+108-87-2,Alkane,Me-Cyclohexane
+110-82-7,Alkane,Cyclohexane
+142-82-5,Alkane,n-Heptane
+109-66-0,Alkane,Pentane
+110-54-3,Alkane,Hexane
+108-88-3,Aromatic,Toluene
+1330-20-7,Aromatic,Xylenes
+5989-27-5,Aromatic,p-Limonene
+8006-64-2,Aromatic,Turpentine
+98-08-8,Aromatic,Trifluorotoluene
+98-82-8,Aromatic,Cumene
+99-87-6,Aromatic,p-Cymene
+71-43-2,Aromatic,Benzene
+108-75-8,Base,"2,4,6-Collidine"
+110-86-1,Base,Pyridine
+121-44-8,Base,   Triethylamine
+105-58-8,Dipolar aprotic,Diethyl carbonate
+616-38-6,Dipolar aprotic,Dimethyl carbonate
+108-32-7,Dipolar aprotic,Propylene carbonate 
+4437-85-8,Dipolar aprotic,Butylene carbonate
+53716-82-8,Dipolar aprotic,Cyrene
+67-68-5,Dipolar aprotic,Dimethyl sulfoxide (DMSO)
+7226-23-5,Dipolar aprotic,Dimethyl phosphonyl urea (DMPU)
+75-05-8,Dipolar aprotic,Acetonitrile
+80-73-9,Dipolar aprotic,"Dimethyl ethylene urea (DMI, DMEU)"
+96-49-1,Dipolar aprotic,Ethylene carbonate
+680-31-9,Dipolar aprotic,Hexamethyl phosphoramidite (HMPA)
+75-15-0,Dipolar aprotic,Carbon disulfide
+75-52-5,Dipolar aprotic,Nitromethane
+126-33-0,Dipolar aprotic,Sulfolane
+127-19-5,Dipolar aprotic,Dimethyl acetamide (DMAc)
+68-12-2,Dipolar aprotic,Dimethyl formamide (DMF)
+872-50-4,Dipolar aprotic,N-methylpyrrolidone (NMP)
+103-09-3,Ester,2-Ethylhexylacetate
+108-21-4,Ester,Isopropyl acetate
+109-60-4,Ester,Propyl acetate
+110-19-0,Ester,Isobutyl acetate
+111-55-7,Ester,Glycol diacetate
+123-86-4,Ester,Butyl acetate
+123-92-2,Ester,Isoamyl acetate
+141-78-6,Ester,Ethyl acetate
+627-93-0,Ester,Dimethyl adipate
+102-76-1,Ester,Glycol triacetate
+107-31-3,Ester,Methyl formate
+108-29-2,Ester,γ-Valerolactone (GVL)
+109-94-4,Ester,Ethyl formate
+141-03-7,Ester,Dibutyl succinate
+628-63-7,Ester,Amyl acetate
+687-47-8,Ester,Ethyl Lactate
+79-20-9,Ester,Methyl acetate
+540-88-5,Ester,t-Butyl acetate
+100-66-3,Ether,Anisole
+994-05-8,Ether,Tert-amyl ethyl ether (TAME)
+109-99-9,Ether,Tetrahydrofuran (THF)
+111-62-6,Ether,Methyl oleate
+123-25-1,Ether,Dimetyl succinate
+15045-43-9,Ether,Tetramethyl tetrahydrofurane (TMTHF)
+20637-49-4,Ether,"1,2,3-trimethoxy propane"
+5306-85-4,Ether,Dimethyl isosorbide
+5614-37-9,Ether,Cyclopentyl methyl ether (CPME)
+637-92-3,Ether,Ethyl tert-butyl ether (ETBE)
+6863-58-7,Ether,Butyl ether
+96-47-9,Ether,Methyl tetrahydrofuran (Me-THF)
+60-29-7,Ether,Diethyl ether
+108-20-3,Ether,Diisopropyl ether (DIPE)
+110-71-4,Ether,Dimethoxyethane (DME)
+111-96-6,Ether,Diglyme
+123-91-1,Ether,"1,2-Dioxane"
+1634-04-4,Ether,Methyl tert-butyl ether (MTBE)
+97-99-4,Ether,Tetrahydro furfuryl alcohol (THFA)
+98-00-0,Ether,Furfuryl alcool
+108-90-7,Halogenated,Chlorobenzene
+109-69-3,Halogenated,Chlorobutane
+107-06-2,Halogenated,"1,2-Dichloroethane (DCE)"
+67-66-3,Halogenated,Chloroform
+75-09-2,Halogenated,Dichloromethane (DCM)
+108-10-1,Ketone,Methyl isobutyl ketone (MIBK)
+67-64-1,Ketone,Acetone
+78-93-3,Ketone,Methyl ethyl ketone (MEK)
+108-94-1,Ketone,Cyclohexanone
+591-78-6,Ketone,2-Hexanone
+120-92-3,Ketone,Cyclopentanone
+25322-68-3,Polymer,PEG-400
+25322-69-4,Polymer,PPG-425
+7732-18-5,Polar Protic,Water

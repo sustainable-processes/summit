@@ -16,5 +16,7 @@ _solvent_candidates = _solvent_candidates.set_index(SOLVENT_INDEX)
 solvent_ds = DataSet.from_df(_solvent_candidates, metadata_columns=SOLVENT_METADATA_VARIABLES)
 
 #Load UCB Pharma approved list
-ucb_list = pd.read_csv(UCB_PHARMA_APPROVED_LIST).values[:, 0]
+ucb_list = pd.read_csv(UCB_PHARMA_APPROVED_LIST)
+ucb_list = ucb_list.set_index('cas_number')
+ucb_ds = DataSet.from_df(ucb_list, metadata_columns=['solvent_class', 'solvent_name'])
 

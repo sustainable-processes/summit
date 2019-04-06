@@ -350,8 +350,7 @@ class Domain:
         return k
     
     def __add__(self, var):
-        self._variables.append(var)
-        return self
+        return Domain(self._variables + [var])
     
     def _repr_html_(self):
         """Build html string for table display in jupyter notebooks.
