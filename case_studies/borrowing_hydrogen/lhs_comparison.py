@@ -11,14 +11,13 @@ def multiple_lhs_designs(domain, full_ds:DataSet, final_ds: DataSet,
                          seeds: list, fig=None):
     design_indices = [construct_lhs_design(domain, seed) for seed in seeds]
     pc = PCA(n_components=2)
-    pc.fit(full_ds.standardize())
+    pcs = pc.fit_transform(final_ds.standardize())
     if fig is  None:
         fig = plt.figure(figsize=(4, 1))
     fig.subplots_adjust(hspace=0.2, wspace=0.2)
     i=1
     for seed, indices in zip(seeds, design_indices):
         ax = fig.add_subplot(len(seeds), 2, i)
-        pcs = pc.transform(final_ds.standardize())
         plot_design(ax, pcs, indices, final_ds, seed)
         i+=1
 

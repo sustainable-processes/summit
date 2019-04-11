@@ -217,7 +217,6 @@ class DescriptorsVariable(Variable):
     name
     description
     df
-    select_subset
     num_descriptors
     num_examples
 
@@ -239,7 +238,7 @@ class DescriptorsVariable(Variable):
 
     @property
     def num_descriptors(self) -> int:
-        return self.ds.num_data_columns
+        return len(self.ds.data_columns)
 
     @property
     def num_examples(self):

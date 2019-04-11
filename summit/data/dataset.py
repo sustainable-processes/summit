@@ -151,15 +151,19 @@ class DataSet(pd.core.frame.DataFrame):
         mask[metadata_columns] = False
         return result[:, mask]
 
-    @property
-    def num_data_columns(self) -> int:
-        col_types = self.columns.get_level_values('TYPE')
-        values, counts = np.unique(col_types, return_counts=True)
-        i= np.where(values=='DATA')
-        return counts[i][0]
+    # @property
+    # def num_data_columns(self) -> int:
+    #     col_types = self.columns.get_level_values('TYPE')
+    #     values, counts = np.unique(col_types, return_counts=True)
+    #     i= np.where(values=='DATA')
+    #     return counts[i][0]
 
     @property
     def metadata_columns(self):
+        '''Names of the metadata columns'''
         return [column[0] for column in self.columns if column[1]=='METADATA']
 
-
+    @property
+    def data_columns(self):
+        '''Names of the data columns'''
+        return [column[0] for column in self.columns if column[1]=='DATA']

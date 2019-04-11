@@ -21,6 +21,7 @@ from summit.domain import (Domain, Variable, ContinuousVariable,
 import numpy as np
 from math import factorial
 import pandas as pd
+import matplotlib.pyplot as plt
 
 class LatinDesigner(Designer):
     ''' Latin Hypercube Sampling initial designer
@@ -97,9 +98,16 @@ class LatinDesigner(Designer):
                 num_descriptors = variable.num_descriptors
                 normal_arr = variable.ds.zero_to_one()
                 indices = _closest_point_indices(samples[:, k:k+num_descriptors],
-                                                 normal_arr, unique=True)
+                                                 normal_arr, unique=False)
                
                 values = normal_arr[indices[:, 0], :]
+                var_min = variable.ds.loc[:, variable.ds.data_columns].min(axis=0).to_numpy()
+                var_min = np.atleast_2d(var_min)
+                var_max = variable.ds.loc[:, variable.ds.data_columns].max(axis=0).to_numpy()
+                var_max = np.atleast_2d(var_max)
+                var_range = var_max-var_min
+                values_scaled = var_min + values*var_range
+                values= values_scaled
                 values.shape = (num_experiments, num_descriptors)
                 k+=num_descriptors
 
