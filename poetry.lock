@@ -7,7 +7,7 @@ python-versions = "*"
 version = "1.4.3"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Disable App Nap on OS X 10.9"
 marker = "python_version >= \"3.3\" and sys_platform == \"darwin\" or sys_platform == \"darwin\" or python_version >= \"3.4\" and sys_platform == \"darwin\""
 name = "appnope"
@@ -38,7 +38,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "1.3.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Classes Without Boilerplate"
 name = "attrs"
 optional = false
@@ -46,7 +46,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "19.1.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Specifications for callback functions passed in to an API"
 name = "backcall"
 optional = false
@@ -68,7 +68,7 @@ click = ">=6.5"
 toml = ">=0.9.4"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "An easy safelist-based HTML-sanitizing tool."
 name = "bleach"
 optional = false
@@ -141,7 +141,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "7.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Cross-platform colored terminal text."
 marker = "python_version >= \"3.3\" and sys_platform == \"win32\" or sys_platform == \"win32\" or python_version >= \"3.4\" and sys_platform == \"win32\""
 name = "colorama"
@@ -169,7 +169,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*"
 version = "4.4.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "XML bomb protection for Python stdlib modules"
 name = "defusedxml"
 optional = false
@@ -177,7 +177,7 @@ python-versions = "*"
 version = "0.5.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Discover and load entry points from installed packages."
 name = "entrypoints"
 optional = false
@@ -253,7 +253,7 @@ python = ">=3.4"
 version = ">=5.1.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "IPython Kernel for Jupyter"
 name = "ipykernel"
 optional = false
@@ -267,7 +267,7 @@ tornado = ">=4.2"
 traitlets = ">=4.1.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "IPython: Productive Interactive Computing"
 name = "ipython"
 optional = false
@@ -288,7 +288,7 @@ setuptools = ">=18.5"
 traitlets = ">=4.2"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Vestigial utilities from IPython"
 name = "ipython-genutils"
 optional = false
@@ -296,7 +296,7 @@ python-versions = "*"
 version = "0.2.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "IPython HTML widgets for Jupyter"
 name = "ipywidgets"
 optional = false
@@ -322,7 +322,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "4.3.16"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "An autocompletion tool for Python that can be used for text editors."
 name = "jedi"
 optional = false
@@ -344,7 +344,7 @@ version = "2.10"
 MarkupSafe = ">=0.23"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "An implementation of JSON Schema validation for Python"
 name = "jsonschema"
 optional = false
@@ -374,7 +374,7 @@ notebook = "*"
 qtconsole = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Jupyter protocol implementation and client libraries"
 name = "jupyter-client"
 optional = false
@@ -404,7 +404,7 @@ prompt-toolkit = ">=2.0.0,<2.1.0"
 pygments = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Jupyter core package. A base package on which Jupyter projects rely."
 name = "jupyter-core"
 optional = false
@@ -500,7 +500,7 @@ python-versions = "*"
 version = "0.6.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "The fastest markdown parser in pure Python"
 name = "mistune"
 optional = false
@@ -516,7 +516,7 @@ python-versions = ">=3.4"
 version = "7.0.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Converting Jupyter Notebooks"
 name = "nbconvert"
 optional = false
@@ -537,7 +537,7 @@ testpath = "*"
 traitlets = ">=4.2"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "The Jupyter Notebook format"
 name = "nbformat"
 optional = false
@@ -551,7 +551,7 @@ jupyter-core = "*"
 traitlets = ">=4.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "A web-based notebook environment for interactive computing"
 name = "notebook"
 optional = false
@@ -607,7 +607,7 @@ python-dateutil = ">=2.5.0"
 pytz = ">=2011k"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Utilities for writing pandoc filters in python"
 name = "pandocfilters"
 optional = false
@@ -653,7 +653,7 @@ scipy = "*"
 six = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "A Python Parser"
 name = "parso"
 optional = false
@@ -661,7 +661,7 @@ python-versions = "*"
 version = "0.3.4"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Pexpect allows easy control of interactive console applications."
 marker = "python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\""
 name = "pexpect"
@@ -673,7 +673,7 @@ version = "4.6.0"
 ptyprocess = ">=0.5"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Tiny 'shelve'-like database with concurrency support"
 name = "pickleshare"
 optional = false
@@ -697,7 +697,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "0.9.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Python client for the Prometheus monitoring system."
 name = "prometheus-client"
 optional = false
@@ -705,7 +705,7 @@ python-versions = "*"
 version = "0.6.0"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Library for building powerful interactive command lines in Python"
 name = "prompt-toolkit"
 optional = false
@@ -717,7 +717,7 @@ six = ">=1.9.0"
 wcwidth = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Run a subprocess in a pseudo terminal"
 marker = "sys_platform != \"win32\" or os_name != \"nt\" or python_version >= \"3.3\" and sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\""
 name = "ptyprocess"
@@ -757,7 +757,7 @@ numpy = "*"
 scipy = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Pygments is a syntax highlighting package written in Python."
 name = "pygments"
 optional = false
@@ -787,7 +787,7 @@ python-versions = "*"
 version = "2.3.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Persistent/Functional/Immutable data structures"
 name = "pyrsistent"
 optional = false
@@ -839,6 +839,14 @@ six = ">=1.5"
 
 [[package]]
 category = "main"
+description = "Add .env support to your django/flask apps in development and deployments"
+name = "python-dotenv"
+optional = false
+python-versions = "*"
+version = "0.10.1"
+
+[[package]]
+category = "main"
 description = "World timezone definitions, modern and historical"
 name = "pytz"
 optional = false
@@ -857,7 +865,7 @@ version = "0.7.2"
 param = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Python bindings for the winpty library"
 marker = "os_name == \"nt\""
 name = "pywinpty"
@@ -874,7 +882,7 @@ python-versions = "*"
 version = "5.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Python bindings for 0MQ"
 name = "pyzmq"
 optional = false
@@ -935,7 +943,7 @@ version = "1.2.1"
 numpy = ">=1.8.2"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Send file to trash natively under Mac OS X, Windows and Linux."
 name = "send2trash"
 optional = false
@@ -962,7 +970,7 @@ version = "0.0"
 scikit-learn = "*"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Terminals served to xterm.js using Tornado websockets"
 name = "terminado"
 optional = false
@@ -1007,7 +1015,7 @@ python-versions = ">=2.6, !=3.0.*, !=3.1.*"
 version = "4.31.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Traitlets Python config system"
 name = "traitlets"
 optional = false
@@ -1037,7 +1045,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4"
 version = "1.24.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Measures number of Terminal column cells of wide-character codes"
 name = "wcwidth"
 optional = false
@@ -1045,7 +1053,7 @@ python-versions = "*"
 version = "0.1.7"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "Character encoding aliases for legacy web content"
 name = "webencodings"
 optional = false
@@ -1053,7 +1061,7 @@ python-versions = "*"
 version = "0.5.1"
 
 [[package]]
-category = "dev"
+category = "main"
 description = "IPython HTML widgets for Jupyter"
 name = "widgetsnbextension"
 optional = false
@@ -1072,7 +1080,7 @@ python-versions = "*"
 version = "1.11.1"
 
 [metadata]
-content-hash = "b1202ec12de2a95c55eb1097900271df40a39fff8ee6a88e67d3f356ff57143b"
+content-hash = "2664252e99508a7c2be5f1b3775e28dbcbf7ecf3d81dcfca36376ae7be14f95a"
 python-versions = "^3.6"
 
 [metadata.hashes]
@@ -1150,6 +1158,7 @@ pyrsistent = ["3ca82748918eb65e2d89f222b702277099aca77e34843c5eb9d52451173970e2"
 pytest = ["3f193df1cfe1d1609d4c583838bea3d532b18d6160fd3f55c9447fdca30848ec", "e246cf173c01169b9617fc07264b7b1316e78d7a650055235d6d897bc80d9660"]
 pytest-mock = ["330bfa1a71c9b6e84e2976f01d70d8a174f755e7f9dc5b22f4b7335992e1e98b", "cea3983a1ebc88bf7c0fa1ed8c84e67b898bf71a320a49605bcb74f31e6cfd6a"]
 python-dateutil = ["7e6584c74aeed623791615e26efd690f29817a27c73085b78e4bad02493df2fb", "c89805f6f4d64db21ed966fda138f8a5ed7a4fdbc1a8ee329ce1b74e3c74da9e"]
+python-dotenv = ["a84569d0e00d178bc5b957f7ff208bf49287cbf61857c31c258c4a91f571527b", "c9b1ddd3cdbe75c7d462cb84674d87130f4b948f090f02c7d7144779afb99ae0"]
 pytz = ["32b0891edff07e28efe91284ed9c31e123d84bea3fd98e1f72be2508f43ef8d9", "d5f05e487007e29e03409f9398d074e158d920d36eb82eaf66fb1136b0c5374c"]
 pyviz-comms = ["acac035ea522d13a6d33597f8f9c02647fcc3aa5c0086a96124a0ef3ccbb33fb", "c1722a496b08eb20ae3f2fedcc1ebcd207567b62e6453c7198a0b8f78ae96049"]
 pywinpty = ["0e01321e53a230233358a6d608a1a8bc86c3882cf82769ba3c62ca387dc9cc51", "333e0bc5fca8ad9e9a1516ebedb2a65da38dc1f399f8b2ea57d6cccec1ff2cc8", "3ca3123aa6340ab31bbf9bd012b92e72f9ec905e4c9ee152cc997403e1778cd3", "44a6dddcf2abf402e22f87e2c9a341f7d0b296afbec3d28184c8de4d7f514ee4", "53d94d574c3d4da2df5b1c3ae728b8d90e4d33502b0388576bbd4ddeb4de0f77", "c3955f162c53dde968f3fc11361658f1d83b683bfe601d4b6f94bb01ea4300bc", "cec9894ecb34de3d7b1ca121dd98433035b9f8949b5095e84b103b349231509c", "dcd45912e2fe2e6f72cee997a4da6ed1ad2056165a277ce5ec7f7ac98dcdf667", "f2bcdd9a2ffd8b223752a971b3d377fb7bfed85f140ec9710f1218d760f2ccb7"]

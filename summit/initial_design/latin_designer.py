@@ -55,7 +55,7 @@ class LatinDesigner(Designer):
         self.domain = domain
         self._rstate = random_state if random_state else np.random.RandomState()
 
-    def generate_experiments(self, num_experiments, criterion='center') -> Design:
+    def generate_experiments(self, num_experiments, criterion='center', unique=False) -> Design:
         """ Generate latin hypercube intial design 
         
         Parameters
@@ -98,7 +98,7 @@ class LatinDesigner(Designer):
                 num_descriptors = variable.num_descriptors
                 normal_arr = variable.ds.zero_to_one()
                 indices = _closest_point_indices(samples[:, k:k+num_descriptors],
-                                                 normal_arr, unique=False)
+                                                 normal_arr, unique=unique)
                
                 values = normal_arr[indices[:, 0], :]
                 var_min = variable.ds.loc[:, variable.ds.data_columns].min(axis=0).to_numpy()

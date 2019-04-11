@@ -1,0 +1,11 @@
+NAME,stenutz_name,cosmo_name,chemical_formula,solvent_class,solvent_name,available
+TYPE,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA
+cas_number,,,,,,
+126-33-0,sulfolane,"tetrahydrothiophene-1,1-dioxide",C4H8O2S,Dipolar aprotic,Sulfolane,True
+108-88-3,toluene,toluene,C7H8,Aromatic,Toluene,True
+680-31-9,hexamethylphosphoramide,hexamethylphosphoramide,C6H18N3OP,Dipolar aprotic,Hexamethyl phosphoramidite (HMPA),True
+75-52-5,nitromethane,nitromethane,CH3NO2,Dipolar aprotic,Nitromethane,True
+110-86-1,pyridine,pyridine,C5H5N,Base,Pyridine,True
+108-75-8,"2,4,6-trimethylpyridine","2,4,6-collidine",C8H11N,Base,"2,4,6-Collidine",True
+127-19-5,"N,N-dimethylacetamide","n,n-dimethylacetamide",C4H9NO,Dipolar aprotic,Dimethyl acetamide (DMAc),True
+67-68-5,dimethyl sulfoxide,dimethylsulfoxide,C2H6OS,Dipolar aprotic,Dimethyl sulfoxide (DMSO),True

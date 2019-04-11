@@ -167,3 +167,11 @@ class DataSet(pd.core.frame.DataFrame):
     def data_columns(self):
         '''Names of the data columns'''
         return [column[0] for column in self.columns if column[1]=='DATA']
+    
+    def insert(self, loc, column, value, type='DATA', units=None, allow_duplicates=False):
+        super().insert(loc, column, value, allow_duplicates)
+        import ipdb; ipdb.set_trace()
+        self.columns[loc][0] = column
+        self.columns[loc][1] = type
+        self.columns[loc][2] = units
+

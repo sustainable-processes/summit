@@ -82,7 +82,7 @@ def patch_descriptors_variable(mocker):
     MockVariable = mocker.MagicMock()
     type(MockVariable).variable_type = mocker.PropertyMock(return_value='descriptors') 
     type(MockVariable).name = mocker.PropertyMock(return_value='var_descriptors')
-    type(MockVariable).df = mocker.PropertyMock(return_value=solvent_df)
+    type(MockVariable).ds = mocker.PropertyMock(return_value=solvent_df)
     type(MockVariable).select_subset = mocker.PropertyMock(return_value=None)
     type(MockVariable).num_descriptors = mocker.PropertyMock(return_value=2)
     type(MockVariable).num_examples = mocker.PropertyMock(return_value=2)
