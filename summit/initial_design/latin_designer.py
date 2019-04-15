@@ -1,17 +1,4 @@
-"""
-The lhs code was copied from pyDoE and was originally published by 
-the following individuals for use with Scilab:
-    Copyright (C) 2012 - 2013 - Michael Baudin
-    Copyright (C) 2012 - Maria Christopoulou
-    Copyright (C) 2010 - 2011 - INRIA - Michael Baudin
-    Copyright (C) 2009 - Yann Collette
-    Copyright (C) 2009 - CEA - Jean-Marc Martinez
-    
-    website: forge.scilab.org/index.php/p/scidoe/sourcetree/master/macros
-Much thanks goes to these individuals. It has been converted to Python by 
-Abraham Lee.
 
-"""
 from .base import Designer, Design, _closest_point_indices
 from .random_designer import RandomDesigner
 from summit.domain import (Domain, Variable, ContinuousVariable, 
@@ -119,6 +106,20 @@ class LatinDesigner(Designer):
         return design   
 
 
+"""
+The lhs code was copied from pyDoE and was originally published by 
+the following individuals for use with Scilab:
+    Copyright (C) 2012 - 2013 - Michael Baudin
+    Copyright (C) 2012 - Maria Christopoulou
+    Copyright (C) 2010 - 2011 - INRIA - Michael Baudin
+    Copyright (C) 2009 - Yann Collette
+    Copyright (C) 2009 - CEA - Jean-Marc Martinez
+    
+    website: forge.scilab.org/index.php/p/scidoe/sourcetree/master/macros
+Much thanks goes to these individuals. It has been converted to Python by 
+Abraham Lee.
+
+"""
 def lhs(n, samples=None, criterion=None, iterations=None, random_state=None):
     """
     Generate a latin-hypercube design

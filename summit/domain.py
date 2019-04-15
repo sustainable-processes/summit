@@ -376,7 +376,5 @@ class Domain:
     def _html_table_rows(self):
         return ''.join(map(lambda l: l._html_table_rows(), self._variables))
 
-        
-
 class DomainError(Exception):
     pass
