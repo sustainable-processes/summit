@@ -22,6 +22,9 @@ holoviews = "^1.11"
 pyDOE = "^0.3.8"
 python-dotenv = "^0.10.1"
 ipywidgets = "^7.4"
+GPy = "^1.9"
+numpy = "1.16.0"
+scipydirect = "^1.3"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^18.3-alpha.0",allows-prereleases = true}
