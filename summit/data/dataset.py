@@ -42,6 +42,14 @@ class DataSet(pd.core.frame.DataFrame):
 
         return DataSet(df.to_numpy(), columns=columns, index=df.index)
 
+    @staticmethod
+    def read_csv(filepath_or_buffer, **kwargs):
+        """Create a DataSet from a csv"""
+        header = kwargs.get('header', [0,1])
+        index_col = kwargs.get('index_col', 0)
+        df = pd.read_csv(filepath_or_buffer, header=header, index_col=index_col)
+        return DataSet(df.to_numpy(), columns=df.columns, index=df.index)
+
     def zero_to_one(self, small_tol=1.0e-5) -> np.ndarray:
         ''' Scale the data columns between zero and one 
 
@@ -175,3 +183,5 @@ class DataSet(pd.core.frame.DataFrame):
         self.columns[loc][1] = type
         self.columns[loc][2] = units
 
+class ResultSet(DataSet):
+    data_column_types = ['input', 'output']
