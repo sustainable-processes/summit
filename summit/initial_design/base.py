@@ -136,44 +136,44 @@ class Design:
             raise ValueError(f"Variable {variable_name} not in domain.")
         return self._variable_names.index(variable_name)
 
-    def coverage(self, design_indices, search_matrix=None,
-                 metric=closest_point_distance):
-        ''' Get coverage statistics for a design based 
-        Arguments:
-            design_indices: Indices in the search matrix of the design points
-            search_matrix (optional): A matrix of descriptors used for calculating the coverage. By default, the 
-                                      descriptor matrix in the instance of solvent select will be used as the search 
-                                      matrix
-            metric (optional): A function for calculating the coverage. By default this is the closest point. 
-                               The function should take a design point as its first argument and a candidate matrix 
-                               as its second argument. 
-        Notes:
-            Coverage statistics are calculated by finding the distance between each point in the search matrix 
-            and the closest design point. The statistics are mean, standard deviation, median, maximum, and minimum
-            of the distances. 
-        Returns
-            An instance of `DesignCoverage`
+    # def coverage(self, design_indices, search_matrix=None,
+    #              metric=closest_point_distance):
+    #     ''' Get coverage statistics for a design based 
+    #     Arguments:
+    #         design_indices: Indices in the search matrix of the design points
+    #         search_matrix (optional): A matrix of descriptors used for calculating the coverage. By default, the 
+    #                                   descriptor matrix in the instance of solvent select will be used as the search 
+    #                                   matrix
+    #         metric (optional): A function for calculating the coverage. By default this is the closest point. 
+    #                            The function should take a design point as its first argument and a candidate matrix 
+    #                            as its second argument. 
+    #     Notes:
+    #         Coverage statistics are calculated by finding the distance between each point in the search matrix 
+    #         and the closest design point. The statistics are mean, standard deviation, median, maximum, and minimum
+    #         of the distances. 
+    #     Returns
+    #         An instance of `DesignCoverage`
             
-        '''
-        if search_matrix is None:
-            search_matrix = self.descriptor_df.values
+    #     '''
+    #     if search_matrix is None:
+    #         search_matrix = self.descriptor_df.values
 
-        mask = np.ones(search_matrix.shape[0], dtype=bool)
-        mask[design_indices] = False
-        distances = [metric(row, search_matrix[design_indices, :])
-                    for row in search_matrix[mask, ...]]
-        mean = np.average(distances)
-        std_dev = np.std(distances)
-        median = np.median(distances)
-        max = np.max(distances)
-        min = np.min(distances)
-        return DesignCoverage(
-                        mean=mean,
-                        std_dev=std_dev,
-                        median=median,
-                        max = max,
-                        min = min
-                        )
+    #     mask = np.ones(search_matrix.shape[0], dtype=bool)
+    #     mask[design_indices] = False
+    #     distances = [metric(row, search_matrix[design_indices, :])
+    #                 for row in search_matrix[mask, ...]]
+    #     mean = np.average(distances)
+    #     std_dev = np.std(distances)
+    #     median = np.median(distances)
+    #     max = np.max(distances)
+    #     min = np.min(distances)
+    #     return DesignCoverage(
+    #                     mean=mean,
+    #                     std_dev=std_dev,
+    #                     median=median,
+    #                     max = max,
+    #                     min = min
+    #                     )
 
     def _repr_html_(self):
         return self.to_frame().to_html()

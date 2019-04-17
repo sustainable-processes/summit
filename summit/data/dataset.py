@@ -73,7 +73,7 @@ class DataSet(pd.core.frame.DataFrame):
         This method does not change the internal values of the data columns in place.
 
         ''' 
-        values = self.descriptors_to_numpy()
+        values = self.data_to_numpy()
         values = values.astype(np.float64)
         maxes = np.max(values, axis=0)
         mins = np.min(values, axis=0)
@@ -107,7 +107,7 @@ class DataSet(pd.core.frame.DataFrame):
         This method does not change the internal values of the data columns in place.
         
         """
-        values = self.descriptors_to_numpy()
+        values = self.data_to_numpy()
         values = values.astype(np.float64)
         mean = np.mean(values, axis=0)
         sigma = np.std(values, axis=0)
@@ -148,7 +148,7 @@ class DataSet(pd.core.frame.DataFrame):
             return newdf._repr_html_()
         return super()._repr_html_() 
 
-    def descriptors_to_numpy(self) -> int:
+    def data_to_numpy(self) -> int:
         '''Return dataframe with the metadata columns removed'''
         result = super().to_numpy()
         metadata_columns = []
