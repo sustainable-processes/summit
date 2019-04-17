@@ -60,7 +60,7 @@ class LatinDesigner(Designer):
         #Instantiate the random design class to be used with discrete variables
         rdesigner = RandomDesigner(self.domain, random_state=self._rstate)
 
-        num_discrete = self.domain.num_discrete_variables
+        num_discrete = self.domain.num_discrete_variables()
         n = self.domain.num_continuous_dimensions
         if num_discrete < n:
             samples = lhs(n, samples=num_experiments, criterion=criterion, 

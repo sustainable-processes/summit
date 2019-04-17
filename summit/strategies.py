@@ -49,7 +49,7 @@ class Strategy:
 
         if output_columns is None:
             raise DomainError("No output columns in the domain.  Add at least one output column for optimization.")
-            
+
         #Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), ds[output_columns].copy()
         
@@ -72,9 +72,11 @@ class TSEMO(Strategy):
             self.x = inputs.data_to_numpy()
             self.y = outputs.data_to_numpy()
 
-
-        # for model in self.models:
-        #     model.fit(inputs, outputs)
+        #Update models
+        for i, model in enumerate(self.models):
+            Y = self.y[:, i]
+            Y = np.atleast_2d(Y).T
+            model.fit(self.x, Y)
 
         # sample_funcs = [model.posterior_sample() for model in self.models]
 

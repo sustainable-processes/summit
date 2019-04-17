@@ -334,23 +334,69 @@ class Domain:
         """[List[Type[Variable]]]: List of variables in the domain"""
         return self._variables
 
-    @property
-    def num_variables(self) -> int:
-        """int: Number of variables in the domain"""
-        return len(self.variables)
+    def num_variables(self, include_outputs=False) -> int:
+        ''' Number of variables in the domain 
+        
+        Parameters
+        ---------- 
+        include_outputs: bool, optional
+            If True include output variables in the count.
+            Defaults to False.
+        
+        Returns
+        -------
+        num_variables: int
+            Number of variables in the domain
+        ''' 
+        k=0
+        for v in self.variables:
+            if v.is_output and not include_outputs:
+                continue
+            k+=1
+        return k
 
-    @property
-    def num_discrete_variables(self) -> int:
-        """int: Number of discrete variables in the domain"""
-        discrete_bool = [variable.variable_type == 'discrete'
-                         for variable in self._variables]
-        return discrete_bool.count(True)
+    def num_discrete_variables(self, include_outputs=False) -> int:
+        ''' Number of discrete varibles in the domain 
+        
+        Parameters
+        ---------- 
+        include_outputs: bool, optional
+            If True include output variables in the count.
+            Defaults to False.
+        
+        Returns
+        -------
+        num_variables: int
+            Number of discrete variables in the domain
+        '''
+        k=0
+        for v in self._variables:
+            if v.is_output and not include_outputs:
+                continue
+            elif v.variable_type == 'discrete':
+                k+= 1
+        return k
 
-    @property
-    def num_continuous_dimensions(self) -> int:
-        """int: The number of continuous dimensions, including dimensions of descriptors variables"""
+    def num_continuous_dimensions(self, include_outputs=False) -> int:
+        '''The number of continuous dimensions
+        
+        This includes dimensions of descriptors variables
+        
+        Parameters
+        ---------- 
+        include_outputs: bool, optional
+            If True include output variables in the count.
+            Defaults to False.
+        
+        Returns
+        -------
+        num_variables: int
+            Number of variables in the domain
+        '''
         k = 0
         for v in self._variables:
+            if v.is_output and not include_outputs:
+                continue
             if v.variable_type == 'continuous':
                 k+=1
             if v.variable_type == 'descriptors':
