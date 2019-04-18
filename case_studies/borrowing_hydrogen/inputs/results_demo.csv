@@ -1,5 +1,5 @@
-﻿NAME,solvent,yield,enantiomeric_excess
-TYPE,DATA,DATA,DATA
+﻿,solvent,yield,enantiomeric_excess
+,DATA,DATA,DATA
 experiment_id,,,
 0,126-33-0,40,75
 1,108-88-3,89,95

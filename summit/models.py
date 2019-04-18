@@ -1,8 +1,13 @@
-from abc import ABC, abstractmethod
+from summit.initial_design.latin_designer import lhs
 
 from GPy.models import GPRegression
 from GPy.kern import Matern52
 import numpy as np
+from numpy import matlib
+import scipy
+
+from abc import ABC, abstractmethod
+
 
 class Model(ABC):
     
@@ -28,13 +33,13 @@ class GPyModel(Model):
         self._model = GPRegression(X,Y, self._kernel, noise_var=self._noise_var)
         if self._optimizer:
             self._model.optimize_restarts(num_restarts = num_restarts, 
-                                         verbose=False,
-                                         max_iters=max_iters,
-                                         optimizer=self._optimizer)
+                                          verbose=False,
+                                          max_iters=max_iters,
+                                          optimizer=self._optimizer)
         else:
             self._model.optimize_restarts(num_restarts = num_restarts, 
-                                         verbose=False,
-                                         max_iters=max_iters)
+                                          verbose=False,
+                                          max_iters=max_iters)
 
     def predict(self, X):
         m, v = self._model.predict(X)
@@ -50,20 +55,20 @@ class GPyModel(Model):
         n, D = np.shape(Xnew)
         ell = self._model.kern.lengthscale.values
         sf2 = self._model.kern.variance.values[0]
-        sn2 = np.exp(OptGP.hyp.log_noise_level)
+        sn2 = self._model.Gaussian_noise.variance.values[0]
 
         # Monte carlo samples of W and b
         sW1 = lhs(D, n_spectral_points)
-        sW2 = sW1
+        sW2 = lhs(D, n_spectral_points)
 
         p = matlib.repmat(np.divide(1, ell), n_spectral_points, 1)
-        q = np.sqrt(np.divide(OptGP.matern_nu, chi2inv(sW2, OptGP.matern_nu)+1e-7)) #Add padding to prevent /0 errors
-        q.shape = (n_spectral_points, 1)
-        W = np.multiply(p, norm.ppf(sW1))
+        q = np.sqrt(np.divide(2.5, chi2inv(sW2, 2.5)+1e-7)) #Add padding to prevent /0 errors
+        # q.shape = (n_spectral_points, 1)
+        W = np.multiply(p, scipy.stats.norm.ppf(sW1))
         W = np.multiply(W, q)
 
-        b = lhs(n_spectral_points, 1)
-        b = 2*np.pi*b.transpose()
+        b = lhs(1, n_spectral_points)
+        b = 2*np.pi*b
 
         # Calculate phi
         phi = np.sqrt(2*sf2/n_spectral_points)*np.cos(W@Xnew.transpose() +  matlib.repmat(b, 1, n))
@@ -74,14 +79,31 @@ class GPyModel(Model):
         mu_theta = invA@phi@Ynew
         cov_theta = sn2*invA
         cov_theta = 0.5*(cov_theta+cov_theta.transpose())
-        theta = np.random.multivariate_normal(mu_theta, cov_theta)
-        theta.shape = (n_spectral_points, D)
+        normal = scipy.stats.multivariate_normal(mu_theta[:, 0], cov_theta)
+        theta = np.array([normal.rvs() for i in range(n_spectral_points)])
 
         #Posterior sample according to theta
         def f(x):
+            import ipdb; ipdb.set_trace()
             inputs, _ = np.shape(x)
+            x = x.astype(np.float64)
             bprime = matlib.repmat(b, 1, inputs)
-            output =  (theta.transpose()*np.sqrt(2*sf2/n_spectral_points))@np.cos(W*x.transpose()+ bprime)
-            return output.transpose()
+            output =  (theta.T*np.sqrt(2*sf2/n_spectral_points))@np.cos(W*x.transpose()+ bprime)
+            return output
 
         return f
+
+def chi2inv(p, v):
+    ''' Inverse chi-squared distribution
+    '''
+    output = scipy.stats.invgamma.cdf(p, v)
+    # l, _ = np.shape(output)
+    # output.shape = (l,)
+    return output
+
+def inv_cholesky(A):
+    _, n = np.shape(A)
+    chol = np.linalg.cholesky(A)
+    x = np.linalg.solve(chol.transpose(), np.identity(n))
+    y = np.linalg.solve(chol, x)
+    return y
