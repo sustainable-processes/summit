@@ -24,7 +24,6 @@ class DirectOpt(Optimizer):
         
         self.x_opt = res2.x
         
-        
 def plot_3d(f, m):
     """Plot model and objective function in 3d"""
     fig = plt.figure()

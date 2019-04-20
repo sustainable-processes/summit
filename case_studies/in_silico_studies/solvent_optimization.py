@@ -1,3 +1,4 @@
+""" In-Silico Solvent Optimization"""
 from surrogate_model_functions import loo_error
 from summit.strategies import TSEMO
 from summit.models import GPyModel
@@ -11,22 +12,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-import logging
-from datetime import datetime as dt
+#Default Constants
+constants = {"RANDOM_SEED": 1000,
+             "NUM_BATCHES" : 4,
+             "BATCH_SIZE": 8,
+             "NUM_COMPONENTS": 3
+}
 
-#Constants
-RANDOM_SEED = 1000
-NUM_BATCHES = 4
-BATCH_SIZE = 8
-NUM_COMPONENTS = 3
-
-
-#Random state
-random_state = np.random.RandomState(RANDOM_SEED)
-
-# #Logging
-# logging.basicConfig(filename='log.txt', level=logging.INFO)
-# logger = logging.getLogger(__name__)
 
 def create_pcs_ds(num_components):
     '''Create dataset with principal components'''
@@ -73,6 +65,7 @@ Es1 = lambda pc1, pc2, pc3: -20*pc2*abs(pc3) + 0.025*pc1**3
 Es2 = lambda pc1, pc2, pc3: 15*pc2*pc3-40*pc3**2
 
 def experiment(solvent_cas, solvent_ds, random_state=np.random.RandomState()):
+    '''Generate fake experiment data for a stereoselective reaction'''
     pc_solvent = solvent_ds.loc[solvent_cas][solvent_ds.data_columns].to_numpy()
     es1 = Es1(pc_solvent[0], pc_solvent[1], pc_solvent[2])
     es2 = Es2(pc_solvent[0], pc_solvent[1], pc_solvent[2])
@@ -88,6 +81,7 @@ def experiment(solvent_cas, solvent_ds, random_state=np.random.RandomState()):
     conversion = conversion + random_state.randn(1)*2
     conversion=conversion[0]
                      
+    #Diasteromeric excess with noise
     de = abs(exper_cd1-exper_cd2)/(exper_cd1 +exper_cd2)
     max_de =  0.98 + random_state.randn(1)*0.02
     de = min(max_de[0], de[0])
@@ -118,7 +112,7 @@ def optimization_setup(domain):
     models = [GPyModel(kernel=kernels[i]) for i in range(2)]
     return TSEMO(domain, models)
 
-def generate_initial_experiment_data(domain, solvent_ds, batch_size):
+def generate_initial_experiment_data(domain, solvent_ds, batch_size, random_state):
     #Initial design
     lhs = LatinDesigner(domain,random_state)
     initial_design = lhs.generate_experiments(batch_size)
@@ -126,24 +120,27 @@ def generate_initial_experiment_data(domain, solvent_ds, batch_size):
     #Initial experiments
     initial_experiments = [experiment(cas, solvent_ds, random_state) 
                            for cas in initial_design.to_frame()['cas_number']]
-    initial_experiments = pd.DataFrame(initial_experiments, columns=['conversion', 'de'])
-    initial_experiments = DataSet.from_df(initial_experiments)
-    design_df = initial_design.to_frame()
-    design_df = design_df.rename(index=int, columns={'cas_number': 'solvent'})
-    design_ds = DataSet.from_df(design_df)
-    return initial_experiments.merge(design_ds, left_index=True, right_index=True)
+    initial_experiments = np.array(initial_experiments)
+    initial_experiments = DataSet({('conversion', 'DATA'): initial_experiments[:, 0],
+                                   ('de', 'DATA'): initial_experiments[:, 1],
+                                   ('solvent', 'DATA'): initial_design.to_frame()['cas_number'].values,
+                                   ('batch', 'METADATA'): np.zeros(batch_size)})
+    initial_experiments.columns.names = ['NAME', 'TYPE']
+    initial_experiments = initial_experiments.set_index(np.arange(0, batch_size))
+    return initial_experiments
 
 def run_optimization(tsemo, initial_experiments,solvent_ds,
                      batch_size, num_batches,
-                     num_components, normalize=False):
+                     num_components, random_state, 
+                     normalize=False):
     #Create storage arrays
-    lengthscales = np.zeros([num_batches, num_components, 2])
-    log_likelihoods = np.zeros([num_batches, 2])
-    loo_errors = np.zeros([num_batches, 2])
+    lengthscales = np.zeros([num_batches-1, num_components, 2])
+    log_likelihoods = np.zeros([num_batches-1, 2])
+    loo_errors = np.zeros([num_batches-1, 2])
     previous_experiments = initial_experiments
 
     #Run the optimization
-    for i in range(num_batches):
+    for i in range(num_batches-1):
         #Generate batch of solvents
         design = tsemo.generate_experiments(previous_experiments, batch_size, 
                                             normalize=normalize)
@@ -162,35 +159,52 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
         #Combine new experimental data with old data
         new_experiments = DataSet({('conversion', 'DATA'): new_experiments[:, 0],
                                    ('de', 'DATA'): new_experiments[:, 1],
-                                   ('solvent', 'DATA'): design.index.values})
+                                   ('solvent', 'DATA'): design.index.values,
+                                   ('batch', 'METADATA'): (i+1)*np.ones(batch_size)})
         new_experiments = new_experiments.set_index(np.arange(batch_size*(i+1), batch_size*(i+2)))
         new_experiments.columns.names = ['NAME', 'TYPE']
         previous_experiments = previous_experiments.append(new_experiments)
 
-    return lengthscales,log_likelihoods, loo_errors, 
+    return previous_experiments, lengthscales,log_likelihoods, loo_errors, 
 
 
-
-if __name__ == '__main__':
-    solvent_pcs_ds = create_pcs_ds(num_components=NUM_COMPONENTS)
+def main(batch_size=constants['BATCH_SIZE'],
+         num_batches=constants['NUM_BATCHES'],
+         num_components=constants['NUM_COMPONENTS'],
+         random_seed=constants['RANDOM_SEED'],
+         save_to_disk=True):
+    random_state = np.random.RandomState(random_seed)
+    solvent_pcs_ds = create_pcs_ds(num_components=num_components)
     domain = create_domain(solvent_pcs_ds)
     tsemo = optimization_setup(domain)
     initial_experiments = generate_initial_experiment_data(domain,
                                                            solvent_pcs_ds,
-                                                           BATCH_SIZE)
-    lengthscales, log_likelihoods, loo_errors = run_optimization(tsemo, initial_experiments, 
-                                                                 solvent_pcs_ds,
-                                                                 num_batches=NUM_BATCHES,
-                                                                 batch_size=BATCH_SIZE, 
-                                                                 num_components=NUM_COMPONENTS)
+                                                           batch_size,
+                                                           random_state)
+    experiments, lengthscales, log_likelihoods, loo_errors = run_optimization(tsemo, initial_experiments, 
+                                                                              solvent_pcs_ds,
+                                                                              num_batches=num_batches,
+                                                                              batch_size=batch_size, 
+                                                                              num_components=num_components,
+                                                                              random_state=random_state)
     # Write parameters to disk
-    np.save('outputs/in_silico_lengthscales', lengthscales)
-    np.save('outputs/in_silico_log_likelihoods', log_likelihoods)
-    np.save('outputs/in_silico_loo_errors', loo_errors)
-    with open('outputs/in_silico_metadata.txt',  'w') as f:
-        f.write(f"Random seed: {RANDOM_SEED}\n")
-        f.write(f"Number of principal components: {NUM_COMPONENTS}\n")
-        f.write(f"Number of batches: {NUM_BATCHES}\n")
-        f.write(f"Batch size: {BATCH_SIZE}\n")
+    if save_to_disk:
+        experiments.to_csv('outputs/in_silico_experiments.csv')
+        np.save('outputs/in_silico_lengthscales', lengthscales)
+        np.save('outputs/in_silico_log_likelihoods', log_likelihoods)
+        np.save('outputs/in_silico_loo_errors', loo_errors)
+        to_print = [('Random seed', random_seed),
+                    ("Number of principal components", num_components),
+                    ("Number of batches", num_batches),
+                    ("Batch size",batch_size)]
+        
+        with open('outputs/in_silico_metadata.txt',  'w') as f:
+            for prefix, value in to_print:
+                txt = f"{prefix}: {value}"
+                print(txt)
+                f.write(txt)
+    
+    return experiments, lengthscales, log_likelihoods, loo_errors
 
-
+if __name__ == '__main__':
+    main()
