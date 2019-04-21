@@ -168,11 +168,11 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
     return previous_experiments, lengthscales,log_likelihoods, loo_errors, 
 
 
-def main(batch_size=constants['BATCH_SIZE'],
-         num_batches=constants['NUM_BATCHES'],
-         num_components=constants['NUM_COMPONENTS'],
-         random_seed=constants['RANDOM_SEED'],
-         save_to_disk=True):
+def descriptors_optimization(batch_size=constants['BATCH_SIZE'],
+                             num_batches=constants['NUM_BATCHES'],
+                             num_components=constants['NUM_COMPONENTS'],
+                             random_seed=constants['RANDOM_SEED'],
+                             save_to_disk=True):
     random_state = np.random.RandomState(random_seed)
     solvent_pcs_ds = create_pcs_ds(num_components=num_components)
     domain = create_domain(solvent_pcs_ds)
@@ -207,4 +207,4 @@ def main(batch_size=constants['BATCH_SIZE'],
     return experiments, lengthscales, log_likelihoods, loo_errors
 
 if __name__ == '__main__':
-    main()
+    descriptors_optimization()
