@@ -89,7 +89,7 @@ def experiment(solvent_cas, solvent_ds, random_state=np.random.RandomState()):
     de = de[0]
     return np.array([conversion, de*100])
 
-#Create up optimization domain
+#Create  optimization domain
 def create_domain(solvent_ds):
     domain = Domain()
     domain += DescriptorsVariable(name='solvent',
@@ -124,7 +124,7 @@ def generate_initial_experiment_data(domain, solvent_ds, batch_size, random_stat
     initial_experiments = DataSet({('conversion', 'DATA'): initial_experiments[:, 0],
                                    ('de', 'DATA'): initial_experiments[:, 1],
                                    ('solvent', 'DATA'): initial_design.to_frame()['cas_number'].values,
-                                   ('batch', 'METADATA'): np.zeros(batch_size)})
+                                   ('batch', 'METADATA'): np.zeros(batch_size, dtype=int)})
     initial_experiments.columns.names = ['NAME', 'TYPE']
     initial_experiments = initial_experiments.set_index(np.arange(0, batch_size))
     return initial_experiments
@@ -145,7 +145,7 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
         design = tsemo.generate_experiments(previous_experiments, batch_size, 
                                             normalize=normalize)
 
-        #Calculate model parameters for further analysis later
+        #Calculate model parameters for further analysis
         lengthscales[i, :, :] = np.array([model._model.kern.lengthscale.values for model in tsemo.models]).T
         log_likelihoods[i, :] = np.array([model._model.log_likelihood() for model in tsemo.models]).T
         for j in range(2):
@@ -160,7 +160,7 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
         new_experiments = DataSet({('conversion', 'DATA'): new_experiments[:, 0],
                                    ('de', 'DATA'): new_experiments[:, 1],
                                    ('solvent', 'DATA'): design.index.values,
-                                   ('batch', 'METADATA'): (i+1)*np.ones(batch_size)})
+                                   ('batch', 'METADATA'): (i+1)*np.ones(batch_size, dtype=int)})
         new_experiments = new_experiments.set_index(np.arange(batch_size*(i+1), batch_size*(i+2)))
         new_experiments.columns.names = ['NAME', 'TYPE']
         previous_experiments = previous_experiments.append(new_experiments)
