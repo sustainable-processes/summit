@@ -85,8 +85,6 @@ class TSEMO(Strategy):
         descriptor_mask = np.ones(descriptor_arr.shape[0], dtype=bool)
         for point in self.x:
             try: 
-                # point_rep = np.repeat(np.atleast_2d(point),descriptor_arr.shape[0], axis=0)
-                # closeness = np.isclose(descriptor_arr,point_rep)
                 index = np.where(descriptor_arr==point)[0][0]
                 descriptor_mask[index] = False
             except IndexError:
@@ -95,16 +93,16 @@ class TSEMO(Strategy):
 
         #Update models
         samples_nadir = np.zeros(2)
-        sample_pareto = np.zeros([masked_descriptor_arr.shape[0], 2])
+        new_samples = np.zeros([masked_descriptor_arr.shape[0], 2])
         for i, model in enumerate(self.models):
             Y = self.y[:, i]
             Y = np.atleast_2d(Y).T
             model.fit(self.x, Y)
             samples = model._model.posterior_samples_f(masked_descriptor_arr, size=1)
-            sample_pareto[:, i] = samples[:,0,0]
+            new_samples[:, i] = samples[:,0,0]
             samples_nadir[i] = np.max(samples)
 
-        hv_imp, indices = hypervolume_improvement_index(self.y, samples_nadir, sample_pareto, 
+        hv_imp, indices = hypervolume_improvement_index(self.y, samples_nadir, new_samples, 
                                                         batchsize=num_experiments)
 
         indices = [np.where((descriptor_arr == masked_descriptor_arr[ix]).all(axis=1))[0][0]
@@ -112,24 +110,26 @@ class TSEMO(Strategy):
 
         return self.domain.variables[0].ds.iloc[indices, :]
         
-def hypervolume_improvement_index(Ynew, sample_nadir, sample_pareto, batchsize):
-    '''Returns the hypervolume improvment and index (in sample_pareto) of points selected from sample_pareto front '''
+def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize):
+    '''Returns the point(s) that maximimize hypervolume improvement '''
     #Get the reference point, r
-    r = sample_nadir + 0.01*(np.max(sample_pareto)-np.min(sample_pareto)) 
+    r = samples_nadir + 0.01*(np.max(samples)-np.min(samples)) 
     index = []
+    mask = np.ones(samples.shape[0], dtype=bool)
     # Number of samples to consider
-    k, _ = np.shape(sample_pareto)
+    k, _ = np.shape(samples)
     num_gps = Ynew.shape[1]
-    hvY0 = 0
+
     for i in range(batchsize):
+        masked_samples = samples[mask, :]
         Yfront, _ = _pareto_front(Ynew)
         hv_improvement = []
         if num_gps == 2:
             hvY = hypervolume_2D(Yfront, r)
             #Determine hypervolume immprovement by including
-            #point j from sample_pareto
-            for j in range(k):
-                sample = sample_pareto[j, :].reshape(1,num_gps)
+            #point from samples (masking previously selected poonts)
+            for sample in masked_samples:
+                sample = sample.reshape(1,num_gps)
                 A = np.append(Ynew, sample, axis=0)
                 Afront, _ = _pareto_front(A)
                 hv = hypervolume_2D(Afront, r)
@@ -140,42 +140,61 @@ def hypervolume_improvement_index(Ynew, sample_nadir, sample_pareto, batchsize):
             raise NotImplementedError()
         
         hvY0 = hvY if i==0 else hvY0
+
         #Choose the point that maximizes hypervolume improvement
-        #But don't choose any point twice
-        while True:
-            current_index =  hv_improvement.index(max(hv_improvement))
-            if current_index in index:
-                hv_improvement.remove(hv_improvement[current_index])
-                print('To hv point discarded')
-                if hv_improvement is None:
-                    warnings.warn("No more points can be chosen")
-                    break
-            else:
-                max_improvement_point = sample_pareto[current_index, :].reshape(1, num_gps)
-                Ynew = np.append(Ynew, max_improvement_point, axis=0)
-                index.append(current_index)
-                break
-        
-    hv_imp = hv_improvement[index[-1]] + hvY-hvY0
+        max_hvi_index =  hv_improvement.index(max(hv_improvement))
+        samples_index = np.where((samples == masked_samples[max_hvi_index, :]).all(axis=1))[0][0]
+        max_improvement_point = samples[samples_index, :].reshape(1, num_gps)
+        Ynew = np.append(Ynew, max_improvement_point, axis=0)
+        mask[samples_index] = False
+        index.append(samples_index)
+
+    if len(hv_improvement)==0:
+        hv_imp = []
+    else:
+        hv_imp = hv_improvement[index[-1]] + hvY-hvY0
     return hv_imp, index
 
-def _pareto_front(B):
-    pareto_front = np.zeros(np.shape(B))
-    pareto_front_indices = []
-    _, num_funcs = np.shape(B)
-    j=0
-    for i, exmpl in enumerate(B): 
-        #If this example is smaller on any dimension 
-        #than other examples, add it to the pareto front
-        exmpl.shape = (1, num_funcs)
-        diff = np.delete(B, i, 0) - exmpl
-        if np.any(diff)>0:
-            pareto_front[j, :] = exmpl
-            j += 1
-            pareto_front_indices.append(i)
-    pareto_front = pareto_front[0:j, :]
-    pareto_front.shape = (j, num_funcs)
-    return pareto_front, pareto_front_indices
+# def _pareto_front(B):
+#     '''Determine the pareto front of a set of points''' 
+#     pareto_front = np.zeros(np.shape(B))
+#     pareto_front_indices = []
+#     _, num_funcs = np.shape(B)
+#     j=0
+#     for i, exmpl in enumerate(B): 
+#         #If this example is smaller on any dimension 
+#         #than other examples, add it to the pareto front
+#         exmpl.shape = (1, num_funcs)
+#         diff = np.delete(B, i, 0) - exmpl
+#         if np.any(diff)>0:
+#             pareto_front[j, :] = exmpl
+#             j += 1
+#             pareto_front_indices.append(i)
+#     pareto_front = pareto_front[0:j, :]
+#     pareto_front.shape = (j, num_funcs)
+#     return pareto_front, pareto_front_indices
+
+def _pareto_front(points):
+    '''Calculate the pareto front of a 2 dimensional set'''
+    try:
+        assert points.all() == np.atleast_2d(points).all()
+        assert points.shape[1] == 2
+    except AssertionError:
+        raise ValueError("Points must be 2 dimensional.")
+
+    sorted_indices = np.argsort(points[:, 0])
+    sorted = points[sorted_indices, :]
+    front = np.atleast_2d(sorted[-1, :])
+    front_indices = sorted_indices[-1]
+    for i in range(2, sorted.shape[0]+1):
+        if np.greater(sorted[-i, 1], front[:, 1]).all():
+            front = np.append(front, 
+                              np.atleast_2d(sorted[-i, :]),
+                              axis=0)
+            front_indices = np.append(front_indices,
+                                      sorted_indices[-i])
+    return front, front_indices
+
 
 def _hypervolume_2D(F, ub):
     F = -F.transpose() + np.ones(np.shape(F.transpose()))
