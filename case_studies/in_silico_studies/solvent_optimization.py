@@ -1,6 +1,6 @@
 """ In-Silico Solvent Optimization"""
 from surrogate_model_functions import loo_error
-from summit.strategies import TSEMO
+from summit.strategies import TSEMO, _pareto_front
 from summit.models import GPyModel
 from summit.data import solvent_ds, ucb_ds, DataSet
 from summit.domain import Domain, DescriptorsVariable,ContinuousVariable
@@ -172,35 +172,12 @@ def pareto_coverage(pareto_front, design):
     pareto_size = pareto_front.shape[0]
     num_covered = 0
     for point in design:
-        index = np.where(np.isclose(pareto_front, design).all(axis=1))[0]
+        index = np.where(np.isclose(pareto_front, point).all(axis=1))[0]
         if len(index) == 0:
             continue
         else:
             num_covered += 1
     return num_covered/pareto_size
-
-def pareto_front(points):
-    '''Calculate the pareto front of a 2 dimensional set'''
-    try:
-        assert points.all() == np.atleast_2d(points).all()
-        assert points.shape[1] == 2
-    except AssertionError:
-        raise ValueError("Points must be 2 dimensional.")
-
-    sorted_indices = np.argsort(points[:, 0])
-    sorted = points[sorted_indices, :]
-    front = np.atleast_2d(sorted[-1, :])
-    front_indices = sorted_indices[-1]
-    for i in range(2, sorted.shape[0]+1):
-        if np.greater(sorted[-i, 1], front[:, 1]).all():
-            front = np.append(front, 
-                              np.atleast_2d(sorted[-i, :]),
-                              axis=0)
-            front_indices = np.append(front_indices,
-                                      sorted_indices[-i])
-    return front, front_indices
-    
-
 
 def descriptors_optimization(batch_size=constants['BATCH_SIZE'],
                              num_batches=constants['NUM_BATCHES'],
