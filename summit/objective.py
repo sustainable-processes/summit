@@ -1,19 +1,20 @@
+from abc import ABC, abstractmethod
 
 class ObjectiveSet:
-    def __init__(self, *args):
-        for f in args:
+    def __init__(self, functions=[],):
+        for f in functions:
             assert callable(f)
-        self._functions = [arg for arg in args]
+        self._functions = functions
 
     @property
     def num_objectives(self):
-        return len(self_functions)
+        return len(self._functions)
     
     def evaluate(self, X):
         outputs = self.num_objectives*[0]
         for i, f in enumerate(self._functions):
-            output[i] = f(X)
-
+            outputs[i] = f(X)
+        return outputs
             
 class HV(ObjectiveSet):
     def __init__(self, *args):
@@ -21,4 +22,3 @@ class HV(ObjectiveSet):
 
     def evaluate(self, X):
         func_vals = super().evaluate(X)
-        
