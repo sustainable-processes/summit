@@ -28,6 +28,7 @@ class GPyModel(Model):
             self._kernel =  Matern52(input_dim = input_dim, ARD=True)
         self._noise_var = noise_var
         self._optimizer = optimizer
+        self._model = None
     
     def fit(self, X, Y, num_restarts=10, max_iters=2000):
         self._model = GPRegression(X,Y, self._kernel, noise_var=self._noise_var)

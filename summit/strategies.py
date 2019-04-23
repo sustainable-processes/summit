@@ -5,6 +5,8 @@ from summit.objective import HV
 import GPy
 import numpy as np
 
+import warnings
+
 class Strategy:
     def __init__(self, domain:Domain):
         self.domain = domain
@@ -27,8 +29,8 @@ class Strategy:
                 descriptors = variable.ds.loc[indices]
                 new_metadata_name = descriptors.index.name
                 descriptors.index = new_ds.index
-                new_ds = new_ds.join(descriptors)
-
+                new_ds = new_ds.join(descriptors, how='inner')
+                
                 #Make the original descriptors column a metadata column
                 column_list_1 = new_ds.columns.levels[0].to_list()
                 ix = column_list_1.index(variable.name)
@@ -52,11 +54,12 @@ class Strategy:
             raise DomainError("No output columns in the domain.  Add at least one output column for optimization.")
 
         #Return the inputs and outputs as separate datasets
-        return new_ds[input_columns].copy(), ds[output_columns].copy()
+        return new_ds[input_columns].copy(), new_ds[output_columns].copy()
         
 
 class TSEMO(Strategy):
     def __init__(self, domain, models, objective=None, optimizer=None, acquisition=None):
+        #TODO: check that the domain is only a descriptors variable
         super().__init__(domain)
         self.models = models
         self.objective = objective if objective else HV()
@@ -69,24 +72,43 @@ class TSEMO(Strategy):
         inputs, outputs = self.get_inputs_outputs(previous_results)
         if normalize:
             self.x = inputs.standardize()
-            self.y = outputs.standardize()
+            self.y = outputs.data_to_numpy()
+            descriptor_arr = self.domain.variables[0].ds.standardize()
+            descriptor_arr = descriptor_arr.astype(np.float64)
         else:
             self.x = inputs.data_to_numpy()
             self.y = outputs.data_to_numpy()
+            descriptor_arr = self.domain.variables[0].ds.data_to_numpy()
+            descriptor_arr = descriptor_arr.astype(np.float64)
+
+        #Remove any points from the descriptors matrix that have already been suggested
+        descriptor_mask = np.ones(descriptor_arr.shape[0], dtype=bool)
+        for point in self.x:
+            try: 
+                # point_rep = np.repeat(np.atleast_2d(point),descriptor_arr.shape[0], axis=0)
+                # closeness = np.isclose(descriptor_arr,point_rep)
+                index = np.where(descriptor_arr==point)[0][0]
+                descriptor_mask[index] = False
+            except IndexError:
+                continue
+        masked_descriptor_arr = descriptor_arr[descriptor_mask, :]
 
         #Update models
         samples_nadir = np.zeros(2)
-        sample_pareto = np.zeros([self.domain.variables[0].num_examples, 2])
+        sample_pareto = np.zeros([masked_descriptor_arr.shape[0], 2])
         for i, model in enumerate(self.models):
             Y = self.y[:, i]
             Y = np.atleast_2d(Y).T
             model.fit(self.x, Y)
-            samples = model._model.posterior_samples_f(self.domain.variables[0].ds.data_to_numpy(), size=1)
+            samples = model._model.posterior_samples_f(masked_descriptor_arr, size=1)
             sample_pareto[:, i] = samples[:,0,0]
             samples_nadir[i] = np.max(samples)
 
         hv_imp, indices = hypervolume_improvement_index(self.y, samples_nadir, sample_pareto, 
-                                                      batchsize=num_experiments)
+                                                        batchsize=num_experiments)
+
+        indices = [np.where((descriptor_arr == masked_descriptor_arr[ix]).all(axis=1))[0][0]
+                   for ix in indices]
 
         return self.domain.variables[0].ds.iloc[indices, :]
         
@@ -105,7 +127,7 @@ def hypervolume_improvement_index(Ynew, sample_nadir, sample_pareto, batchsize):
         if num_gps == 2:
             hvY = hypervolume_2D(Yfront, r)
             #Determine hypervolume immprovement by including
-            #piont j from sample_pareto
+            #point j from sample_pareto
             for j in range(k):
                 sample = sample_pareto[j, :].reshape(1,num_gps)
                 A = np.append(Ynew, sample, axis=0)
@@ -119,10 +141,20 @@ def hypervolume_improvement_index(Ynew, sample_nadir, sample_pareto, batchsize):
         
         hvY0 = hvY if i==0 else hvY0
         #Choose the point that maximizes hypervolume improvement
-        current_index =  hv_improvement.index(max(hv_improvement))
-        max_improvement_point = sample_pareto[current_index, :].reshape(1, num_gps)
-        Ynew = np.append(Ynew, max_improvement_point, axis=0)
-        index.append(current_index)
+        #But don't choose any point twice
+        while True:
+            current_index =  hv_improvement.index(max(hv_improvement))
+            if current_index in index:
+                hv_improvement.remove(hv_improvement[current_index])
+                print('To hv point discarded')
+                if hv_improvement is None:
+                    warnings.warn("No more points can be chosen")
+                    break
+            else:
+                max_improvement_point = sample_pareto[current_index, :].reshape(1, num_gps)
+                Ynew = np.append(Ynew, max_improvement_point, axis=0)
+                index.append(current_index)
+                break
         
     hv_imp = hv_improvement[index[-1]] + hvY-hvY0
     return hv_imp, index
