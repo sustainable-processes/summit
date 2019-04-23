@@ -31,8 +31,8 @@ class Design:
     """ 
     def __init__(self, domain: Domain, num_samples, design_type: str):
         self._variable_names = [variable.name for variable in domain.variables]
-        self._indices = domain.num_variables * [0]
-        self._values = domain.num_variables * [0]
+        self._indices = domain.num_variables() * [0]
+        self._values = domain.num_variables() * [0]
         self.num_samples = num_samples
         self.design_type = design_type
         self._domain = domain
@@ -123,6 +123,8 @@ class Design:
         ''' 
         df = pd.DataFrame([])
         for i, variable in enumerate(self._domain.variables):
+            if variable.is_output:
+                continue
             if variable.variable_type == 'descriptors':
                 descriptors = variable.ds.iloc[self.get_indices(variable.name)[:, 0], :]
                 df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
