@@ -7,10 +7,13 @@ from summit.domain import Domain, DescriptorsVariable,ContinuousVariable
 from summit.initial_design import LatinDesigner
 
 import GPy
+import inspyred
 from sklearn.decomposition import PCA
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
+from random import Random
 
 #Default Constants
 constants = {"RANDOM_SEED": 1000,
@@ -20,7 +23,7 @@ constants = {"RANDOM_SEED": 1000,
 }
 
 
-def create_pcs_ds(num_components):
+def create_pcs_ds(num_components, verbose=False):
     '''Create dataset with principal components'''
     #Read in solubility data
     solubilities = pd.read_csv('inputs/solubilities.csv')
@@ -30,7 +33,8 @@ def create_pcs_ds(num_components):
     #Merge data sets
     solvent_ds_full = solvent_ds.join(solubilities)
     solvent_ds_final = pd.merge(solvent_ds_full, ucb_ds, left_index=True,right_index=True)
-    print(f"{solvent_ds_final.shape[0]} solvents for optimization")
+    if verbose:
+        print(f"{solvent_ds_final.shape[0]} solvents for optimization")
 
     #Double check that there are no NaNs in the descriptors
     values = solvent_ds_final.data_to_numpy()
@@ -43,8 +47,9 @@ def create_pcs_ds(num_components):
     pca.fit(solvent_ds_full.standardize())
     pcs = pca.fit_transform(solvent_ds_final.standardize())
     explained_var = round(pca.explained_variance_ratio_.sum()*100)
-    expl = f"{explained_var}% of variance is explained by {num_components} principal components."
-    print(expl)
+    if verbose:
+        expl = f"{explained_var}% of variance is explained by {num_components} principal components."
+        print(expl)
 
     #Create a new dataset with just the principal components
     metadata_df = solvent_ds_final.loc[:, solvent_ds_final.metadata_columns]
@@ -132,7 +137,7 @@ def generate_initial_experiment_data(domain, solvent_ds, batch_size, random_stat
 def run_optimization(tsemo, initial_experiments,solvent_ds,
                      batch_size, num_batches,
                      num_components, random_state, 
-                     normalize=False):
+                     normalize=True):
     #Create storage arrays
     lengthscales = np.zeros([num_batches-1, num_components, 2])
     log_likelihoods = np.zeros([num_batches-1, 2])
@@ -216,6 +221,39 @@ def descriptors_optimization(batch_size=constants['BATCH_SIZE'],
                 f.write(txt)
     
     return experiments, lengthscales, log_likelihoods, loo_errors
+
+class SolventEvolutionaryOptimization:
+    def __init__(self, batch_size, num_batches, seed, solvent_ds=None):
+        self.batch_size = batch_size
+        self.num_batches = num_batches
+        self.solvent_ds = solvent_ds if solvent_ds is not None else create_pcs_ds(3)
+        self.cas_numbers = self.solvent_ds.index.values
+        self._prng = Random(seed)
+        self._bounder = inspyred.ec.DiscreteBounder([i for i in range(len(self.cas_numbers))])
+
+    def _generator(self, random, args):
+        return [random.randint(1, len(self.cas_numbers))]
+
+    def _evaluator(self, candidates, args):
+        fitness = []
+        for index in candidates:
+            cas = self.cas_numbers[index[0]]
+            conversion, de = experiment(cas, self.solvent_ds)
+            fitness.append(inspyred.ec.emo.Pareto([conversion, de]))
+        return fitness
+    
+    def optimize(self):
+        ea = inspyred.ec.emo.NSGA2(self._prng)
+        # ea.variator = [inspyred.ec.variators.partially_matched_crossover]
+        ea.termination = inspyred.ec.terminators.generation_termination
+        self._res = ea.evolve(generator=self._generator,
+                             evaluator=self._evaluator,
+                             pop_size=self.batch_size,
+                             max_generation=self.num_batches,
+                             bounder=self._bounder)
+        conversion = [f.fitness[0] for f in ea.archive]
+        de  =[f.fitness[1] for f in ea.archive]
+        return np.array([conversion, de]).T
 
 if __name__ == '__main__':
     descriptors_optimization()
