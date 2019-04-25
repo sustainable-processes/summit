@@ -67,19 +67,25 @@ class TSEMO(Strategy):
         self.acquisition = acquisition
 
     def generate_experiments(self, previous_results: DataSet, num_experiments,
-                             normalize=False, num_spectral_samples=4000):
+                             normalize_inputs=False, normalize_outputs=False, 
+                             num_spectral_samples=4000):
         #Get inputs and outputs + standardize if needed
         inputs, outputs = self.get_inputs_outputs(previous_results)
-        if normalize:
+        if normalize_inputs:
             self.x = inputs.standardize()
-            self.y = outputs.data_to_numpy()
             descriptor_arr = self.domain.variables[0].ds.standardize()
             descriptor_arr = descriptor_arr.astype(np.float64)
         else:
             self.x = inputs.data_to_numpy()
-            self.y = outputs.data_to_numpy()
             descriptor_arr = self.domain.variables[0].ds.data_to_numpy()
             descriptor_arr = descriptor_arr.astype(np.float64)
+
+        if normalize_outputs:
+            self.y = outputs.data_to_numpy()
+        else:
+            
+            self.y = outputs.data_to_numpy()
+
 
         #Remove any points from the descriptors matrix that have already been suggested
         descriptor_mask = np.ones(descriptor_arr.shape[0], dtype=bool)
@@ -91,7 +97,7 @@ class TSEMO(Strategy):
                 continue
         masked_descriptor_arr = descriptor_arr[descriptor_mask, :]
 
-        #Update models
+        #Update models and take samples
         samples_nadir = np.zeros(2)
         new_samples = np.zeros([masked_descriptor_arr.shape[0], 2])
         for i, model in enumerate(self.models):
@@ -126,8 +132,8 @@ def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize):
         hv_improvement = []
         if num_gps == 2:
             hvY = hypervolume_2D(Yfront, r)
-            #Determine hypervolume immprovement by including
-            #point from samples (masking previously selected poonts)
+            #Determine hypervolume improvement by including
+            # each point from samples (masking previously selected poonts)
             for sample in masked_samples:
                 sample = sample.reshape(1,num_gps)
                 A = np.append(Ynew, sample, axis=0)
@@ -154,25 +160,6 @@ def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize):
     else:
         hv_imp = hv_improvement[index[-1]] + hvY-hvY0
     return hv_imp, index
-
-# def _pareto_front(B):
-#     '''Determine the pareto front of a set of points''' 
-#     pareto_front = np.zeros(np.shape(B))
-#     pareto_front_indices = []
-#     _, num_funcs = np.shape(B)
-#     j=0
-#     for i, exmpl in enumerate(B): 
-#         #If this example is smaller on any dimension 
-#         #than other examples, add it to the pareto front
-#         exmpl.shape = (1, num_funcs)
-#         diff = np.delete(B, i, 0) - exmpl
-#         if np.any(diff)>0:
-#             pareto_front[j, :] = exmpl
-#             j += 1
-#             pareto_front_indices.append(i)
-#     pareto_front = pareto_front[0:j, :]
-#     pareto_front.shape = (j, num_funcs)
-#     return pareto_front, pareto_front_indices
 
 def _pareto_front(points):
     '''Calculate the pareto front of a 2 dimensional set'''

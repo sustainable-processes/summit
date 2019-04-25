@@ -40,5 +40,3 @@ class EnumerationParetoOptimizer(Optimizer):
             sample_nadir[i] = np.max(sample_pareto[:, i])
             
         return sample_pareto, sample_nadir
-
-                           
