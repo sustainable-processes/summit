@@ -1,0 +1,14 @@
+build:
+  version: 2016-03-14 # version of the build schema.
+  steps:
+    builder:
+      name: marcosfelt/summit
+      dockerfile: Dockerfile
+      secrets:
+        id_rsa:
+          type: file
+          value: _env(HOME)/.ssh/docker_rsa
+      cleanup:
+        commands:
+          - rm -rf /root/.ssh/
+  
