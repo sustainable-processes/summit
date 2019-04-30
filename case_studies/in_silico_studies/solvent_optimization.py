@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 
 from random import Random
 import time
+from collections import namedtuple
 
 #Default Constants
 constants = {"RANDOM_SEED": 1000,
@@ -136,6 +137,8 @@ def generate_initial_experiment_data(domain, solvent_ds, batch_size,
     initial_experiments = initial_experiments.set_index(np.arange(0, batch_size))
     return initial_experiments
 
+optimization_results = namedtuple('optimization_analystics', ('experiments', 'lengthscales', 'log_likelihoods', 'loo_cv_errors', 'hv_improvements'))
+
 def run_optimization(tsemo, initial_experiments,solvent_ds,
                      batch_size, num_batches,
                      num_components, random_state, 
@@ -145,20 +148,24 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
     lengthscales = np.zeros([num_batches-1, num_components, 2])
     log_likelihoods = np.zeros([num_batches-1, 2])
     loo_errors = np.zeros([num_batches-1, 2])
+    hv_improvements = np.zeros([num_batches-1])
     previous_experiments = initial_experiments
+
 
     #Run the optimization
     for i in range(num_batches-1):
         #Generate batch of solvents
-        design = tsemo.generate_experiments(previous_experiments, batch_size, 
-                                            normalize_inputs=normalize_inputs,
-                                            normalize_outputs=normalize_outputs)
+        design, hv_imp = tsemo.generate_experiments(previous_experiments, batch_size, 
+                                                    normalize_inputs=normalize_inputs,
+                                                    normalize_outputs=normalize_outputs)
 
         #Calculate model parameters for further analysis
         lengthscales[i, :, :] = np.array([model._model.kern.lengthscale.values for model in tsemo.models]).T
         log_likelihoods[i, :] = np.array([model._model.log_likelihood() for model in tsemo.models]).T
+        hv_improvements[i] = hv_imp
         for j in range(2):
             loo_errors[i, j] = loo_error(tsemo.x, np.atleast_2d(tsemo.y[:, j]).T)
+        
 
         #Run the "experiments"                                    
         new_experiments = [experiment(cas, solvent_ds, random_state)
@@ -174,7 +181,11 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
         new_experiments.columns.names = ['NAME', 'TYPE']
         previous_experiments = previous_experiments.append(new_experiments)
 
-    return previous_experiments, lengthscales,log_likelihoods, loo_errors, 
+    return optimization_results(experiments=previous_experiments, 
+                                lengthscales=lengthscales,
+                                log_likelihoods=log_likelihoods,
+                                loo_cv_errors=loo_errors, 
+                                hv_improvements=hv_improvements)
 
 def pareto_coverage(pareto_front, design):
     '''Calculate the percentage of the pareto front covered by a design'''
@@ -206,22 +217,22 @@ def descriptors_optimization(save_to_disk=True, **kwargs):
                                                            batch_size,
                                                            random_state,
                                                            criterion=design_criterion)
-    experiments, lengthscales, log_likelihoods, loo_errors = run_optimization(tsemo, initial_experiments, 
-                                                                              solvent_pcs_ds,
-                                                                              num_batches=num_batches,
-                                                                              batch_size=batch_size, 
-                                                                              num_components=num_components,
-                                                                              random_state=random_state)
+    result = run_optimization(tsemo, initial_experiments, 
+                              solvent_pcs_ds,
+                              num_batches=num_batches,
+                              batch_size=batch_size, 
+                              num_components=num_components,
+                              random_state=random_state)
     # Write parameters to disk
     if save_to_disk:
         if save_to_disk is str:
             output_prefix = save_to_disk
         else:
             output_prefix = ''
-        experiments.to_csv(f'outputs/{output_prefix}_in_silico_experiments.csv')
-        np.save(f'outputs/{output_prefix}_in_silico_lengthscales', lengthscales)
-        np.save(f'outputs/{output_prefix}_in_silico_log_likelihoods', log_likelihoods)
-        np.save(f'outputs/{output_prefix}_in_silico_loo_errors', loo_errors)
+        result.experiments.to_csv(f'outputs/{output_prefix}_in_silico_experiments.csv')
+        np.save(f'outputs/{output_prefix}_in_silico_lengthscales', result.lengthscales)
+        np.save(f'outputs/{output_prefix}_in_silico_log_likelihoods', result.log_likelihoods)
+        np.save(f'outputs/{output_prefix}_in_silico_loo_errors', result.loo_cv_errors)
         to_print = [('Random seed', random_seed),
                     ("Number of principal components", num_components),
                     ("Number of batches", num_batches),
@@ -233,7 +244,7 @@ def descriptors_optimization(save_to_disk=True, **kwargs):
                 print(txt)
                 f.write(txt)
     
-    return experiments, lengthscales, log_likelihoods, loo_errors
+    return result
 
 def repeat_test(num_repeats=1000):
     '''Test various optimization parameters'''
@@ -252,13 +263,11 @@ def repeat_test(num_repeats=1000):
     for j, d in enumerate(design):
         #Create arrays for summaries
         num_batches = 40 // d['batch_size']
-        import ipdb; ipdb.set_trace()
         lengthscales = np.zeros([num_repeats, num_batches-1, num_components, 2])
         log_likelihoods = np.zeros([num_repeats, num_batches-1, 2])
-        loo_errors = np.zeros([num_repeats, num_batches-1, 2])
-        experiments = num_repeats*[0]
+        loo_cv_errors = np.zeros([num_repeats, num_batches-1, 2])
         
-        for i in range(1000):
+        for i in range(num_repeats):
             res =  descriptors_optimization(batch_size=d['batch_size'],
                                             num_batches=num_batches,
                                             num_components = num_components,
@@ -266,26 +275,26 @@ def repeat_test(num_repeats=1000):
                                             normalize_inputs=d['normalize_inputs'],
                                             normalize_outputs=d['normalize_outputs'],
                                             save_to_disk=False)
-            experiments[i] = res[0]
-            lengthscales[i, :, :, :] = res[1]
-            log_likelihoods[i, :, :] = res[2]
-            loo_errors[i, :, :] = res[3]
+            lengthscales[i, :, :, :] = res.lengthscales
+            log_likelihoods[i, :, :] = res.log_likelihoods
+            loo_cv_errors[i, :, :] = res.loo_cv_errors
         
-        output_prefix=f'design_{j}'
-        experiments.to_csv(f'outputs/{output_prefix}_in_silico_experiments.csv')
-        np.save(f'outputs/{output_prefix}_in_silico_lengthscales', lengthscales)
-        np.save(f'outputs/{output_prefix}_in_silico_log_likelihoods', log_likelihoods)
-        np.save(f'outputs/{output_prefix}_in_silico_loo_errors', loo_errors)
-        to_print = [("Number of principal components", num_components),
-                    ("Number of batches", num_batches),
-                    ("Batch size",d['batch_size']),
-                    ('Normalize inputs', d['normalize_inputs']),
-                    ('Normalize outputs'), d['normalize_outputs']]
+            output_prefix=f'design_{j}'
+            res.experiments.to_csv(f'outputs/{output_prefix}_in_silico_experiments_iteration_{i}.csv')
+            np.save(f'outputs/{output_prefix}_in_silico_lengthscales', lengthscales)
+            np.save(f'outputs/{output_prefix}_in_silico_log_likelihoods', log_likelihoods)
+            np.save(f'outputs/{output_prefix}_in_silico_loo_errors', loo_cv_errors)
+            to_print = [("Number of principal components", num_components),
+                        ("Number of batches", num_batches),
+                        ("Batch size",d['batch_size']),
+                        ('Normalize inputs', d['normalize_inputs']),
+                        ('Normalize outputs', d['normalize_outputs']),
+                        ('Iteration', i)]
         
-        with open(f'outputs/{output_prefix}_in_silico_metadata.txt',  'w') as f:
-            for prefix, value in to_print:
-                txt = f"{prefix}: {value}"
-                f.write(txt)
+            with open(f'outputs/{output_prefix}_in_silico_metadata.txt',  'w') as f:
+                for prefix, value in to_print:
+                    txt = f"{prefix}: {value}"
+                    f.write(txt)
 
 
 class SolventEvolutionaryOptimization:
@@ -302,7 +311,6 @@ class SolventEvolutionaryOptimization:
                                                                     self.batch_size,
                                                                     np.random.RandomState(seed))
         self.initial_experiments = initial_experiments.data_to_numpy()[:, (0,1)].astype(np.float64).tolist()
-        import ipdb; ipdb.set_trace()
         self.solvents_evaluated = []
 
 
@@ -321,13 +329,16 @@ class SolventEvolutionaryOptimization:
     def optimize(self):
         ea = inspyred.ec.emo.NSGA2(self._prng)  
         ea.termination = inspyred.ec.terminators.generation_termination
+        ea.variator = [inspyred.ec.variators.blend_crossover, 
+                    inspyred.ec.variators.gaussian_mutation]
         self._res = ea.evolve(generator=self._generator,
                               evaluator=self._evaluator,
                               pop_size=self.batch_size,
                               max_generations=self.num_batches,
                               maximize=True,
-                              seeds=self.initial_experiments,
-                              bounder=self._bounder)
+                            #   seeds=self.initial_experiments,
+                              bounder=self._bounder,
+                              observer=inspyred.ec.observers.population_observer)
         conversion = [f.fitness[0] for f in ea.archive]
         de  =[f.fitness[1] for f in ea.archive]
         return np.array([conversion, de]).T
@@ -353,4 +364,4 @@ def fullfact(levels):
 
 if __name__ == '__main__':
     # descriptors_optimization()
-    repeat_test(1000)
+    repeat_test(100)

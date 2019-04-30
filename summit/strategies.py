@@ -86,7 +86,6 @@ class TSEMO(Strategy):
             
             self.y = outputs.data_to_numpy()
 
-
         #Remove any points from the descriptors matrix that have already been suggested
         descriptor_mask = np.ones(descriptor_arr.shape[0], dtype=bool)
         for point in self.x:
@@ -103,23 +102,25 @@ class TSEMO(Strategy):
         for i, model in enumerate(self.models):
             Y = self.y[:, i]
             Y = np.atleast_2d(Y).T
-            model.fit(self.x, Y)
+            model.fit(self.x, Y, num_restarts=3)
             samples = model._model.posterior_samples_f(masked_descriptor_arr, size=1)
             new_samples[:, i] = samples[:,0,0]
-            samples_nadir[i] = np.max(samples)
-
+            # samples_nadir[i] = np.max(samples)
+        
+        #Temporary fix
+        samples_nadir = np.array([100., 100.])
         hv_imp, indices = hypervolume_improvement_index(self.y, samples_nadir, new_samples, 
                                                         batchsize=num_experiments)
 
         indices = [np.where((descriptor_arr == masked_descriptor_arr[ix]).all(axis=1))[0][0]
                    for ix in indices]
 
-        return self.domain.variables[0].ds.iloc[indices, :]
+        return self.domain.variables[0].ds.iloc[indices, :], hv_imp
         
 def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize):
     '''Returns the point(s) that maximimize hypervolume improvement '''
     #Get the reference point, r
-    r = samples_nadir + 0.01*(np.max(samples)-np.min(samples)) 
+    r = samples_nadir + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0)) 
     index = []
     mask = np.ones(samples.shape[0], dtype=bool)
     # Number of samples to consider
@@ -129,6 +130,8 @@ def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize):
     for i in range(batchsize):
         masked_samples = samples[mask, :]
         Yfront, _ = _pareto_front(Ynew)
+        if len(Yfront) ==0:
+            raise ValueError('Pareto front length too short')
         hv_improvement = []
         if num_gps == 2:
             hvY = hypervolume_2D(Yfront, r)
@@ -156,9 +159,15 @@ def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize):
         index.append(samples_index)
 
     if len(hv_improvement)==0:
-        hv_imp = []
+        hv_imp = 0
+    elif len(index) == 0:
+        index = []
+        hv_imp = 0
     else:
-        hv_imp = hv_improvement[index[-1]] + hvY-hvY0
+        #Total hypervolume improvement
+        #Includes all points added to batch (hvY + last hv_improvement)
+        #Subtracts hypervolume without any points added (hvY0)
+        hv_imp = hv_improvement[max_hvi_index] + hvY-hvY0
     return hv_imp, index
 
 def _pareto_front(points):
@@ -197,22 +206,21 @@ def _hypervolume_2D(F, ub):
 def hypervolume_2D(Yfront, r):
     r = r[:, np.newaxis]
     AYfront = remove_points_above_reference(Yfront, r)
-    if len(AYfront)>0:
-        normvec = np.min(AYfront, axis=0)[:, np.newaxis]
-        z, _ = np.shape(AYfront)
-        A = AYfront-normvec.transpose()
-        A = A@np.diagflat(np.divide(1,r-normvec))
-        A = -A + np.ones(np.shape(A))
-        A = sortrows(A, 0)
-        hyp_percentage = _hypervolume_2D(A, [0, 0])
-        hv = np.prod(r-normvec)*hyp_percentage
-    else:
-        hv = np.array([[]])
+    if len(AYfront)==0:
+        AYfront = 100*np.ones(Yfront.shape)
+    normvec = np.min(AYfront, axis=0)[:, np.newaxis]
+    z, _ = np.shape(AYfront)
+    A = AYfront-normvec.transpose()
+    A = A@np.diagflat(np.divide(1,r-normvec))
+    A = -A + np.ones(np.shape(A))
+    A = sortrows(A, 0)
+    hyp_percentage = _hypervolume_2D(A, [0, 0])
+    hv = np.prod(r-normvec)*hyp_percentage      
     return hv
 
 def remove_points_above_reference(Afront, r):
     A = sortrows(Afront)
-    for p in range(len(Afront[1, :])):
+    for p in range(len(Afront[0, :])):
         A = A[A[:,p]<= r[p], :]
     return A
 
