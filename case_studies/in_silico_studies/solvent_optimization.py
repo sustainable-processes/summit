@@ -12,10 +12,15 @@ from sklearn.decomposition import PCA
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm 
 
 from random import Random
 import time
 from collections import namedtuple
+import logging
+import warnings
+import sys
+import json
 
 #Default Constants
 constants = {"RANDOM_SEED": 1000,
@@ -23,7 +28,7 @@ constants = {"RANDOM_SEED": 1000,
              "BATCH_SIZE": 8,
              "NUM_COMPONENTS": 3
 }
-
+ 
 
 def create_pcs_ds(num_components, verbose=False):
     '''Create dataset with principal components'''
@@ -112,6 +117,7 @@ def create_domain(solvent_ds):
                                 is_output=True)
     return domain
 
+
 def optimization_setup(domain):
     input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
     kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
@@ -151,20 +157,22 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
     hv_improvements = np.zeros([num_batches-1])
     previous_experiments = initial_experiments
 
-
     #Run the optimization
     for i in range(num_batches-1):
         #Generate batch of solvents
-        design, hv_imp = tsemo.generate_experiments(previous_experiments, batch_size, 
-                                                    normalize_inputs=normalize_inputs,
-                                                    normalize_outputs=normalize_outputs)
+        logging.debug(f'Batch {i+1}')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            design, hv_imp = tsemo.generate_experiments(previous_experiments, batch_size, 
+                                                        normalize_inputs=normalize_inputs,
+                                                        normalize_outputs=normalize_outputs)
 
         #Calculate model parameters for further analysis
         lengthscales[i, :, :] = np.array([model._model.kern.lengthscale.values for model in tsemo.models]).T
         log_likelihoods[i, :] = np.array([model._model.log_likelihood() for model in tsemo.models]).T
         hv_improvements[i] = hv_imp
-        for j in range(2):
-            loo_errors[i, j] = loo_error(tsemo.x, np.atleast_2d(tsemo.y[:, j]).T)
+        logging.debug(f'Calculating loo errors')
+        loo_errors[i, :] = tsemo.loo_errors()
         
 
         #Run the "experiments"                                    
@@ -253,21 +261,22 @@ def repeat_test(num_repeats=1000):
     params = {'normalize_inputs': [False, True],
               'normalize_outputs': [False, True],
               'batch_size': [4, 8],
-              'design_criterion': ['center', 'maximin', 'centermaximin', 'correlation']}
+              'design_criterion': ['center', 'maximin']}
     
     levels = [len(params[key]) for key in params]
     doe = fullfact(levels)
-    design = [{key: params[key][int(index)] for key, index in zip(params, d)}
+    designs = [{key: params[key][int(index)] for key, index in zip(params, d)}
               for d in doe]
 
-    for j, d in enumerate(design):
+    for j, d in enumerate(designs):
         #Create arrays for summaries
+        print(f'Starting design {j+1} out {len(designs)}.')
         num_batches = 40 // d['batch_size']
         lengthscales = np.zeros([num_repeats, num_batches-1, num_components, 2])
         log_likelihoods = np.zeros([num_repeats, num_batches-1, 2])
         loo_cv_errors = np.zeros([num_repeats, num_batches-1, 2])
         
-        for i in range(num_repeats):
+        for i in tqdm(range(num_repeats)):
             res =  descriptors_optimization(batch_size=d['batch_size'],
                                             num_batches=num_batches,
                                             num_components = num_components,
@@ -279,22 +288,20 @@ def repeat_test(num_repeats=1000):
             log_likelihoods[i, :, :] = res.log_likelihoods
             loo_cv_errors[i, :, :] = res.loo_cv_errors
         
-            output_prefix=f'design_{j}'
-            res.experiments.to_csv(f'outputs/{output_prefix}_in_silico_experiments_iteration_{i}.csv')
+            output_prefix=f'test_{j}'
+            res.experiments.to_csv(f'outputs/{output_prefix}_iteration_{i}_in_silico_experiments.csv')
             np.save(f'outputs/{output_prefix}_in_silico_lengthscales', lengthscales)
             np.save(f'outputs/{output_prefix}_in_silico_log_likelihoods', log_likelihoods)
             np.save(f'outputs/{output_prefix}_in_silico_loo_errors', loo_cv_errors)
-            to_print = [("Number of principal components", num_components),
-                        ("Number of batches", num_batches),
-                        ("Batch size",d['batch_size']),
-                        ('Normalize inputs', d['normalize_inputs']),
-                        ('Normalize outputs', d['normalize_outputs']),
-                        ('Iteration', i)]
+            metadata = {"num_principal_components": num_components,
+                        "num_batches": num_batches,
+                        "batch_size": d['batch_size'],
+                        'normalize_inputs': d['normalize_inputs'],
+                        'normalize_outputs': d['normalize_outputs'],
+                        'repeat_iteration': i+1}
         
-            with open(f'outputs/{output_prefix}_in_silico_metadata.txt',  'w') as f:
-                for prefix, value in to_print:
-                    txt = f"{prefix}: {value}"
-                    f.write(txt)
+            with open(f'outputs/{output_prefix}_in_silico_metadata.json',  'w') as f:
+                json.dump(metadata, f)
 
 
 class SolventEvolutionaryOptimization:
@@ -362,6 +369,13 @@ def fullfact(levels):
      
     return H
 
+def send_warnings_to_log(message, category, filename, lineno, file=None, line=None):
+    return ' %s:%s: %s:%s' % (filename, lineno, category.__name__, message)
+
 if __name__ == '__main__':
     # descriptors_optimization()
-    repeat_test(100)
+    warnings.showwarning = send_warnings_to_log
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    logging.basicConfig(filename=f"outputs/{time.time()}_log.txt",level=logging.DEBUG)
+    logger = logging.getLogger(__name__)
+    repeat_test(20)

@@ -1,8 +1,8 @@
 """
 Helper functions for GPy model training and analysis
 """
-import scipydirect 
-import scipy.optimize as so
+# import scipydirect 
+# import scipy.optimize as so
 from GPy.inference.optimization import Optimizer
 import GPy
 import numpy as np
@@ -26,8 +26,8 @@ def plot_3d_model(ax, m, f=None,
     y_bounds: array_like, optional
         The bounds of the y_axis. Defaults to [-2,2]
     ''' 
-    gridX, gridY = np.meshgrid(np.arange(x_bounds[0], x_bounds[1], 0.1),
-                               np.arange(y_bounds[0], y_bounds[1], 0.1))
+    gridX, gridY = np.meshgrid(np.arange(x_bounds[0], x_bounds[1], (x_bounds[1]-x_bounds[0])/50),
+                               np.arange(y_bounds[0], y_bounds[1], (y_bounds[1]-y_bounds[0])/50))
     Zpredict = np.zeros_like(gridX)
     flattened = np.array([gridX.flatten(), gridY.flatten()]).T
     mean, var = m.predict(flattened)
@@ -39,7 +39,7 @@ def plot_3d_model(ax, m, f=None,
         values = f(flattened)
         for i in range(values.shape[0]):
             Z.ravel()[i] = values[i, 0]
-        ax.plot_wireframe(gridX, gridY, Z, rstride=1, cstride=1, label='Data')
+        ax.plot_wireframe(gridX, gridY, Z, rstride=3, alpha=0.2, cstride=3, label='Data')
         ax.legend()
     
 def loo_error(x, y, kernel=None, optimizer=None, max_iters=1000, num_restarts=10):
@@ -91,18 +91,18 @@ def loo_error(x, y, kernel=None, optimizer=None, max_iters=1000, num_restarts=10
     avg_err = np.sqrt(1/n*np.sum(sq_errors))/range_y
     return avg_err
 
-class DirectOpt(Optimizer):
-    """Combined global and local optimization of model hyperparameters"""
-    def __init__(self, bounds, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.bounds = bounds
+# class DirectOpt(Optimizer):
+#     """Combined global and local optimization of model hyperparameters"""
+#     def __init__(self, bounds, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.bounds = bounds
         
-    def opt(self, x_init, f_fp=None, f=None, fp=None):
+#     def opt(self, x_init, f_fp=None, f=None, fp=None):
         
-        #Global optimization
-        res1 = scipydirect.minimize(f, self.bounds)
+#         #Global optimization
+#         res1 = scipydirect.minimize(f, self.bounds)
         
-        #Local gradient optimization
-        res2 = so.minimize(f, res1.x)
+#         #Local gradient optimization
+#         res2 = so.minimize(f, res1.x)
         
-        self.x_opt = res2.x
+#         self.x_opt = res2.x
