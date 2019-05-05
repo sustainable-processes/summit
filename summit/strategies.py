@@ -6,6 +6,7 @@ import GPy
 import numpy as np
 
 import warnings
+import logging
 
 class Strategy:
     def __init__(self, domain:Domain):
@@ -102,20 +103,34 @@ class TSEMO(Strategy):
         for i, model in enumerate(self.models):
             Y = self.y[:, i]
             Y = np.atleast_2d(Y).T
-            model.fit(self.x, Y, num_restarts=3)
+            logging.debug(f'Fitting model {i+1}')
+            model.fit(self.x, Y, num_restarts=3, max_iters=100,parallel=True)
+            logging.debug(f'Sampling model {i+1}')
             samples = model._model.posterior_samples_f(masked_descriptor_arr, size=1)
             new_samples[:, i] = samples[:,0,0]
             # samples_nadir[i] = np.max(samples)
         
         #Temporary fix
+        logging.debug('Calculating hypervolume improvement')
         samples_nadir = np.array([100., 100.])
         hv_imp, indices = hypervolume_improvement_index(self.y, samples_nadir, new_samples, 
                                                         batchsize=num_experiments)
 
+        
         indices = [np.where((descriptor_arr == masked_descriptor_arr[ix]).all(axis=1))[0][0]
                    for ix in indices]
 
         return self.domain.variables[0].ds.iloc[indices, :], hv_imp
+
+    def loo_errors(self):
+        errors = np.zeros(self.y.shape[1])
+        for i, model in enumerate(self.models):
+            kern = model._model.kern
+            loos = model._model.inference_method.LOO(kern, self.x, np.atleast_2d(self.y[:, i]).T, 
+                                                     model._model.likelihood, 
+                                                     model._model.posterior)
+            errors[i] = np.sum(loos)                           
+        return errors
         
 def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize):
     '''Returns the point(s) that maximimize hypervolume improvement '''

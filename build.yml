@@ -1,9 +1,9 @@
 build:
   version: 2016-03-14 # version of the build schema.
   steps:
-    builder:
-      name: marcosfelt/summit
-      dockerfile: Dockerfile
+    main:
+      name: marcosfelt/summit:latest
+      dockerfile: Dockerfile.main
       secrets:
         id_rsa:
           type: file
@@ -11,4 +11,9 @@ build:
       cleanup:
         commands:
           - rm -rf /root/.ssh/
+    in-silico:
+      name: marcosfelt/summit:in-silico
+      dockerfile: Dockerfile.in_silico
+      depends_on:
+        - main
   

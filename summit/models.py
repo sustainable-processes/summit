@@ -30,17 +30,19 @@ class GPyModel(Model):
         self._optimizer = optimizer
         self._model = None
     
-    def fit(self, X, Y, num_restarts=10, max_iters=2000):
+    def fit(self, X, Y, num_restarts=10, max_iters=2000, parallel=False):
         self._model = GPRegression(X,Y, self._kernel, noise_var=self._noise_var)
         if self._optimizer:
             self._model.optimize_restarts(num_restarts = num_restarts, 
                                           verbose=False,
                                           max_iters=max_iters,
-                                          optimizer=self._optimizer)
+                                          optimizer=self._optimizer,
+                                          parallel=parallel)
         else:
             self._model.optimize_restarts(num_restarts = num_restarts, 
                                           verbose=False,
-                                          max_iters=max_iters)
+                                          max_iters=max_iters,
+                                          parallel=parallel)
 
     def predict(self, X):
         m, v = self._model.predict(X)

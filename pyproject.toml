@@ -10,22 +10,13 @@ homepage = "https://pypi.org/project/summit"
 keywords = []
 
 [tool.poetry.dependencies]
-gpyopt = {git = "https://github.com/SheffieldML/GPyOpt.git"}
 sklearn = "^0.0.0"
 pandas = "^0.24.1"
 matplotlib = "^3.0"
-cheminventory="^0.2.1"
-tqdm = "^4.31"
 python = "^3.6"
 pyDOE = "^0.3.8"
-python-dotenv = "^0.10.1"
-ipywidgets = "^7.4"
 GPy = "^1.9"
 numpy = "1.16.0"
-scipydirect = "^1.3"
-lxml = "^4.3"
-tsemo = {git = "https://github.com/marcosfelt/TSEMO-python"}
-inspyred = "^1.0"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^18.3-alpha.0",allows-prereleases = true}
@@ -34,6 +25,12 @@ jupyterlab = "^0.35.4"
 pytest = "^3.0"
 ipdb = "^0.12.0"
 pytest-mock = "^1.10"
+inspyred = "^1.0"
+lxml = "^4.3"
+python-dotenv = "^0.10.1"
+ipywidgets = "^7.4"
+tqdm = "^4.31"
+cheminventory="^0.2.1"
 
 [build-system]
 requires = ["poetry>=0.12"]

@@ -1,6 +1,0 @@
-Number of principal components: 3
-Number of batches: 5
-Batch size: 8
-Normalize inputs: False
-Normalize outputs: True
-Iteration: 19

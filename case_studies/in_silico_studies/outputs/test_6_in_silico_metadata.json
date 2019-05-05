@@ -1,0 +1,1 @@
+{"num_principal_components": 3, "num_batches": 5, "batch_size": 8, "normalize_inputs": false, "normalize_outputs": true, "repeat_iteration": 50}

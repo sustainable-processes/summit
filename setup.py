@@ -15,11 +15,13 @@ from os import path
 # It ensures open() defaults to text mode with universal newlines,
 # and accepts an argument to specify the text encoding
 # Python 3 only projects can skip this import
+from io import open
+here = path.abspath(path.dirname(__file__))
+# Get the long description from the README file
+#with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+#    long_description = f.read()
 # Arguments marked as "Required" below must be included for upload to PyPI.
-# Fields marked as "Optional" may be commented out.i
-with open('requirements.txt', 'r') as f:
-	requirements = f.readlines()
-requriements = [requirement.rstrip('\n') for requirement in requirements]
+# Fields marked as "Optional" may be commented out.
 setup(
     # https://packaging.python.org/specifications/core-metadata/#name
     name='summit',  # Required
@@ -27,28 +29,47 @@ setup(
     # https://packaging.python.org/en/latest/single_source_version.html
     version='0.1.0',  # Required
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description="Unofficial python SDK for the Reaxys API",  # Required
+    description="Tools for optimizing chemical reactions",  # Required
     # https://packaging.python.org/specifications/core-metadata/#description-optional
     #long_description=long_description,  # Optional
     # https://packaging.python.org/specifications/core-metadata/#description-content-type-optional
+    #long_description_content_type='text/markdown',  # Optional (see note above)
+    url="https://pypi.org/project/summit",  # Optional
     author="Kobi Felton",  # Optional
     author_email="kobi.c.f@gmail.com",  # Optional
     # For a list of valid classifiers, see https://pypi.org/classifiers/
     classifiers=[
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3',
-	'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7'
     ],  # Optional
     packages=find_packages(),  # Required
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=requirements,  # Optional
+    install_requires=[
+        'sklearn (>=0.0.0,<0.0.1)',
+        'pandas (>=0.24.1,<0.25.0)',
+        'matplotlib (>=3.0,<4.0)',
+        'cheminventory (>=0.2.1,<0.3.0)',
+        'tqdm (>=4.31,<5.0)',
+        'pyDOE (>=0.3.8,<0.4.0)',
+        'python-dotenv (>=0.10.1,<0.11.0)',
+        'ipywidgets (>=7.4,<8.0)',
+        'GPy (>=1.9,<2.0)',
+        'numpy (==1.16.0)',
+        'scipydirect (>=1.3,<2.0)',
+        'lxml (>=4.3,<5.0)',
+        'inspyred (>=1.0,<2.0)',
+    ],  # Optional
     # https://setuptools.readthedocs.io/en/latest/setuptools.html#dependencies-that-aren-t-in-pypi
-    dependency_links=[],  # Optional
+    dependency_links=[
+        'git+https://github.com/SheffieldML/GPyOpt.git@master#egg=gpyopt',
+        'git+https://github.com/marcosfelt/TSEMO-python@master#egg=tsemo',
+    ],  # Optional
     # https://stackoverflow.com/a/16576850
     include_package_data=True,
     # https://packaging.python.org/specifications/core-metadata/#project-url-multiple-use
     project_urls={  # Optional
+        'homepage': 'https://pypi.org/project/summit',
     },
 )

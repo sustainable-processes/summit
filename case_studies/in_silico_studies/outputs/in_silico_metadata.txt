@@ -1,1 +1,0 @@
-Random seed: 1000Number of principal components: 3Number of batches: 5Batch size: 8

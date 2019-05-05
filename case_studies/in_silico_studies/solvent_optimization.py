@@ -11,6 +11,7 @@ import inspyred
 from sklearn.decomposition import PCA
 import pandas as pd
 import numpy as np
+from scipy import integrate
 import matplotlib.pyplot as plt
 from tqdm import tqdm 
 
@@ -26,9 +27,9 @@ import json
 constants = {"RANDOM_SEED": 1000,
              "NUM_BATCHES" : 4,
              "BATCH_SIZE": 8,
-             "NUM_COMPONENTS": 3
+             "NUM_COMPONENTS": 3,
+             "NUM_REPEATS": 50
 }
- 
 
 def create_pcs_ds(num_components, verbose=False):
     '''Create dataset with principal components'''
@@ -76,30 +77,69 @@ cd2 = lambda t, T, Es: AD2*t*np.exp(-(EAD2+Es)/T)
 Es1 = lambda pc1, pc2, pc3: -20*pc2*abs(pc3) + 0.025*pc1**3
 Es2 = lambda pc1, pc2, pc3: 15*pc2*pc3-40*pc3**2
 
-def experiment(solvent_cas, solvent_ds, random_state=np.random.RandomState()):
-    '''Generate fake experiment data for a stereoselective reaction'''
-    pc_solvent = solvent_ds.loc[solvent_cas][solvent_ds.data_columns].to_numpy()
-    es1 = Es1(pc_solvent[0], pc_solvent[1], pc_solvent[2])
-    es2 = Es2(pc_solvent[0], pc_solvent[1], pc_solvent[2])
-    T = 5 * random_state.randn(1) + 393
-    t = 0.1 * random_state.randn(1) + 7
-    exper_cd1 = cd1(t, T, es1)
-    exper_cd2 = cd2(t, T, es2)
+class Experiments:
+    ''' Generate data to simulate a stereoselective chemical reaction 
+    
+    Parameters
+    ----------- 
+    solvent_ds: Dataset
+        Dataset with the solvent descriptors (must have cas numbers as index)
+    random_state: `numpy.random.RandomState`
+        RandomState object
+    pre_calculate: bool
+        If True, pre-calculates the experiments for all solvents. Defaults to False
 
-    #Conversion with noise
-    conversion = exper_cd1 + exper_cd2
-    max_conversion = 95.0 + random_state.randn(1)*2
-    conversion = min(max_conversion[0], conversion[0])
-    conversion = conversion + random_state.randn(1)*2
-    conversion=conversion[0]
-                     
-    #Diasteromeric excess with noise
-    de = abs(exper_cd1-exper_cd2)/(exper_cd1 +exper_cd2)
-    max_de =  0.98 + random_state.randn(1)*0.02
-    de = min(max_de[0], de[0])
-    de = de + random_state.randn(1)*0.02
-    de = de[0]
-    return np.array([conversion, de*100])
+    Notes
+    -----
+    Pre-calculating will ensure that multiple calls to experiments will give the same result. 
+    
+    ''' 
+    def __init__(self, solvent_ds, random_state=np.random.RandomState(), pre_calculate=False):
+        self.solvent_ds = solvent_ds
+        self.random_state = random_state
+        self.pre_calculate = pre_calculate
+        self.cas_numbers = self.solvent_ds.index.values.tolist()
+        if pre_calculate:
+            all_experiments = [self._run(cas) for cas in self.cas_numbers]
+            self.all_experiments = np.array(all_experiments)                
+        else:
+            self.all_experiments = None
+        
+
+    def _run(self, solvent_cas):
+        '''Generate fake experiment data for a stereoselective reaction'''
+        pc_solvent = self.solvent_ds.loc[solvent_cas][self.solvent_ds.data_columns].to_numpy()
+        es1 = Es1(pc_solvent[0], pc_solvent[1], pc_solvent[2])
+        es2 = Es2(pc_solvent[0], pc_solvent[1], pc_solvent[2])
+        T = 5 * self.random_state.randn(1) + 393
+        t = 0.1 * self.random_state.randn(1) + 7
+        exper_cd1 = cd1(t, T, es1)
+        exper_cd2 = cd2(t, T, es2)
+
+        #Conversion with noise
+        conversion = exper_cd1 + exper_cd2
+        max_conversion = 95.0 + self.random_state.randn(1)*2
+        conversion = min(max_conversion[0], conversion[0])
+        conversion = conversion + self.random_state.randn(1)*2
+        conversion=conversion[0]
+                        
+        #Diasteromeric excess with noise
+        de = abs(exper_cd1-exper_cd2)/(exper_cd1 +exper_cd2)
+        max_de =  0.98 + self.random_state.randn(1)*0.02
+        de = min(max_de[0], de[0])
+        de = de + self.random_state.randn(1)*0.02
+        de = de[0]
+        return np.array([conversion, de*100])
+    
+    def run(self, solvent_cas):
+        if self.all_experiments is None:
+            result = self._run(solvent_cas)
+        else:
+            index = self.cas_numbers.index(solvent_cas)
+            result = self.all_experiments[index, :]
+        return result
+
+        
 
 #Create  optimization domain
 def create_domain(solvent_ds):
@@ -125,14 +165,14 @@ def optimization_setup(domain):
     models = [GPyModel(kernel=kernels[i]) for i in range(2)]
     return TSEMO(domain, models)
 
-def generate_initial_experiment_data(domain, solvent_ds, batch_size, 
-                                     random_state, criterion='center'):
+def generate_initial_experiment_data(domain, solvent_ds, batch_size, random_state,
+                                     experiments, criterion='center'):
     #Initial design
     lhs = LatinDesigner(domain,random_state)
     initial_design = lhs.generate_experiments(batch_size, criterion=criterion)
 
     #Initial experiments
-    initial_experiments = [experiment(cas, solvent_ds, random_state) 
+    initial_experiments = [experiments.run(cas) 
                            for cas in initial_design.to_frame()['cas_number']]
     initial_experiments = np.array(initial_experiments)
     initial_experiments = DataSet({('conversion', 'DATA'): initial_experiments[:, 0],
@@ -148,8 +188,10 @@ optimization_results = namedtuple('optimization_analystics', ('experiments', 'le
 def run_optimization(tsemo, initial_experiments,solvent_ds,
                      batch_size, num_batches,
                      num_components, random_state, 
+                     experiments,
                      normalize_inputs=False,
                      normalize_outputs=False):
+    '''Run an optimization'''
     #Create storage arrays
     lengthscales = np.zeros([num_batches-1, num_components, 2])
     log_likelihoods = np.zeros([num_batches-1, 2])
@@ -176,7 +218,7 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
         
 
         #Run the "experiments"                                    
-        new_experiments = [experiment(cas, solvent_ds, random_state)
+        new_experiments = [experiments.run(cas)
                            for cas in design.index.values]
         new_experiments = np.array(new_experiments)
 
@@ -195,42 +237,40 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
                                 loo_cv_errors=loo_errors, 
                                 hv_improvements=hv_improvements)
 
-def pareto_coverage(pareto_front, design):
-    '''Calculate the percentage of the pareto front covered by a design'''
-    pareto_size = pareto_front.shape[0]
-    num_covered = 0
-    for point in design:
-        index = np.where(np.isclose(pareto_front, point).all(axis=1))[0]
-        if len(index) == 0:
-            continue
-        else:
-            num_covered += 1
-    return num_covered/pareto_size
-
 def descriptors_optimization(save_to_disk=True, **kwargs):
+    '''Setup and run a descriptors optimization'''
+    #Get keyword arguments
     batch_size = kwargs.get('batch_size', constants['BATCH_SIZE'])
     num_batches = kwargs.get('num_batches',constants['NUM_BATCHES'])
     num_components = kwargs.get('num_components',constants['NUM_COMPONENTS'])
+    num_initial_experiments = kwargs.get('num_initial_experiments', batch_size)
     random_seed = kwargs.get('random_seed', constants['RANDOM_SEED'])
     normalize_inputs = kwargs.get('normalize_inputs', True)
     normalize_outputs = kwargs.get('normalize_outputs', True)
-    design_criterion = kwargs.get('design_criterion', None)
+    design_criterion = kwargs.get('design_criterion', 'center')
 
+    #Setup
     random_state = np.random.RandomState(random_seed)
     solvent_pcs_ds = create_pcs_ds(num_components=num_components)
+    exp = Experiments(solvent_ds=solvent_pcs_ds, random_state=random_state, pre_calculate=True)
     domain = create_domain(solvent_pcs_ds)
     tsemo = optimization_setup(domain)
-    initial_experiments = generate_initial_experiment_data(domain,
-                                                           solvent_pcs_ds,
-                                                           batch_size,
-                                                           random_state,
+    initial_experiments = generate_initial_experiment_data(domain=domain,
+                                                           solvent_ds=solvent_pcs_ds,
+                                                           batch_size=num_initial_experiments,
+                                                           random_state=random_state,
+                                                           experiments=exp,
                                                            criterion=design_criterion)
-    result = run_optimization(tsemo, initial_experiments, 
-                              solvent_pcs_ds,
+    #Run optimization
+    result = run_optimization(tsemo=tsemo, 
+                              initial_experiments=initial_experiments, 
+                              solvent_ds=solvent_pcs_ds,
+                              experiments=exp,
                               num_batches=num_batches,
                               batch_size=batch_size, 
                               num_components=num_components,
                               random_state=random_state)
+
     # Write parameters to disk
     if save_to_disk:
         if save_to_disk is str:
@@ -241,27 +281,28 @@ def descriptors_optimization(save_to_disk=True, **kwargs):
         np.save(f'outputs/{output_prefix}_in_silico_lengthscales', result.lengthscales)
         np.save(f'outputs/{output_prefix}_in_silico_log_likelihoods', result.log_likelihoods)
         np.save(f'outputs/{output_prefix}_in_silico_loo_errors', result.loo_cv_errors)
-        to_print = [('Random seed', random_seed),
-                    ("Number of principal components", num_components),
-                    ("Number of batches", num_batches),
-                    ("Batch size",batch_size)]
-        
-        with open(f'outputs/{output_prefix}_in_silico_metadata.txt',  'w') as f:
-            for prefix, value in to_print:
-                txt = f"{prefix}: {value}"
-                print(txt)
-                f.write(txt)
+        metadata = {"num_principal_components": num_components,
+                    "num_batches": num_batches,
+                    "batch_size": d['batch_size'],
+                    'normalize_inputs': d['normalize_inputs'],
+                    'normalize_outputs': d['normalize_outputs'],
+                    'repeat_iteration': i+1,
+                    'design_criterion': design_criterion}
     
+        with open(f'outputs/{output_prefix}_in_silico_metadata.json',  'w') as f:
+            json.dump(metadata, f)
+
     return result
 
-def repeat_test(num_repeats=1000):
-    '''Test various optimization parameters'''
+def repeat_test(num_repeats):
+    '''Test various optimization parameters with repeats'''
     #Create a full factorial design
     num_components = constants['NUM_COMPONENTS']
     params = {'normalize_inputs': [False, True],
               'normalize_outputs': [False, True],
               'batch_size': [4, 8],
-              'design_criterion': ['center', 'maximin']}
+              'design_criterion': ['center', 'maximin'],
+              'num_initial_experiments': [4, 8, 16]}
     
     levels = [len(params[key]) for key in params]
     doe = fullfact(levels)
@@ -271,7 +312,7 @@ def repeat_test(num_repeats=1000):
     for j, d in enumerate(designs):
         #Create arrays for summaries
         print(f'Starting design {j+1} out {len(designs)}.')
-        num_batches = 40 // d['batch_size']
+        num_batches = (40-d['num_initial_experiments'])// d['batch_size'] + 1
         lengthscales = np.zeros([num_repeats, num_batches-1, num_components, 2])
         log_likelihoods = np.zeros([num_repeats, num_batches-1, 2])
         loo_cv_errors = np.zeros([num_repeats, num_batches-1, 2])
@@ -279,10 +320,12 @@ def repeat_test(num_repeats=1000):
         for i in tqdm(range(num_repeats)):
             res =  descriptors_optimization(batch_size=d['batch_size'],
                                             num_batches=num_batches,
+                                            num_intial_experiments=d['num_initial_experiments'],
                                             num_components = num_components,
-                                            random_seed=int(time.time()),
+                                            random_seed=constants['RANDOM_SEED']+100*i,
                                             normalize_inputs=d['normalize_inputs'],
                                             normalize_outputs=d['normalize_outputs'],
+                                            design_criterion=d['design_criterion'],
                                             save_to_disk=False)
             lengthscales[i, :, :, :] = res.lengthscales
             log_likelihoods[i, :, :] = res.log_likelihoods
@@ -298,11 +341,11 @@ def repeat_test(num_repeats=1000):
                         "batch_size": d['batch_size'],
                         'normalize_inputs': d['normalize_inputs'],
                         'normalize_outputs': d['normalize_outputs'],
+                        'design_criterion': d['design_criterion'],
                         'repeat_iteration': i+1}
         
             with open(f'outputs/{output_prefix}_in_silico_metadata.json',  'w') as f:
                 json.dump(metadata, f)
-
 
 class SolventEvolutionaryOptimization:
     def __init__(self, batch_size, num_batches, seed, solvent_ds=None):
@@ -373,9 +416,8 @@ def send_warnings_to_log(message, category, filename, lineno, file=None, line=No
     return ' %s:%s: %s:%s' % (filename, lineno, category.__name__, message)
 
 if __name__ == '__main__':
-    # descriptors_optimization()
     warnings.showwarning = send_warnings_to_log
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    logging.basicConfig(filename=f"outputs/{time.time()}_log.txt",level=logging.DEBUG)
+    logging.basicConfig(filename=f"outputs/in_silico_optimization_log.txt",level=logging.DEBUG)
     logger = logging.getLogger(__name__)
-    repeat_test(20)
+    repeat_test(constants['NUM_REPEATS'])
