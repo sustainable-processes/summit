@@ -31,6 +31,7 @@ constants = {"RANDOM_SEED": 1000,
              "NUM_REPEATS": 50
 }
 
+
 def create_pcs_ds(num_components, verbose=False):
     '''Create dataset with principal components'''
     #Read in solubility data
@@ -54,8 +55,8 @@ def create_pcs_ds(num_components, verbose=False):
     pca = PCA(n_components=num_components)
     pca.fit(solvent_ds_full.standardize())
     pcs = pca.fit_transform(solvent_ds_final.standardize())
-    explained_var = round(pca.explained_variance_ratio_.sum()*100)
     if verbose:
+        explained_var = round(pca.explained_variance_ratio_.sum()*100)
         expl = f"{explained_var}% of variance is explained by {num_components} principal components."
         print(expl)
 
@@ -64,18 +65,7 @@ def create_pcs_ds(num_components, verbose=False):
     pc_df = pd.DataFrame(pcs, columns = [f'PC_{i+1}' for i in range(num_components)], 
                         index=metadata_df.index)
     pc_ds = DataSet.from_df(pc_df)
-    return pd.concat([metadata_df, pc_ds], axis=1)
-
-# Set up test problem
-AD1 = 8.5
-AD2 = 0.7
-EAD1 = 50
-EAD2 = 70
-R = 8.314
-cd1 = lambda t, T, Es: AD1*t*np.exp(-(EAD1+Es)/T)
-cd2 = lambda t, T, Es: AD2*t*np.exp(-(EAD2+Es)/T)
-Es1 = lambda pc1, pc2, pc3: -20*pc2*abs(pc3) + 0.025*pc1**3
-Es2 = lambda pc1, pc2, pc3: 15*pc2*pc3-40*pc3**2
+    return pd.concat([metadata_df, pc_ds], axis=1), pca
 
 class Experiments:
     ''' Generate data to simulate a stereoselective chemical reaction 
@@ -84,18 +74,24 @@ class Experiments:
     ----------- 
     solvent_ds: Dataset
         Dataset with the solvent descriptors (must have cas numbers as index)
-    random_state: `numpy.random.RandomState`
-        RandomState object
-    pre_calculate: bool
+    random_state: `numpy.random.RandomState`, optional
+        RandomState object. Creates a random state based ont eh computer clock
+        if one is not passed
+    pre_calculate: bool, optional
         If True, pre-calculates the experiments for all solvents. Defaults to False
 
     Notes
     -----
-    Pre-calculating will ensure that multiple calls to experiments will give the same result. 
+    Pre-calculating will ensure that multiple calls to experiments will give the same result
+    (as long as a random state is specified).
     
     ''' 
-    def __init__(self, solvent_ds, random_state=np.random.RandomState(), pre_calculate=False):
+    def __init__(self, solvent_ds, 
+                 random_state=np.random.RandomState(),
+                 initial_concentrations=[0.5,0.5],
+                 pre_calculate=False):
         self.solvent_ds = solvent_ds
+        self.initial_concentrations = initial_concentrations
         self.random_state = random_state
         self.pre_calculate = pre_calculate
         self.cas_numbers = self.solvent_ds.index.values.tolist()
@@ -105,32 +101,6 @@ class Experiments:
         else:
             self.all_experiments = None
         
-
-    def _run(self, solvent_cas):
-        '''Generate fake experiment data for a stereoselective reaction'''
-        pc_solvent = self.solvent_ds.loc[solvent_cas][self.solvent_ds.data_columns].to_numpy()
-        es1 = Es1(pc_solvent[0], pc_solvent[1], pc_solvent[2])
-        es2 = Es2(pc_solvent[0], pc_solvent[1], pc_solvent[2])
-        T = 5 * self.random_state.randn(1) + 393
-        t = 0.1 * self.random_state.randn(1) + 7
-        exper_cd1 = cd1(t, T, es1)
-        exper_cd2 = cd2(t, T, es2)
-
-        #Conversion with noise
-        conversion = exper_cd1 + exper_cd2
-        max_conversion = 95.0 + self.random_state.randn(1)*2
-        conversion = min(max_conversion[0], conversion[0])
-        conversion = conversion + self.random_state.randn(1)*2
-        conversion=conversion[0]
-                        
-        #Diasteromeric excess with noise
-        de = abs(exper_cd1-exper_cd2)/(exper_cd1 +exper_cd2)
-        max_de =  0.98 + self.random_state.randn(1)*0.02
-        de = min(max_de[0], de[0])
-        de = de + self.random_state.randn(1)*0.02
-        de = de[0]
-        return np.array([conversion, de*100])
-    
     def run(self, solvent_cas):
         if self.all_experiments is None:
             result = self._run(solvent_cas)
@@ -139,7 +109,75 @@ class Experiments:
             result = self.all_experiments[index, :]
         return result
 
+    def _run(self, solvent_cas, rxn_time=25200, step_size=200,
+             time_series=False):
+        '''Generate fake experiment data for a stereoselective reaction'''
+        rxn_time = rxn_time + self.random_state.randn(1)*0.01*rxn_time
+        x = self._integrate_rate(solvent_cas, rxn_time, step_size)
+        cd1 = x[:,0] 
+        cd2 = x[:,1]
+
+        conversion = cd1/np.min(self.initial_concentrations)*100
+        de = cd1/(cd1+cd2)*100
+
+        if not time_series:
+            conversion = conversion[-1]
+            de = de[-1]
+        return np.array([conversion, de])
+
+    def _integrate_rate(self,solvent_cas, t=25200, step_size=200):
+        '''Calculate extent of reaction for a particular solvent over a given time range'''
+        t0=0 #Have to start from time 0
+        trange = np.linspace(t0, t, (t-t0)/step_size)
+        x = np.zeros([len(trange), len(self.initial_concentrations)])
+        r = integrate.ode(self._rate).set_integrator("vode")
+        r.set_initial_value([0, 0], t0)
+        r.set_f_params(solvent_cas)
+        for i in range(1, trange.size):
+            x[i, :] = r.integrate(trange[i])
+            if not r.successful():
+                raise RuntimeError(f"Could not integrate: {solvent_cas}")
+        return x
+
+    def _rate(self, t, x, solvent_cas):
+        '''Calculate  rates  for a given extent of reaction'''
+        #Constants
+        AD1 = 8.5e9   #L/(mol-s)
+        AD2 = 8.3e9   #L/(mol-s)
+        EAD1 = 105 # kJ/mol
+        EAD2 = 110 # kJ/mol
+        TRXN = 393 #K
+        R = 8.314e-3 # kJ/mol/K
+        Es1 = lambda pc1, pc2, pc3: -np.log(abs((pc2+0.73*pc1-4.46)*(pc2+2.105*pc1+11.367)))+ pc3
+        Es2 = lambda pc1, pc2, pc3: -2*np.log(abs((pc2+0.73*pc1-4.46))) - 0.2*pc3**2
+
+        #Solvent variable reaction rate coefficients
+        pc_solvent = self.solvent_ds.loc[solvent_cas][self.solvent_ds.data_columns].to_numpy()
+        es1 = Es1(pc_solvent[0], pc_solvent[1], pc_solvent[2])
+        es2 = Es2(pc_solvent[0], pc_solvent[1], pc_solvent[2])
+        # T = 0.5 * self.random_state.randn() + TRXN
+        T=TRXN
+        kd1 = AD1*np.exp(-(EAD1+es1)/(R*T))
+        kd2 = AD2*np.exp(-(EAD2+es2)/(R*T))
         
+        #Calculate rates
+        x1dot = kd1*self.ca(x)*self.cb(x)
+        x2dot = kd2*self.ca(x)*self.cb(x)
+        return np.array([x1dot, x2dot])
+
+    def ca(self, x):
+        try:
+            ca = self.initial_concentrations[0]-x[:,0]-x[:,1]   
+        except IndexError:
+            ca = self.initial_concentrations[0]-x[0]-x[1]
+        return ca
+
+    def cb(self, x):
+        try:
+            cb = self.initial_concentrations[1]-x[:, 0]-x[:,1]   
+        except IndexError:
+            cb = self.initial_concentrations[1]-x[0]-x[1]
+        return cb
 
 #Create  optimization domain
 def create_domain(solvent_ds):
