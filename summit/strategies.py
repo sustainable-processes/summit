@@ -153,7 +153,7 @@ def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize, rando
         num_random = round(random_rate*batchsize)
         random_selects = np.random.randint(0, batchsize, size=num_random)
     else:
-        random_selects = np.array()
+        random_selects = np.array([])
         
     for i in range(batchsize):
         masked_samples = samples[mask, :]
