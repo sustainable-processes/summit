@@ -34,7 +34,7 @@ constants = {"RANDOM_SEED": 1000,
 }
 
 
-def create_pcs_ds(num_components, verbose=False):
+def create_pcs_ds(num_components, ucb_filter=True, verbose=False):
     '''Create dataset with principal components'''
     #Read in solubility data
     solubilities = pd.read_csv('inputs/solubilities.csv')
@@ -43,7 +43,10 @@ def create_pcs_ds(num_components, verbose=False):
 
     #Merge data sets
     solvent_ds_full = solvent_ds.join(solubilities)
-    solvent_ds_final = pd.merge(solvent_ds_full, ucb_ds, left_index=True,right_index=True)
+    if ucb_filter:
+        solvent_ds_final = pd.merge(solvent_ds_full, ucb_ds, left_index=True,right_index=True)
+    else:
+        solvent_ds_final = solvent_ds_full
     if verbose:
         print(f"{solvent_ds_final.shape[0]} solvents for optimization")
 
