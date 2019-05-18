@@ -1,11 +1,11 @@
-NAME,stenutz_name,cosmo_name,chemical_formula,molecular_weight,density,molar_volume,refractive_index,molecular_refractive_power,dielectric_constant,dipole_moment,melting_point,boiling_point,viscosity,partition_coefficient,vapour_pressure,sigma_1,sigma_2,sigma_3,sigma_4,sigma_5,solubility,available
-TYPE,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA,METADATA
-cas_number,,,,,,,,,,,,,,,,,,,,,,
-540-36-3,"1,4-difluorobenzene",p-difluorobenzene,C6H4F2,114,1.166,97.9,1.441,25.84,2.26,0,-13,89,0.65,2.2,73.14,0.7198,12.9481,0,0,3.0202,-3.56603434,TRUE
-96-22-0,3-pentanone,3-pentanone,C5H10O,86,0.815,105.7,1.392,25.17,17.3,2.7,-39,101,0.49,1.06,66.29,0,12.556,1.415,0,2.0329,-3.17126526,TRUE
-540-36-3,"1,4-difluorobenzene",p-difluorobenzene,C6H4F2,114,1.166,97.9,1.441,25.84,2.26,0,-13,89,0.65,2.2,73.14,0.7198,12.9481,0,0,3.0202,-3.56603434,TRUE
-64-19-7,acetic acid,aceticacid,C2H4O2,60,1.051,57.1,1.372,12.99,6.2,1.68,17,118,3.54,-0.47,6.36,0.9527,6.4224,1.8889,0.6156,2.1773,0,TRUE
-142-82-5,heptane,n-heptane,C7H16,100,0.684,146.6,1.388,34.55,1.92,0,-90,98,0.41,4.4,104.97,0,17.691,0,0,0.073,-9.69992162,TRUE
-142-68-7,oxane,thp,C5H10O,86,0.88,97.9,1.42,24.77,5.68,1.74,-45,88,0.59,1.3,86.4,0,11.6474,1.0257,0,0.6606,-3.8637978,TRUE
-110-86-1,pyridine,pyridine,C5H5N,79,0.983,80.5,1.51,24.07,12.4,2.37,-42,115,0.83,0.53,19.58,0.1338,10.6517,0.9334,0,3.2848,-1.65512848,TRUE
-107-12-0,propanenitrile,propionitrile,C3H5N,55,0.792,69.6,1.366,15.58,27.7,4.04,-92,97,0.39,-0.35,69.89,0.3581,8.5284,1.3626,0,2.7598,-1.22014271,TRUE
+NAME,stenutz_name,boiling_point,location
+TYPE,METADATA,METADATA,METADATA
+cas_number,,,
+75-62-7,bromotrichloromethane,105,L2.08 Cupboard 4 Flammables
+100-41-4,ethylbenzene,136,New Location
+543-59-9,1-chloropentane,105,L2.08 Cupboard 7 Flammables
+106-93-4,"1,2-dibromoethane",132,L2.08 Cupboard 5 Flammables
+106-93-4,"1,2-dibromoethane",132,L2.08 Cupboard 5 Flammables
+624-24-8,methyl pentanoate,127,L2.08 Cupboard 1 Flammables
+106-93-4,"1,2-dibromoethane",132,L2.08 Cupboard 5 Flammables
+71-36-3,butanol,118,L2.08 Cupboard 4 Flammables
