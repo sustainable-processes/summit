@@ -169,7 +169,7 @@ def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize, rando
             sample = sample.reshape(1,num_gps)
             A = np.append(Ynew, sample, axis=0)
             Afront, _ = _pareto_front(A)
-            hv = hypervolume(Afront, [0,0])
+            hv = hypervolume(-Afront, [0,0])
             hv_improvement.append(hv-hvY)
         
         hvY0 = hvY if i==0 else hvY0

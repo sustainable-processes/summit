@@ -182,5 +182,6 @@ class DataSet(pd.core.frame.DataFrame):
         self.columns[loc][0] = column
         self.columns[loc][1] = type
         self.columns[loc][2] = units
+        
 class ResultSet(DataSet):
     data_column_types = ['input', 'output']
