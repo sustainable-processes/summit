@@ -266,9 +266,11 @@ def _closest_point_indices(design_points, candidate_matrix, unique=False):
         mask = np.ones(candidate_matrix.shape[0], dtype=bool)
         indices = [0 for i in range(len(design_points))]
         for i, design_point in enumerate(design_points):
-            point_index = _closest_point_index(design_point, candidate_matrix[mask, :])
-            indices[i] = point_index
-            mask[point_index] = False
+            masked_candidates = candidate_matrix[mask, :]
+            point_index = _closest_point_index(design_point, masked_candidates)
+            actual_index = np.where(candidate_matrix==masked_candidates[point_index, :])[0][0]
+            indices[i] = actual_index
+            mask[actual_index] = False
     else:
         indices = [_closest_point_index(design_point, candidate_matrix)
                    for design_point in design_points]
