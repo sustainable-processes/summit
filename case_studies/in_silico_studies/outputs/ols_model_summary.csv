@@ -2,8 +2,8 @@
 Dep. Variable:   ,coverages       ,  R-squared:         ,   0.180
 Model:           ,OLS             ,  Adj. R-squared:    ,   0.172
 Method:          ,Least Squares   ,  F-statistic:       ,   24.29
-Date:            ,Mon, 13 May 2019,  Prob (F-statistic):,3.88e-22
-Time:            ,02:41:48        ,  Log-Likelihood:    , -2406.6
+Date:            ,Fri, 17 May 2019,  Prob (F-statistic):,3.88e-22
+Time:            ,23:52:42        ,  Log-Likelihood:    , -2406.6
 No. Observations:,   560          ,  AIC:               ,   4825.
 Df Residuals:    ,   554          ,  BIC:               ,   4851.
 Df Model:        ,     5          ,                     ,        
