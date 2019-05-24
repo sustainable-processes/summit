@@ -1,5 +1,4 @@
 """ In-Silico Solvent Optimization"""
-from surrogate_model_functions import loo_error
 from summit.strategies import TSEMO, _pareto_front
 from summit.models import GPyModel
 from summit.data import solvent_ds, ucb_ds, DataSet
@@ -133,10 +132,11 @@ class Experiments:
     def _integrate_rate(self,solvent_cas, t=25200, step_size=200):
         '''Calculate extent of reaction for a particular solvent over a given time range'''
         t0=0 #Have to start from time 0
+        x0 = 0 # Always start with 0 extent of reaction
         trange = np.linspace(t0, t, (t-t0)/step_size)
         x = np.zeros([len(trange), len(self.initial_concentrations)])
         r = integrate.ode(self._rate).set_integrator("vode")
-        r.set_initial_value([0, 0], t0)
+        r.set_initial_value([x0, x0], t0)
         r.set_f_params(solvent_cas)
         for i in range(1, trange.size):
             x[i, :] = r.integrate(trange[i])
@@ -186,6 +186,7 @@ class Experiments:
 
 #Create  optimization domain
 def create_domain(solvent_ds):
+    '''Create solvent optimization domain'''
     domain = Domain()
     domain += DescriptorsVariable(name='solvent',
                                 description='solvent for the borrowing hydrogen reaction',
@@ -202,6 +203,7 @@ def create_domain(solvent_ds):
 
 
 def optimization_setup(domain, random_rate=0.0):
+    '''Setup TSEMOish optimization'''
     input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
     kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
             for _ in range(2)]
@@ -210,9 +212,10 @@ def optimization_setup(domain, random_rate=0.0):
 
 def generate_initial_experiment_data(domain, solvent_ds, batch_size, random_state,
                                      experiments, criterion='center'):
+    '''Generate initial experimental design'''
     #Initial design
     lhs = LatinDesigner(domain,random_state)
-    initial_design = lhs.generate_experiments(batch_size, criterion=criterion)
+    initial_design = lhs.generate_experiments(batch_size, criterion=criterion, unique=True)
 
     #Initial experiments
     initial_experiments = [experiments.run(cas) 
@@ -241,10 +244,11 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
     loo_errors = np.zeros([num_batches-1, 2])
     hv_improvements = np.zeros([num_batches-1])
     previous_experiments = initial_experiments
-
+                    
     #Run the optimization
     for i in range(num_batches-1):
         #Generate batch of solvents
+        last_batch_number = previous_experiments['batch'].max()
         logging.debug(f'Batch {i+1}')
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -269,8 +273,10 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
         new_experiments = DataSet({('conversion', 'DATA'): new_experiments[:, 0],
                                    ('de', 'DATA'): new_experiments[:, 1],
                                    ('solvent', 'DATA'): design.index.values,
-                                   ('batch', 'METADATA'): (i+1)*np.ones(batch_size, dtype=int)})
-        new_experiments = new_experiments.set_index(np.arange(batch_size*(i+1), batch_size*(i+2)))
+                                   ('batch', 'METADATA'): last_batch_number+1})
+        last_index = previous_experiments.index.max()
+        new_index = np.arange(last_index+1, last_index + 1 + batch_size)
+        new_experiments = new_experiments.set_index(new_index)
         new_experiments.columns.names = ['NAME', 'TYPE']
         previous_experiments = previous_experiments.append(new_experiments)
 
@@ -374,7 +380,7 @@ def repeat_test(num_repeats, callback=None):
         for i in tqdm(range(num_repeats)):
             res =  descriptors_optimization(batch_size=d['batch_size'],
                                             num_batches=num_batches,
-                                            num_intial_experiments=d['num_initial_experiments'],
+                                            num_intitial_experiments=d['num_initial_experiments'],
                                             num_components = num_components,
                                             random_rate = d['random_rate'],
                                             random_seed=constants['RANDOM_SEED']+100*i,
@@ -406,6 +412,71 @@ def repeat_test(num_repeats, callback=None):
             with open(f'outputs/{output_prefix}_in_silico_metadata.json',  'w') as f:
                 json.dump(metadata, f)
 
+def random_test(num_repeats, callback=None):
+    '''Test various random rates'''
+    #Create a full factorial design
+    num_components = constants['NUM_COMPONENTS']
+    params = {'batch_size': [4],
+              'design_criterion': ['maximin'],
+              'num_initial_experiments': [8], 
+              'random_rate': [0.2, 0.4, 0.6, 0.8, 1]}
+    
+    levels = [len(params[key]) for key in params]
+    doe = fullfact(levels)
+    designs = [{key: params[key][int(index)] for key, index in zip(params, d)}
+              for d in doe]
+
+    for j, d in enumerate(designs):
+        info = f'Starting design {j+1} out {len(designs)}.'
+        print(info)
+        if callback is not None and callable(callback):
+            try:
+                callback(info)
+            except Exception as e:
+                logging.debug(e)
+          
+        j += 16 #Start at sixteen since already ran designs #0 - 15
+        #Create arrays for summaries
+        num_batches = (40-d['num_initial_experiments'])// d['batch_size'] + 1
+        lengthscales = np.zeros([num_repeats, num_batches-1, num_components, 2])
+        log_likelihoods = np.zeros([num_repeats, num_batches-1, 2])
+        loo_cv_errors = np.zeros([num_repeats, num_batches-1, 2])
+        hv_improvements = np.zeros([num_repeats, num_batches-1])
+        
+        for i in tqdm(range(num_repeats)):
+            res =  descriptors_optimization(batch_size=d['batch_size'],
+                                            num_batches=num_batches,
+                                            num_intial_experiments=d['num_initial_experiments'],
+                                            num_components = num_components,
+                                            random_rate = d['random_rate'],
+                                            random_seed=constants['RANDOM_SEED']+100*i,
+                                            normalize_inputs=True,
+                                            normalize_outputs=False,
+                                            design_criterion=d['design_criterion'],
+                                            save_to_disk=False)
+            lengthscales[i, :, :, :] = res.lengthscales
+            log_likelihoods[i, :, :] = res.log_likelihoods
+            loo_cv_errors[i, :, :] = res.loo_cv_errors
+            hv_improvements[i, :] = res.hv_improvements
+        
+            output_prefix=f'test_{j}'
+            res.experiments.to_csv(f'outputs/{output_prefix}_iteration_{i}_in_silico_experiments.csv')
+            np.save(f'outputs/{output_prefix}_in_silico_lengthscales', lengthscales)
+            np.save(f'outputs/{output_prefix}_in_silico_log_likelihoods', log_likelihoods)
+            np.save(f'outputs/{output_prefix}_in_silico_loo_errors', loo_cv_errors)
+            np.save(f'outputs/{output_prefix}_in_silico_hv_improvements', hv_improvements)
+            metadata = {"num_principal_components": num_components,
+                        "num_batches": num_batches,
+                        "batch_size": d['batch_size'],
+                        'normalize_inputs': True,
+                        'normalize_outputs': False,
+                        'design_criterion': d['design_criterion'],
+                        'repeat_iteration': i+1,
+                        'num_initial_experiments': d['num_initial_experiments'], 
+                        'random_rate': d['random_rate']}
+        
+            with open(f'outputs/{output_prefix}_in_silico_metadata.json',  'w') as f:
+                json.dump(metadata, f)
 
 def fullfact(levels):
     """Full factorial design from pyDoE"""
@@ -479,4 +550,4 @@ if __name__ == '__main__':
     logging.basicConfig(filename=f"outputs/in_silico_optimization_log.txt",level=logging.DEBUG)
     logger = logging.getLogger(__name__)
     notify=Notify(constants['NOTIFY_ENDPOINT'])
-    repeat_test(constants['NUM_REPEATS'], callback=notify.send)
+    random_test(constants['NUM_REPEATS'], callback=notify.send)
