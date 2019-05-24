@@ -289,10 +289,12 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
 def descriptors_optimization(save_to_disk=True, **kwargs):
     '''Setup and run a descriptors optimization'''
     #Get keyword arguments
-    batch_size = kwargs.get('batch_size', constants['BATCH_SIZE'])
-    num_batches = kwargs.get('num_batches',constants['NUM_BATCHES'])
-    num_components = kwargs.get('num_components',constants['NUM_COMPONENTS'])
-    num_initial_experiments = kwargs.get('num_initial_experiments', batch_size)
+    batch_size = kwargs.get('batch_size')
+    num_batches = kwargs.get('num_batches')
+    num_components = kwargs.get('num_components')
+    num_initial_experiments = kwargs.get('num_initial_experiments')
+    if num_initial_experiments is None:
+        raise ValueError("Put a number of initial experiments")
     random_seed = kwargs.get('random_seed', constants['RANDOM_SEED'])
     normalize_inputs = kwargs.get('normalize_inputs', True)
     normalize_outputs = kwargs.get('normalize_outputs', True)
@@ -377,10 +379,11 @@ def repeat_test(num_repeats, callback=None):
         loo_cv_errors = np.zeros([num_repeats, num_batches-1, 2])
         hv_improvements = np.zeros([num_repeats, num_batches-1])
         
+
         for i in tqdm(range(num_repeats)):
             res =  descriptors_optimization(batch_size=d['batch_size'],
                                             num_batches=num_batches,
-                                            num_intitial_experiments=d['num_initial_experiments'],
+                                            num_initial_experiments=d['num_initial_experiments'],
                                             num_components = num_components,
                                             random_rate = d['random_rate'],
                                             random_seed=constants['RANDOM_SEED']+100*i,
@@ -446,7 +449,7 @@ def random_test(num_repeats, callback=None):
         for i in tqdm(range(num_repeats)):
             res =  descriptors_optimization(batch_size=d['batch_size'],
                                             num_batches=num_batches,
-                                            num_intial_experiments=d['num_initial_experiments'],
+                                            num_initial_experiments=d['num_initial_experiments'],
                                             num_components = num_components,
                                             random_rate = d['random_rate'],
                                             random_seed=constants['RANDOM_SEED']+100*i,
@@ -550,4 +553,5 @@ if __name__ == '__main__':
     logging.basicConfig(filename=f"outputs/in_silico_optimization_log.txt",level=logging.DEBUG)
     logger = logging.getLogger(__name__)
     notify=Notify(constants['NOTIFY_ENDPOINT'])
+    repeat_test(constants['NUM_REPEATS'], callback=notify.send)
     random_test(constants['NUM_REPEATS'], callback=notify.send)

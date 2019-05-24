@@ -1,24 +1,24 @@
                       OLS Regression Results                     
-Dep. Variable:   ,coverages       ,  R-squared:         ,   0.180
-Model:           ,OLS             ,  Adj. R-squared:    ,   0.172
-Method:          ,Least Squares   ,  F-statistic:       ,   24.29
-Date:            ,Fri, 17 May 2019,  Prob (F-statistic):,3.88e-22
-Time:            ,23:52:42        ,  Log-Likelihood:    , -2406.6
-No. Observations:,   560          ,  AIC:               ,   4825.
-Df Residuals:    ,   554          ,  BIC:               ,   4851.
+Dep. Variable:   ,coverages       ,  R-squared:         ,   0.088
+Model:           ,OLS             ,  Adj. R-squared:    ,   0.080
+Method:          ,Least Squares   ,  F-statistic:       ,   10.71
+Date:            ,Fri, 24 May 2019,  Prob (F-statistic):,7.60e-10
+Time:            ,13:37:31        ,  Log-Likelihood:    , -2097.3
+No. Observations:,   560          ,  AIC:               ,   4207.
+Df Residuals:    ,   554          ,  BIC:               ,   4233.
 Df Model:        ,     5          ,                     ,        
 Covariance Type: ,nonrobust       ,                     ,        
                                   ,   coef   , std err ,    t    ,P>|t| ,  [0.025 ,  0.975] 
-Intercept                         ,   75.0510,    1.851,   40.543, 0.000,   71.415,   78.687
-batch_size                        ,  -10.6122,    2.138,   -4.965, 0.000,  -14.811,   -6.414
-design_criterion                  ,   -1.3265,    1.511,   -0.878, 0.381,   -4.295,    1.642
-num_initial_experiments           ,  -14.2857,    2.138,   -6.683, 0.000,  -18.484,  -10.087
-random_rate                       ,    8.3673,    1.511,    5.536, 0.000,    5.398,   11.336
-batch_size:num_initial_experiments,    5.3061,    3.023,    1.755, 0.080,   -0.632,   11.244
-Omnibus:      ,22.985,  Durbin-Watson:     ,   2.035
-Prob(Omnibus):, 0.000,  Jarque-Bera (JB):  ,  24.701
-Skew:         ,-0.504,  Prob(JB):          ,4.33e-06
-Kurtosis:     , 3.207,  Cond. No.          ,    7.85
+Intercept                         ,   86.3776,    1.066,   81.055, 0.000,   84.284,   88.471
+batch_size                        ,   -2.6531,    1.231,   -2.156, 0.032,   -5.070,   -0.236
+design_criterion                  ,   -0.2551,    0.870,   -0.293, 0.769,   -1.964,    1.454
+num_initial_experiments           ,    4.8980,    1.231,    3.980, 0.000,    2.481,    7.315
+random_rate                       ,    3.0102,    0.870,    3.460, 0.001,    1.301,    4.719
+batch_size:num_initial_experiments,   -3.1633,    1.740,   -1.818, 0.070,   -6.582,    0.255
+Omnibus:      ,57.026,  Durbin-Watson:     ,   2.075
+Prob(Omnibus):, 0.000,  Jarque-Bera (JB):  ,  75.484
+Skew:         ,-0.776,  Prob(JB):          ,4.06e-17
+Kurtosis:     , 3.908,  Cond. No.          ,    7.85
 
 Warnings:
 [1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
