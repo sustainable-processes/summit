@@ -289,6 +289,7 @@ def run_optimization(tsemo, initial_experiments,solvent_ds,
 def descriptors_optimization(save_to_disk=True, **kwargs):
     '''Setup and run a descriptors optimization'''
     #Get keyword arguments
+    ucb_filter = kwargs.get('ucb_filter', True)
     batch_size = kwargs.get('batch_size')
     num_batches = kwargs.get('num_batches')
     num_components = kwargs.get('num_components')
@@ -303,7 +304,7 @@ def descriptors_optimization(save_to_disk=True, **kwargs):
 
     #Setup
     random_state = np.random.RandomState(random_seed)
-    solvent_pcs_ds, _ = create_pcs_ds(num_components=num_components)
+    solvent_pcs_ds, _ = create_pcs_ds(num_components=num_components, ucb_filter=ucb_filter)
     exp = Experiments(solvent_ds=solvent_pcs_ds, random_state=random_state, pre_calculate=True)
     domain = create_domain(solvent_pcs_ds)
     tsemo = optimization_setup(domain, random_rate)
@@ -349,7 +350,7 @@ def descriptors_optimization(save_to_disk=True, **kwargs):
 
     return result
 
-def repeat_test(num_repeats, callback=None):
+def repeat_test(num_repeats, callback=None, ucb_filter=True):
     '''Test various optimization parameters with repeats'''
     #Create a full factorial design
     num_components = constants['NUM_COMPONENTS']
@@ -390,6 +391,7 @@ def repeat_test(num_repeats, callback=None):
                                             normalize_inputs=True,
                                             normalize_outputs=False,
                                             design_criterion=d['design_criterion'],
+                                            ucb_filter=ucb_filter,
                                             save_to_disk=False)
             lengthscales[i, :, :, :] = res.lengthscales
             log_likelihoods[i, :, :] = res.log_likelihoods
@@ -553,5 +555,6 @@ if __name__ == '__main__':
     logging.basicConfig(filename=f"outputs/in_silico_optimization_log.txt",level=logging.DEBUG)
     logger = logging.getLogger(__name__)
     notify=Notify(constants['NOTIFY_ENDPOINT'])
-    repeat_test(constants['NUM_REPEATS'], callback=notify.send)
-    random_test(constants['NUM_REPEATS'], callback=notify.send)
+    # repeat_test(constants['NUM_REPEATS'], callback=notify.send)
+    # random_test(constants['NUM_REPEATS'], callback=notify.send)
+    repeat_test(constants['NUM_REPEATS'], callback=notify.send, ucb_filter=False)
