@@ -64,7 +64,7 @@ class Design:
             self._indices[variable_index] = indices 
         self._values[variable_index] = values
 
-    def get_indices(self, variable_name: str=None) -> np.ndarray:
+    def get_indices(self, variable_name: str) -> np.ndarray:
         """ Get indices of designs points  
         
         Parameters
@@ -82,11 +82,8 @@ class Design:
         ValueError
             If the variable name is not in the list of variables
         """ 
-        if variable_name is not None:
-            variable_index = self._get_variable_index(variable_name)
-            indices = self._indices[variable_index]
-        else:
-            indices = np.concatenate(self._indices, axis=1)
+        variable_index = self._get_variable_index(variable_name)
+        indices = self._indices[variable_index]
         return indices
 
     def get_values(self, variable_name: str=None) -> np.ndarray:
