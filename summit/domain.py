@@ -71,10 +71,11 @@ class Variable(ABC):
            'description': self.description,
            'units': self.units}
         return variable_dict
-    
-    def to_json(self):
-        """ Return json encoding of the variable"""
-        return json.dumps(self.to_dict())
+
+    @staticmethod
+    @abstractmethod
+    def from_dict():
+        raise NotImplementedError('Must be implemented by subclasses of Variable')
 
     @staticmethod
     def _check_name(name: str):
@@ -156,6 +157,12 @@ class ContinuousVariable(Variable):
         variable_dict.update({'bounds': [float(self.lower_bound), float(self.upper_bound)]})
         return variable_dict
 
+    @staticmethod
+    def from_dict(variable_dict):
+        return ContinuousVariable(name= variable_dict['name'],
+                           description=variable_dict['description'],
+                           bounds=variable_dict['bounds'],
+                           is_output=variable_dict['is_output'])
     
 class DiscreteVariable(Variable):
     """Representation of a discrete variable
@@ -241,6 +248,13 @@ class DiscreteVariable(Variable):
         variable_dict.update({'levels': self.levels.tolist()})
         return variable_dict
 
+    @staticmethod
+    def from_dict(variable_dict):
+        return DiscreteVariable(name=variable_dict['name'],
+                                description=variable_dict['description'],
+                                levels=variable_dict['levels'],
+                                is_output=variable_dict['is_output'])
+
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_levels} levels")
 
@@ -293,13 +307,13 @@ class DescriptorsVariable(Variable):
     def to_dict(self):
         """ Return json encoding of the variable"""
         variable_dict = super().to_dict()
-        variable_dict.update({'ds': self.ds.to_json()})
+        variable_dict.update({'ds': self.ds.to_dict()})
         return variable_dict
     
     @staticmethod
-    def from_json(json_str):
-        variable_dict = json.loads(json_str)
-        ds = pd.read_json(variable_dict['ds'])
+    def from_dict(variable_dict):
+        ds = DataSet(variable_dict['ds'])
+        ds.columns.names = ['NAME', 'TYPE']
         return DescriptorsVariable(name=variable_dict['name'],
                                    description=variable_dict['description'],
                                    ds=ds,
@@ -412,16 +426,15 @@ class Domain:
         return json.dumps(self.to_dict())
 
     @staticmethod
-    def from_json(self, json_str):
-        variables_json = json.loads(json_str)
+    def from_dict(domain_dict):
         variables = []
-        for variable in variables_json:
+        for variable in domain_dict:
             if variable['type'] == "continuous":
-                new_variable = ContinuousVariable.from_json(variable)
+                new_variable = ContinuousVariable.from_dict(variable)
             elif variable['type'] == "discrete":
-                new_variable = DiscreteVariable.from_json(variable)
+                new_variable = DiscreteVariable.from_dict(variable)
             elif variable['type'] == 'descriptors':
-                new_variable =  DescriptorsVariable.from_json(variable)
+                new_variable =  DescriptorsVariable.from_dict(variable)
             else:
                 raise ValueError(f"Cannot load variable of type:{variable['type']}. Variable should be continuous, discrete or descriptors")
             variables.append(new_variable)

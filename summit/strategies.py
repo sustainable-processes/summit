@@ -86,6 +86,7 @@ class TSEMO(Strategy):
             descriptor_arr = self.domain.variables[0].ds.data_to_numpy()
             descriptor_arr = descriptor_arr.astype(np.float64)
 
+        #TODO: Fix this!!
         if normalize_outputs:
             self.y = outputs.data_to_numpy()
         else:
