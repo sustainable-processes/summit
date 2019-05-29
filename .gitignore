@@ -108,3 +108,4 @@ venv.bak/
 
 #pickle files
 .pickle
+~*.xlsx
