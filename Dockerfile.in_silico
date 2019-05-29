@@ -1,0 +1,6 @@
+FROM marcosfelt/summit:latest
+
+RUN mkdir inputs outputs
+COPY case_studies/in_silico_studies/solvent_optimization.py case_studies/in_silico_studies/surrogate_model_functions.py case_studies/in_silico_studies/requirements.txt /
+RUN pip install -r requirements.txt
+ENTRYPOINT python solvent_optimization.py

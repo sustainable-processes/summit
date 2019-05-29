@@ -10,28 +10,34 @@ homepage = "https://pypi.org/project/summit"
 keywords = []
 
 [tool.poetry.dependencies]
-gpyopt = {git = "https://github.com/SheffieldML/GPyOpt.git"}
 sklearn = "^0.0.0"
 pandas = "^0.24.1"
 matplotlib = "^3.0"
-cheminventory="^0.2.1"
-tqdm = "^4.31"
 python = "^3.6"
-panel = "^0.4.0"
-holoviews = "^1.11"
 pyDOE = "^0.3.8"
-python-dotenv = "^0.10.1"
-ipywidgets = "^7.4"
+GPy = "^1.9"
+numpy = "1.16.0"
+hvplot = "^0.4.0"
+deap = "^1.2"
+patsy = "^0.5.1"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^18.3-alpha.0",allows-prereleases = true}
 jupyter = "^1.0"
 jupyterlab = "^0.35.4"
-bumpversion = "^0.5.3"
-pylint = "^2.2"
 pytest = "^3.0"
 ipdb = "^0.12.0"
 pytest-mock = "^1.10"
+inspyred = "^1.0"
+lxml = "^4.3"
+python-dotenv = "^0.10.1"
+ipywidgets = "^7.4"
+tqdm = "^4.31"
+cheminventory="^0.2.1"
+notify-run = "^0.0.11"
+statsmodels = "^0.9.0"
+pubchempy = "^1.0"
+papermill = "^1.0"
 
 [build-system]
 requires = ["poetry>=0.12"]

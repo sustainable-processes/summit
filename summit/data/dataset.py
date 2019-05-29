@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import pandas as pd
+import hvplot.pandas
 import numpy as np
 from typing import List
 
@@ -42,6 +43,14 @@ class DataSet(pd.core.frame.DataFrame):
 
         return DataSet(df.to_numpy(), columns=columns, index=df.index)
 
+    @staticmethod
+    def read_csv(filepath_or_buffer, **kwargs):
+        """Create a DataSet from a csv"""
+        header = kwargs.get('header', [0,1])
+        index_col = kwargs.get('index_col', 0)
+        df = pd.read_csv(filepath_or_buffer, header=header, index_col=index_col)
+        return DataSet(df.to_numpy(), columns=df.columns, index=df.index)
+
     def zero_to_one(self, small_tol=1.0e-5) -> np.ndarray:
         ''' Scale the data columns between zero and one 
 
@@ -65,7 +74,7 @@ class DataSet(pd.core.frame.DataFrame):
         This method does not change the internal values of the data columns in place.
 
         ''' 
-        values = self.descriptors_to_numpy()
+        values = self.data_to_numpy()
         values = values.astype(np.float64)
         maxes = np.max(values, axis=0)
         mins = np.min(values, axis=0)
@@ -99,7 +108,7 @@ class DataSet(pd.core.frame.DataFrame):
         This method does not change the internal values of the data columns in place.
         
         """
-        values = self.descriptors_to_numpy()
+        values = self.data_to_numpy()
         values = values.astype(np.float64)
         mean = np.mean(values, axis=0)
         sigma = np.std(values, axis=0)
@@ -140,7 +149,7 @@ class DataSet(pd.core.frame.DataFrame):
             return newdf._repr_html_()
         return super()._repr_html_() 
 
-    def descriptors_to_numpy(self) -> int:
+    def data_to_numpy(self) -> int:
         '''Return dataframe with the metadata columns removed'''
         result = super().to_numpy()
         metadata_columns = []
@@ -170,8 +179,9 @@ class DataSet(pd.core.frame.DataFrame):
     
     def insert(self, loc, column, value, type='DATA', units=None, allow_duplicates=False):
         super().insert(loc, column, value, allow_duplicates)
-        import ipdb; ipdb.set_trace()
         self.columns[loc][0] = column
         self.columns[loc][1] = type
         self.columns[loc][2] = units
-
+        
+class ResultSet(DataSet):
+    data_column_types = ['input', 'output']

@@ -1,0 +1,25 @@
+                      OLS Regression Results                     
+Dep. Variable:   ,coverages       ,  R-squared:         ,   0.090
+Model:           ,OLS             ,  Adj. R-squared:    ,   0.080
+Method:          ,Least Squares   ,  F-statistic:       ,   9.139
+Date:            ,Tue, 28 May 2019,  Prob (F-statistic):,1.50e-09
+Time:            ,14:08:32        ,  Log-Likelihood:    , -2096.7
+No. Observations:,   560          ,  AIC:               ,   4207.
+Df Residuals:    ,   553          ,  BIC:               ,   4238.
+Df Model:        ,     6          ,                     ,        
+Covariance Type: ,nonrobust       ,                     ,        
+                                  ,   coef   , std err ,    t    ,P>|t| ,  [0.025 ,  0.975] 
+Intercept                         ,   86.8622,    1.151,   75.480, 0.000,   84.602,   89.123
+batch_size                        ,   -3.6224,    1.507,   -2.404, 0.017,   -6.582,   -0.663
+design_criterion                  ,   -0.2551,    0.870,   -0.293, 0.769,   -1.964,    1.454
+num_initial_experiments           ,    4.8980,    1.230,    3.981, 0.000,    2.481,    7.315
+random_rate                       ,    2.0408,    1.230,    1.659, 0.098,   -0.376,    4.457
+batch_size:num_initial_experiments,   -3.1633,    1.740,   -1.818, 0.070,   -6.581,    0.254
+batch_size:random_rate            ,    1.9388,    1.740,    1.114, 0.266,   -1.479,    5.356
+Omnibus:      ,55.877,  Durbin-Watson:     ,   2.077
+Prob(Omnibus):, 0.000,  Jarque-Bera (JB):  ,  73.557
+Skew:         ,-0.767,  Prob(JB):          ,1.06e-16
+Kurtosis:     , 3.895,  Cond. No.          ,    8.85
+
+Warnings:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.

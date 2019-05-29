@@ -1,17 +1,4 @@
-"""
-The lhs code was copied from pyDoE and was originally published by 
-the following individuals for use with Scilab:
-    Copyright (C) 2012 - 2013 - Michael Baudin
-    Copyright (C) 2012 - Maria Christopoulou
-    Copyright (C) 2010 - 2011 - INRIA - Michael Baudin
-    Copyright (C) 2009 - Yann Collette
-    Copyright (C) 2009 - CEA - Jean-Marc Martinez
-    
-    website: forge.scilab.org/index.php/p/scidoe/sourcetree/master/macros
-Much thanks goes to these individuals. It has been converted to Python by 
-Abraham Lee.
 
-"""
 from .base import Designer, Design, _closest_point_indices
 from .random_designer import RandomDesigner
 from summit.domain import (Domain, Variable, ContinuousVariable, 
@@ -73,14 +60,17 @@ class LatinDesigner(Designer):
         #Instantiate the random design class to be used with discrete variables
         rdesigner = RandomDesigner(self.domain, random_state=self._rstate)
 
-        num_discrete = self.domain.num_discrete_variables
-        n = self.domain.num_continuous_dimensions
+        num_discrete = self.domain.num_discrete_variables()
+        n = self.domain.num_continuous_dimensions()
         if num_discrete < n:
             samples = lhs(n, samples=num_experiments, criterion=criterion, 
                           random_state=self._rstate)
         
         k=0
         for variable in self.domain.variables:
+            if variable.is_output:
+                continue
+                
             #For continuous variable, use samples directly
             if variable.variable_type == 'continuous':
                 b = variable.lower_bound*np.ones(num_experiments)
@@ -119,6 +109,20 @@ class LatinDesigner(Designer):
         return design   
 
 
+"""
+The lhs code was copied from pyDoE and was originally published by 
+the following individuals for use with Scilab:
+    Copyright (C) 2012 - 2013 - Michael Baudin
+    Copyright (C) 2012 - Maria Christopoulou
+    Copyright (C) 2010 - 2011 - INRIA - Michael Baudin
+    Copyright (C) 2009 - Yann Collette
+    Copyright (C) 2009 - CEA - Jean-Marc Martinez
+    
+    website: forge.scilab.org/index.php/p/scidoe/sourcetree/master/macros
+Much thanks goes to these individuals. It has been converted to Python by 
+Abraham Lee.
+
+"""
 def lhs(n, samples=None, criterion=None, iterations=None, random_state=None):
     """
     Generate a latin-hypercube design

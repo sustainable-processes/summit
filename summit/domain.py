@@ -1,8 +1,9 @@
 from summit.data import DataSet
 import numpy as np
 import pandas as pd
-from typing import List, Optional, Type
+from typing import List, Optional, Type, Dict
 from abc import ABC, abstractmethod
+import json
 
 class Variable(ABC):
     """A base class for variables
@@ -13,17 +14,23 @@ class Variable(ABC):
         The name of the variable
     description: str
         A short description of the variable
+    is_output: bool, optional
+        If True, this variable is an output. Defaults to False (i.e., an input variable)
+    units: str, optional
+        Units of the variable. Defaults to None.
 
     Attributes
     ---------
     name
     description
     """
-    def __init__(self, name: str, description: str, variable_type: str):
+    def __init__(self, name: str, description: str, variable_type: str, **kwargs):
         Variable._check_name(name)
         self._name = name
         self._description = description
         self._variable_type = variable_type
+        self._is_output = kwargs.get('is_output', False)
+        self._units = kwargs.get('units', None)
 
     @property
     def name(self)-> str:
@@ -47,7 +54,29 @@ class Variable(ABC):
     @property
     def variable_type(self) -> str:
         return self._variable_type
-    
+
+    @property
+    def is_output(self) -> bool:
+        return self._is_output
+
+    @property
+    def units(self) -> str:
+        return self._units
+
+    def to_dict(self):
+        variable_dict = {
+           'type': self._variable_type,
+           'is_output': self._is_output,
+           'name': self.name,
+           'description': self.description,
+           'units': self.units}
+        return variable_dict
+
+    @staticmethod
+    @abstractmethod
+    def from_dict():
+        raise NotImplementedError('Must be implemented by subclasses of Variable')
+
     @staticmethod
     def _check_name(name: str):
         if type(name) != str:
@@ -66,7 +95,8 @@ class Variable(ABC):
 
     def _make_html_table_rows(self, value):
         name_column = f"<td>{self.name}</td>"
-        type_column = f"<td>{self.variable_type}</td>"
+        input_output = 'output' if self.is_output else 'input'
+        type_column = f"<td>{self.variable_type}, {input_output}</td>"
         description_column = f"<td>{self.description}</td>"
         values_column = f"<td>{value}</td>"
         return f"<tr>{name_column}{type_column}{description_column}{values_column}</tr>"
@@ -82,6 +112,8 @@ class ContinuousVariable(Variable):
         A short description of the variable 
     bounds: list of float or int
         The lower and upper bounds (respectively) of the variable
+    is_output: bool, optional
+        If True, this variable is an output. Defaults to False (i.e., an input variable)
 
     Attributes
     ---------
@@ -97,8 +129,8 @@ class ContinuousVariable(Variable):
 
     """
 
-    def __init__(self, name: str, description: str, bounds: list):
-        Variable.__init__(self, name, description, 'continuous')
+    def __init__(self, name: str, description: str, bounds: list, **kwargs):
+        Variable.__init__(self, name, description, 'continuous', **kwargs)
         self._lower_bound = bounds[0]
         self._upper_bound = bounds[1]
 
@@ -119,7 +151,18 @@ class ContinuousVariable(Variable):
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"[{self.lower_bound},{self.upper_bound}]")
+    
+    def to_dict(self):
+        variable_dict = super().to_dict()
+        variable_dict.update({'bounds': [float(self.lower_bound), float(self.upper_bound)]})
+        return variable_dict
 
+    @staticmethod
+    def from_dict(variable_dict):
+        return ContinuousVariable(name= variable_dict['name'],
+                           description=variable_dict['description'],
+                           bounds=variable_dict['bounds'],
+                           is_output=variable_dict['is_output'])
     
 class DiscreteVariable(Variable):
     """Representation of a discrete variable
@@ -132,6 +175,8 @@ class DiscreteVariable(Variable):
         A short description of the variable 
     levels: list of any serializable object
         The potential values of the discrete variable
+    is_output: bool, optional
+        If True, this variable is an output. Defaults to False (i.e., an input variable)
 
     Attributes
     ---------
@@ -144,8 +189,8 @@ class DiscreteVariable(Variable):
     >>> reactant = DiscreteVariable('reactant', 'aromatic reactant', ['benzene', 'toluene'])
 
     """
-    def __init__(self, name, description, levels):
-        Variable.__init__(self, name, description, 'discrete')
+    def __init__(self, name, description, levels, **kwargs):
+        Variable.__init__(self, name, description, 'discrete', **kwargs)
         
         #check that levels are unique
         if len(list({v for v in levels})) != len(levels):
@@ -196,6 +241,19 @@ class DiscreteVariable(Variable):
             remove_index = self._levels.index(level)
         except ValueError:
             raise ValueError(f"Level {level} is not in the list of levels.")
+    
+    def to_dict(self):
+        """ Return json encoding of the variable"""
+        variable_dict = super().to_dict()
+        variable_dict.update({'levels': self.levels.tolist()})
+        return variable_dict
+
+    @staticmethod
+    def from_dict(variable_dict):
+        return DiscreteVariable(name=variable_dict['name'],
+                                description=variable_dict['description'],
+                                levels=variable_dict['levels'],
+                                is_output=variable_dict['is_output'])
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_levels} levels")
@@ -211,6 +269,8 @@ class DescriptorsVariable(Variable):
         A short description of the variable 
     ds: DataSet
         A dataset object
+    is_output: bool, optional
+        If True, this variable is an output. Defaults to False (i.e., an input variable)
 
     Attributes
     ---------
@@ -232,8 +292,8 @@ class DescriptorsVariable(Variable):
     >>> solvent = DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
     """    
     def __init__(self, name: str, description: str, 
-                 ds: DataSet):
-        Variable.__init__(self, name, description, 'descriptors')
+                 ds: DataSet, **kwargs):
+        Variable.__init__(self, name, description, 'descriptors', **kwargs)
         self.ds = ds
 
     @property
@@ -243,58 +303,21 @@ class DescriptorsVariable(Variable):
     @property
     def num_examples(self):
         return self.ds.shape[0]
+
+    def to_dict(self):
+        """ Return json encoding of the variable"""
+        variable_dict = super().to_dict()
+        variable_dict.update({'ds': self.ds.to_dict()})
+        return variable_dict
     
-    # def get_subset(self, select_subset=None, select_index=None, zero_to_one=False):
-    #     ''' Get a subset of the examples of the descriptor 
-        
-    #     Parameters
-    #     ---------- 
-    #     select_subset: list or 1d numpy array, optional
-    #         A list of index keys in the dataframe to select. 
-    #         By default, the select_subset variable from the instance of the class is used.
-    #     select_index: str, optional
-    #         For use with multindex dataframes. This parameter specifies the name of the index to select from.
-    #         By default, the select_index from the instance of the class is used
-    #     zero_to_one: bool, optional
-    #         If true, the descriptors will be scaled to be between 0 and 1. By default, False.
-        
-    #     Returns
-    #     -------
-    #     result: `bool`
-    #         description
-        
-    #     Raises
-    #     ------
-    #     ValueError
-    #         If a select_subset cannot be found        
-    
-    #     '''
-    #     if select_subset is not None:
-    #         pass
-    #     elif select_subset is None and self.select_subset is not None:
-    #         select_subset = self.select_subset
-    #     elif self.select_subset is None:
-    #         raise ValueError("Cannot get subset because select_subset is None")
-
-    #     if not select_index and self.select_index:
-    #         select_index = self.select_index
-
-    #     if zero_to_one:
-    #         df = self.zero_to_one()
-    #     else:
-    #         df = self.df
-
-    #     if select_index:
-    #         for i, index in enumerate(select_subset):
-    #             select = df.xs(index, level=select_index, drop_level=False)
-    #             if i == 0:
-    #                 subset_df = select
-    #             else:
-    #                 subset_df = pd.concat([subset_df, select])
-    #     else:
-    #         subset_df = df.loc[select_subset, :]
-
-    #     return subset_df
+    @staticmethod
+    def from_dict(variable_dict):
+        ds = DataSet(variable_dict['ds'])
+        ds.columns.names = ['NAME', 'TYPE']
+        return DescriptorsVariable(name=variable_dict['name'],
+                                   description=variable_dict['description'],
+                                   ds=ds,
+                                   is_output=variable_dict['is_output'])
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_examples} examples of {self.num_descriptors} descriptors")
@@ -325,28 +348,97 @@ class Domain:
         """[List[Type[Variable]]]: List of variables in the domain"""
         return self._variables
 
-    @property
-    def num_variables(self) -> int:
-        """int: Number of variables in the domain"""
-        return len(self.variables)
+    def num_variables(self, include_outputs=False) -> int:
+        ''' Number of variables in the domain 
+        
+        Parameters
+        ---------- 
+        include_outputs: bool, optional
+            If True include output variables in the count.
+            Defaults to False.
+        
+        Returns
+        -------
+        num_variables: int
+            Number of variables in the domain
+        ''' 
+        k=0
+        for v in self.variables:
+            if v.is_output and not include_outputs:
+                continue
+            k+=1
+        return k
 
-    @property
-    def num_discrete_variables(self) -> int:
-        """int: Number of discrete variables in the domain"""
-        discrete_bool = [variable.variable_type == 'discrete'
-                         for variable in self._variables]
-        return discrete_bool.count(True)
+    def num_discrete_variables(self, include_outputs=False) -> int:
+        ''' Number of discrete varibles in the domain 
+        
+        Parameters
+        ---------- 
+        include_outputs: bool, optional
+            If True include output variables in the count.
+            Defaults to False.
+        
+        Returns
+        -------
+        num_variables: int
+            Number of discrete variables in the domain
+        '''
+        k=0
+        for v in self._variables:
+            if v.is_output and not include_outputs:
+                continue
+            elif v.variable_type == 'discrete':
+                k+= 1
+        return k
 
-    @property
-    def num_continuous_dimensions(self) -> int:
-        """int: The number of continuous dimensions, including dimensions of descriptors variables"""
+    def num_continuous_dimensions(self, include_outputs=False) -> int:
+        '''The number of continuous dimensions
+        
+        This includes dimensions of descriptors variables
+        
+        Parameters
+        ---------- 
+        include_outputs: bool, optional
+            If True include output variables in the count.
+            Defaults to False.
+        
+        Returns
+        -------
+        num_variables: int
+            Number of variables in the domain
+        '''
         k = 0
         for v in self._variables:
+            if v.is_output and not include_outputs:
+                continue
             if v.variable_type == 'continuous':
                 k+=1
             if v.variable_type == 'descriptors':
                 k+= v.num_descriptors
         return k
+
+    def to_dict(self):
+        """Return a dictionary representation of the domain"""
+        return [variable.to_dict() for variable in self.variables]
+
+    def to_json(self):
+        """Return the a json representation of the domain"""
+        return json.dumps(self.to_dict())
+
+    @staticmethod
+    def from_dict(domain_dict):
+        variables = []
+        for variable in domain_dict:
+            if variable['type'] == "continuous":
+                new_variable = ContinuousVariable.from_dict(variable)
+            elif variable['type'] == "discrete":
+                new_variable = DiscreteVariable.from_dict(variable)
+            elif variable['type'] == 'descriptors':
+                new_variable =  DescriptorsVariable.from_dict(variable)
+            else:
+                raise ValueError(f"Cannot load variable of type:{variable['type']}. Variable should be continuous, discrete or descriptors")
+            variables.append(new_variable)
+        return Domain(variables)
     
     def __add__(self, var):
         return Domain(self._variables + [var])
@@ -376,7 +468,6 @@ class Domain:
     def _html_table_rows(self):
         return ''.join(map(lambda l: l._html_table_rows(), self._variables))
 
-        
 
 class DomainError(Exception):
     pass

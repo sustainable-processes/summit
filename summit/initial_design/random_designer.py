@@ -63,7 +63,7 @@ class RandomDesigner(Designer):
                             num_samples: int) -> Tuple[np.ndarray, np.ndarray]:
         """Generate a design for a given descriptors variable"""
         indices = self._rstate.randint(0, variable.num_examples-1, size=num_samples)
-        values = variable.ds.descriptors_to_numpy()[indices, :]
+        values = variable.ds.data_to_numpy()[indices, :]
         values.shape = (num_samples, variable.num_descriptors)
         indices.shape = (num_samples, 1)
         return indices, values

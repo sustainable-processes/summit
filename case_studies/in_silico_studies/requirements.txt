@@ -1,0 +1,3 @@
+tqdm (>=4.31,<5.0)
+notify_run
+statsmodels (==0.9.0)

@@ -25,3 +25,8 @@ precommit_install:
 	git init
 	echo '#!/bin/sh\nmake lint test\n' > .git/hooks/pre-commit
 	chmod +x .git/hooks/pre-commit
+docker:
+	docker build -f Dockerfile.main -t marcosfelt/summit:latest .
+	docker build -f Dockerfile.in_silico -t marcosfelt/summit:in-silico .
+	docker login
+	docker push marcosfelt/summit
