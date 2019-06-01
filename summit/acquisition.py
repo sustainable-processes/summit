@@ -14,6 +14,46 @@ class Acquisition(ABC):
         pass
 
 class HvI(Acquisition):
+    ''' Hypervolume Improvement Acquisition Function
+
+    This acquisition functions selects points based on the hypervolume improvement.
+    The hypervolume improvement function is a modified version of the one proposed
+    in Bradford et al.
+    
+    Parameters
+    ---------- 
+    reference: array
+        The reference point used in the calculation of the hypervolume. 
+    data: np.ndarray, optional
+        A numpy array with the initial data used for comparison of hypervolume
+    random_rate: `float`, optional
+        The rate at which points will be selected at random instead of using 
+        hypervolume. Defaults to 0.0s
+    
+    Attributes
+    ----------
+    data    
+    
+    Notes
+    -----
+
+    References:
+    @article{Bradford2018,
+        author = {Bradford, Eric and Schweidtmann, Artur M. and Lapkin, Alexei},
+        doi = {10.1007/s10898-018-0609-2},
+        issn = {0925-5001},
+        journal = {Journal of Global Optimization},
+        month = {jun},
+        number = {2},
+        pages = {407--438},
+        publisher = {Springer US},
+        title = {{Efficient multiobjective optimization employing Gaussian processes, spectral sampling and a genetic algorithm}},
+        url = {http://link.springer.com/10.1007/s10898-018-0609-2},
+        volume = {71},
+        year = {2018}
+        }
+    
+    ''' 
     def __init__(self, reference, data = [], random_rate=0.0):
         self._reference = reference
         self._data = data
@@ -28,7 +68,22 @@ class HvI(Acquisition):
         self._data = y
 
     def select_max(self, samples, num_evals=1):
-        '''Returns the point(s) that maximimize hypervolume improvement '''
+        '''  Returns the point(s) that maximimize hypervolume improvement 
+        
+        Parameters
+        ---------- 
+        samples: np.ndarray
+             The samples on which hypervolume improvement is calculated
+        num_evals: `int`
+            The number of points to return (with top hypervolume improvement)
+        
+        Returns
+        -------
+        hv_imp, index
+            Returns a tuple with lists of the best hypervolume improvement
+            and the indices of the corresponding points in samples       
+        
+        ''' 
         #Get the reference point, r
         # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0)) 
         r = self._reference
@@ -100,6 +155,7 @@ class HvI(Acquisition):
 
 class _HyperVolume:
     """
+    This code is copied from the GA library DEAP. 
     Hypervolume computation based on variant 3 of the algorithm in the paper:
     C. M. Fonseca, L. Paquete, and M. Lopez-Ibanez. An improved dimension-sweep
     algorithm for the hypervolume indicator. In IEEE Congress on Evolutionary
