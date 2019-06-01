@@ -58,16 +58,62 @@ class Strategy:
         #Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
         
-class TSEMO(Strategy):
-    def __init__(self, domain, models, 
-                 objective=None, 
-                 optimizer=None, 
-                 acquisition=None):
-        #TODO: check that the domain is only a descriptors variable
-        super().__init__(domain)
+class TSEMO2(Strategy):
+    ''' A modified version of Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
+    
+    Parameters
+    ---------- 
+    domain: summit.domain.Domain
+        The domain of the optimization
+    models: summit.models.Model
+        Any list of surrogate models to be used in the optimization
+    maximize: bool, optional
+        Whether optimization should be treated as a maximization or minimization problem.
+        Defaults to maximization. 
+    acquisition: summit.acquistion.Acquisition, optional
+        The acquisition function used to select the next set of points from the pareto front
+        (see optimizer).  Defaults to hypervolume improvement with the reference point set 
+        as the upper bounds of the outputs in the specified domain and random rate 0.0
+    optimizer: summit.optimizers.Optimizer, optional
+        The internal optimizer for estimating the pareto front prior to maximization
+        of the acquisition function. By default, NSGAII will be used if there is a combination
+        of continuous, discrete and/or descriptors variables. If there is a single descriptors 
+        variable, then all of the potential values of the descriptors will be evaluated.
+    
+    
+    Examples
+    --------
+    domain += DescriptorsVariable('solvent',
+                                  'solvents in the lab',
+                                   solvent_ds)
+    domain+= ContinuousVariable(name='yield',
+                                description='relative conversion to triphenylphosphine oxide determined by LCMS',
+                                bounds=[0, 100],
+                                is_output=True)
+    domain += ContinuousVariable(name='de',
+                                description='diastereomeric excess determined by ratio of LCMS peaks',
+                                bounds=[0, 100],
+                                is_output=True)
+    input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
+    kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
+           for _ in range(2)]
+    models = [GPyModel(kernel=kernels[i]) for i in range(2)]
+    acquisition = HvI(reference=[100, 100], random_rate=0.25)
+    tsemo = TSEMO(domain, models, acquisition=acquisition)
+    previous_results = DataSet.read_csv('results.csv')
+    design = tsemo.generate_experiments(previous_results, batch_size, 
+                                        normalize_inputs=True)
+ 
+    ''' 
+    def __init__(self, domain, models, acquisition=None, optimizer=None):
+        Strategy.__init__(self, domain)
         self.models = models
+        if acquisition is None:
+            reference = [v.upper_bound for v in self.domain.output_variables]
+            self.acquisition = HvI(reference, random_rate=0.0)   
+        else:
+            self.acquisition = acquisition
         self.optimizer = optimizer
-        self.acquisition = acquisition
 
     def generate_experiments(self, previous_results: DataSet, num_experiments, 
                              normalize_inputs=False, no_repeats=True):
@@ -107,25 +153,15 @@ class TSEMO(Strategy):
                        for ix in indices]
             result = self.domain.variables[0].ds.iloc[indices, :]
         #Else use modified nsgaII
-        else:
+        elif not self.optimizer:
             # nsga = NSGAII(domain)
             # objectivefx = Objective(self.models)
             # results = nsga.optimize(objectivefx)
             # predictions = results.x
             raise NotImplementedError('When implemented, NSGAII optimizer should handle all other situations') 
-
-        #Update models and take samples
-        # samples_nadir = np.zeros(2)
-        # new_samples = np.zeros([masked_descriptor_arr.shape[0], 2])
- 
-        logging.debug('Calculating hypervolume improvement')
-
-
-        # hv_imp, indices = hypervolume_improvement_index(self.y, samples_nadir, predictions, 
-        #                                                 batchsize=num_experiments, 
-        #                                                 random_rate=self.random_rate)
-
-
+        else:
+            #Run the optimizer 
+            pass
         return result
 
     def _mask_previous_points(self, x, descriptor_arr):
