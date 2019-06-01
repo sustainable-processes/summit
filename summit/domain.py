@@ -348,6 +348,16 @@ class Domain:
         """[List[Type[Variable]]]: List of variables in the domain"""
         return self._variables
 
+    @property
+    def input_variables(self):
+        input_variables = []
+        for v in self.variables:
+            if v.is_output:
+                pass
+            else:
+                input_variables.append(v)
+        return input_variables
+
     def num_variables(self, include_outputs=False) -> int:
         ''' Number of variables in the domain 
         
@@ -439,7 +449,8 @@ class Domain:
                 raise ValueError(f"Cannot load variable of type:{variable['type']}. Variable should be continuous, discrete or descriptors")
             variables.append(new_variable)
         return Domain(variables)
-    
+
+
     def __add__(self, var):
         return Domain(self._variables + [var])
     
