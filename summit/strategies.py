@@ -1,6 +1,7 @@
 from summit.data import DataSet
 from summit.domain import Domain, DomainError
 from summit.objective import hypervolume
+from summit.acquisition import HvI
 
 import GPy
 import numpy as np
@@ -57,177 +58,120 @@ class Strategy:
         #Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
         
-
-class TSEMO(Strategy):
-    def __init__(self, domain, models, 
-                 objective=None, 
-                 optimizer=None, 
-                 acquisition=None,
-                 random_rate=0.0):
-        #TODO: check that the domain is only a descriptors variable
-        super().__init__(domain)
+class TSEMO2(Strategy):
+    ''' A modified version of Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
+    
+    Parameters
+    ---------- 
+    domain: summit.domain.Domain
+        The domain of the optimization
+    models: summit.models.Model
+        Any list of surrogate models to be used in the optimization
+    maximize: bool, optional
+        Whether optimization should be treated as a maximization or minimization problem.
+        Defaults to maximization. 
+    acquisition: summit.acquistion.Acquisition, optional
+        The acquisition function used to select the next set of points from the pareto front
+        (see optimizer).  Defaults to hypervolume improvement with the reference point set 
+        as the upper bounds of the outputs in the specified domain and random rate 0.0
+    optimizer: summit.optimizers.Optimizer, optional
+        The internal optimizer for estimating the pareto front prior to maximization
+        of the acquisition function. By default, NSGAII will be used if there is a combination
+        of continuous, discrete and/or descriptors variables. If there is a single descriptors 
+        variable, then all of the potential values of the descriptors will be evaluated.
+    
+    
+    Examples
+    --------
+    domain += DescriptorsVariable('solvent',
+                                  'solvents in the lab',
+                                   solvent_ds)
+    domain+= ContinuousVariable(name='yield',
+                                description='relative conversion to triphenylphosphine oxide determined by LCMS',
+                                bounds=[0, 100],
+                                is_output=True)
+    domain += ContinuousVariable(name='de',
+                                description='diastereomeric excess determined by ratio of LCMS peaks',
+                                bounds=[0, 100],
+                                is_output=True)
+    input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
+    kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
+           for _ in range(2)]
+    models = [GPyModel(kernel=kernels[i]) for i in range(2)]
+    acquisition = HvI(reference=[100, 100], random_rate=0.25)
+    tsemo = TSEMO(domain, models, acquisition=acquisition)
+    previous_results = DataSet.read_csv('results.csv')
+    design = tsemo.generate_experiments(previous_results, batch_size, 
+                                        normalize_inputs=True)
+ 
+    ''' 
+    def __init__(self, domain, models, acquisition=None, optimizer=None):
+        Strategy.__init__(self, domain)
         self.models = models
-        self.objective = objective
+        if acquisition is None:
+            reference = [v.upper_bound for v in self.domain.output_variables]
+            self.acquisition = HvI(reference, random_rate=0.0)   
+        else:
+            self.acquisition = acquisition
         self.optimizer = optimizer
-        self.acquisition = acquisition
-        self.random_rate = random_rate
 
-    def generate_experiments(self, previous_results: DataSet, num_experiments,
-                             normalize_inputs=False, normalize_outputs=False, 
-                             num_spectral_samples=4000):
+    def generate_experiments(self, previous_results: DataSet, num_experiments, 
+                             normalize_inputs=False, no_repeats=True):
         #Get inputs and outputs + standardize if needed
         inputs, outputs = self.get_inputs_outputs(previous_results)
         if normalize_inputs:
-            self.x = inputs.standardize()
-            descriptor_arr = self.domain.variables[0].ds.standardize()
-            descriptor_arr = descriptor_arr.astype(np.float64)
+            self.x = inputs.standardize() #TODO: get this to work for discrete variables
         else:
             self.x = inputs.data_to_numpy()
-            descriptor_arr = self.domain.variables[0].ds.data_to_numpy()
-            descriptor_arr = descriptor_arr.astype(np.float64)
 
-        #TODO: Fix this!!
-        if normalize_outputs:
-            self.y = outputs.data_to_numpy()
-        else:
-            
-            self.y = outputs.data_to_numpy()
+        self.y = outputs.data_to_numpy()
 
-        #Remove any points from the descriptors matrix that have already been suggested
-        descriptor_mask = np.ones(descriptor_arr.shape[0], dtype=bool)
-        for point in self.x:
-            try: 
-                index = np.where(descriptor_arr==point)[0][0]
-                descriptor_mask[index] = False
-            except IndexError:
-                continue
-        masked_descriptor_arr = descriptor_arr[descriptor_mask, :]
-
-        #Update models and take samples
-        samples_nadir = np.zeros(2)
-        new_samples = np.zeros([masked_descriptor_arr.shape[0], 2])
+        #Update surrogate models with new data
         for i, model in enumerate(self.models):
             Y = self.y[:, i]
             Y = np.atleast_2d(Y).T
             logging.debug(f'Fitting model {i+1}')
             model.fit(self.x, Y, num_restarts=3, max_iters=100,parallel=True)
-            logging.debug(f'Sampling model {i+1}')
-            samples = model._model.posterior_samples_f(masked_descriptor_arr, size=1)
-            new_samples[:, i] = samples[:,0,0]
-            # samples_nadir[i] = np.max(samples)
-        
-        #Temporary fix
-        logging.debug('Calculating hypervolume improvement')
-        samples_nadir = np.array([100., 100.])
-        hv_imp, indices = hypervolume_improvement_index(self.y, samples_nadir, new_samples, 
-                                                        batchsize=num_experiments, 
-                                                        random_rate=self.random_rate)
 
-        
-        indices = [np.where((descriptor_arr == masked_descriptor_arr[ix]).all(axis=1))[0][0]
-                   for ix in indices]
-
-        return self.domain.variables[0].ds.iloc[indices, :], hv_imp
-
-    def loo_errors(self):
-        errors = np.zeros(self.y.shape[1])
-        for i, model in enumerate(self.models):
-            kern = model._model.kern
-            loos = model._model.inference_method.LOO(kern, self.x, np.atleast_2d(self.y[:, i]).T, 
-                                                     model._model.likelihood, 
-                                                     model._model.posterior)
-            errors[i] = np.sum(loos)                           
-        return errors
-        
-def hypervolume_improvement_index(Ynew, samples_nadir, samples, batchsize, random_rate=0.0):
-    '''Returns the point(s) that maximimize hypervolume improvement '''
-    #Get the reference point, r
-    r = samples_nadir + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0)) 
-    index = []
-    mask = np.ones(samples.shape[0], dtype=bool)
-    # Number of samples to consider
-    k, _ = np.shape(samples)
-    num_gps = Ynew.shape[1]
-
-    assert (random_rate <=1.) | (random_rate >=0.)
-    if random_rate>0:
-        num_random = round(random_rate*batchsize)
-        random_selects = np.random.randint(0, batchsize, size=num_random)
-    else:
-        random_selects = np.array([])
-        
-    for i in range(batchsize):
-        masked_samples = samples[mask, :]
-        Yfront, _ = _pareto_front(Ynew)
-        if len(Yfront) ==0:
-            raise ValueError('Pareto front length too short')
-
-        hv_improvement = []
-        hvY = hypervolume(-Yfront, [0, 0])
-        #Determine hypervolume improvement by including
-        # each point from samples (masking previously selected poonts)
-        for sample in masked_samples:
-            sample = sample.reshape(1,num_gps)
-            A = np.append(Ynew, sample, axis=0)
-            Afront, _ = _pareto_front(A)
-            hv = hypervolume(-Afront, [0,0])
-            hv_improvement.append(hv-hvY)
-        
-        hvY0 = hvY if i==0 else hvY0
-
-        if i in random_selects:
-            masked_index = np.random.randint(0, masked_samples.shape[0])
+        logging.debug("Running internal optimization")
+        #If the domain consists of one descriptors variables, evaluate every candidate
+        check_descriptors = [True if v.variable_type =='descriptors' else False 
+                             for v in self.domain.input_variables]
+        if all(check_descriptors) and len(check_descriptors)==1:
+            descriptor_arr = self.domain.variables[0].ds.data_to_numpy()
+            if no_repeats:
+                points = self._mask_previous_points(self.x, descriptor_arr)
+            else:
+                points = self.x
+            predictions = np.zeros([points.shape[0], len(self.models)])
+            for i, model in enumerate(self.models):
+                predictions[:, i] = model.predict(points)[0][:,0]
+            
+            self.acquisition.data = self.y
+            self.acq_vals, indices = self.acquisition.select_max(predictions, num_evals=num_experiments)
+            indices = [np.where((descriptor_arr == points[ix]).all(axis=1))[0][0]
+                       for ix in indices]
+            result = self.domain.variables[0].ds.iloc[indices, :]
+        #Else use modified nsgaII
+        elif not self.optimizer:
+            # nsga = NSGAII(domain)
+            # objectivefx = Objective(self.models)
+            # results = nsga.optimize(objectivefx)
+            # predictions = results.x
+            raise NotImplementedError('When implemented, NSGAII optimizer should handle all other situations') 
         else:
-            #Choose the point that maximizes hypervolume improvement
-            masked_index =  hv_improvement.index(max(hv_improvement))
+            #Run the optimizer 
+            pass
+        return result
 
-        samples_index = np.where((samples == masked_samples[masked_index, :]).all(axis=1))[0][0]
-        new_point = samples[samples_index, :].reshape(1, num_gps)
-        Ynew = np.append(Ynew, new_point, axis=0)
-        mask[samples_index] = False
-        index.append(samples_index)
+    def _mask_previous_points(self, x, descriptor_arr):
+        descriptor_mask = np.ones(descriptor_arr.shape[0], dtype=bool)
+        for point in x:
+            try: 
+                index = np.where(descriptor_arr==point)[0][0]
+                descriptor_mask[index] = False
+            except IndexError:
+                continue
+        return descriptor_arr[descriptor_mask, :]
 
-    if len(hv_improvement)==0:
-        hv_imp = 0
-    elif len(index) == 0:
-        index = []
-        hv_imp = 0
-    else:
-        #Total hypervolume improvement
-        #Includes all points added to batch (hvY + last hv_improvement)
-        #Subtracts hypervolume without any points added (hvY0)
-        hv_imp = hv_improvement[masked_index] + hvY-hvY0
-    return hv_imp, index
-
-def _pareto_front(points):
-    '''Calculate the pareto front of a 2 dimensional set'''
-    try:
-        assert points.all() == np.atleast_2d(points).all()
-        assert points.shape[1] == 2
-    except AssertionError:
-        raise ValueError("Points must be 2 dimensional.")
-
-    sorted_indices = np.argsort(points[:, 0])
-    sorted = points[sorted_indices, :]
-    front = np.atleast_2d(sorted[-1, :])
-    front_indices = sorted_indices[-1]
-    for i in range(2, sorted.shape[0]+1):
-        if np.greater(sorted[-i, 1], front[:, 1]).all():
-            front = np.append(front, 
-                              np.atleast_2d(sorted[-i, :]),
-                              axis=0)
-            front_indices = np.append(front_indices,
-                                      sorted_indices[-i])
-    return front, front_indices
-
-
-def remove_points_above_reference(Afront, r):
-    A = sortrows(Afront)
-    for p in range(len(Afront[0, :])):
-        A = A[A[:,p]<= r[p], :]
-    return A
-
-def sortrows(A, i=0):
-    '''Sort rows from matrix A by column i'''
-    I = np.argsort(A[:, i])
-    return A[I, :]
+        

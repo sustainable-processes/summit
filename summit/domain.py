@@ -342,11 +342,39 @@ class Domain:
     """
     def __init__(self, variables:Optional[List[Type[Variable]]]=[]):
         self._variables = variables
+        #Check that all the output variables continuous
+        self.raise_noncontinuous_outputs()
 
     @property
     def variables(self):
         """[List[Type[Variable]]]: List of variables in the domain"""
         return self._variables
+
+    @property
+    def input_variables(self):
+        input_variables = []
+        for v in self.variables:
+            if v.is_output:
+                pass
+            else:
+                input_variables.append(v)
+        return input_variables
+
+    @property
+    def output_variables(self):
+        output_variables = []
+        for v in self.variables:
+            if v.is_output:
+                output_variables.append(v)
+            else:
+                pass
+        return output_variables
+
+    def raise_noncontinuous_outputs(self):
+        '''Raise an error if the outputs are not continuous variables'''
+        for v in self.output_variables:
+            if v.variable_type != 'continuous':
+                raise DomainError("All output variables must be continuous")
 
     def num_variables(self, include_outputs=False) -> int:
         ''' Number of variables in the domain 
@@ -439,8 +467,11 @@ class Domain:
                 raise ValueError(f"Cannot load variable of type:{variable['type']}. Variable should be continuous, discrete or descriptors")
             variables.append(new_variable)
         return Domain(variables)
-    
+
+
     def __add__(self, var):
+        if var.is_output and var.variable_type != 'continuous':
+            DomainError("Output variables must be continuous")
         return Domain(self._variables + [var])
     
     def _repr_html_(self):
