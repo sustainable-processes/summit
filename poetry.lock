@@ -174,6 +174,20 @@ python-versions = "*"
 version = "0.5.0"
 
 [[package]]
+category = "main"
+description = "dexpy: Design of Experiments (DOE) for Python."
+name = "dexpy"
+optional = false
+python-versions = "*"
+version = "0.12"
+
+[package.dependencies]
+numpy = "*"
+pandas = "*"
+patsy = "*"
+scipy = "*"
+
+[[package]]
 category = "dev"
 description = "Discover and load entry points from installed packages."
 name = "entrypoints"
@@ -1094,7 +1108,7 @@ version = "3.4.2"
 notebook = ">=4.4.1"
 
 [metadata]
-content-hash = "070ec44dec205f9a131ca9301e943f0d09e26b5a6a1e504831c9dd4078ec931f"
+content-hash = "0ab87916fb934ec1c53b2384114aa175bb5f9c3f3c9e5afb752df3a10be8492b"
 python-versions = "^3.6"
 
 [metadata.hashes]
@@ -1116,6 +1130,7 @@ cycler = ["1d8a5ae1ff6c5cf9b93e8811e581232ad8920aeec647c37316ceac982b08cb2d", "c
 deap = ["95c63e66d755ec206c80fdb2908851c0bef420ee8651ad7be4f0578e9e909bcf"]
 decorator = ["86156361c50488b84a3f148056ea716ca587df2f0de1d34750d35c21312725de", "f069f3a01830ca754ba5258fde2278454a0b5b79e0d7f5c13b3b97e57d4acff6"]
 defusedxml = ["24d7f2f94f7f3cb6061acb215685e5125fbcdc40a857eff9de22518820b0a4f4", "702a91ade2968a82beb0db1e0766a6a273f33d4616a6ce8cde475d8e09853b20"]
+dexpy = ["54be1b70bddc90ae8c637ab4b075f6214b0f2d0452113328e917bacad8629b82"]
 entrypoints = ["589f874b313739ad35be6e0cd7efde2a4e9b6fea91edcc34e58ecbb8dbe56d19", "c70dd71abe5a8c85e55e12c19bd91ccfeec11a6e99044204511f9ed547d48451"]
 future = ["67045236dcfd6816dc439556d009594abf643e5eb48992e36beac09c2ca659b8"]
 gpy = ["1f774e3083c1739171aad6b371064540680326867e744fec5876ecca883a0648", "45ca502f6a35f31e5e949b49b96ee359fdc71623a020fa8caa3c783d108ae6d9", "59390069edd53d22f1dd5296fad9b77212fad983a883e79f2d1fb6d836a804a0", "7b1d24af498ec1c924f66c8b0c617fdf872daf0357e554b69f57b6b17b42bdb5", "84d64a3996f1425d0f71b23d75da5d026c02a403a3d8d2442d18a9b59625294a", "955c8249c72a5e2bc76df149b4d04c78a77637a79521f01adfdfe05c26149c56", "a871ff16bd70dad411cc4fe2f838be88492121269d4cfe54d48bdb728d4c5c69", "eb8b7140eeee50bc99601ba30834047338558fd98430a335efd36d6fbeb7c6a8", "ec178a5f76c0489a655b9521a90d8f454184d8195a5cb98a0e6a5a7210c06641", "f11d649b3320d4cb836d283706754953277c8696977726803ccd3ee1355a94a7"]
