@@ -65,7 +65,7 @@ class NSGAII(Optimizer):
         self.problem = pp.Problem(nvars=self.domain.num_variables(),
                                   nobjs=len(self.domain.output_variables))
         for i, v in enumerate(self.domain.variables):
-            if v.is_output:
+            if v.is_objective:
                 continue
             if v.variable_type == "continuous":
                 self.problem.types[i] = pp.Real(v.lower_bound, v.upper_bound)

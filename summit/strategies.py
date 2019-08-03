@@ -21,7 +21,7 @@ class Strategy:
         input_columns = []
         output_columns = []
         for variable in self.domain.variables:
-            check_input = variable.name in data_columns and not variable.is_output 
+            check_input = variable.name in data_columns and not variable.is_objective
                           
             if check_input and variable.variable_type != 'descriptors':
                 input_columns.append(variable.name)
@@ -45,7 +45,7 @@ class Strategy:
 
                 #add descriptors data columns to inputs
                 input_columns += descriptors.data_columns
-            elif variable.name in data_columns and variable.is_output:
+            elif variable.name in data_columns and variable.is_objective:
                 if variable.variable_type == 'descriptors':
                     raise DomainError("Output variables cannot be descriptors variables.")
                 output_columns.append(variable.name)
@@ -89,11 +89,11 @@ class TSEMO2(Strategy):
     domain+= ContinuousVariable(name='yield',
                                 description='relative conversion to triphenylphosphine oxide determined by LCMS',
                                 bounds=[0, 100],
-                                is_output=True)
+                                is_objective=True)
     domain += ContinuousVariable(name='de',
                                 description='diastereomeric excess determined by ratio of LCMS peaks',
                                 bounds=[0, 100],
-                                is_output=True)
+                                is_objective=True)
     input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
     kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
            for _ in range(2)]

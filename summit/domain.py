@@ -14,8 +14,11 @@ class Variable(ABC):
         The name of the variable
     description: str
         A short description of the variable
-    is_output: bool, optional
+    is_objective: bool, optional
         If True, this variable is an output. Defaults to False (i.e., an input variable)
+    maximize: bool, optional
+        If True, the output will be maximized; if False, it will be minimized. 
+        Defaults to True. 
     units: str, optional
         Units of the variable. Defaults to None.
 
@@ -29,7 +32,8 @@ class Variable(ABC):
         self._name = name
         self._description = description
         self._variable_type = variable_type
-        self._is_output = kwargs.get('is_output', False)
+        self._is_objective = kwargs.get('is_objective', False)
+        self._maximize = kwargs.get('maximize', True)
         self._units = kwargs.get('units', None)
 
     @property
@@ -56,8 +60,12 @@ class Variable(ABC):
         return self._variable_type
 
     @property
-    def is_output(self) -> bool:
-        return self._is_output
+    def maximize(self) -> bool:
+        return self._maximize
+        
+    @property
+    def is_objective(self) -> bool:
+        return self._is_objective
 
     @property
     def units(self) -> str:
@@ -66,7 +74,7 @@ class Variable(ABC):
     def to_dict(self):
         variable_dict = {
            'type': self._variable_type,
-           'is_output': self._is_output,
+           'is_objective': self._is_objective,
            'name': self.name,
            'description': self.description,
            'units': self.units}
@@ -95,7 +103,12 @@ class Variable(ABC):
 
     def _make_html_table_rows(self, value):
         name_column = f"<td>{self.name}</td>"
-        input_output = 'output' if self.is_output else 'input'
+        input_output = 'output' if self.is_objective else 'input'
+        if self.is_objective:
+            direction = 'maximize' if self.maximize else 'minimize'
+            input_output = f'{direction} objective'
+        else:
+            input_output = 'input'
         type_column = f"<td>{self.variable_type}, {input_output}</td>"
         description_column = f"<td>{self.description}</td>"
         values_column = f"<td>{value}</td>"
@@ -112,7 +125,7 @@ class ContinuousVariable(Variable):
         A short description of the variable 
     bounds: list of float or int
         The lower and upper bounds (respectively) of the variable
-    is_output: bool, optional
+    is_objective: bool, optional
         If True, this variable is an output. Defaults to False (i.e., an input variable)
 
     Attributes
@@ -162,7 +175,7 @@ class ContinuousVariable(Variable):
         return ContinuousVariable(name= variable_dict['name'],
                            description=variable_dict['description'],
                            bounds=variable_dict['bounds'],
-                           is_output=variable_dict['is_output'])
+                           is_objective=variable_dict['is_objective'])
     
 class DiscreteVariable(Variable):
     """Representation of a discrete variable
@@ -175,7 +188,7 @@ class DiscreteVariable(Variable):
         A short description of the variable 
     levels: list of any serializable object
         The potential values of the discrete variable
-    is_output: bool, optional
+    is_objective: bool, optional
         If True, this variable is an output. Defaults to False (i.e., an input variable)
 
     Attributes
@@ -253,7 +266,7 @@ class DiscreteVariable(Variable):
         return DiscreteVariable(name=variable_dict['name'],
                                 description=variable_dict['description'],
                                 levels=variable_dict['levels'],
-                                is_output=variable_dict['is_output'])
+                                is_objective=variable_dict['is_objective'])
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_levels} levels")
@@ -269,7 +282,7 @@ class DescriptorsVariable(Variable):
         A short description of the variable 
     ds: DataSet
         A dataset object
-    is_output: bool, optional
+    is_objective: bool, optional
         If True, this variable is an output. Defaults to False (i.e., an input variable)
 
     Attributes
@@ -317,7 +330,7 @@ class DescriptorsVariable(Variable):
         return DescriptorsVariable(name=variable_dict['name'],
                                    description=variable_dict['description'],
                                    ds=ds,
-                                   is_output=variable_dict['is_output'])
+                                   is_objective=variable_dict['is_objective'])
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_examples} examples of {self.num_descriptors} descriptors")
@@ -354,7 +367,7 @@ class Domain:
     def input_variables(self):
         input_variables = []
         for v in self.variables:
-            if v.is_output:
+            if v.is_objective:
                 pass
             else:
                 input_variables.append(v)
@@ -364,7 +377,7 @@ class Domain:
     def output_variables(self):
         output_variables = []
         for v in self.variables:
-            if v.is_output:
+            if v.is_objective:
                 output_variables.append(v)
             else:
                 pass
@@ -392,7 +405,7 @@ class Domain:
         ''' 
         k=0
         for v in self.variables:
-            if v.is_output and not include_outputs:
+            if v.is_objective and not include_outputs:
                 continue
             k+=1
         return k
@@ -413,7 +426,7 @@ class Domain:
         '''
         k=0
         for v in self._variables:
-            if v.is_output and not include_outputs:
+            if v.is_objective and not include_outputs:
                 continue
             elif v.variable_type == 'discrete':
                 k+= 1
@@ -437,7 +450,7 @@ class Domain:
         '''
         k = 0
         for v in self._variables:
-            if v.is_output and not include_outputs:
+            if v.is_objective and not include_outputs:
                 continue
             if v.variable_type == 'continuous':
                 k+=1
@@ -470,7 +483,7 @@ class Domain:
 
 
     def __add__(self, var):
-        if var.is_output and var.variable_type != 'continuous':
+        if var.is_objective and var.variable_type != 'continuous':
             DomainError("Output variables must be continuous")
         return Domain(self._variables + [var])
     

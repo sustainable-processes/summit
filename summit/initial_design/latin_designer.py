@@ -68,7 +68,7 @@ class LatinDesigner(Designer):
         
         k=0
         for variable in self.domain.variables:
-            if variable.is_output:
+            if variable.is_objective:
                 continue
                 
             #For continuous variable, use samples directly
