@@ -24,8 +24,9 @@ class GPyModel(Model):
         if kernel:
             self._kernel = kernel
         else:
-            input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables(), 
-            self._kernel =  Matern52(input_dim = input_dim, ARD=True)
+            pass
+            # input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables(), 
+            # self._kernel =  Matern52(input_dim = input_dim, ARD=True)
         self._noise_var = noise_var
         self._optimizer = optimizer
         self._model = None

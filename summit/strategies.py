@@ -1,7 +1,7 @@
 from summit.data import DataSet
 from summit.domain import Domain, DomainError
-from summit.objective import hypervolume
 from summit.acquisition import HvI
+from summit.optimizers import NSGAII
 
 import GPy
 import numpy as np
@@ -113,10 +113,13 @@ class TSEMO2(Strategy):
             self.acquisition = HvI(reference, random_rate=0.0)   
         else:
             self.acquisition = acquisition
-        self.optimizer = optimizer
+        if not optimizer:
+            self.optimizer = NSGAII(self.domain)
+        else:
+            self.optimizer = optimizer
 
     def generate_experiments(self, previous_results: DataSet, num_experiments, 
-                             normalize_inputs=False, no_repeats=True):
+                             normalize_inputs=False, no_repeats=True, maximize=True):
         #Get inputs and outputs + standardize if needed
         inputs, outputs = self.get_inputs_outputs(previous_results)
         if normalize_inputs:
@@ -134,6 +137,7 @@ class TSEMO2(Strategy):
             model.fit(self.x, Y, num_restarts=3, max_iters=100,parallel=True)
 
         logging.debug("Running internal optimization")
+
         #If the domain consists of one descriptors variables, evaluate every candidate
         check_descriptors = [True if v.variable_type =='descriptors' else False 
                              for v in self.domain.input_variables]
@@ -153,15 +157,18 @@ class TSEMO2(Strategy):
                        for ix in indices]
             result = self.domain.variables[0].ds.iloc[indices, :]
         #Else use modified nsgaII
-        elif not self.optimizer:
-            # nsga = NSGAII(domain)
-            # objectivefx = Objective(self.models)
-            # results = nsga.optimize(objectivefx)
-            # predictions = results.x
-            raise NotImplementedError('When implemented, NSGAII optimizer should handle all other situations') 
         else:
-            #Run the optimizer 
-            pass
+            def problem(x):
+                x = np.array(x)
+                x = np.atleast_2d(x)
+                y = [model.predict(x)[0][:,0].tolist()[0]
+                     for model in self.models]
+                return y
+            int_result = self.optimizer.optimize(problem)
+            self.acquisition.data = self.y
+            self.acq_vals, indices = self.acquisition.select_max(int_result.fun, 
+                                                                 num_evals=num_experiments)
+            result = int_result.x[indices, :]
         return result
 
     def _mask_previous_points(self, x, descriptor_arr):

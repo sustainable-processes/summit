@@ -21,6 +21,8 @@ hvplot = "^0.4.0"
 deap = "^1.2"
 patsy = "^0.5.1"
 dexpy = "^0.12.0"
+platypus-opt = "^1.0"
+xlrd = "^1.2"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^18.3-alpha.0",allows-prereleases = true}
