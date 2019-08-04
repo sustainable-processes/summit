@@ -79,7 +79,12 @@ class NSGAII(Optimizer):
                 raise DomainError(f'{v.variable_type} is not a valid variable type.')
 
     def _optimize(self, objective, **kwargs):
-        self.problem.function = objective
+        def problem_wrapper(X):
+            np.atleast_2d(X)
+            result = objective(X)
+            return result.tolist()
+
+        self.problem.function = problem_wrapper
         self.problem.directions[:] = pp.Problem.MAXIMIZE
         algorithm = pp.NSGAII(self.problem)
         iterations = kwargs.get('iterations', 10000)

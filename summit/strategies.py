@@ -161,8 +161,9 @@ class TSEMO2(Strategy):
             def problem(x):
                 x = np.array(x)
                 x = np.atleast_2d(x)
-                y = [model.predict(x)[0][:,0].tolist()[0]
+                y = [model.predict(x)
                      for model in self.models]
+                y = np.array([yo[0,0] for yo in y])
                 return y
             int_result = self.optimizer.optimize(problem)
             self.acquisition.data = self.y

@@ -101,7 +101,7 @@ class HvI(Acquisition):
         
         for i in range(num_evals):
             masked_samples = samples[mask, :]
-            Yfront, _ = _pareto_front(Ynew)
+            Yfront, _ = pareto_efficient(Ynew)
             if len(Yfront) ==0:
                 raise ValueError('Pareto front length too short')
 
@@ -112,7 +112,7 @@ class HvI(Acquisition):
             for sample in masked_samples:
                 sample = sample.reshape(1,n)
                 A = np.append(Ynew, sample, axis=0)
-                Afront, _ = _pareto_front(A)
+                Afront, _ = pareto_efficient(A)
                 hv = HvI.hypervolume(-Afront, [0,0])
                 hv_improvement.append(hv-hvY)
             
@@ -440,6 +440,30 @@ def _pareto_front(points):
             front_indices = np.append(front_indices,
                                       sorted_indices[-i])
     return front, front_indices
+
+
+def pareto_efficient(costs, maximize=True):
+    """
+    Find the pareto-efficient points
+    :param costs: An (n_points, n_costs) array
+
+
+    """
+    original_costs = costs
+    is_efficient = np.arange(costs.shape[0])
+    n_points = costs.shape[0]
+    next_point_index = 0  # Next index in the is_efficient array to search for
+    while next_point_index<len(costs):
+        if maximize:
+            nondominated_point_mask = np.any(costs>costs[next_point_index], axis=1)
+        else:
+            nondominated_point_mask = np.any(costs<costs[next_point_index], axis=1)
+        nondominated_point_mask[next_point_index] = True
+        is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
+        costs = costs[nondominated_point_mask]
+        next_point_index = np.sum(nondominated_point_mask[:next_point_index])+1
+
+    return  costs, is_efficient   
 
 
 def remove_points_above_reference(Afront, r):
