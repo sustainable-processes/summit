@@ -120,7 +120,7 @@ class Design:
         ''' 
         df = pd.DataFrame([])
         for i, variable in enumerate(self._domain.variables):
-            if variable.is_output:
+            if variable.is_objective:
                 continue
             if variable.variable_type == 'descriptors':
                 descriptors = variable.ds.iloc[self.get_indices(variable.name)[:, 0], :]

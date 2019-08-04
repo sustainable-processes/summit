@@ -5,17 +5,19 @@ https://github.com/GPflow/GPflowOpt/blob/master/gpflowopt/optim.py
 
 """
 from typing import List
-from summit.domain import Domain
+from summit.domain import Domain, DomainError
 from summit.initial_design import RandomDesigner
-from .objective import ObjectiveWrapper
+# from .objective import ObjectiveWrapper
 
+from abc import ABC, abstractmethod
 import numpy as np
+import platypus as pp
 from scipy.optimize import OptimizeResult
 
 
 class Optimizer(ABC):
     def __init__(self, domain: Domain):
-        self._domain = domain
+        self.domain = domain
         self._multiobjective = False
 
     def optimize(self, objectivefx, **kwargs):
@@ -38,14 +40,14 @@ class Optimizer(ABC):
             is not multiobjective
                
         ''' 
-        objective = ObjectiveWrapper(objectivefx, **self._wrapper_args)
+        objective = objectivefx
         try:
             result = self._optimize(objective, **kwargs)
         except KeyboardInterrupt:
             result = OptimizeResult(x=objective._previous_x,
                                     success=False,
                                     message="Caught KeyboardInterrupt, returning last good value.")
-        result.nfev = objective.counter
+        # result.nfev = objective.counter
         return result
 
     @abstractmethod
@@ -58,9 +60,42 @@ class Optimizer(ABC):
         return self._multiobjective
 
 class NSGAII(Optimizer): 
-    # TODO: Liwei Cao will implement this 
-    def _optimize(self):
-        raise NotImplementedError("NSGAII optimizer not yet implemented")
+    def __init__(self, domain: Domain):
+        Optimizer.__init__(self, domain)
+        self.problem = pp.Problem(nvars=self.domain.num_variables(),
+                                  nobjs=len(self.domain.output_variables))
+        for i, v in enumerate(self.domain.variables):
+            if v.is_objective:
+                continue
+            if v.variable_type == "continuous":
+                self.problem.types[i] = pp.Real(v.lower_bound, v.upper_bound)
+            elif v.variable_type == "discrete":
+                #Select a subset of one of the available options
+                raise NotImplementedError('The NSGAII optimizer does not work with discrete variables')
+                # self.problem.types[i] = pp.Subset(elements=v.levels, size=1)
+            elif v.variable_type == 'descriptors':
+                raise NotImplementedError('The NSGAII optimizer does not work with descriptors variables')
+            else:
+                raise DomainError(f'{v.variable_type} is not a valid variable type.')
+
+    def _optimize(self, objective, **kwargs):
+        def problem_wrapper(X):
+            np.atleast_2d(X)
+            result = objective(X)
+            return result.tolist()
+
+        self.problem.function = problem_wrapper
+        self.problem.directions[:] = pp.Problem.MAXIMIZE
+        algorithm = pp.NSGAII(self.problem)
+        iterations = kwargs.get('iterations', 10000)
+        algorithm.run(iterations)
+        x = [[s.variables[i] for i in range(self.domain.num_variables())]
+             for s in algorithm.result]
+        x = np.array(x)
+        y =[[s.objectives[i] for i in range(len(self.domain.output_variables))]
+            for s in algorithm.result]
+        y = np.array(y)
+        return OptimizeResult(x=x, fun=y, success=True)
 
 class MCOptimizer(Optimizer):
     """
@@ -78,7 +113,6 @@ class MCOptimizer(Optimizer):
         # Clear the initial data points
         self.set_initial(np.empty((0, self.domain.size)))
 
-    @Optimizer.domain.setter
     def domain(self, dom):
         self._domain = dom
 
@@ -123,7 +157,6 @@ class CandidateOptimizer(MCOptimizer):
     def _get_eval_points(self):
         return self.candidates
 
-    @MCOptimizer.domain.setter
     def domain(self, dom):
         t = self.domain >> dom
         super(CandidateOptimizer, self.__class__).domain.fset(self, dom)

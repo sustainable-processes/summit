@@ -1,7 +1,7 @@
 from summit.data import DataSet
 from summit.domain import Domain, DomainError
-from summit.objective import hypervolume
 from summit.acquisition import HvI
+from summit.optimizers import NSGAII
 
 import GPy
 import numpy as np
@@ -21,7 +21,7 @@ class Strategy:
         input_columns = []
         output_columns = []
         for variable in self.domain.variables:
-            check_input = variable.name in data_columns and not variable.is_output 
+            check_input = variable.name in data_columns and not variable.is_objective
                           
             if check_input and variable.variable_type != 'descriptors':
                 input_columns.append(variable.name)
@@ -45,7 +45,7 @@ class Strategy:
 
                 #add descriptors data columns to inputs
                 input_columns += descriptors.data_columns
-            elif variable.name in data_columns and variable.is_output:
+            elif variable.name in data_columns and variable.is_objective:
                 if variable.variable_type == 'descriptors':
                     raise DomainError("Output variables cannot be descriptors variables.")
                 output_columns.append(variable.name)
@@ -89,11 +89,11 @@ class TSEMO2(Strategy):
     domain+= ContinuousVariable(name='yield',
                                 description='relative conversion to triphenylphosphine oxide determined by LCMS',
                                 bounds=[0, 100],
-                                is_output=True)
+                                is_objective=True)
     domain += ContinuousVariable(name='de',
                                 description='diastereomeric excess determined by ratio of LCMS peaks',
                                 bounds=[0, 100],
-                                is_output=True)
+                                is_objective=True)
     input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
     kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
            for _ in range(2)]
@@ -113,10 +113,13 @@ class TSEMO2(Strategy):
             self.acquisition = HvI(reference, random_rate=0.0)   
         else:
             self.acquisition = acquisition
-        self.optimizer = optimizer
+        if not optimizer:
+            self.optimizer = NSGAII(self.domain)
+        else:
+            self.optimizer = optimizer
 
     def generate_experiments(self, previous_results: DataSet, num_experiments, 
-                             normalize_inputs=False, no_repeats=True):
+                             normalize_inputs=False, no_repeats=True, maximize=True):
         #Get inputs and outputs + standardize if needed
         inputs, outputs = self.get_inputs_outputs(previous_results)
         if normalize_inputs:
@@ -134,6 +137,7 @@ class TSEMO2(Strategy):
             model.fit(self.x, Y, num_restarts=3, max_iters=100,parallel=True)
 
         logging.debug("Running internal optimization")
+
         #If the domain consists of one descriptors variables, evaluate every candidate
         check_descriptors = [True if v.variable_type =='descriptors' else False 
                              for v in self.domain.input_variables]
@@ -153,15 +157,19 @@ class TSEMO2(Strategy):
                        for ix in indices]
             result = self.domain.variables[0].ds.iloc[indices, :]
         #Else use modified nsgaII
-        elif not self.optimizer:
-            # nsga = NSGAII(domain)
-            # objectivefx = Objective(self.models)
-            # results = nsga.optimize(objectivefx)
-            # predictions = results.x
-            raise NotImplementedError('When implemented, NSGAII optimizer should handle all other situations') 
         else:
-            #Run the optimizer 
-            pass
+            def problem(x):
+                x = np.array(x)
+                x = np.atleast_2d(x)
+                y = [model.predict(x)
+                     for model in self.models]
+                y = np.array([yo[0,0] for yo in y])
+                return y
+            int_result = self.optimizer.optimize(problem)
+            self.acquisition.data = self.y
+            self.acq_vals, indices = self.acquisition.select_max(int_result.fun, 
+                                                                 num_evals=num_experiments)
+            result = int_result.x[indices, :]
         return result
 
     def _mask_previous_points(self, x, descriptor_arr):
