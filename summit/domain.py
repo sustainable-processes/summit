@@ -176,6 +176,11 @@ class ContinuousVariable(Variable):
                            description=variable_dict['description'],
                            bounds=variable_dict['bounds'],
                            is_objective=variable_dict['is_objective'])
+
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            return [self, other]
+
     
 class DiscreteVariable(Variable):
     """Representation of a discrete variable
@@ -335,6 +340,25 @@ class DescriptorsVariable(Variable):
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_examples} examples of {self.num_descriptors} descriptors")
 
+
+class Constraint: 
+    def __init__(self, expression):
+        self._expression = expression
+
+    @property
+    def expression(self):
+        return self._expression
+
+    def _html_table_rows(self):
+        columns = []
+        columns.append("") #name column
+        columns.append("constraint") #type column
+        columns.append(self.expression) #description columns
+        columns.append("") #value column
+        return ''.join([f"<td>{column}</td>" for column in columns])
+
+
+    
 class Domain:
     """Representation of the optimization domain
 
@@ -353,8 +377,9 @@ class Domain:
     >>> domain += ContinuousVariable('temperature', 'reaction temperature', [1, 100])
 
     """
-    def __init__(self, variables:Optional[List[Type[Variable]]]=[]):
+    def __init__(self, variables=[], constraints=[]):
         self._variables = variables
+        self._constraints = constraints
         #Check that all the output variables continuous
         self.raise_noncontinuous_outputs()
 
@@ -362,6 +387,20 @@ class Domain:
     def variables(self):
         """[List[Type[Variable]]]: List of variables in the domain"""
         return self._variables
+
+    @property
+    def constraints(self):
+        return self._constraints
+
+    # def __getitem__(self, key):
+    #     '''For accessing variables like a dictionary'''
+    #     for v in self.variables:
+    #         if v.name == key:
+    #             return v    
+    #     raise KeyError(f'No variable {key} found in the domain.')
+    
+    # def _ipython_key_completions_(self):
+    #     return [v.name for v in self.variables]
 
     @property
     def input_variables(self):
@@ -482,10 +521,15 @@ class Domain:
         return Domain(variables)
 
 
-    def __add__(self, var):
-        if var.is_objective and var.variable_type != 'continuous':
-            DomainError("Output variables must be continuous")
-        return Domain(self._variables + [var])
+    def __add__(self, obj):
+        if isinstance(obj, Variable):
+            if obj.is_objective and obj.variable_type != 'continuous':
+                raise DomainError("Output variables must be continuous")
+            return Domain(variables=self._variables + [obj], constraints=self.constraints) 
+        elif isinstance(obj, Constraint):
+            return Domain(variables=self.variables, constraints = self.constraints + [obj])
+        else:
+            raise RuntimeError('Not a supported domain object.')
     
     def _repr_html_(self):
         """Build html string for table display in jupyter notebooks.
@@ -510,7 +554,9 @@ class Domain:
         return ''.join(html)
 
     def _html_table_rows(self):
-        return ''.join(map(lambda l: l._html_table_rows(), self._variables))
+        variables = ''.join([v._html_table_rows() for v in self.variables])
+        constraints = ''.join([c._html_table_rows() for c in self.constraints])
+        return variables + constraints
 
 
 class DomainError(Exception):
