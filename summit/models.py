@@ -1,12 +1,12 @@
-from summit.initial_design.latin_designer import lhs
+from summit.data import DataSet
 
 from GPy.models import GPRegression
 from GPy.kern import Matern52
 import numpy as np
-from numpy import matlib
 import scipy
 
 from abc import ABC, abstractmethod
+from sklearn.base import BaseEstimator, RegressorMixin
 
 
 class Model(ABC):
@@ -23,7 +23,32 @@ class Model(ABC):
     def predict(self, X):
         pass
 
-class GPyModel(Model):
+class ModelGroup:
+    def __init__(self, models: dict):
+        self._models = models
+
+    @property
+    def models(self):
+        return self._models
+
+    def fit(self, X, y, **kwargs):
+        for column_name, model in self.models.items():
+            model.fit(X, y[[column_name]]) 
+
+    def predict(self, X, **kwargs):
+        """
+        Note
+        -----
+        This the make the assumption that each model returns a n_samples x 1 array
+        from the predict method.
+        """
+        result = [model.predict(X)[:, 0] for model in self.models.values()]
+        return np.array(result).T
+    
+    def __getitem__(self, key):
+        return self.models[key]
+
+class GPyModel(BaseEstimator, RegressorMixin):
     ''' A Gaussian Process Regression model from GPy
 
     This is implemented as an alternative to the sklearn
@@ -54,7 +79,8 @@ class GPyModel(Model):
         else: 
             if not input_dim:
                 raise ValueError('input_dim must be specified if no kernel is specified.')
-            self._kernel =  Matern52(input_dim = input_dim, ARD=True)
+            self.input_dim = input_dim
+            self._kernel =  Matern52(input_dim = self.input_dim, ARD=True)
         self._noise_var = noise_var
         self._optimizer = optimizer
         self._model = None
@@ -63,10 +89,10 @@ class GPyModel(Model):
         """Fit Gaussian process regression model.
         Parameters
         ----------
-        X : array-like, shape = (n_samples, n_features)
-            Training data
-        y : array-like, shape = (n_samples, [n_output_dims])
-            Target values
+        X : DataSet
+            The data columns will be used as inputs for fitting the model
+        y : DataSEt
+            The data columns will be used as outputs for fitting the model
         num_restarts : int, optional (default=10)
             The number of random restarts of the optimizer.
         max_iters : int, optional (default=2000)
@@ -79,7 +105,25 @@ class GPyModel(Model):
         self : returns an instance of self.
         -----
         """ 
-        self._model = GPRegression(X,y, self._kernel, noise_var=self._noise_var)
+        #Standardize inputs and outputs
+        if isinstance(X, DataSet):
+            X_std, self.input_mean, self.input_std = X.standardize(return_mean=True, return_std=True)
+        elif isinstance(X, np.ndarray):
+            self.input_mean = np.mean(X,axis=0)
+            self.input_std = np.std(X, axis=0)
+            X_std = (X-self.input_mean)/self.input_std
+            X_std[abs(X_std) < 1e-5] = 0.0
+
+        if isinstance(y, DataSet):
+            y_std, self.output_mean, self.output_std = y.standardize(return_mean=True, return_std=True)
+        elif isinstance(y, np.ndarray):
+            self.output_mean = np.mean(y,axis=0)
+            self.output_std = np.std(y, axis=0)
+            y_std = (y-self.output_mean)/self.output_std
+            y_std[abs(y_std) < 1e-5] = 0.0
+
+        #Initialize and fit model
+        self._model = GPRegression(X_std,y_std, self._kernel, noise_var=self._noise_var)
         if self._optimizer:
             self._model.optimize_restarts(num_restarts = num_restarts, 
                                           verbose=False,
@@ -120,17 +164,24 @@ class GPyModel(Model):
             raise RuntimeError(
                 "Not returning standard deviation of predictions when "
                 "returning full covariance.")
-
-        m, v = self._model.predict(X)
-
-        if return_cov:
-            result = m, v
-        elif return_std:
-            result = m, self._model.Kdiag(X)
-        else:
-            result = m
         
-        return result
+        if isinstance(X, np.ndarray):
+            X_std =  (X-self.input_mean)/self.input_std
+            X_std[abs(X_std) < 1e-5] = 0.0
+        elif isinstance(X, DataSet):
+            X_std = X.standardize(mean=self.input_mean, std=self.input_std)
+
+        m_std, v_std = self._model.predict(X_std)
+        m = m_std*self.output_std + self.output_mean
+
+        # if return_cov:
+        #     result = m, v
+        # elif return_std:
+        #     result = m, self._model.Kdiag(X)
+        # else:
+        #     result = m
+
+        return m
     
 class AnalyticalModel(Model):
     ''' An analytical model instead of statistical model

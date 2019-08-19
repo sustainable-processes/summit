@@ -1,13 +1,13 @@
 from summit.data import DataSet
+from summit.models import ModelGroup
 from summit.domain import Domain, DomainError
 from summit.acquisition import HvI
 from summit.optimizers import NSGAII
+from summit.utils import pareto_efficient
 
 import GPy
 import numpy as np
 
-import warnings
-import logging
 
 class Strategy:
     def __init__(self, domain:Domain):
@@ -70,10 +70,6 @@ class TSEMO2(Strategy):
     maximize: bool, optional
         Whether optimization should be treated as a maximization or minimization problem.
         Defaults to maximization. 
-    acquisition: summit.acquistion.Acquisition, optional
-        The acquisition function used to select the next set of points from the pareto front
-        (see optimizer).  Defaults to hypervolume improvement with the reference point set 
-        as the upper bounds of the outputs in the specified domain and random rate 0.0
     optimizer: summit.optimizers.Optimizer, optional
         The internal optimizer for estimating the pareto front prior to maximization
         of the acquisition function. By default, NSGAII will be used if there is a combination
@@ -105,81 +101,122 @@ class TSEMO2(Strategy):
                                         normalize_inputs=True)
  
     ''' 
-    def __init__(self, domain, models, acquisition=None, optimizer=None):
+    def __init__(self, domain, models, optimizer=None, **kwargs):
         Strategy.__init__(self, domain)
-        self.models = models
-        if acquisition is None:
-            reference = [v.upper_bound for v in self.domain.output_variables]
-            self.acquisition = HvI(reference, random_rate=0.0)   
-        else:
-            self.acquisition = acquisition
+
+        if isinstance(models, ModelGroup):
+            self.models = models
+        elif isinstance(models, dict):
+            self.models = ModelGroup(models)
+        else: 
+            raise TypeError('models must be a ModelGroup or a dictionary of models.')
+
         if not optimizer:
             self.optimizer = NSGAII(self.domain)
         else:
             self.optimizer = optimizer
 
-    def generate_experiments(self, previous_results: DataSet, num_experiments, 
-                             normalize_inputs=False, no_repeats=True, maximize=True):
-        #Get inputs and outputs + standardize if needed
+        self._reference = kwargs.get('reference', [0,0])
+        self._random_rate = kwargs.get('random_rate', 0.0)
+
+    def generate_experiments(self, previous_results: DataSet, num_experiments):
+        #Get inputs and outputs
         inputs, outputs = self.get_inputs_outputs(previous_results)
-        if normalize_inputs:
-            self.x = inputs.standardize() #TODO: get this to work for discrete variables
+        
+        #Fit models to new data
+        self.models.fit(inputs, outputs)
+
+        internal_res = self.optimizer.optimize(self.models)
+
+        hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
+        result = internal_res.x.join(internal_res.fun)
+        
+        return result.iloc[indices, :]
+
+    def select_max_hvi(self, y, samples, num_evals=1):
+        '''  Returns the point(s) that maximimize hypervolume improvement 
+        
+        Parameters
+        ---------- 
+        samples: np.ndarray
+             The samples on which hypervolume improvement is calculated
+        num_evals: `int`
+            The number of points to return (with top hypervolume improvement)
+        
+        Returns
+        -------
+        hv_imp, index
+            Returns a tuple with lists of the best hypervolume improvement
+            and the indices of the corresponding points in samples       
+        
+        ''' 
+        #Get the reference point, r
+        # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0)) 
+        r = self._reference
+
+        #Set up maximization and minimization
+        for v in self.domain.variables:
+            if v.is_objective and v.maximize:
+                y[v.name] = -1.0 * y[v.name]
+                samples[v.name] = -1.0 * samples[v.name]
+        
+        Ynew = y.data_to_numpy()
+        samples = samples.data_to_numpy()
+        index = []
+        n = samples.shape[1]
+        mask = np.ones(samples.shape[0], dtype=bool)
+
+        #Set up random selection
+        if not (self._random_rate <=1.) | (self._random_rate >=0.):
+            raise ValueError('Random Rate must be between 0 and 1.')
+
+        if self._random_rate>0:
+            num_random = round(self._random_rate*num_evals)
+            random_selects = np.random.randint(0, num_evals, size=num_random)
         else:
-            self.x = inputs.data_to_numpy()
+            random_selects = np.array([])
+        
+        for i in range(num_evals):
+            masked_samples = samples[mask, :]
+            Yfront, _ = pareto_efficient(Ynew, maximize=True)
+            if len(Yfront) == 0:
+                raise ValueError('Pareto front length too short')
 
-        self.y = outputs.data_to_numpy()
-
-        #Update surrogate models with new data
-        for i, model in enumerate(self.models):
-            Y = self.y[:, i]
-            Y = np.atleast_2d(Y).T
-            logging.debug(f'Fitting model {i+1}')
-            model.fit(self.x, Y, num_restarts=3, max_iters=100,parallel=True)
-
-        logging.debug("Running internal optimization")
-
-        #If the domain consists of one descriptors variables, evaluate every candidate
-        check_descriptors = [True if v.variable_type =='descriptors' else False 
-                             for v in self.domain.input_variables]
-        if all(check_descriptors) and len(check_descriptors)==1:
-            descriptor_arr = self.domain.variables[0].ds.data_to_numpy()
-            if no_repeats:
-                points = self._mask_previous_points(self.x, descriptor_arr)
-            else:
-                points = self.x
-            predictions = np.zeros([points.shape[0], len(self.models)])
-            for i, model in enumerate(self.models):
-                predictions[:, i] = model.predict(points)[0][:,0]
+            hv_improvement = []
+            hvY = HvI.hypervolume(Yfront, [0, 0])
+            #Determine hypervolume improvement by including
+            #each point from samples (masking previously selected poonts)
+            for sample in masked_samples:
+                sample = sample.reshape(1,n)
+                A = np.append(Ynew, sample, axis=0)
+                Afront, _ = pareto_efficient(A, maximize=True)
+                hv = HvI.hypervolume(Afront, [0,0])
+                hv_improvement.append(hv-hvY)
             
-            self.acquisition.data = self.y
-            self.acq_vals, indices = self.acquisition.select_max(predictions, num_evals=num_experiments)
-            indices = [np.where((descriptor_arr == points[ix]).all(axis=1))[0][0]
-                       for ix in indices]
-            result = self.domain.variables[0].ds.iloc[indices, :]
-        #Else use modified nsgaII
-        else:
-            def problem(x):
-                x = np.array(x)
-                x = np.atleast_2d(x)
-                y = [model.predict(x)
-                     for model in self.models]
-                y = np.array([yo[0,0] for yo in y])
-                return y
-            int_result = self.optimizer.optimize(problem)
-            self.acquisition.data = self.y
-            self.acq_vals, indices = self.acquisition.select_max(int_result.fun, 
-                                                                 num_evals=num_experiments)
-            result = int_result.x[indices, :]
-        return result
+            hvY0 = hvY if i==0 else hvY0
 
-    def _mask_previous_points(self, x, descriptor_arr):
-        descriptor_mask = np.ones(descriptor_arr.shape[0], dtype=bool)
-        for point in x:
-            try: 
-                index = np.where(descriptor_arr==point)[0][0]
-                descriptor_mask[index] = False
-            except IndexError:
-                continue
-        return descriptor_arr[descriptor_mask, :]
+            if i in random_selects:
+                masked_index = np.random.randint(0, masked_samples.shape[0])
+            else:
+                #Choose the point that maximizes hypervolume improvement
+                masked_index = hv_improvement.index(max(hv_improvement))
+            
+            samples_index = np.where((samples == masked_samples[masked_index, :]).all(axis=1))[0][0]
+            new_point = samples[samples_index, :].reshape(1, n)
+            Ynew = np.append(Ynew, new_point, axis=0)
+            mask[samples_index] = False
+            index.append(samples_index)
+
+        if len(hv_improvement)==0:
+            hv_imp = 0
+        elif len(index) == 0:
+            index = []
+            hv_imp = 0
+        else:
+            #Total hypervolume improvement
+            #Includes all points added to batch (hvY + last hv_improvement)
+            #Subtracts hypervolume without any points added (hvY0)
+            hv_imp = hv_improvement[masked_index] + hvY-hvY0
+        return hv_imp, index
 
         

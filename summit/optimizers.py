@@ -7,7 +7,7 @@ https://github.com/GPflow/GPflowOpt/blob/master/gpflowopt/optim.py
 from typing import List
 from summit.domain import Domain, DomainError
 from summit.initial_design import RandomDesigner
-# from .objective import ObjectiveWrapper
+from summit.data import DataSet
 
 from abc import ABC, abstractmethod
 import numpy as np
@@ -62,12 +62,17 @@ class Optimizer(ABC):
 class NSGAII(Optimizer): 
     def __init__(self, domain: Domain):
         Optimizer.__init__(self, domain)
+        #Set up platypus problem
         self.problem = pp.Problem(nvars=self.domain.num_variables(),
-                                  nobjs=len(self.domain.output_variables))
+                                  nobjs=len(self.domain.output_variables),
+                                  nconstrs=len(self.domain.constraints))
+        #Set maximization or minimization for each objective                          
+        j = 0
         for i, v in enumerate(self.domain.variables):
             if v.is_objective:
-                continue
-            if v.variable_type == "continuous":
+                direction = self.problem.MAXIMIZE if v.maximize else self.problem.MINIMIZE
+                self.problem.directions[j] = direction
+            elif v.variable_type == "continuous":
                 self.problem.types[i] = pp.Real(v.lower_bound, v.upper_bound)
             elif v.variable_type == "discrete":
                 #Select a subset of one of the available options
@@ -78,23 +83,36 @@ class NSGAII(Optimizer):
             else:
                 raise DomainError(f'{v.variable_type} is not a valid variable type.')
 
-    def _optimize(self, objective, **kwargs):
-        def problem_wrapper(X):
-            np.atleast_2d(X)
-            result = objective(X)
-            return result.tolist()
+        #Set up constraints
+        self.problem.constraints[:] = "<=0"
 
+
+    def _optimize(self, models, **kwargs):
+        input_columns = [v.name for  v in self.domain.variables if not v.is_objective]
+        output_columns = [v.name for  v in self.domain.variables if v.is_objective]
+        def problem_wrapper(X):
+            X = DataSet(np.atleast_2d(X), 
+                        columns=input_columns)
+            result = models.predict(X)
+
+            constraint_res = [X.eval(c.expression, resolvers=[X]) 
+                             for c in self.domain.constraints]
+            constraint_res = [c.tolist()[0] for c in constraint_res]
+
+            return result[0, :].tolist(), constraint_res
+        
+        #Run optimization
         self.problem.function = problem_wrapper
-        self.problem.directions[:] = pp.Problem.MAXIMIZE
         algorithm = pp.NSGAII(self.problem)
         iterations = kwargs.get('iterations', 10000)
         algorithm.run(iterations)
+        
         x = [[s.variables[i] for i in range(self.domain.num_variables())]
              for s in algorithm.result]
-        x = np.array(x)
+        x = DataSet(x, columns = input_columns)
         y =[[s.objectives[i] for i in range(len(self.domain.output_variables))]
             for s in algorithm.result]
-        y = np.array(y)
+        y = DataSet(y, columns=output_columns)
         return OptimizeResult(x=x, fun=y, success=True)
 
 class MCOptimizer(Optimizer):
