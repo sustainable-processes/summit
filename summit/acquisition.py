@@ -101,7 +101,7 @@ class HvI(Acquisition):
         
         for i in range(num_evals):
             masked_samples = samples[mask, :]
-            Yfront, _ = pareto_efficient(Ynew)
+            Yfront, _ = pareto_efficient(Ynew, maximize=True)
             if len(Yfront) ==0:
                 raise ValueError('Pareto front length too short')
 
@@ -112,7 +112,7 @@ class HvI(Acquisition):
             for sample in masked_samples:
                 sample = sample.reshape(1,n)
                 A = np.append(Ynew, sample, axis=0)
-                Afront, _ = pareto_efficient(A)
+                Afront, _ = pareto_efficient(A, maximize=True)
                 hv = HvI.hypervolume(-Afront, [0,0])
                 hv_improvement.append(hv-hvY)
             
@@ -147,8 +147,6 @@ class HvI(Acquisition):
         """Compute the absolute hypervolume of a *pointset* according to the
         reference point *ref*.
         """
-        warnings.warn("Falling back to the python version of hypervolume "
-            "module. Expect this to be very slow.", RuntimeWarning)
         hv = _HyperVolume(ref)
         return hv.compute(pointset)
 

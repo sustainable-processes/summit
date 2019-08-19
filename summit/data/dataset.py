@@ -14,6 +14,24 @@ class DataSet(pd.core.frame.DataFrame):
     ----
     Based on https://notes.mikejarrett.ca/storing-metadata-in-pandas-dataframes/
     """
+    def __init__(self, data=None, index=None, columns=None, metadata_columns=[], units=None, dtype=None, copy=False):
+        if isinstance(columns, pd.MultiIndex):
+            pass
+        elif columns is not None:
+            column_names = columns
+            if metadata_columns:
+                types = ['METADATA' if x in metadata_columns else 'DATA' for x in column_names]
+            else:
+                types = ['DATA' for _ in range(len(column_names))]
+            arrays = [column_names, types]
+            levels = ['NAME', 'TYPE']
+            if units:
+                arrays.append(units)
+                levels.append('UNITS')
+            tuples=list(zip(*arrays))
+            columns = pd.MultiIndex.from_tuples(tuples, names=levels)
+        pd.core.frame.DataFrame.__init__(self, data=data, index=index, columns=columns, dtype=dtype, copy=copy)
+
     @staticmethod
     def from_df(df: pd.DataFrame, metadata_columns: List=[], 
                 units: List = []):
@@ -83,7 +101,8 @@ class DataSet(pd.core.frame.DataFrame):
         scaled[abs(scaled) < small_tol] = 0.0
         return scaled
 
-    def standardize(self, small_tol=1.0e-5) -> np.ndarray:
+    def standardize(self, small_tol=1.0e-5,
+                    return_mean=False, return_std=False, **kwargs) -> np.ndarray:
         """Standardize data columns by removing the mean and scaling to unit variance
 
         The standard score of each data column is calculated as:
@@ -97,6 +116,16 @@ class DataSet(pd.core.frame.DataFrame):
             The minimum value of any value in the final scaled array. 
             This is used to prevent very small values that will cause
             issues in later calcualtions. Defaults to 1e-5.
+        return_mean: bool, optional
+            Return an array with the mean of each column in the DataSet
+        return_std: bool, optional
+            Return an array with the stnadard deviation of each column
+            in the DataSet
+        mean: array, optional
+            Pass a precalculated array of means for the columns
+        std: array, optional
+            Pass a precalculated array of standard deviations 
+            for the columns
         
         Returns
         -------
@@ -110,11 +139,21 @@ class DataSet(pd.core.frame.DataFrame):
         """
         values = self.data_to_numpy()
         values = values.astype(np.float64)
-        mean = np.mean(values, axis=0)
-        sigma = np.std(values, axis=0)
+        
+        mean = kwargs.get('mean',
+                          np.mean(values, axis=0))
+        sigma = kwargs.get('std',
+                           np.std(values, axis=0))
         standard = (values-mean)/sigma
         standard[abs(standard) < small_tol] = 0.0
-        return standard
+        if return_mean and return_std:
+            return standard, mean, sigma
+        elif return_mean:
+            return standard, mean
+        elif return_std:
+            return standard, sigma
+        else:
+            return standard
 
     @property  
     def _constructor(self):
@@ -183,5 +222,3 @@ class DataSet(pd.core.frame.DataFrame):
         self.columns[loc][1] = type
         self.columns[loc][2] = units
         
-class ResultSet(DataSet):
-    data_column_types = ['input', 'output']

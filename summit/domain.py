@@ -357,7 +357,6 @@ class Constraint:
         columns.append("") #value column
         return ''.join([f"<td>{column}</td>" for column in columns])
 
-
     
 class Domain:
     """Representation of the optimization domain
@@ -522,6 +521,7 @@ class Domain:
 
 
     def __add__(self, obj):
+        #TODO: make this work with adding arrays of variable or constraints
         if isinstance(obj, Variable):
             if obj.is_objective and obj.variable_type != 'continuous':
                 raise DomainError("Output variables must be continuous")
