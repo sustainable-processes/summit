@@ -104,7 +104,7 @@ class NSGAII(Optimizer):
         #Run optimization
         self.problem.function = problem_wrapper
         algorithm = pp.NSGAII(self.problem)
-        iterations = kwargs.get('iterations', 10000)
+        iterations = kwargs.get('iterations', 10)
         algorithm.run(iterations)
         
         x = [[s.variables[i] for i in range(self.domain.num_variables())]
