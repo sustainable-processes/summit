@@ -23,11 +23,13 @@ patsy = "^0.5.1"
 dexpy = "^0.12.0"
 platypus-opt = "^1.0"
 xlrd = "^1.2"
+ipywidgets = "^7.5"
+jupyter = "^1.0"
 
 [tool.poetry.dev-dependencies]
 black = {version = "^18.3-alpha.0",allows-prereleases = true}
 jupyter = "^1.0"
-jupyterlab = "^0.35.4"
+jupyterlab = "^1.1.3"
 pytest = "^3.0"
 ipdb = "^0.12.0"
 pytest-mock = "^1.10"
@@ -41,6 +43,9 @@ notify-run = "^0.0.11"
 statsmodels = "^0.9.0"
 pubchempy = "^1.0"
 papermill = "^1.0"
+voila = "^0.1.10"
+panel = "^0.6.2"
+anvil-uplink = "^0.3.22"
 
 [build-system]
 requires = ["poetry>=0.12"]

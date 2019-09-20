@@ -127,6 +127,9 @@ class ContinuousVariable(Variable):
         The lower and upper bounds (respectively) of the variable
     is_objective: bool, optional
         If True, this variable is an output. Defaults to False (i.e., an input variable)
+    maximize: bool, optional
+        If True, the output will be maximized; if False, it will be minimized. 
+        Defaults to True. 
 
     Attributes
     ---------
@@ -355,7 +358,8 @@ class Constraint:
         columns.append("constraint") #type column
         columns.append(self.expression) #description columns
         columns.append("") #value column
-        return ''.join([f"<td>{column}</td>" for column in columns])
+        html = ''.join([f"<td>{column}</td>" for column in columns])
+        return f'<tr>{html}</tr>'
 
     
 class Domain:
@@ -556,7 +560,7 @@ class Domain:
     def _html_table_rows(self):
         variables = ''.join([v._html_table_rows() for v in self.variables])
         constraints = ''.join([c._html_table_rows() for c in self.constraints])
-        return variables + constraints
+        return f"{variables}{constraints}"
 
 
 class DomainError(Exception):
