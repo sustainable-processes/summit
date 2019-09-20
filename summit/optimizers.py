@@ -86,7 +86,6 @@ class NSGAII(Optimizer):
         #Set up constraints
         self.problem.constraints[:] = "<=0"
 
-
     def _optimize(self, models, **kwargs):
         input_columns = [v.name for  v in self.domain.variables if not v.is_objective]
         output_columns = [v.name for  v in self.domain.variables if v.is_objective]
@@ -94,17 +93,19 @@ class NSGAII(Optimizer):
             X = DataSet(np.atleast_2d(X), 
                         columns=input_columns)
             result = models.predict(X)
+            if self.domain.constraints:
+                constraint_res = [X.eval(c.expression, resolvers=[X]) 
+                                for c in self.domain.constraints]
+                constraint_res = [c.tolist()[0] for c in constraint_res]
 
-            constraint_res = [X.eval(c.expression, resolvers=[X]) 
-                             for c in self.domain.constraints]
-            constraint_res = [c.tolist()[0] for c in constraint_res]
-
-            return result[0, :].tolist(), constraint_res
+                return result[0, :].tolist(), constraint_res
+            else:
+                return result[0, :].tolist()
         
         #Run optimization
         self.problem.function = problem_wrapper
         algorithm = pp.NSGAII(self.problem)
-        iterations = kwargs.get('iterations', 10000)
+        iterations = kwargs.get('iterations', 10)
         algorithm.run(iterations)
         
         x = [[s.variables[i] for i in range(self.domain.num_variables())]

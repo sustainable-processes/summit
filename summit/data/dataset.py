@@ -30,7 +30,12 @@ class DataSet(pd.core.frame.DataFrame):
                 levels.append('UNITS')
             tuples=list(zip(*arrays))
             columns = pd.MultiIndex.from_tuples(tuples, names=levels)
-        pd.core.frame.DataFrame.__init__(self, data=data, index=index, columns=columns, dtype=dtype, copy=copy)
+        pd.core.frame.DataFrame.__init__(self,
+                                            data=data, 
+                                            index=index, 
+                                            columns=columns, 
+                                            dtype=dtype, copy=copy)
+
 
     @staticmethod
     def from_df(df: pd.DataFrame, metadata_columns: List=[], 

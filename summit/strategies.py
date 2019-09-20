@@ -20,6 +20,7 @@ class Strategy:
         #Determine input and output columns in dataset
         input_columns = []
         output_columns = []
+        
         for variable in self.domain.variables:
             check_input = variable.name in data_columns and not variable.is_objective
                           
@@ -48,7 +49,7 @@ class Strategy:
             elif variable.name in data_columns and variable.is_objective:
                 if variable.variable_type == 'descriptors':
                     raise DomainError("Output variables cannot be descriptors variables.")
-                output_columns.append(variable.name)
+                output_columns.append(variable.name)               
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 
@@ -122,16 +123,17 @@ class TSEMO2(Strategy):
     def generate_experiments(self, previous_results: DataSet, num_experiments):
         #Get inputs and outputs
         inputs, outputs = self.get_inputs_outputs(previous_results)
-        
         #Fit models to new data
         self.models.fit(inputs, outputs)
 
         internal_res = self.optimizer.optimize(self.models)
-
-        hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
-        result = internal_res.x.join(internal_res.fun)
         
-        return result.iloc[indices, :]
+        if internal_res is not None:
+            hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
+            result = internal_res.x.join(internal_res.fun) 
+            return result.iloc[indices, :]
+        else:
+            return None
 
     def select_max_hvi(self, y, samples, num_evals=1):
         '''  Returns the point(s) that maximimize hypervolume improvement 
@@ -154,11 +156,14 @@ class TSEMO2(Strategy):
         # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0)) 
         r = self._reference
 
+        samples = samples.copy()
+        y = y.copy()
+        
         #Set up maximization and minimization
         for v in self.domain.variables:
             if v.is_objective and v.maximize:
-                y[v.name] = -1.0 * y[v.name]
-                samples[v.name] = -1.0 * samples[v.name]
+                y[v.name] = -1 * y[v.name]
+                samples[v.name] = -1 * samples[v.name]
         
         Ynew = y.data_to_numpy()
         samples = samples.data_to_numpy()
