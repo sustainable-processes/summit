@@ -25,7 +25,7 @@ class RandomDesigner(Designer):
         design: `Design`
             A `Design` object with the random design
         """
-        design = Design(self.domain, num_experiments, 'Random design')
+        design = Design(self.domain, num_experiments, 'random')
 
         for i, variable in enumerate(self.domain.variables):
             if variable.variable_type == 'continuous':

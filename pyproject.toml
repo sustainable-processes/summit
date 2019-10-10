@@ -46,6 +46,7 @@ papermill = "^1.0"
 voila = "^0.1.10"
 panel = "^0.6.2"
 anvil-uplink = "^0.3.22"
+plotly = "^4.1"
 
 [build-system]
 requires = ["poetry>=0.12"]
