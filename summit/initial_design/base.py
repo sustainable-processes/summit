@@ -29,12 +29,13 @@ class Design:
                                     np.array([[100, 120, 150]]))
 
     """ 
-    def __init__(self, domain: Domain, num_samples, design_type: str):
+    def __init__(self, domain: Domain, num_samples, design_type: str, exclude=[]):
         self._variable_names = [variable.name for variable in domain.variables]
         self._indices = domain.num_variables() * [0]
         self._values = domain.num_variables() * [0]
         self.num_samples = num_samples
         self.design_type = design_type
+        self.exclude = exclude
         self._domain = domain
 
     def add_variable(self, variable_name: str, 
@@ -119,14 +120,17 @@ class Design:
         df: pd.DataFrame
         ''' 
         df = pd.DataFrame([])
-        for i, variable in enumerate(self._domain.variables):
-            if variable.is_objective:
+        i=0
+        for variable in self._domain.variables:
+            if variable.is_objective or variable.name in self.exclude:
                 continue
             if variable.variable_type == 'descriptors':
                 descriptors = variable.ds.iloc[self.get_indices(variable.name)[:, 0], :]
+                descriptors = descriptors.rename_axis(variable.name)
                 df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
             else:
                 df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
+                i += 1
         return df
 
     def _get_variable_index(self, variable_name: str) -> int:
