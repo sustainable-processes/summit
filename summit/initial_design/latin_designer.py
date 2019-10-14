@@ -42,20 +42,30 @@ class LatinDesigner(Designer):
         self.domain = domain
         self._rstate = random_state if random_state else np.random.RandomState()
 
-    def generate_experiments(self, num_experiments, criterion='center', unique=False) -> Design:
+    def generate_experiments(self, num_experiments, 
+                            criterion='center', unique=False,
+                            exclude = []) -> Design:
         """ Generate latin hypercube intial design 
         
         Parameters
         ---------- 
         num_experiments: int
             The number of experiments (i.e., samples) to generate
+        criterion: str (optional, Default='center')
+            The criterion used for the LHS.  Allowable values are "center" or "c", "maximin" or "m", 
+            "centermaximin" or "cm", and "correlation" or "corr". 
+        unique: bool (Default=True)
+            Determines if all suggested experiments should be unique
+        exclude: array like
+            List of variable names that should be excluded
+            from the design. 
         
         Returns
         -------
         design: `Design`
             A `Design` object with the latin hypercube design
         """
-        design = Design(self.domain, num_experiments, 'Latin design')
+        design = Design(self.domain, num_experiments, 'Latin design', exclude=exclude)
         
         #Instantiate the random design class to be used with discrete variables
         rdesigner = RandomDesigner(self.domain, random_state=self._rstate)
@@ -66,8 +76,12 @@ class LatinDesigner(Designer):
             samples = lhs(n, samples=num_experiments, criterion=criterion, 
                           random_state=self._rstate)
         
+        design.lhs = samples
         k=0
         for variable in self.domain.variables:
+            if variable.name in exclude:
+                continue
+
             if variable.is_objective:
                 continue
                 

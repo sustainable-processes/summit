@@ -1,3 +1,4 @@
+from summit.initial_design import LatinDesigner
 from summit.data import DataSet
 from summit.domain import ContinuousVariable, Constraint, Domain
 from summit.strategies import TSEMO2
@@ -9,12 +10,28 @@ from anvil import media, server, tables
 from anvil.tables import app_tables
 
 import os
-from dotenv import load_dotenv
-load_dotenv()
+import logging
+
+#The ANVIL_UPLINK_KEY must be an environmental variable in .ennv
+
+ENV = os.getenv('ENVIRONMENT', 'DEV')
+
+if ENV == 'DEV':
+    from dotenv import load_dotenv
+    load_dotenv()
+
+logging.basicConfig(level=logging.INFO, filename='myapp.log', format='%(asctime)s %(levelname)s:%(message)s')
+
 
 @server.callable
 def get_suggestions(project, experiments, num_experiments):
-    print("New request received")
+    try:
+        project_id = project.get_id()
+    except AttributeError:
+        logging.error('No project found')
+        return
+
+    logging.debug(f"New request received from project {project_id}")
     variables = app_tables.variable.search(project=project)
 
     #Set up domain
@@ -25,12 +42,7 @@ def get_suggestions(project, experiments, num_experiments):
                                      bounds=(v['lower_bound'],v['upper_bound']),
                                      is_objective=v['is_objective'],
                                      maximize=v['maximize'])
-    
-    #Get experimental data into a dataset
-    experiment_data = [experiment['data'] for experiment in experiments]
-    df = pd.DataFrame(experiment_data)
-    data = DataSet.from_df(df)
-    
+
     #Set up models
     num_outputs = len(domain.output_variables)
     num_inputs = domain.num_variables()
@@ -39,21 +51,39 @@ def get_suggestions(project, experiments, num_experiments):
         if v.is_objective:
             models[str(v.name)] = GPyModel(input_dim=num_inputs)
 
-    print("Running optimization")
-    #Run the optimization
-    tsemo = TSEMO2(domain=domain, models=models)
-    results =  tsemo.generate_experiments(previous_results=data, num_experiments=3)
-    
-    print("Returning result")
-    #Convert from dataset to json list
-    results_list = results.to_dict(orient='records')
-    new_results_list = []
-    for result in results_list:
-        new_results_dict = {}
-        for key, value in result.items():
-            new_results_dict[key[0]] =  value
-        new_results_list.append(new_results_dict)
-    new_results_list
+    num_experiments = int(num_experiments)
+    if len(experiments) == 0:
+        #Build an initial design
+        ld = LatinDesigner(domain)
+        results = ld.generate_experiments(num_experiments)
+        results = results.to_frame()
+        new_results_list = results.to_dict(orient='records')
+    else:
+        #Get experimental data into a dataset
+        experiment_data = [experiment['data'] for experiment in experiments]
+        df = pd.DataFrame(experiment_data)
+        data = DataSet.from_df(df)
+
+        logging.debug(f"Running optimization for project {project_id}")
+        #Run the optimization
+        try:
+            tsemo = TSEMO2(domain=domain, models=models)
+            results =  tsemo.generate_experiments(previous_results=data, 
+                                                num_experiments=num_experiments)
+        except Exception as e:
+            logging.error("Error encountered when generating experiments for {project_id}: {e}")
+            return
+
+        logging.debug(f"Returning result for project {project_id}")
+        #Convert from dataset to json list
+        results_list = results.to_dict(orient='records')
+        new_results_list = []
+        for result in results_list:
+            new_results_dict = {}
+            for key, value in result.items():
+                new_results_dict[key[0]] =  value
+            new_results_list.append(new_results_dict)
+        new_results_list
     
     return new_results_list
 
