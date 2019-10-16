@@ -165,8 +165,11 @@ class TSEMO2(Strategy):
                 y[v.name] = -1 * y[v.name]
                 samples[v.name] = -1 * samples[v.name]
         
-        Ynew = y.data_to_numpy()
+        # samples, mean, std = samples.standardize(return_mean=True, return_std=True)
         samples = samples.data_to_numpy()
+        Ynew = y.data_to_numpy()
+        # Ynew = (Ynew - mean)/std
+        
         index = []
         n = samples.shape[1]
         mask = np.ones(samples.shape[0], dtype=bool)
@@ -183,7 +186,7 @@ class TSEMO2(Strategy):
         
         for i in range(num_evals):
             masked_samples = samples[mask, :]
-            Yfront, _ = pareto_efficient(Ynew, maximize=True)
+            Yfront, _ = pareto_efficient(Ynew, maximize=False)
             if len(Yfront) == 0:
                 raise ValueError('Pareto front length too short')
 
@@ -194,7 +197,7 @@ class TSEMO2(Strategy):
             for sample in masked_samples:
                 sample = sample.reshape(1,n)
                 A = np.append(Ynew, sample, axis=0)
-                Afront, _ = pareto_efficient(A, maximize=True)
+                Afront, _ = pareto_efficient(A, maximize=False)
                 hv = HvI.hypervolume(Afront, [0,0])
                 hv_improvement.append(hv-hvY)
             
