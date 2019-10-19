@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import pandas as pd
-import hvplot.pandas
 import numpy as np
 from typing import List
 

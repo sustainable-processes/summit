@@ -8,7 +8,6 @@ from summit.domain import (Domain, Variable, ContinuousVariable,
 import numpy as np
 from math import factorial
 import pandas as pd
-import matplotlib.pyplot as plt
 
 class LatinDesigner(Designer):
     ''' Latin Hypercube Sampling initial designer

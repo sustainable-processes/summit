@@ -3,10 +3,8 @@ from summit.data import DataSet
 from GPy.models import GPRegression
 from GPy.kern import Matern52
 import numpy as np
-import scipy
 
 from abc import ABC, abstractmethod
-from sklearn.base import BaseEstimator, RegressorMixin
 
 
 class Model(ABC):

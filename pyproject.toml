@@ -1,32 +1,27 @@
 [tool.poetry]
 name = "summit"
 version = "0.1.0"
-description = "Tools for optimizing chemical reactions"
+description = "Tools for optimizing chemical processes"
 authors = ["Kobi Felton <kobi.c.f@gmail.com>"]
 license = "MIT"
 readme = 'README.md'
-repository = "https://github.com/marcosfelt/summit"
+repository = "https://github.com/sustainable-processes/summit"
 homepage = "https://pypi.org/project/summit"
 keywords = []
 
 [tool.poetry.dependencies]
-sklearn = "^0.0.0"
 pandas = "^0.24.1"
 matplotlib = "^3.0"
 python = "^3.6"
-pyDOE = "^0.3.8"
 GPy = "^1.9"
 numpy = "1.16.0"
-hvplot = "^0.4.0"
-deap = "^1.2"
-patsy = "^0.5.1"
-dexpy = "^0.12.0"
 platypus-opt = "^1.0"
-xlrd = "^1.2"
-ipywidgets = "^7.5"
-jupyter = "^1.0"
+
 
 [tool.poetry.dev-dependencies]
+sklearn = "^0.0.0"
+xlrd = "^1.2"
+ipywidgets = "^7.5"
 black = {version = "^18.3-alpha.0",allows-prereleases = true}
 jupyter = "^1.0"
 jupyterlab = "^1.1.3"
@@ -36,7 +31,6 @@ pytest-mock = "^1.10"
 inspyred = "^1.0"
 lxml = "^4.3"
 python-dotenv = "^0.10.1"
-ipywidgets = "^7.4"
 tqdm = "^4.31"
 cheminventory="^0.2.1"
 notify-run = "^0.0.11"
