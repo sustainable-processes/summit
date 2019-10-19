@@ -1,0 +1,71 @@
+---
+title: "Solvent Clustering"
+output: html_notebook
+---
+Let's load the necessary pacakges and data.
+```{r}
+library(diptest)
+library(factoextra)
+#Read in the descriptors
+solvent_descriptors <- read.csv("../../summit/data/solvent_descriptors.csv")
+ucb_list <- read.csv("../../summit/data/ucb_pharma_approved_list.csv")
+```
+
+## Test for Clustering using the Dip Test
+Let's read in the data and create 
+```{r}
+#Drop the metadata columns
+solvent_descriptors.descriptors <- subset(solvent_descriptors, select=-c(stenutz_name, cosmo_name, cas_number, chemical_formula))
+
+#Scale all the columns to be 0 -> 1
+solvent_descriptors.scaled = scale(solvent_descriptors.descriptors)
+
+#Run the dip test
+distances <- dist(solvent_descriptors.scaled)
+dip.test(distances)
+```
+So that suggests, yes (p<0.05 indicating the data is not unimodal)
+
+## Visualize data using pca
+
+```{r}
+#solvent_descriptors.scaled <- as.data.frame(solvent_descriptors.scaled)
+fviz_pca_ind(prcomp(solvent_descriptors.scaled), title = "Solvents PCA", 
+             palette = "jco", geom = "point")
+```
+```{r}
+fviz_pca_ind(prcomp(solvent_descriptors.scaled), axes=c(1,3), title = "Solvents PCA", 
+             palette = "jco", geom = "point")
+```
+
+```{r}
+library("FactoMineR")
+library(factoextra)
+my_pca <- PCA(solvent_descriptors.descriptors, scale.unit = TRUE, graph = FALSE)
+fviz_eig(my_pca, addlabels = TRUE, ylim = c(0, 50), title="Score Plot")
+```
+```{r}
+
+dist_eucl = get_dist(x=solvent_descriptors.scaled, method="euclidean")
+DistanceMap <- fviz_dist(dist_eucl, order=TRUE, show_labels = TRUE, lab_size=4)
+DistanceMap
+```
+```{r}
+solvent_descriptors_ucb = merge(solvent_descriptors, ucb_list, by="cas_number")
+solvent_descriptors_ucb.descriptors = subset(solvent_descriptors_ucb, select=-c(stenutz_name, cosmo_name, cas_number, chemical_formula, solvent_class, solvent_name))
+dist_eucl = get_dist(x=solvent_descriptors_ucb.descriptors,
+                     method="euclidean", stand = TRUE)
+DistanceMap <- fviz_dist(dist_eucl, order=TRUE, show_labels = TRUE, lab_size=5)
+DistanceMap
+```
+
+First cluster:
+*  8 which is 4-methyl-2-pentanone with:
+    + 47, 2-hexanone 
+    + 18, propyl acetate
+    + 
+    
+    
+    
+    
+    
