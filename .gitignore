@@ -109,3 +109,5 @@ venv.bak/
 #pickle files
 .pickle
 ~*.xlsx
+*.DS_STORE
+.vscode/

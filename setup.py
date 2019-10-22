@@ -21,7 +21,7 @@ if os.path.exists(readme_path):
 setup(
     long_description=readme,
     name='summit',
-    version='0.1.0',
+    version='0.2.0',
     description='Tools for optimizing chemical processes',
     python_requires='==3.*,>=3.6.0',
     project_urls={
@@ -30,14 +30,14 @@ setup(
     },
     author='Kobi Felton',
     author_email='kobi.c.f@gmail.com',
-    license='MIT',
     packages=['summit', 'summit.data', 'summit.initial_design'],
     package_data={
-        'summit.data': ['*.csv']
+        'summit.data': ['*.csv'],
     },
     install_requires=[
         'gpy==1.*,>=1.9.0', 'matplotlib==3.*,>=3.0.0', 'numpy==1.16.0',
-        'pandas==0.*,>=0.24.1', 'platypus-opt==1.*,>=1.0.0'
+        'pandas==0.*,>=0.24.1', 'platypus-opt==1.*,>=1.0.0',
+        'sklearn==0.*,>=0.0.0'
     ],
     extras_require={
         'dev': [
@@ -49,9 +49,8 @@ setup(
             'panel==0.*,>=0.6.2', 'papermill==1.*,>=1.0.0',
             'plotly==4.*,>=4.1.0', 'pubchempy==1.*,>=1.0.0',
             'pytest==3.*,>=3.0.0', 'pytest-mock==1.*,>=1.10.0',
-            'python-dotenv==0.*,>=0.10.1', 'sklearn==0.*,>=0.0.0',
-            'statsmodels==0.*,>=0.9.0', 'tqdm==4.*,>=4.31.0',
-            'voila==0.*,>=0.1.10', 'xlrd==1.*,>=1.2.0'
+            'python-dotenv==0.*,>=0.10.1', 'statsmodels==0.*,>=0.9.0',
+            'tqdm==4.*,>=4.31.0', 'voila==0.*,>=0.1.10', 'xlrd==1.*,>=1.2.0'
         ]
     },
 )

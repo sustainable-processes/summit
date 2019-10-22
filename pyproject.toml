@@ -1,9 +1,9 @@
 [tool.poetry]
 name = "summit"
-version = "0.1.0"
+version = "0.2.0"
 description = "Tools for optimizing chemical processes"
 authors = ["Kobi Felton <kobi.c.f@gmail.com>"]
-license = "MIT"
+license = ""
 readme = 'README.md'
 repository = "https://github.com/sustainable-processes/summit"
 homepage = "https://pypi.org/project/summit"
@@ -16,10 +16,10 @@ python = "^3.6"
 GPy = "^1.9"
 numpy = "1.16.0"
 platypus-opt = "^1.0"
+sklearn = "^0.0.0"
 
 
 [tool.poetry.dev-dependencies]
-sklearn = "^0.0.0"
 xlrd = "^1.2"
 ipywidgets = "^7.5"
 black = {version = "^18.3-alpha.0",allows-prereleases = true}
