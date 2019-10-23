@@ -128,7 +128,7 @@ class TSEMO2(Strategy):
 
         internal_res = self.optimizer.optimize(self.models)
         
-        if internal_res is not None:
+        if internal_res is not None and len(internal_res.fun)!=0:
             hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
             result = internal_res.x.join(internal_res.fun) 
             return result.iloc[indices, :]
