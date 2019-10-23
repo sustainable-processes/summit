@@ -4,7 +4,7 @@ Summit is a set of tools for optimizing chemical processes.
 
 ## Installation
 
-pip install summit --upgrade --extra-index-url pypi.rxns.io
+```pip install summit --upgrade --extra-index-url pypi.rxns.io```
 
 ## Case Studies
 
