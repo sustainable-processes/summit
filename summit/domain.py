@@ -345,18 +345,43 @@ class DescriptorsVariable(Variable):
 
 
 class Constraint: 
-    def __init__(self, expression):
-        self._expression = expression
+    ''' A constraint for an optimization domain 
+    
+    Parameters
+    ---------- 
+    lhs: str
+        The left hand side of a constraint equation
+    constraint_type: str (Default: "<=")
+        The type of constraint. Must be <, <=, ==, > or >=
+    
+    Notes
+    -----
+    These should be constraints in the form "lhs constraint_type 0"
+    So for example, x+y=3 should be formed as 
+    >> Constraint(lhs="x+y-3", constraint_type="=")
+    
+    ''' 
+    def __init__(self, lhs, constraint_type="<="):
+        self._lhs = lhs
+        self._constraint_type = constraint_type
+        try:
+            assert self.constraint_type in ['<', '<=', '==', '>', '>=']
+        except AssertionError:
+            raise ValueError('Constraint type must be <, <=, ==, > or >=')
+    
+    @property
+    def lhs(self):
+        return self._lhs
 
     @property
-    def expression(self):
-        return self._expression
+    def constraint_type(self):
+        return self._constraint_type
 
     def _html_table_rows(self):
         columns = []
         columns.append("") #name column
         columns.append("constraint") #type column
-        columns.append(self.expression) #description columns
+        columns.append(self.lhs) #description columns
         columns.append("") #value column
         html = ''.join([f"<td>{column}</td>" for column in columns])
         return f'<tr>{html}</tr>'

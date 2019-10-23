@@ -84,7 +84,7 @@ class NSGAII(Optimizer):
                 raise DomainError(f'{v.variable_type} is not a valid variable type.')
 
         #Set up constraints
-        self.problem.constraints[:] = "<=0"
+        self.problem.constraints[:] = [c.constraint_type + "0" for c in domain.constraints]
 
     def _optimize(self, models, **kwargs):
         input_columns = [v.name for  v in self.domain.variables if not v.is_objective]
@@ -94,8 +94,8 @@ class NSGAII(Optimizer):
                         columns=input_columns)
             result = models.predict(X)
             if self.domain.constraints:
-                constraint_res = [X.eval(c.expression, resolvers=[X]) 
-                                for c in self.domain.constraints]
+                constraint_res = [X.eval(c.lhs, resolvers=[X]) 
+                                  for c in self.domain.constraints]
                 constraint_res = [c.tolist()[0] for c in constraint_res]
 
                 return result[0, :].tolist(), constraint_res
@@ -109,10 +109,10 @@ class NSGAII(Optimizer):
         algorithm.run(iterations)
         
         x = [[s.variables[i] for i in range(self.domain.num_variables())]
-             for s in algorithm.result]
+             for s in algorithm.result if s.feasible]
         x = DataSet(x, columns = input_columns)
         y =[[s.objectives[i] for i in range(len(self.domain.output_variables))]
-            for s in algorithm.result]
+            for s in algorithm.result if s.feasible]
         y = DataSet(y, columns=output_columns)
         return OptimizeResult(x=x, fun=y, success=True)
 
