@@ -21,11 +21,11 @@ if os.path.exists(readme_path):
 setup(
     long_description=readme,
     name='summit',
-    version='0.2.1',
+    version='0.2.2',
     description='Tools for optimizing chemical processes',
     python_requires='==3.*,>=3.6.0',
     project_urls={
-        'homepage': 'https://github.com/sustainable-processes/summit',
+        'homepage': 'https://pypi.org/project/summit',
         'repository': 'https://github.com/sustainable-processes/summit'
     },
     author='Kobi Felton',
@@ -38,5 +38,5 @@ setup(
         'gpy==1.*,>=1.9.0', 'matplotlib==3.*,>=3.0.0', 'numpy==1.16.0',
         'pandas==0.*,>=0.24.1', 'platypus-opt==1.*,>=1.0.0',
         'sklearn==0.*,>=0.0.0'
-    ]
+    ],
 )
