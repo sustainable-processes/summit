@@ -4,6 +4,10 @@ Summit is a set of tools for optimizing chemical processes.
 
 ## Installation
 
+If you want to use summit immediately without installing python on your computer, go to our [Jupyterhub](hub.rxns.io), which already has it installed. You can find a description of it [here](https://github.com/sustainable-processes/server/blob/master/notes/session_1.md).
+
+To install locally:
+
 ```pip install git+https://github.com/sustainable-processes/summit.git@0.2.2#egg=summit```
 
 You might need to enter your username and password for Github. 
