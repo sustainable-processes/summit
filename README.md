@@ -4,11 +4,21 @@ Summit is a set of tools for optimizing chemical processes.
 
 ## Installation
 
-```pip install summit --upgrade --extra-index-url pypi.rxns.io```
+If you want to use summit immediately without installing python on your computer, go to our [Jupyterhub](hub.rxns.io), which already has it installed. You can find a description of it [here](https://github.com/sustainable-processes/server/blob/master/notes/session_1.md).
+
+To install locally:
+
+```pip install git+https://github.com/sustainable-processes/summit.git@0.2.2#egg=summit```
+
+You might need to enter your username and password for Github. 
+
+## Documentation
+
+The documentation for summit can be found on the [wiki](https://github.com/sustainable-processes/summit/wiki).
 
 ## Case Studies
 
-The best way to understand how to use summit is to take a look at the case studies.  These contain jupyter notebook with detailed examples to follow. 
+In addition to the documentation, we are prepareing several case studies.  These contain jupyter notebooks with practical examples to follow. 
 
 * [Formulation](case_studies/formulation)
 * [Nanosilica](case_studies/nanosilica)
