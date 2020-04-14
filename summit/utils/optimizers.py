@@ -1,19 +1,21 @@
 """
 A large portion of this code is inspired by or copied from GPFlowOpt, which 
-is Apache Licensed (open-soruce)
+is Apache Licensed (open-source)
 https://github.com/GPflow/GPflowOpt/blob/master/gpflowopt/optim.py
 
 """
 from typing import List
 from summit.domain import Domain, DomainError
-from summit.initial_design import RandomDesigner
-from summit.data import DataSet
+from summit.strategies import RandomDesigner
+from summit.utils import DataSet
 
 from abc import ABC, abstractmethod
 import numpy as np
 import platypus as pp
 from scipy.optimize import OptimizeResult
+import warnings
 
+__all__ = ["Optimizer", "NSGAII", "MCOptimizer", "CandidateOptimizer"]
 
 class Optimizer(ABC):
     def __init__(self, domain: Domain):

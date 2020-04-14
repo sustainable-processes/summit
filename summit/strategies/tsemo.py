@@ -1,63 +1,16 @@
-from summit.data import DataSet
-from summit.models import ModelGroup
 from summit.domain import Domain, DomainError
-from summit.acquisition import HvI
-from summit.optimizers import NSGAII
-from summit.utils import pareto_efficient
+from summit.utils import (pareto_efficient, DataSet, ModelGroup, HvI,
+                          NSGAII)
+from summit.strategies import Strategy
 
 import GPy
 import numpy as np
+from GPy.models import GPRegression
+from GPy.kern import Matern52
+from sklearn.base import BaseEstimator, RegressorMixin
 
+from abc import ABC, abstractmethod
 
-class Strategy:
-    def __init__(self, domain:Domain):
-        self.domain = domain
-
-    def get_inputs_outputs(self, ds: DataSet, copy=True):
-        data_columns = ds.data_columns
-        new_ds = ds.copy() if copy else ds
-
-        #Determine input and output columns in dataset
-        input_columns = []
-        output_columns = []
-        
-        for variable in self.domain.variables:
-            check_input = variable.name in data_columns and not variable.is_objective
-                          
-            if check_input and variable.variable_type != 'descriptors':
-                input_columns.append(variable.name)
-            elif check_input and variable.variable_type == 'descriptors':
-                #Add descriptors to the dataset
-                indices = new_ds[variable.name].values
-                descriptors = variable.ds.loc[indices]
-                new_metadata_name = descriptors.index.name
-                descriptors.index = new_ds.index
-                new_ds = new_ds.join(descriptors, how='inner')
-                
-                #Make the original descriptors column a metadata column
-                column_list_1 = new_ds.columns.levels[0].to_list()
-                ix = column_list_1.index(variable.name)
-                column_list_1[ix] = new_metadata_name
-                new_ds.columns.set_levels(column_list_1, level=0, inplace=True)
-                column_codes_2 = list(new_ds.columns.codes[1])
-                ix_code = np.where(new_ds.columns.codes[0]==ix)[0][0]
-                column_codes_2[ix_code] = 1
-                new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
-
-                #add descriptors data columns to inputs
-                input_columns += descriptors.data_columns
-            elif variable.name in data_columns and variable.is_objective:
-                if variable.variable_type == 'descriptors':
-                    raise DomainError("Output variables cannot be descriptors variables.")
-                output_columns.append(variable.name)               
-            else:
-                raise DomainError(f"Variable {variable.name} is not in the dataset.")
-
-        if output_columns is None:
-            raise DomainError("No output columns in the domain.  Add at least one output column for optimization.")
-
-        #Return the inputs and outputs as separate datasets
-        return new_ds[input_columns].copy(), new_ds[output_columns].copy()
         
 class TSEMO2(Strategy):
     ''' A modified version of Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
@@ -71,7 +24,7 @@ class TSEMO2(Strategy):
     maximize: bool, optional
         Whether optimization should be treated as a maximization or minimization problem.
         Defaults to maximization. 
-    optimizer: summit.optimizers.Optimizer, optional
+    optimizer: summit.utils.Optimizer, optional
         The internal optimizer for estimating the pareto front prior to maximization
         of the acquisition function. By default, NSGAII will be used if there is a combination
         of continuous, discrete and/or descriptors variables. If there is a single descriptors 
@@ -227,4 +180,3 @@ class TSEMO2(Strategy):
             hv_imp = hv_improvement[masked_index] + hvY-hvY0
         return hv_imp, index
 
-        

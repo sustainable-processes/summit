@@ -1,19 +1,34 @@
-from abc import ABC, abstractmethod
 
 from math import log, floor
 import random
 import warnings
 import numpy as np
 
-class Acquisition(ABC):
-    def __init__(self):
-        pass
+__all__ = ["pareto_efficient", "HvI"]
+def pareto_efficient(costs, maximize=True):
+    """
+    Find the pareto-efficient points
+    :param costs: An (n_points, n_costs) array
 
-    @abstractmethod
-    def select_max(self, samples, num_evaluations):
-        pass
+    """
+    original_costs = costs
+    is_efficient = np.arange(costs.shape[0])
+    n_points = costs.shape[0]
+    next_point_index = 0  # Next index in the is_efficient array to search for
+    while next_point_index<len(costs):
+        if maximize:
+            nondominated_point_mask = np.any(costs>costs[next_point_index], axis=1)
+        else:
+            nondominated_point_mask = np.any(costs<costs[next_point_index], axis=1)
+        nondominated_point_mask[next_point_index] = True
+        is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
+        costs = costs[nondominated_point_mask]
+        next_point_index = np.sum(nondominated_point_mask[:next_point_index])+1
 
-class HvI(Acquisition):
+    return  costs, is_efficient  
+
+
+class HvI:
     ''' Hypervolume Improvement Acquisition Function
 
     This acquisition functions selects points based on the hypervolume improvement.
@@ -417,62 +432,3 @@ class _MultiList:
             node.next[i].prev[i] = node
             if bounds[i] > node.cargo[i]:
                 bounds[i] = node.cargo[i]
-
-def _pareto_front(points):
-    '''Calculate the pareto front of a 2 dimensional set'''
-    try:
-        assert points.all() == np.atleast_2d(points).all()
-        assert points.shape[1] == 2
-    except AssertionError:
-        raise ValueError("Points must be 2 dimensional.")
-
-    sorted_indices = np.argsort(points[:, 0])
-    sorted = points[sorted_indices, :]
-    front = np.atleast_2d(sorted[-1, :])
-    front_indices = sorted_indices[-1]
-    for i in range(2, sorted.shape[0]+1):
-        if np.greater(sorted[-i, 1], front[:, 1]).all():
-            front = np.append(front, 
-                              np.atleast_2d(sorted[-i, :]),
-                              axis=0)
-            front_indices = np.append(front_indices,
-                                      sorted_indices[-i])
-    return front, front_indices
-
-
-def pareto_efficient(costs, maximize=True):
-    """
-    Find the pareto-efficient points
-    :param costs: An (n_points, n_costs) array
-
-
-    """
-    original_costs = costs
-    is_efficient = np.arange(costs.shape[0])
-    n_points = costs.shape[0]
-    next_point_index = 0  # Next index in the is_efficient array to search for
-    while next_point_index<len(costs):
-        if maximize:
-            nondominated_point_mask = np.any(costs>costs[next_point_index], axis=1)
-        else:
-            nondominated_point_mask = np.any(costs<costs[next_point_index], axis=1)
-        nondominated_point_mask[next_point_index] = True
-        is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
-        costs = costs[nondominated_point_mask]
-        next_point_index = np.sum(nondominated_point_mask[:next_point_index])+1
-
-    return  costs, is_efficient   
-
-
-def remove_points_above_reference(Afront, r):
-    A = sortrows(Afront)
-    for p in range(len(Afront[0, :])):
-        A = A[A[:,p]<= r[p], :]
-    return A
-
-def sortrows(A, i=0):
-    '''Sort rows from matrix A by column i'''
-    I = np.argsort(A[:, i])
-    return A[I, :]
-            
-__all__ = ["hypervolume_kmax", "hypervolume"]
