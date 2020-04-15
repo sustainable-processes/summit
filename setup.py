@@ -31,9 +31,8 @@ setup(
     author='Kobi Felton',
     author_email='kobi.c.f@gmail.com',
     packages=[
-        'summit', 'summit.benchmarks', 'summit.strategies', 'summit.utils'
+        'summit'
     ],
-    package_data={'summit': ['.vscode/*.json']},
     install_requires=[
         'gpy==1.*,>=1.9.0', 'matplotlib==3.*,>=3.0.0', 'numpy==1.16.0',
         'pandas==0.*,>=0.24.1', 'platypus-opt==1.*,>=1.0.0',
