@@ -30,13 +30,27 @@ setup(
     },
     author='Kobi Felton',
     author_email='kobi.c.f@gmail.com',
-    packages=['summit', 'summit.data', 'summit.initial_design'],
-    package_data={
-        'summit.data': ['*.csv'],
-    },
+    packages=[
+        'summit', 'summit.benchmarks', 'summit.strategies', 'summit.utils'
+    ],
+    package_data={'summit': ['.vscode/*.json']},
     install_requires=[
         'gpy==1.*,>=1.9.0', 'matplotlib==3.*,>=3.0.0', 'numpy==1.16.0',
         'pandas==0.*,>=0.24.1', 'platypus-opt==1.*,>=1.0.0',
         'sklearn==0.*,>=0.0.0'
     ],
+    extras_require={
+        'dev': [
+            'anvil-uplink==0.*,>=0.3.22', 'black==18.*,>=18.3.0',
+            'cheminventory==0.*,>=0.2.1', 'inspyred==1.*,>=1.0.0',
+            'ipdb==0.*,>=0.12.0', 'ipywidgets==7.*,>=7.5.0',
+            'jupyter==1.*,>=1.0.0', 'jupyterlab==1.*,>=1.1.3',
+            'lxml==4.*,>=4.3.0', 'notify-run==0.*,>=0.0.11',
+            'panel==0.*,>=0.6.2', 'papermill==1.*,>=1.0.0',
+            'plotly==4.*,>=4.1.0', 'pubchempy==1.*,>=1.0.0',
+            'pytest==3.*,>=3.0.0', 'pytest-mock==1.*,>=1.10.0',
+            'python-dotenv==0.*,>=0.10.1', 'statsmodels==0.*,>=0.9.0',
+            'tqdm==4.*,>=4.31.0', 'voila==0.*,>=0.1.10', 'xlrd==1.*,>=1.2.0'
+        ]
+    },
 )
