@@ -21,7 +21,7 @@ if os.path.exists(readme_path):
 setup(
     long_description=readme,
     name='summit',
-    version='0.2.2',
+    version='0.3.0',
     description='Tools for optimizing chemical processes',
     python_requires='==3.*,>=3.6.0',
     project_urls={
@@ -31,8 +31,9 @@ setup(
     author='Kobi Felton',
     author_email='kobi.c.f@gmail.com',
     packages=[
-        'summit'
+        'summit', 'summit.benchmarks', 'summit.strategies', 'summit.utils'
     ],
+    package_data={},
     install_requires=[
         'gpy==1.*,>=1.9.0', 'matplotlib==3.*,>=3.0.0', 'numpy==1.16.0',
         'pandas==0.*,>=0.24.1', 'platypus-opt==1.*,>=1.0.0',

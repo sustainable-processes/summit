@@ -37,6 +37,8 @@ Develpment
 Build a release
 ^^^^^^^^^^^^^^^
 
+Below is the old process.
+
 
 #. Install `s3pypi <https://github.com/novemberfiveco/s3pypi>`_ and `dephell <https://dephell.org/docs/installation.html>`_
 #. Install AWS credentials to upload pypi.rxns.io (Kobi is the one who controls this).
@@ -45,36 +47,3 @@ Build a release
 #. Go into setup.py and delete the lines for extras_install_requires
 #. Upload the package to the private pypi repository:
     ``s3pypi --bucket pypi.rxns.io``
-
-Building Containers
-^^^^^^^^^^^^^^^^^^^
-
-This is useful when you want to run summit on a remote server. 
-
-
-#. 
-   Download `habitus <https://www.habitus.io/>`_. Habitus is used to insert ssh keys into containers safely, so you can pull from for private Github repositories. 
-
-#. 
-   If you are on mac, you need to install gnu-tar:
-
-   .. code-block::
-
-       brew install gnu-tar
-       echo "export PATH=/usr/local/opt/gnu-tar/libexec/gnubin:$PATH" >> ~./bash_profile
-       echo "aliast tar='gtar'" >> ~/.bash_profile
-       source ~/.bash_profile
-
-#. 
-   Change line 10 of the build.yml to be the name of your `ssh key for github <https://help.github.com/en/articles/connecting-to-github-with-ssh>`_ 
-
-#. 
-   Inside the main folder for summit (i.e., the same folder as this README), build the container:
-
-   .. code-block::
-
-       #On Mac
-       sudo habitus --build host=docker.for.mac.localhost --binding=127.0.0.1 --secrets=true
-
-       #This is what I think it will be on linux
-       sudo habitus --build host=gateway.docker.local --binding=127.0.0.1 --secrets=true

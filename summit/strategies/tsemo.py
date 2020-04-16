@@ -29,26 +29,27 @@ class TSEMO2(Strategy):
     
     Examples
     --------
-    domain += DescriptorsVariable('solvent',
-                                  'solvents in the lab',
-                                   solvent_ds)
-    domain+= ContinuousVariable(name='yield',
-                                description='relative conversion to triphenylphosphine oxide determined by LCMS',
-                                bounds=[0, 100],
-                                is_objective=True)
-    domain += ContinuousVariable(name='de',
-                                description='diastereomeric excess determined by ratio of LCMS peaks',
-                                bounds=[0, 100],
-                                is_objective=True)
-    input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
-    kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
-           for _ in range(2)]
-    models = [GPyModel(kernel=kernels[i]) for i in range(2)]
-    acquisition = HvI(reference=[100, 100], random_rate=0.25)
-    tsemo = TSEMO(domain, models, acquisition=acquisition)
-    previous_results = DataSet.read_csv('results.csv')
-    design = tsemo.generate_experiments(previous_results, batch_size, 
-                                        normalize_inputs=True)
+    # >>> from summit.domain import Domain, ContinuousVariable, DescriptorsVariable
+    # >>> import GPy
+    # >>> domain += DescriptorsVariable('solvent',
+    #                                  'solvents in the lab',
+    #                                   solvent_ds)
+    # >>> domain+= ContinuousVariable(name='yield',
+    #                             description='relative conversion to triphenylphosphine oxide determined by LCMS',
+    #                             bounds=[0, 100],
+    #                             is_objective=True)
+    # >>> domain += ContinuousVariable(name='de',
+    #                             description='diastereomeric excess determined by ratio of LCMS peaks',
+    #                             bounds=[0, 100],
+    #                             is_objective=True)
+    # >>> input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
+    # >>> kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
+    #                for _ in range(2)]
+    #  >>> models = [GPyModel(kernel=kernels[i]) for i in range(2)]
+    # >>> tsemo = TSEMO(domain, models, acquisition=acquisition)
+    # >>> prevous_result = 
+    # design = tsemo.generate_experiments(previous_results, batch_size, 
+    #                                     normalize_inputs=True)
  
     ''' 
     def __init__(self, domain, models, optimizer=None, **kwargs):
