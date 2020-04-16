@@ -1,11 +1,8 @@
-from summit.data import DataSet
-from summit.utils import ModelGroup
-import numpy as np
-
-
 from summit.domain import (Domain, Variable, ContinuousVariable, 
                           DiscreteVariable, DescriptorsVariable,
                           DomainError)
+from summit.utils.models import ModelGroup
+from summit.utils.dataset import  DataSet
 
 import numpy as np
 import pandas as pd
@@ -63,6 +60,8 @@ class Strategy(ABC):
         #Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
 
+    def suggest_experiments(self):
+        raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
 
 class Design:
     """Representation of an experimental design
@@ -78,11 +77,11 @@ class Design:
 
     Examples
     --------
+    >>> from summit.domain import Domain, ContinuousVariable
     >>> domain = Domain()
-    >>> domain += ContinuousVariable('temperature', 'reaction temperature', [1, 100])
-    >>> initial_design = Design()
-    >>> initial_design.add_variable('temperature', 
-                                    np.array([[100, 120, 150]]))
+    >>> domain += ContinuousVariable('temperature','reaction temperature', [1, 100])
+    >>> initial_design = Design(domain, 10, 'example_design')
+    >>> initial_design.add_variable('temperature',  np.array([[100, 120, 150]]))
 
     """ 
     def __init__(self, domain: Domain, num_samples, design_type: str, exclude=[]):
@@ -103,7 +102,9 @@ class Design:
         variable_name: str
             Name of the variable to be added. Must already be in the domain.
         values: numpy.ndarray
-            Values of the design points in the variable
+            Values of the design points in the variable. 
+            Should be an nxd array, where n is the number of samples and 
+            d is the number of dimensions of the variable.
         indices: numpy.ndarray, optional
             Indices of the design points in the variable
         
@@ -163,17 +164,17 @@ class Design:
         """  
         if variable_name is not None:
             variable_index = self._get_variable_index(variable_name)
-            values = self._values[variable_index]
+            values = self._values[variable_index].T
         else:
-            values = np.concatenate(self._values, axis=1)
+            values = np.concatenate(self._values, axis=0).T
 
         return values
 
-    def to_frame(self) -> pd.DataFrame:
+    def to_dataset(self) -> DataSet:
         ''' Get design as a pandas dataframe 
         Returns
         -------
-        df: pd.DataFrame
+        ds: summit.utils.dataset.Dataset
         ''' 
         df = pd.DataFrame([])
         i=0
@@ -184,10 +185,12 @@ class Design:
                 descriptors = variable.ds.iloc[self.get_indices(variable.name)[:, 0], :]
                 descriptors = descriptors.rename_axis(variable.name)
                 df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
+                i += variable.num_descriptors
             else:
                 df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
                 i += 1
-        return df
+        
+        return DataSet.from_df(df)
 
     def _get_variable_index(self, variable_name: str) -> int:
         '''Method for getting the internal index for a variable'''
@@ -304,18 +307,6 @@ class DesignCoverage:
             max=avg_max,
             min = avg_min
         )
-
-class Designer(ABC):
-    ''' Base class for designers
-
-    All intial design strategies should inherit this base class.
-    ''' 
-    def __init__(self, domain: Domain):
-        self.domain = domain
-
-    @abstractmethod
-    def generate_experiments(self):
-        raise NotImplementedError("Subclasses should implement this method.")
 
 def _closest_point_indices(design_points, candidate_matrix, unique=False):
     '''Return the indices of the closest point in the candidate matrix to each design point'''

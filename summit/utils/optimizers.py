@@ -5,9 +5,8 @@ https://github.com/GPflow/GPflowOpt/blob/master/gpflowopt/optim.py
 
 """
 from typing import List
-from summit.domain import Domain, DomainError
-from summit.strategies import RandomDesigner
-from summit.utils import DataSet
+# from summit.strategies import Random
+from .dataset import DataSet
 
 from abc import ABC, abstractmethod
 import numpy as np
@@ -18,7 +17,7 @@ import warnings
 __all__ = ["Optimizer", "NSGAII", "MCOptimizer", "CandidateOptimizer"]
 
 class Optimizer(ABC):
-    def __init__(self, domain: Domain):
+    def __init__(self, domain):
         self.domain = domain
         self._multiobjective = False
 
@@ -62,7 +61,7 @@ class Optimizer(ABC):
         return self._multiobjective
 
 class NSGAII(Optimizer): 
-    def __init__(self, domain: Domain):
+    def __init__(self, domain):
         Optimizer.__init__(self, domain)
         #Set up platypus problem
         self.problem = pp.Problem(nvars=self.domain.num_variables(),
@@ -83,7 +82,7 @@ class NSGAII(Optimizer):
             elif v.variable_type == 'descriptors':
                 raise NotImplementedError('The NSGAII optimizer does not work with descriptors variables')
             else:
-                raise DomainError(f'{v.variable_type} is not a valid variable type.')
+                raise TypeError(f'{v.variable_type} is not a valid variable type.')
 
         #Set up constraints
         self.problem.constraints[:] = [c.constraint_type + "0" for c in domain.constraints]
@@ -118,67 +117,67 @@ class NSGAII(Optimizer):
         y = DataSet(y, columns=output_columns)
         return OptimizeResult(x=x, fun=y, success=True)
 
-class MCOptimizer(Optimizer):
-    """
-    Optimization of an objective function by evaluating a set of random points.
-    Note: each call to optimize, a different set of random points is evaluated.
-    """
+# class MCOptimizer(Optimizer):
+#     """
+#     Optimization of an objective function by evaluating a set of random points.
+#     Note: each call to optimize, a different set of random points is evaluated.
+#     """
 
-    def __init__(self, domain, nsamples):
-        """
-        :param domain: Optimization :class:`~.domain.Domain`.
-        :param nsamples: number of random points to use
-        """
-        Optimizer.__init__(domain)
-        self._nsamples = nsamples
-        # Clear the initial data points
-        self.set_initial(np.empty((0, self.domain.size)))
+#     def __init__(self, domain, nsamples):
+#         """
+#         :param domain: Optimization :class:`~.domain.Domain`.
+#         :param nsamples: number of random points to use
+#         """
+#         Optimizer.__init__(domain)
+#         self._nsamples = nsamples
+#         # Clear the initial data points
+#         self.set_initial(np.empty((0, self.domain.size)))
 
-    def domain(self, dom):
-        self._domain = dom
+#     def domain(self, dom):
+#         self._domain = dom
 
-    def _get_eval_points(self):
-        r =  RandomDesigner(self.domain)
-        return r.generate_experiments(self._nsamples)
+#     def _get_eval_points(self):
+#         r =  Random(self.domain)
+#         return r.generate_experiments(self._nsamples)
 
-    def _optimize(self, objective):
-        points = self._get_eval_points()
-        evaluations = objective(points)
-        idx_best = np.argmin(evaluations, axis=0)
+#     def _optimize(self, objective):
+#         points = self._get_eval_points()
+#         evaluations = objective(points)
+#         idx_best = np.argmin(evaluations, axis=0)
 
-        return OptimizeResult(x=points[idx_best, :],
-                              success=True,
-                              fun=evaluations[idx_best, :],
-                              nfev=points.shape[0],
-                              message="OK")
+#         return OptimizeResult(x=points[idx_best, :],
+#                               success=True,
+#                               fun=evaluations[idx_best, :],
+#                               nfev=points.shape[0],
+#                               message="OK")
 
-    def set_initial(self, initial):
-        initial = np.atleast_2d(initial)
-        if initial.size > 0:
-            warnings.warn("Initial points set in {0} are ignored.".format(self.__class__.__name__), UserWarning)
-            return
+#     def set_initial(self, initial):
+#         initial = np.atleast_2d(initial)
+#         if initial.size > 0:
+#             warnings.warn("Initial points set in {0} are ignored.".format(self.__class__.__name__), UserWarning)
+#             return
 
-        super(MCOptimizer, self).set_initial(initial)
+#         super(MCOptimizer, self).set_initial(initial)
 
-class CandidateOptimizer(MCOptimizer):
-    """
-    Optimization of an objective function by evaluating a set of pre-defined candidate points.
-    Returns the point with minimal objective value.
-    """
+# class CandidateOptimizer(MCOptimizer):
+#     """
+#     Optimization of an objective function by evaluating a set of pre-defined candidate points.
+#     Returns the point with minimal objective value.
+#     """
 
-    def __init__(self, domain, candidates):
-        """
-        :param domain: Optimization :class:`~.domain.Domain`.
-        :param candidates: candidate points, should be within the optimization domain.
-        """
-        MCOptimizer.__init__(self, domain, candidates.shape[0])
-        assert (candidates in domain)
-        self.candidates = candidates
+#     def __init__(self, domain, candidates):
+#         """
+#         :param domain: Optimization :class:`~.domain.Domain`.
+#         :param candidates: candidate points, should be within the optimization domain.
+#         """
+#         MCOptimizer.__init__(self, domain, candidates.shape[0])
+#         assert (candidates in domain)
+#         self.candidates = candidates
 
-    def _get_eval_points(self):
-        return self.candidates
+#     def _get_eval_points(self):
+#         return self.candidates
 
-    def domain(self, dom):
-        t = self.domain >> dom
-        super(CandidateOptimizer, self.__class__).domain.fset(self, dom)
-        self.candidates = t.forward(self.candidates)
+#     def domain(self, dom):
+#         t = self.domain >> dom
+#         super(CandidateOptimizer, self.__class__).domain.fset(self, dom)
+#         self.candidates = t.forward(self.candidates)

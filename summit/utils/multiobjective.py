@@ -5,6 +5,7 @@ import warnings
 import numpy as np
 
 __all__ = ["pareto_efficient", "HvI"]
+
 def pareto_efficient(costs, maximize=True):
     """
     Find the pareto-efficient points
@@ -24,9 +25,7 @@ def pareto_efficient(costs, maximize=True):
         is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
         costs = costs[nondominated_point_mask]
         next_point_index = np.sum(nondominated_point_mask[:next_point_index])+1
-
     return  costs, is_efficient  
-
 
 class HvI:
     ''' Hypervolume Improvement Acquisition Function

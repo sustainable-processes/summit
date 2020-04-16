@@ -1,5 +1,5 @@
 
-from summit.utils import DataSet
+from .dataset import DataSet
 from abc import ABC, abstractmethod
 import GPy
 import numpy as np

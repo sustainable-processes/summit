@@ -1,16 +1,12 @@
+from .base import Strategy
 from summit.domain import Domain, DomainError
-from summit.utils import (pareto_efficient, DataSet, ModelGroup, HvI,
-                          NSGAII)
-from summit.strategies import Strategy
+from summit.utils.multiobjective import pareto_efficient, HvI
+from summit.utils.optimizers import NSGAII
+from summit.utils.models import ModelGroup
+from summit.utils.dataset import DataSet
 
-import GPy
 import numpy as np
-from GPy.models import GPRegression
-from GPy.kern import Matern52
-from sklearn.base import BaseEstimator, RegressorMixin
-
 from abc import ABC, abstractmethod
-
         
 class TSEMO2(Strategy):
     ''' A modified version of Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
@@ -73,7 +69,7 @@ class TSEMO2(Strategy):
         self._reference = kwargs.get('reference', [0,0])
         self._random_rate = kwargs.get('random_rate', 0.0)
 
-    def generate_experiments(self, previous_results: DataSet, num_experiments):
+    def suggest_experiments(self, previous_results: DataSet, num_experiments):
         #Get inputs and outputs
         inputs, outputs = self.get_inputs_outputs(previous_results)
         #Fit models to new data

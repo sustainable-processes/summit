@@ -314,9 +314,7 @@ class DescriptorsVariable(Variable):
 
     Examples
     --------
-    >>> solvent_df = pd.DataFrame([[5, 81],[-93, 111]], 
-                                  index=['benzene', 'toluene'],
-                                  columns=['melting_point', 'boiling_point'])
+    >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
     >>> solvent = DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
     """    
     def __init__(self, name: str, description: str, 
