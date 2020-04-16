@@ -263,46 +263,52 @@ def lhs(n, samples=None, criterion=None, iterations=None, random_state=None):
     
     Example
     -------
+    >>> import numpy as np
+    
     A 3-factor design (defaults to 3 samples)::
     
-        >>> lhs(3)
-        array([[ 0.40069325,  0.08118402,  0.69763298],
-               [ 0.19524568,  0.41383587,  0.29947106],
-               [ 0.85341601,  0.75460699,  0.360024  ]])
+        >>> lhs(3, random_state=np.random.RandomState(3))
+        array([[0.5036092 , 0.73574763, 0.6320977 ],
+               [0.70852844, 0.63098232, 0.09696825],
+               [0.1835993 , 0.23604927, 0.6838224 ]])
        
     A 4-factor design with 6 samples::
     
-        >>> lhs(4, samples=6)
-        array([[ 0.27226812,  0.02811327,  0.62792445,  0.91988196],
-               [ 0.76945538,  0.43501682,  0.01107457,  0.09583358],
-               [ 0.45702981,  0.76073773,  0.90245401,  0.18773015],
-               [ 0.99342115,  0.85814198,  0.16996665,  0.65069309],
-               [ 0.63092013,  0.22148567,  0.33616859,  0.36332478],
-               [ 0.05276917,  0.5819198 ,  0.67194243,  0.78703262]])
+        >>> lhs(4, samples=6, random_state=np.random.RandomState(3))
+        array([[0.3419112 , 0.54641455, 0.3383127 , 0.59847714],
+               [0.88058751, 0.11802464, 0.61270915, 0.4094722 ],
+               [0.09179965, 0.40680164, 0.18759755, 0.20120715],
+               [0.67066365, 0.94885632, 0.90674229, 0.85947796],
+               [0.60819067, 0.31604885, 0.04848412, 0.08513793],
+               [0.31549116, 0.75980901, 0.70987541, 0.7358502 ]])
        
     A 2-factor design with 5 centered samples::
     
-        >>> lhs(2, samples=5, criterion='center')
-        array([[ 0.3,  0.5],
-               [ 0.7,  0.9],
-               [ 0.1,  0.3],
-               [ 0.9,  0.1],
-               [ 0.5,  0.7]])
+        >>> lhs(2, samples=5, criterion='center', random_state=np.random.RandomState(3))
+        array([[0.7, 0.7],
+               [0.1, 0.1],
+               [0.5, 0.9],
+               [0.3, 0.3],
+               [0.9, 0.5]])
        
     A 3-factor design with 4 samples where the minimum distance between
     all samples has been maximized::
     
-        >>> lhs(3, samples=4, criterion='maximin')
-        array([[ 0.02642564,  0.55576963,  0.50261649],
-               [ 0.51606589,  0.88933259,  0.34040838],
-               [ 0.98431735,  0.0380364 ,  0.01621717],
-               [ 0.40414671,  0.33339132,  0.84845707]])
+        >>> lhs(3, samples=4, criterion='maximin', random_state=np.random.RandomState(3))
+        array([[0.07987376, 0.37639351, 0.92316265],
+               [0.25650657, 0.7314332 , 0.12061145],
+               [0.55174153, 0.00530644, 0.56933076],
+               [0.79401553, 0.9975753 , 0.47950751]])
        
     A 4-factor design with 5 samples where the samples are as uncorrelated
     as possible (within 10 iterations)::
     
-        >>> lhs(4, samples=5, criterion='correlate', iterations=10)
-    
+        >>> lhs(4, samples=5, criterion='correlation', iterations=10, random_state=np.random.RandomState(3))
+        array([[0.72982881, 0.91177082, 0.73525098, 0.71817256],
+               [0.37858939, 0.48816197, 0.40597524, 0.10216552],
+               [0.80479638, 0.37925862, 0.85185049, 0.49136664],
+               [0.11015958, 0.65569746, 0.22511706, 0.88302024],
+               [0.41029344, 0.14162956, 0.05818095, 0.24144858]])
     """
     H = None
     random_state = random_state if random_state else np.random.RandomState()
@@ -330,7 +336,7 @@ def lhs(n, samples=None, criterion=None, iterations=None, random_state=None):
             H = _lhsmaximin(n, samples, iterations, 'maximin', random_state)
         elif criterion.lower() in ('centermaximin', 'cm'):
             H = _lhsmaximin(n, samples, iterations, 'centermaximin', random_state)
-        elif criterion.lower() in ('correlate', 'corr'):
+        elif criterion.lower() in ('correlation', 'corr'):
             H = _lhscorrelate(n, samples, iterations, random_state)
     
     return H
@@ -409,7 +415,7 @@ def _lhscorrelate(n, samples, iterations,
         R = np.corrcoef(Hcandidate)
         if np.max(np.abs(R[R!=1]))<mincorr:
             mincorr = np.max(np.abs(R-np.eye(R.shape[0])))
-            print('new candidate solution found with max,abs corrcoef = {}'.format(mincorr))
+            # print('new candidate solution found with max,abs corrcoef = {}'.format(mincorr))
             H = Hcandidate.copy()
     
     return H
@@ -432,18 +438,6 @@ def _pdist(x):
         all the pair-wise point distances, arranged in the order (1, 0), 
         (2, 0), ..., (m-1, 0), (2, 1), ..., (m-1, 1), ..., (m-1, m-2).
     
-    Examples
-    --------
-    ::
-    
-        >>> x = np.array([[0.1629447, 0.8616334],
-        ...               [0.5811584, 0.3826752],
-        ...               [0.2270954, 0.4442068],
-        ...               [0.7670017, 0.7264718],
-        ...               [0.8253975, 0.1937736]])
-        >>> _pdist(x)
-        array([ 0.6358488,  0.4223272,  0.6189940,  0.9406808,  0.3593699,
-                0.3908118,  0.3087661,  0.6092392,  0.6486001,  0.5358894])
               
     """
     
@@ -458,4 +452,4 @@ def _pdist(x):
     for i in range(m - 1):
         for j in range(i + 1, m):
             d.append((sum((x[j, :] - x[i, :])**2))**0.5)
-    
+    return np.array(d)

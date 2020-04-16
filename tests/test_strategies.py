@@ -21,3 +21,4 @@ def test_lhs():
     strategy = LHS(domain, random_state=np.random.RandomState(3))
     results = strategy.suggest_experiments(5)
     return results
+
