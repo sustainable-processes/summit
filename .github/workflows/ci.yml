@@ -12,7 +12,7 @@ jobs:
       with:
         python_version: 3.8.0
         poetry_version: 1.0.3
-        args: install
+        args: install --no-dev --extras pytest
     - name: Run pytest
       uses: abatilo/actions-poetry@v1.5.0
       with:

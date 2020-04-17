@@ -18,7 +18,6 @@ numpy = "1.16.0"
 platypus-opt = "^1.0"
 sklearn = "^0.0.0"
 
-
 [tool.poetry.dev-dependencies]
 xlrd = "^1.2"
 ipywidgets = "^7.5"

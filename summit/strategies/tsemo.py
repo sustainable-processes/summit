@@ -52,7 +52,8 @@ class TSEMO2(Strategy):
         Strategy.__init__(self, domain)
 
         if models is None:
-            models = {v.name: GPyModel() for v in self.domain.variables 
+            input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
+            models = {v.name: GPyModel(input_dim=input_dim) for v in self.domain.variables 
                       if v.is_objective}
             self.models = ModelGroup(models)
         elif isinstance(models, ModelGroup):

@@ -24,7 +24,7 @@ The documentation for summit can be found on the [wiki](https://github.com/susta
 
 1. Clone the repository:
 ```git clone https://github.com/sustainable-processes/summit_private.git```
-2. Intall poetry by following the instructions [here.](https://python-poetry.org/docs/#installation). We use poetry for dependency management.
+2. Intall poetry by following the instructions [here](https://python-poetry.org/docs/#installation). We use poetry for dependency management.
 3. Install all dependencies:
 ```poetry install```
 3. To run tests:
