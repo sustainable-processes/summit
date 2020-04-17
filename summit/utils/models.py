@@ -1,13 +1,13 @@
-from summit.data import DataSet
 
+from .dataset import DataSet
+from abc import ABC, abstractmethod
+import GPy
+import numpy as np
 from GPy.models import GPRegression
 from GPy.kern import Matern52
 from sklearn.base import BaseEstimator, RegressorMixin
-import numpy as np
 
-from abc import ABC, abstractmethod
-
-
+__all__ = ["Model", "ModelGroup", "GPyModel", "AnalyticalModel"]
 
 class Model(ABC):
     ''' Base class for model
@@ -218,3 +218,4 @@ class AnalyticalModel(Model):
     @property
     def function(self) -> callable:
         return self._function
+

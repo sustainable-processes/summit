@@ -1,12 +1,67 @@
 from summit.domain import (Domain, Variable, ContinuousVariable, 
                           DiscreteVariable, DescriptorsVariable,
                           DomainError)
+from summit.utils.models import ModelGroup
+from summit.utils.dataset import  DataSet
 
 import numpy as np
 import pandas as pd
 
 from abc import ABC, abstractmethod
 from typing import Type, Tuple
+
+class Strategy(ABC):
+    def __init__(self, domain:Domain):
+        self.domain = domain
+
+    def get_inputs_outputs(self, ds: DataSet, copy=True):
+        data_columns = ds.data_columns
+        new_ds = ds.copy() if copy else ds
+
+        #Determine input and output columns in dataset
+        input_columns = []
+        output_columns = []
+        
+        for variable in self.domain.variables:
+            check_input = variable.name in data_columns and not variable.is_objective
+                          
+            if check_input and variable.variable_type != 'descriptors':
+                input_columns.append(variable.name)
+            elif check_input and variable.variable_type == 'descriptors':
+                #Add descriptors to the dataset
+                indices = new_ds[variable.name].values
+                descriptors = variable.ds.loc[indices]
+                new_metadata_name = descriptors.index.name
+                descriptors.index = new_ds.index
+                new_ds = new_ds.join(descriptors, how='inner')
+                
+                #Make the original descriptors column a metadata column
+                column_list_1 = new_ds.columns.levels[0].to_list()
+                ix = column_list_1.index(variable.name)
+                column_list_1[ix] = new_metadata_name
+                new_ds.columns.set_levels(column_list_1, level=0, inplace=True)
+                column_codes_2 = list(new_ds.columns.codes[1])
+                ix_code = np.where(new_ds.columns.codes[0]==ix)[0][0]
+                column_codes_2[ix_code] = 1
+                new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+
+                #add descriptors data columns to inputs
+                input_columns += descriptors.data_columns
+            elif variable.name in data_columns and variable.is_objective:
+                if variable.variable_type == 'descriptors':
+                    raise DomainError("Output variables cannot be descriptors variables.")
+                output_columns.append(variable.name)               
+            else:
+                raise DomainError(f"Variable {variable.name} is not in the dataset.")
+
+        if output_columns is None:
+            raise DomainError("No output columns in the domain.  Add at least one output column for optimization.")
+
+        #Return the inputs and outputs as separate datasets
+        return new_ds[input_columns].copy(), new_ds[output_columns].copy()
+
+    def suggest_experiments(self):
+        raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
 
 class Design:
     """Representation of an experimental design
@@ -22,11 +77,11 @@ class Design:
 
     Examples
     --------
+    >>> from summit.domain import Domain, ContinuousVariable
     >>> domain = Domain()
-    >>> domain += ContinuousVariable('temperature', 'reaction temperature', [1, 100])
-    >>> initial_design = Design()
-    >>> initial_design.add_variable('temperature', 
-                                    np.array([[100, 120, 150]]))
+    >>> domain += ContinuousVariable('temperature','reaction temperature', [1, 100])
+    >>> initial_design = Design(domain, 10, 'example_design')
+    >>> initial_design.add_variable('temperature',  np.array([[100, 120, 150]]))
 
     """ 
     def __init__(self, domain: Domain, num_samples, design_type: str, exclude=[]):
@@ -47,7 +102,9 @@ class Design:
         variable_name: str
             Name of the variable to be added. Must already be in the domain.
         values: numpy.ndarray
-            Values of the design points in the variable
+            Values of the design points in the variable. 
+            Should be an nxd array, where n is the number of samples and 
+            d is the number of dimensions of the variable.
         indices: numpy.ndarray, optional
             Indices of the design points in the variable
         
@@ -107,17 +164,17 @@ class Design:
         """  
         if variable_name is not None:
             variable_index = self._get_variable_index(variable_name)
-            values = self._values[variable_index]
+            values = self._values[variable_index].T
         else:
-            values = np.concatenate(self._values, axis=1)
+            values = np.concatenate(self._values, axis=0).T
 
         return values
 
-    def to_frame(self) -> pd.DataFrame:
+    def to_dataset(self) -> DataSet:
         ''' Get design as a pandas dataframe 
         Returns
         -------
-        df: pd.DataFrame
+        ds: summit.utils.dataset.Dataset
         ''' 
         df = pd.DataFrame([])
         i=0
@@ -128,10 +185,12 @@ class Design:
                 descriptors = variable.ds.iloc[self.get_indices(variable.name)[:, 0], :]
                 descriptors = descriptors.rename_axis(variable.name)
                 df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
+                i += variable.num_descriptors
             else:
                 df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
                 i += 1
-        return df
+        
+        return DataSet.from_df(df)
 
     def _get_variable_index(self, variable_name: str) -> int:
         '''Method for getting the internal index for a variable'''
@@ -248,18 +307,6 @@ class DesignCoverage:
             max=avg_max,
             min = avg_min
         )
-
-class Designer(ABC):
-    ''' Base class for designers
-
-    All intial design strategies should inherit this base class.
-    ''' 
-    def __init__(self, domain: Domain):
-        self.domain = domain
-
-    @abstractmethod
-    def generate_experiments(self):
-        raise NotImplementedError("Subclasses should implement this method.")
 
 def _closest_point_indices(design_points, candidate_matrix, unique=False):
     '''Return the indices of the closest point in the candidate matrix to each design point'''

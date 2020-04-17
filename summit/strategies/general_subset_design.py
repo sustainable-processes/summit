@@ -1,7 +1,7 @@
 """
 Original GSD code Copyright (C) 2018 - Rickard Sjoegren
 """
-from .base import Designer, Design
+from .base import Strategy, Design
 from summit.domain import (Domain, Variable, ContinuousVariable, 
                           DiscreteVariable, DescriptorsVariable,
                           DomainError)
@@ -10,11 +10,11 @@ import numpy as np
 import pandas as pd
 from typing import Type, Tuple
 
-class GSDesigner(Designer):
+class GSDesigner(Strategy):
     def __init__(self, domain: Domain):
         self.domain = domain
 
-    def generate_experiments(self, reduction) -> Design:
+    def suggest_experiments(self, reduction) -> Design:
         """
         Create a Generalized Subset Design (GSD).
 

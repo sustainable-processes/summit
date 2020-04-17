@@ -1,63 +1,13 @@
-from summit.data import DataSet
-from summit.models import ModelGroup
+from .base import Strategy
+from .random import LHS
 from summit.domain import Domain, DomainError
-from summit.acquisition import HvI
-from summit.optimizers import NSGAII
-from summit.utils import pareto_efficient
+from summit.utils.multiobjective import pareto_efficient, HvI
+from summit.utils.optimizers import NSGAII
+from summit.utils.models import ModelGroup, GPyModel
+from summit.utils.dataset import DataSet
 
-import GPy
 import numpy as np
-
-
-class Strategy:
-    def __init__(self, domain:Domain):
-        self.domain = domain
-
-    def get_inputs_outputs(self, ds: DataSet, copy=True):
-        data_columns = ds.data_columns
-        new_ds = ds.copy() if copy else ds
-
-        #Determine input and output columns in dataset
-        input_columns = []
-        output_columns = []
-        
-        for variable in self.domain.variables:
-            check_input = variable.name in data_columns and not variable.is_objective
-                          
-            if check_input and variable.variable_type != 'descriptors':
-                input_columns.append(variable.name)
-            elif check_input and variable.variable_type == 'descriptors':
-                #Add descriptors to the dataset
-                indices = new_ds[variable.name].values
-                descriptors = variable.ds.loc[indices]
-                new_metadata_name = descriptors.index.name
-                descriptors.index = new_ds.index
-                new_ds = new_ds.join(descriptors, how='inner')
-                
-                #Make the original descriptors column a metadata column
-                column_list_1 = new_ds.columns.levels[0].to_list()
-                ix = column_list_1.index(variable.name)
-                column_list_1[ix] = new_metadata_name
-                new_ds.columns.set_levels(column_list_1, level=0, inplace=True)
-                column_codes_2 = list(new_ds.columns.codes[1])
-                ix_code = np.where(new_ds.columns.codes[0]==ix)[0][0]
-                column_codes_2[ix_code] = 1
-                new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
-
-                #add descriptors data columns to inputs
-                input_columns += descriptors.data_columns
-            elif variable.name in data_columns and variable.is_objective:
-                if variable.variable_type == 'descriptors':
-                    raise DomainError("Output variables cannot be descriptors variables.")
-                output_columns.append(variable.name)               
-            else:
-                raise DomainError(f"Variable {variable.name} is not in the dataset.")
-
-        if output_columns is None:
-            raise DomainError("No output columns in the domain.  Add at least one output column for optimization.")
-
-        #Return the inputs and outputs as separate datasets
-        return new_ds[input_columns].copy(), new_ds[output_columns].copy()
+from abc import ABC, abstractmethod
         
 class TSEMO2(Strategy):
     ''' A modified version of Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
@@ -66,46 +16,46 @@ class TSEMO2(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The domain of the optimization
-    models: summit.models.Model
-        Any list of surrogate models to be used in the optimization
+    models: dictionary of summit.utils.model.Model or summit.utils.model.ModelGroup, optional
+        A dictionary of surrogate models or a ModelGroup to be used in the optimization.
+        By default, gaussian processes with the Matern kernel will be used.
     maximize: bool, optional
         Whether optimization should be treated as a maximization or minimization problem.
         Defaults to maximization. 
-    optimizer: summit.optimizers.Optimizer, optional
+    optimizer: summit.utils.Optimizer, optional
         The internal optimizer for estimating the pareto front prior to maximization
         of the acquisition function. By default, NSGAII will be used if there is a combination
         of continuous, discrete and/or descriptors variables. If there is a single descriptors 
         variable, then all of the potential values of the descriptors will be evaluated.
-    
-    
+    random_rate: float, optional
+        The rate of random exploration. This must be a float between 0 and 1.
+        Default is 0.25
+    reference: array-like, optional
+        The reference used for hypervolume calculations. Should be an array of length of the number 
+        of objectives.  Defaults to 0 for all objectives.
+
+
     Examples
     --------
-    domain += DescriptorsVariable('solvent',
-                                  'solvents in the lab',
-                                   solvent_ds)
-    domain+= ContinuousVariable(name='yield',
-                                description='relative conversion to triphenylphosphine oxide determined by LCMS',
-                                bounds=[0, 100],
-                                is_objective=True)
-    domain += ContinuousVariable(name='de',
-                                description='diastereomeric excess determined by ratio of LCMS peaks',
-                                bounds=[0, 100],
-                                is_objective=True)
-    input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
-    kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
-           for _ in range(2)]
-    models = [GPyModel(kernel=kernels[i]) for i in range(2)]
-    acquisition = HvI(reference=[100, 100], random_rate=0.25)
-    tsemo = TSEMO(domain, models, acquisition=acquisition)
-    previous_results = DataSet.read_csv('results.csv')
-    design = tsemo.generate_experiments(previous_results, batch_size, 
-                                        normalize_inputs=True)
+    >>> from summit.domain import Domain, ContinuousVariable
+    >>> from summit.strategies import TSEMO2
+    >>> import numpy as np
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
+    >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    >>> strategy = TSEMO2(domain, random_state=np.random.RandomState(3))
+    >>> strategy.suggest_experiments(5)
  
     ''' 
-    def __init__(self, domain, models, optimizer=None, **kwargs):
+    def __init__(self, domain, models=None, optimizer=None, **kwargs):
         Strategy.__init__(self, domain)
 
-        if isinstance(models, ModelGroup):
+        if models is None:
+            models = {v.name: GPyModel() for v in self.domain.variables 
+                      if v.is_objective}
+            self.models = ModelGroup(models)
+        elif isinstance(models, ModelGroup):
             self.models = models
         elif isinstance(models, dict):
             self.models = ModelGroup(models)
@@ -117,10 +67,35 @@ class TSEMO2(Strategy):
         else:
             self.optimizer = optimizer
 
-        self._reference = kwargs.get('reference', [0,0])
-        self._random_rate = kwargs.get('random_rate', 0.0)
+        self._reference = kwargs.get('reference',
+                                     [0 for v in self.domain.variables if v.is_objective])
+        self._random_rate = kwargs.get('random_rate', 0.25)
+        if self._random_rate < 0.0 or self._random_rate > 1.0:
+            raise ValueError('Random rate must be between 0 and 1.')
 
-    def generate_experiments(self, previous_results: DataSet, num_experiments):
+    def suggest_experiments(self, num_experiments, 
+                            previous_results: DataSet=None):
+        """ Suggest experiments using TSEMO
+        
+        Parameters
+        ----------  
+        num_experiments: int
+            The number of experiments (i.e., samples) to generate
+        previous_results: summit.utils.data.DataSet, optional
+            Dataset with data from previous experiments.
+            If no data is passed, then latin hypercube sampling will
+            be used to suggest an initial design.
+        
+        Returns
+        -------
+        ds
+            A `Dataset` object with the random design
+        """
+        # Suggest lhs initial design
+        if previous_results is None:
+            lhs = LHS(self.domain)
+            return lhs.suggest_experiments(num_experiments)
+
         #Get inputs and outputs
         inputs, outputs = self.get_inputs_outputs(previous_results)
         #Fit models to new data
@@ -227,4 +202,3 @@ class TSEMO2(Strategy):
             hv_imp = hv_improvement[masked_index] + hvY-hvY0
         return hv_imp, index
 
-        

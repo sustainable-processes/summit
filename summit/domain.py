@@ -1,4 +1,4 @@
-from summit.data import DataSet
+from summit.utils.dataset import DataSet
 import numpy as np
 import pandas as pd
 from typing import List, Optional, Type, Dict
@@ -180,11 +180,7 @@ class ContinuousVariable(Variable):
                            bounds=variable_dict['bounds'],
                            is_objective=variable_dict['is_objective'])
 
-    def __add__(self, other):
-        if isinstance(other, self.__class__):
-            return [self, other]
 
-    
 class DiscreteVariable(Variable):
     """Representation of a discrete variable
     
@@ -205,6 +201,12 @@ class DiscreteVariable(Variable):
     description
     levels
 
+    Raises
+    ------
+    ValueError
+        When the levels are not unique
+    TypeError
+        When levels is not a list
     Examples
     --------
     >>> reactant = DiscreteVariable('reactant', 'aromatic reactant', ['benzene', 'toluene'])
@@ -212,17 +214,21 @@ class DiscreteVariable(Variable):
     """
     def __init__(self, name, description, levels, **kwargs):
         Variable.__init__(self, name, description, 'discrete', **kwargs)
+
+        if type(levels) != list:
+            raise TypeError("Levels must be a list")
         
         #check that levels are unique
-        if len(list({v for v in levels})) != len(levels):
+        if len(levels) != len(set(levels)):
             raise ValueError("Levels must have unique values.")
         self._levels = levels
 
     @property
     def levels(self) -> np.ndarray:
         """`numpy.ndarray`: Potential values of the discrete variable"""
-        levels = np.array(self._levels)
-        return np.atleast_2d(levels).T
+        # levels = np.array(self._levels)
+        # return np.atleast_2d(levels).T
+        return self._levels
 
     @property
     def num_levels(self) -> int:
@@ -259,14 +265,15 @@ class DiscreteVariable(Variable):
             If the level does not exist for the discrete variable
         """
         try:
-            remove_index = self._levels.index(level)
+            self._levels.remove(level)
         except ValueError:
             raise ValueError(f"Level {level} is not in the list of levels.")
+        
     
     def to_dict(self):
         """ Return json encoding of the variable"""
         variable_dict = super().to_dict()
-        variable_dict.update({'levels': self.levels.tolist()})
+        variable_dict.update({'levels': self.levels})
         return variable_dict
 
     @staticmethod
@@ -307,9 +314,7 @@ class DescriptorsVariable(Variable):
 
     Examples
     --------
-    >>> solvent_df = pd.DataFrame([[5, 81],[-93, 111]], 
-                                  index=['benzene', 'toluene'],
-                                  columns=['melting_point', 'boiling_point'])
+    >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
     >>> solvent = DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
     """    
     def __init__(self, name: str, description: str, 
@@ -354,19 +359,22 @@ class Constraint:
     constraint_type: str (Default: "<=")
         The type of constraint. Must be <, <=, ==, > or >=
     
+    Raises
+    ------
+    ValueError
+
     Notes
     -----
-    These should be constraints in the form "lhs constraint_type 0"
-    So for example, x+y=3 should be formed as 
-    >> Constraint(lhs="x+y-3", constraint_type="=")
-    
+    These should be constraints in the form "lhs constraint_type constraint 0"
+    So for example, x+y=3 should be rewritten as x+y-3=0 and therefore:
+    >> Constraint(lhs="x+y-3", constraint_type="==")
+    Or x+y<0 would be:
+    >> Constraint(lhs="x+y", constraint_type="<")
     ''' 
     def __init__(self, lhs, constraint_type="<="):
         self._lhs = lhs
         self._constraint_type = constraint_type
-        try:
-            assert self.constraint_type in ['<', '<=', '==', '>', '>=']
-        except AssertionError:
+        if self.constraint_type not in ['<', '<=', '==', '>', '>=']:
             raise ValueError('Constraint type must be <, <=, ==, > or >=')
     
     @property
@@ -392,12 +400,21 @@ class Domain:
 
     Parameters
     ---------
-    variables: list of `Variable` like objects, optional
+    variables: `Variable` or list of `Variable` like objects, optional
         list of variable objects (i.e., `ContinuousVariable`, `DiscreteVariable`, `DescriptorsVariable`)
+    constraints: `Constraint` or  list of `Constraint` objects
+        list of constraints on the problem
 
     Attributes
     ----------
     variables
+
+    Raises
+    ------
+    TypeError
+        If variables or constraints are not lists or a single instance of the object
+    ValueError
+        If variable names are not unique
 
     Examples
     --------
@@ -406,10 +423,32 @@ class Domain:
 
     """
     def __init__(self, variables=[], constraints=[]):
+        #Check types
+        e = TypeError('variables must be Variable or list of Variable objects')
+        if isinstance(variables,Variable):
+            variables = [variables]
+        elif not isinstance(variables,list):
+            raise e
+        else:
+            for l in variables:
+                if not isinstance(l, Variable):
+                    raise e
+
+        e  = TypeError('constraints must be Constraint or list of Constraint objects')
+        if isinstance(constraints, Constraint):
+            constraints = [constraints]
+        elif not isinstance(constraints, list):
+            raise e
+        else:
+            for l in constraints:
+                if not isinstance(l, Constraint):
+                    raise e
+
         self._variables = variables
         self._constraints = constraints
         #Check that all the output variables continuous
-        self.raise_noncontinuous_outputs()
+        # self._raise_noncontinuous_outputs()
+        self._raise_names_not_unique()
 
     @property
     def variables(self):
@@ -450,11 +489,15 @@ class Domain:
                 pass
         return output_variables
 
-    def raise_noncontinuous_outputs(self):
+    def _raise_noncontinuous_outputs(self):
         '''Raise an error if the outputs are not continuous variables'''
         for v in self.output_variables:
             if v.variable_type != 'continuous':
                 raise DomainError("All output variables must be continuous")
+
+    def _raise_names_not_unique(self):
+        if len(set(self._variables)) != len(self._variables):
+            raise ValueError("Variable names are not unique")
 
     def num_variables(self, include_outputs=False) -> int:
         ''' Number of variables in the domain 
