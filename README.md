@@ -19,18 +19,29 @@ The documentation for summit can be found on the [wiki](https://github.com/susta
 
 ## Development
 
-To get the code:
+
+### Downloading the code
 
 1. Clone the repository:
-```git clone https://github.com/sustainable-processes/summit_private.git````
+```git clone https://github.com/sustainable-processes/summit_private.git```
 2. Intall poetry by following the instructions [here.](https://python-poetry.org/docs/#installation). We use poetry for dependency management.
 3. Install all dependencies:
 ```poetry install```
 3. To run tests:
 ```poetry run pytest --doctest-modules --ignore=case_studies```
 
-In terms of workflow, please commit to a branch off master and submit pull requests to merge. All pull requests need one review. Tests will be run automatically when a pull request is created, and all tests need to pass before the pull request is merged. 
+### Commit Worfklow
 
+- Use the [project board](https://github.com/orgs/sustainable-processes/projects/1) to keep track of issues. Issues will automatically be moved along in the board when they are closed in Github.
+- Write tests in the tests/ folder
+- Documentation follows the [numpy docstring format](https://numpydoc.readthedocs.io/en/latest/format.html#documenting-class-instances)
+    - Please include examples when possible that can be tested using [doctest](https://docs.python.org/3/library/doctest.html)
+    - All publicly available classes and methods should have a docstring
+- Commit to a branch off master and submit pull requests to merge. 
+    - All pull requests need one review.
+    - Tests will be run automatically when a pull request is created, and all tests need to pass before the pull request is merged. 
+
+### Releases
 
 Below is the old process for building a release. In the future, we will have this automated using Github actions.
 
