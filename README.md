@@ -4,32 +4,35 @@ Summit is a set of tools for optimizing chemical processes.
 
 ## Installation
 
-If you want to use summit immediately without installing python on your computer, go to our [Jupyterhub](hub.rxns.io), which already has it installed. You can find a description of it [here](https://github.com/sustainable-processes/server/blob/master/notes/session_1.md).
+If you want to use summit immediately without installing python on your computer, go to our [Jupyterhub](hub.rxns.io), which already has it installed. You can find a description of Jupyterhub [here](https://github.com/sustainable-processes/server/blob/master/notes/session_1.md).
 
 To install locally:
 
-```pip install git+https://github.com/sustainable-processes/summit.git@0.2.2#egg=summit```
+```pip install git+https://github.com/sustainable-processes/summit_private.git@0.3.0#egg=summit```
 
 You might need to enter your username and password for Github. 
 
 ## Documentation
 
 The documentation for summit can be found on the [wiki](https://github.com/sustainable-processes/summit/wiki).
+<!-- It would be great to add a "Quick Start" here.-->
 
-## Case Studies
+## Development
 
-In addition to the documentation, we are prepareing several case studies.  These contain jupyter notebooks with practical examples to follow. 
+To get the code:
 
-* [Formulation](case_studies/formulation)
-* [Nanosilica](case_studies/nanosilica)
-* [Photo Amination](case_studies/photoamination/)
-* [Borrowing Hydrogen](case_studies/borrowing_hydrogen)
+1. Clone the repository:
+```git clone https://github.com/sustainable-processes/summit_private.git````
+2. Intall poetry by following the instructions [here.](https://python-poetry.org/docs/#installation). We use poetry for dependency management.
+3. Install all dependencies:
+```poetry install```
+3. To run tests:
+```poetry run pytest --doctest-modules --ignore=case_studies```
 
-## Develpment
+In terms of workflow, please commit to a branch off master and submit pull requests to merge. All pull requests need one review. Tests will be run automatically when a pull request is created, and all tests need to pass before the pull request is merged. 
 
-### Build a release
 
-Below is the old process.
+Below is the old process for building a release. In the future, we will have this automated using Github actions.
 
 1. Install [s3pypi](https://github.com/novemberfiveco/s3pypi) and [dephell](https://dephell.org/docs/installation.html)
 2. Install AWS credentials to upload pypi.rxns.io (Kobi is the one who controls this).
