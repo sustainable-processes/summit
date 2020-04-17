@@ -18,5 +18,4 @@ jobs:
       with:
         python_version: 3.8.0
         poetry_version: 1.0.3
-        working_directory: ./working_dir
         args: run python -m pytest --doctest-modules --ignore=case_studies

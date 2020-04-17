@@ -38,6 +38,14 @@ The documentation for summit can be found on the [wiki](https://github.com/susta
     - Please include examples when possible that can be tested using [doctest](https://docs.python.org/3/library/doctest.html)
     - All publicly available classes and methods should have a docstring
 - Commit to a branch off master and submit pull requests to merge. 
+    - To create a branch locally and push it:
+    ```bash
+    $ git checkout -b BRANCH_NAME
+    # Once you've made some changes
+    $ git commit -am "commit message"
+    $ git push -u origin BRANCH_NAME
+    #Now if you come back to Github, your branch should exist
+    ```
     - All pull requests need one review.
     - Tests will be run automatically when a pull request is created, and all tests need to pass before the pull request is merged. 
 
