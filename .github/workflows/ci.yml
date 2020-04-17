@@ -19,7 +19,7 @@ jobs:
         path: /github/home/.cache/pypoetry/virtualenvs
         key: ${{ runner.os }}-poetry-${{ hashFiles('**/pyproject.toml') }}
         restore-keys: |
-        ${{ runner.os }}-poetry-
+          ${{ runner.os }}-poetry-
     - name: Install
       uses: abatilo/actions-poetry@v1.5.0
       with:
