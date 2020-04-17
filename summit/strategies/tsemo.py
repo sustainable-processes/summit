@@ -1,8 +1,9 @@
 from .base import Strategy
+from .random import LHS
 from summit.domain import Domain, DomainError
 from summit.utils.multiobjective import pareto_efficient, HvI
 from summit.utils.optimizers import NSGAII
-from summit.utils.models import ModelGroup
+from summit.utils.models import ModelGroup, GPyModel
 from summit.utils.dataset import DataSet
 
 import numpy as np
@@ -15,8 +16,9 @@ class TSEMO2(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The domain of the optimization
-    models: summit.models.Model
-        Any list of surrogate models to be used in the optimization
+    models: dictionary of summit.utils.model.Model or summit.utils.model.ModelGroup, optional
+        A dictionary of surrogate models or a ModelGroup to be used in the optimization.
+        By default, gaussian processes with the Matern kernel will be used.
     maximize: bool, optional
         Whether optimization should be treated as a maximization or minimization problem.
         Defaults to maximization. 
@@ -25,37 +27,35 @@ class TSEMO2(Strategy):
         of the acquisition function. By default, NSGAII will be used if there is a combination
         of continuous, discrete and/or descriptors variables. If there is a single descriptors 
         variable, then all of the potential values of the descriptors will be evaluated.
-    
-    
+    random_rate: float, optional
+        The rate of random exploration. This must be a float between 0 and 1.
+        Default is 0.25
+    reference: array-like, optional
+        The reference used for hypervolume calculations. Should be an array of length of the number 
+        of objectives.  Defaults to 0 for all objectives.
+
+
     Examples
     --------
-    # >>> from summit.domain import Domain, ContinuousVariable, DescriptorsVariable
-    # >>> import GPy
-    # >>> domain += DescriptorsVariable('solvent',
-    #                                  'solvents in the lab',
-    #                                   solvent_ds)
-    # >>> domain+= ContinuousVariable(name='yield',
-    #                             description='relative conversion to triphenylphosphine oxide determined by LCMS',
-    #                             bounds=[0, 100],
-    #                             is_objective=True)
-    # >>> domain += ContinuousVariable(name='de',
-    #                             description='diastereomeric excess determined by ratio of LCMS peaks',
-    #                             bounds=[0, 100],
-    #                             is_objective=True)
-    # >>> input_dim = domain.num_continuous_dimensions()+domain.num_discrete_variables()
-    # >>> kernels = [GPy.kern.Matern52(input_dim = input_dim, ARD=True)
-    #                for _ in range(2)]
-    #  >>> models = [GPyModel(kernel=kernels[i]) for i in range(2)]
-    # >>> tsemo = TSEMO(domain, models, acquisition=acquisition)
-    # >>> prevous_result = 
-    # design = tsemo.generate_experiments(previous_results, batch_size, 
-    #                                     normalize_inputs=True)
+    >>> from summit.domain import Domain, ContinuousVariable
+    >>> from summit.strategies import TSEMO2
+    >>> import numpy as np
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
+    >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    >>> strategy = TSEMO2(domain, random_state=np.random.RandomState(3))
+    >>> strategy.suggest_experiments(5)
  
     ''' 
-    def __init__(self, domain, models, optimizer=None, **kwargs):
+    def __init__(self, domain, models=None, optimizer=None, **kwargs):
         Strategy.__init__(self, domain)
 
-        if isinstance(models, ModelGroup):
+        if models is None:
+            models = {v.name: GPyModel() for v in self.domain.variables 
+                      if v.is_objective}
+            self.models = ModelGroup(models)
+        elif isinstance(models, ModelGroup):
             self.models = models
         elif isinstance(models, dict):
             self.models = ModelGroup(models)
@@ -67,10 +67,35 @@ class TSEMO2(Strategy):
         else:
             self.optimizer = optimizer
 
-        self._reference = kwargs.get('reference', [0,0])
-        self._random_rate = kwargs.get('random_rate', 0.0)
+        self._reference = kwargs.get('reference',
+                                     [0 for v in self.domain.variables if v.is_objective])
+        self._random_rate = kwargs.get('random_rate', 0.25)
+        if self._random_rate < 0.0 or self._random_rate > 1.0:
+            raise ValueError('Random rate must be between 0 and 1.')
 
-    def suggest_experiments(self, previous_results: DataSet, num_experiments):
+    def suggest_experiments(self, num_experiments, 
+                            previous_results: DataSet=None):
+        """ Suggest experiments using TSEMO
+        
+        Parameters
+        ----------  
+        num_experiments: int
+            The number of experiments (i.e., samples) to generate
+        previous_results: summit.utils.data.DataSet, optional
+            Dataset with data from previous experiments.
+            If no data is passed, then latin hypercube sampling will
+            be used to suggest an initial design.
+        
+        Returns
+        -------
+        ds
+            A `Dataset` object with the random design
+        """
+        # Suggest lhs initial design
+        if previous_results is None:
+            lhs = LHS(self.domain)
+            return lhs.suggest_experiments(num_experiments)
+
         #Get inputs and outputs
         inputs, outputs = self.get_inputs_outputs(previous_results)
         #Fit models to new data

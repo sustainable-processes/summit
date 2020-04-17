@@ -61,7 +61,6 @@ class Random(Strategy):
         -------
         ds
             A `Dataset` object with the random design
-
         """
         design = Design(self.domain, num_experiments, 'random')
 
@@ -159,8 +158,8 @@ class LHS(Strategy):
         
         Returns
         -------
-        design: `Design`
-            A `Design` object with the latin hypercube design
+        ds
+            A `Dataset` object with the random design
         """
         design = Design(self.domain, num_experiments, 'Latin design', exclude=exclude)
         
