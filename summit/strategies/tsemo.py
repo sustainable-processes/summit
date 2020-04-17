@@ -45,14 +45,15 @@ class TSEMO2(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> strategy = TSEMO2(domain, random_state=np.random.RandomState(3))
-    >>> strategy.suggest_experiments(5)
+    >>> result = strategy.suggest_experiments(5)
  
     ''' 
     def __init__(self, domain, models=None, optimizer=None, **kwargs):
         Strategy.__init__(self, domain)
 
         if models is None:
-            models = {v.name: GPyModel() for v in self.domain.variables 
+            input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
+            models = {v.name: GPyModel(input_dim=input_dim) for v in self.domain.variables 
                       if v.is_objective}
             self.models = ModelGroup(models)
         elif isinstance(models, ModelGroup):

@@ -1,0 +1,34 @@
+name: Run Tests
+on: [push, pull_request]
+
+jobs:
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8.2
+    - name: Cache poetry environment
+      uses: actions/cache@v1
+      env:
+        cache-name: cache-poetry
+      with:
+        path: /github/home/.cache/pypoetry/virtualenvs
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-
+    - name: Install
+      uses: abatilo/actions-poetry@v1.5.0
+      with:
+        python_version: 3.8.2
+        poetry_version: 1.0.3
+        args: install
+    - name: Run pytest
+      uses: abatilo/actions-poetry@v1.5.0
+      with:
+        python_version: 3.8.2
+        poetry_version: 1.0.3
+        args: run python -m pytest --doctest-modules --ignore=case_studies
