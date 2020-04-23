@@ -16,6 +16,7 @@ GPy = "^1.9"
 numpy = "1.16.0"
 platypus-opt = "^1.0"
 sklearn = "^0.0.0"
+chempy = "^0.7.10"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
