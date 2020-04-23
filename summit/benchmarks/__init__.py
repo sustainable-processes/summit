@@ -1,2 +1,2 @@
-
+from .snar import SnarBenchmark
 

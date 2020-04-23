@@ -5,6 +5,9 @@ from typing import List, Optional, Type, Dict
 from abc import ABC, abstractmethod
 import json
 
+__all__ = ["Variable", "ContinuousVariable", "DiscreteVariable", 
+           "DescriptorsVariable", "Constraint", "Domain"]
+           
 class Variable(ABC):
     """A base class for variables
     

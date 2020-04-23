@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from summit.domain import Domain
-from summit.utils.dataset import Dataset
+from summit.utils.dataset import DataSet
 import time
 
 class Experiment(ABC):
@@ -55,6 +55,7 @@ class Experiment(ABC):
     def reset(self):
         var_names = [v.name for v in self.domain.variables]
         metadata_columns = ['computation_time', 'experiment_time']
-        self._data = Dataset(columns=var_names, metadata_columns=metadata_columns)
+        self._data = DataSet(columns=var_names, metadata_columns=metadata_columns)
         self.num_experiments = 0
         self.prev_itr_time = None
+    
