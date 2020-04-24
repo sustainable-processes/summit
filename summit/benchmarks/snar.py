@@ -5,6 +5,27 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 class SnarBenchmark(Experiment):
+    ''' SnAr Benchmark
+
+    Virtual experiments representing a nucleophilic aromatic
+    substitution happening in a plug flow reactor. 
+    
+    Examples
+    --------
+    >>> b = SnarBenchmark()
+    >>> columns = [v.name for v in b.domain.variables]
+    >>> values = [v.bounds[0]+ 0.1*(v.bounds[1]-v.bounds[0])
+              for v in b.domain.variables]
+    >>> values = np.array(values)
+    >>> values = np.atleast_2d(values)
+    >>> conditions = DataSet(values, columns=columns)
+    >>> results = b.run_experiment(conditions)
+    
+    Notes
+    -----
+    This benchmark is based on Hone et al. Reac Engr. & Chem. 2016.
+    
+    ''' 
     def __init__(self):
         domain = self._setup_domain()
         super().__init__(domain)
