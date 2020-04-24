@@ -36,3 +36,50 @@ def test_lhs():
 
 def test_tsemo():
     pass
+
+def test_snobfit():
+    from summit.domain import Domain, ContinuousVariable
+    from summit.strategies import SNOBFIT
+    from summit.utils.dataset import DataSet
+    import pandas as pd
+
+    # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
+    domain = Domain()
+    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 50])
+    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
+    domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0, 1])
+    domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[-1000,1000], is_objective=True, maximize=True)
+
+    # Simulating experiments with hypothetical relationship of inputs and outputs
+    def sim_fun(x):
+        y = (-1/30 * x[0] - 3 * x[1] ** 2 + 4 * x[0] * x[2])
+        return y
+    def test_fun(x):
+        y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
+        return y
+
+    # Initialize with "experimental" data
+    initial_exp = pd.DataFrame(data={'temperature': [10,4,5,3], 'flowrate_a': [0.6,0.3,0.2,0.1],
+                                     'flowrate_b': [0.1,0.3,0.2,0.1]})
+    initial_exp.insert(3,'yield', test_fun(initial_exp.to_numpy()))
+    initial_exp = DataSet.from_df(initial_exp)
+
+    strategy = SNOBFIT(domain)
+
+    # run snobfit loop for fixed number of iteration whereas with num_experiments each
+    num_experiments = 5
+    num_iter = 10
+    for i in range(num_iter):
+        if i == 0:
+            next_experiments, xbest, fbest, res = strategy.suggest_experiments(num_experiments, prev_res=initial_exp)
+        else:
+            yields = test_fun(next_experiments.data_to_numpy())
+            next_experiments['yield', 'DATA'] = yields
+            next_experiments, xbest, fbest, res = strategy.suggest_experiments(num_experiments,
+                                                                               prev_res=next_experiments,prev_param=res)
+            print(next_experiments)
+            print("\n")
+
+    # Extrema of test function: glob_max = 595/3 at (50,0,1), glob_min = -14/3 at (50,1,0), loc_min = -3 at (0,1,1)
+    assert xbest[0] == 50 and xbest[1] == 1 and xbest[2] == 0   and fbest == -14/3
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
