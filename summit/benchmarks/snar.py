@@ -14,8 +14,7 @@ class SnarBenchmark(Experiment):
     --------
     >>> b = SnarBenchmark()
     >>> columns = [v.name for v in b.domain.variables]
-    >>> values = [v.bounds[0]+ 0.1*(v.bounds[1]-v.bounds[0])
-              for v in b.domain.variables]
+    >>> values = [v.bounds[0]+0.1*(v.bounds[1]-v.bounds[0]) for v in b.domain.variables]
     >>> values = np.array(values)
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
@@ -98,7 +97,7 @@ class SnarBenchmark(Experiment):
         q_tot = q_dfnb+q_pldn+q_eth
         tau = V/q_tot
 
-        # Initial Concentrations
+        # Initial Concentrations in mM
         C_i = np.zeros(5)
         C_10 = 1
         C_20 = 2
@@ -111,9 +110,9 @@ class SnarBenchmark(Experiment):
         C_final = res.y[:, -1]
 
         # Calculate STY and E-factor
-        sty = C_final[2]/tau
-        rho_eth = 0.789 # g/mL (should adjust to temp, but just using @ 25C)
         M = [159.09, 71.12, 210.21, 210.21, 261.33] # molecular weights (g/mol)
+        sty = M[2]/1000*C_final[2]*q_tot/V
+        rho_eth = 0.789 # g/mL (should adjust to temp, but just using @ 25C)
         term_2 = sum([M[i]*C_final[i]*q_tot for i in range(5)
                      if i!=2])
         e_factor = (q_eth*rho_eth+term_2)/(M[2]*C_final[2]*q_tot)
@@ -122,9 +121,10 @@ class SnarBenchmark(Experiment):
         
     def _integrand(self,t, C, T):
         # Kinetic Constants
-        R = 8.71
+        R = 8.314/1000  #kJ/K/mol
         T_ref = 90 + 273.71
-        k = lambda k_ref, E_a, T: k_ref*np.exp(-E_a/R*(1/T-1/T_ref))
+        #Need to convert from 10^-2 M/s to mM/min`
+        k = lambda k_ref, E_a, T: 1e5*60*k_ref*np.exp(-E_a/R*(1/T-1/T_ref))
         k_a = k(57.9, 33.3, T)
         k_b = k(2.70, 35.3, T)
         k_c = k(0.864, 38.9, T)
