@@ -55,14 +55,17 @@ class SnarBenchmark(Experiment):
         return domain  
 
     def _run(self, conditions, **kwargs):
-        T = conditions['temperature']
-        q_dfnb = conditions['q_dfnb']
-        q_pldn = conditions['q_pldn']
-        q_eth = conditions['q_eth']
-        y, e_factor = self._integrate_equations(q_dfnb, q_pldn, q_eth,T)    
+        T = float(conditions['temperature'])
+        q_dfnb = float(conditions['q_dfnb'])
+        q_pldn = float(conditions['q_pldn'])
+        q_eth = float(conditions['q_eth'])
+        q_tot = q_dfnb+q_pldn+q_eth
+        if q_tot > 10.0:
+            raise ValueError(f"Total flowrate must be less than 10.0 mL/min, currently is {q_tot} mL/min.")
+        y, e_factor, res = self._integrate_equations(q_dfnb, q_pldn, q_eth,T)   
         conditions['sty'] = y
         conditions['e_factor'] = e_factor
-        return conditions
+        return conditions, {'integration_result': res}
 
     def _integrate_equations(self, 
                              q_dfnb,
@@ -83,20 +86,20 @@ class SnarBenchmark(Experiment):
 
         # Integrate
         res = solve_ivp(self._integrand,[0, tau], C_i,
-                        args=(temperature))
+                        args=(temperature,))
         C_final = res.y[:, -1]
 
         # Calculate STY and E-factor
         sty = C_final[2]/tau
         rho_eth = 0.789 # g/mL (should adjust to temp, but just using @ 25C)
         M = [159.09, 71.12, 210.21, 210.21, 261.33] # molecular weights (g/mol)
-        term_2 = [M[i]*C_final[i]*q_tot for i in range(5)
-                 if i!=2]
+        term_2 = sum([M[i]*C_final[i]*q_tot for i in range(5)
+                     if i!=2])
         e_factor = (q_eth*rho_eth+term_2)/(M[2]*C_final[2]*q_tot)
 
-        return sty, e_factor
+        return sty, e_factor, res
         
-    def _integrand(self,C, T):
+    def _integrand(self,t, C, T):
         # Kinetic Constants
         R = 8.71
         T_ref = 90 + 273.71

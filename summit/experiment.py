@@ -7,11 +7,22 @@ class Experiment(ABC):
     """Base class for benchmarks"""
     def __init__(self, domain):
         self._domain = domain
-    
+        self.prev_itr_time = None
+        columns = [var.name for var in self.domain.variables]
+        md_columns = ['computation_time', 'experiment_time']
+        columns += md_columns
+        self._data = DataSet(columns=columns, metadata_columns=md_columns)
+        self.extras = []
+
     @property
     def domain(self):
         """The  domain for the experiment"""
         return self._domain
+    
+    @property
+    def data(self):
+        """Data tracked by the experiment"""
+        return self._data
 
     def run_experiment(self, conditions,
                        computation_time=None,
@@ -38,16 +49,18 @@ class Experiment(ABC):
             diff = 0
 
         # Run experiments
-        for condition in conditions.iterrows():
+        for i, condition in conditions.iterrows():
             start = time.time()
-            r = self._run(conditions, **kwargs)
+            res, extras = self._run(condition, **kwargs)
             experiment_time = time.time() - start
-            self._data = self._data.append(r)
+            self._data = self._data.append(res)
             self._data['experiment_time'].iloc[-1] = experiment_time
             self._data['computation_time'].iloc[-1] = diff
+            self.extras.append(extras)
         self.prev_itr_time = time.time()
-        #Limit to only the experiments run this iteration
+        #TODO: Limit to only the experiments run this iteration
         return self._data 
+        
     @abstractmethod
     def _run(self, conditions, **kwargs):
         raise NotImplementedError('_run be implemented by subclasses of Benchmark')

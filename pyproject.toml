@@ -16,11 +16,13 @@ GPy = "^1.9"
 numpy = "1.16.0"
 platypus-opt = "^1.0"
 sklearn = "^0.0.0"
-chempy = "^0.7.10"
 scipy = "^1.4.1"
+matplotlib = "^3.2.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
+ipython = "^7.13.0"
+ipdb = "^0.13.2"
 
 
 [build-system]
