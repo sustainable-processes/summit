@@ -41,12 +41,12 @@ class SnarBenchmark(Experiment):
         des_2 = "equivalents of pyrrolidine"
         domain += ContinuousVariable(name='equiv_pldn',
                                      description=des_2,
-                                     bounds=[1.5, 3.5])   
+                                     bounds=[1.0, 5])   
 
         des_3 = "concentration of 2,4 dinitrofluorobenenze at reactor inlet (after mixing) in M"
         domain += ContinuousVariable(name='conc_dfnb',
                                      description=des_3,
-                                     bounds=[0.1, 0.28])
+                                     bounds=[0.1, 0.5])
 
         des_4 = "Reactor temperature in degress celsius"
         domain += ContinuousVariable(name='temperature',
@@ -64,7 +64,7 @@ class SnarBenchmark(Experiment):
         des_6 = "E-factor"
         domain += ContinuousVariable(name='e_factor',
                                      description=des_6,
-                                     bounds=[0, 1e6],
+                                     bounds=[0, 10],
                                      is_objective=True,
                                      maximize=False)
 
@@ -98,7 +98,7 @@ class SnarBenchmark(Experiment):
         q_1 = self.C_i[0]/C1_0*q_tot  # flowrate of 1 (dfnb)
         q_2 = self.C_i[1]/C2_0*q_tot  # flowrate of 2 (pldn)
         q_eth = q_tot-q_1-q_2    # flowrate of ethanol
-
+        
         # Integrate
         res = solve_ivp(self._integrand,[0, tau], self.C_i,
                         args=(temperature,))
@@ -107,16 +107,18 @@ class SnarBenchmark(Experiment):
         # Calculate STY and E-factor
         M = [159.09, 71.12, 210.21, 210.21, 261.33] # molecular weights (g/mol)
         sty = 6e4/1000*M[2]*C_final[2]*q_tot/V   # convert to kg m^-3 h^-1
+        if sty < 1e-6:
+            sty = 1e-6
         rho_eth = 0.789 # g/mL (should adjust to temp, but just using @ 25C)
         term_2 = 1e-3*sum([M[i]*C_final[i]*q_tot for i in range(5)
                            if i!=2])
         if np.isclose(C_final[2], 0.0):
             #Set to a large value if no product formed
-            e_factor=1e9
+            e_factor=1e3
         else:
-            e_factor = term_2/(1e-3*M[2]*C_final[2]*q_tot)
-        if e_factor > 1e9:
-            e_factor = 1e9
+            e_factor = (q_tot*rho_eth+term_2)/(1e-3*M[2]*C_final[2]*q_tot)
+        if e_factor > 1e3:
+            e_factor = 1e3
         return sty, e_factor, res
         
     def _integrand(self,t, C, T):
@@ -125,7 +127,7 @@ class SnarBenchmark(Experiment):
         T_ref = 90 + 273.71  #Convert to deg K
         T = T + 273.71       #Convert to deg K
         #Need to convert from 10^-2 M^-1s^-1 to M^-1min^-1
-        k = lambda k_ref, E_a, temp: 6e3*k_ref*np.exp(-E_a/R*(1/temp-1/T_ref))
+        k = lambda k_ref, E_a, temp: 0.6*k_ref*np.exp(-E_a/R*(1/temp-1/T_ref))
         k_a = k(57.9, 33.3, T)
         k_b = k(2.70, 35.3, T)
         k_c = k(0.865, 38.9, T)

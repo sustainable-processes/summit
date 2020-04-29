@@ -107,7 +107,9 @@ class TSEMO2(Strategy):
         if internal_res is not None and len(internal_res.fun)!=0:
             hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
             result = internal_res.x.join(internal_res.fun) 
-            return result.iloc[indices, :]
+            result =  result.iloc[indices, :]
+            result[('strategy', 'METADATA')] = 'TSEMO2'
+            return result
         else:
             return None
 

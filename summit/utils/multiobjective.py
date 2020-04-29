@@ -6,26 +6,38 @@ import numpy as np
 
 __all__ = ["pareto_efficient", "HvI"]
 
-def pareto_efficient(costs, maximize=True):
+def pareto_efficient(data, maximize=True):
     """
     Find the pareto-efficient points
-    :param costs: An (n_points, n_costs) array
+    Parameters
+    ---------
+    data: array-like
+        An (n_points, n_data) array
+    maximize: bool, optional
+        Whether the problem is a maximization or minimization problem.
+        Defaults to maximization (i.e,. True)
+
+    Returns
+    -------
+    data, indices:
+        data is an array with the pareto front values
+        indices is an array with the indices of the pareto points in the original data array
 
     """
-    original_costs = costs
-    is_efficient = np.arange(costs.shape[0])
-    n_points = costs.shape[0]
-    next_point_index = 0  # Next index in the is_efficient array to search for
-    while next_point_index<len(costs):
+    original_data = data
+    indices = np.arange(data.shape[0])
+    n_points = data.shape[0]
+    next_point_index = 0  # Next index in the indices array to search for
+    while next_point_index<len(data):
         if maximize:
-            nondominated_point_mask = np.any(costs>costs[next_point_index], axis=1)
+            nondominated_point_mask = np.any(data>data[next_point_index], axis=1)
         else:
-            nondominated_point_mask = np.any(costs<costs[next_point_index], axis=1)
+            nondominated_point_mask = np.any(data<data[next_point_index], axis=1)
         nondominated_point_mask[next_point_index] = True
-        is_efficient = is_efficient[nondominated_point_mask]  # Remove dominated points
-        costs = costs[nondominated_point_mask]
+        indices = indices[nondominated_point_mask]  # Remove dominated points
+        data = data[nondominated_point_mask]
         next_point_index = np.sum(nondominated_point_mask[:next_point_index])+1
-    return  costs, is_efficient  
+    return  data, indices  
 
 class HvI:
     ''' Hypervolume Improvement Acquisition Function

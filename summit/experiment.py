@@ -3,6 +3,7 @@ from summit.domain import Domain
 from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient
 import matplotlib.pyplot as plt
+import pandas as pd
 import time
 
 class Experiment(ABC):
@@ -36,8 +37,7 @@ class Experiment(ABC):
             By default, the time since the last call to run_experiment is used. 
                
         """
-        # Bookeeping for time used by algorithm
-        # when suggesting next experiment
+        # Bookeeping for time used by strategy when suggesting next experiment
         if computation_time is not None:
             diff = computation_time
         if computation_time is None and self.prev_itr_time is not None:
@@ -46,17 +46,19 @@ class Experiment(ABC):
             diff = 0
 
         # Run experiments
+        # TODO: Add an option to run these in parallel
         for i, condition in conditions.iterrows():
             start = time.time()
             res, extras = self._run(condition, **kwargs)
             experiment_time = time.time() - start
             self._data = self._data.append(res)
-            self._data['experiment_time'].iloc[-1] = experiment_time
-            self._data['computation_time'].iloc[-1] = diff
+            self._data['experiment_time'].iat[-1] = experiment_time
+            self._data['computation_time'].iat[-1] = diff
+            if condition.get('strategy') is not None:
+                self._data['strategy'].iat[-1] = condition.get('strategy').values[0]
             self.extras.append(extras)
         self.prev_itr_time = time.time()
-        #TODO: Limit to only the experiments run this iteration
-        return self._data 
+        return self._data.iloc[[-len(conditions)]]
         
     @abstractmethod
     def _run(self, conditions, **kwargs):
@@ -65,7 +67,7 @@ class Experiment(ABC):
     def reset(self):
         self.prev_itr_time = None
         columns = [var.name for var in self.domain.variables]
-        md_columns = ['computation_time', 'experiment_time']
+        md_columns = ['computation_time', 'experiment_time', 'strategy']
         columns += md_columns
         self._data = DataSet(columns=columns, metadata_columns=md_columns)
         self.extras = []
@@ -93,18 +95,27 @@ class Experiment(ABC):
         else:
             return_fig = False
         
-        # Make plots
-        ax.scatter(self.data[objectives[0]],
-                   self.data[objectives[1]],
-                   c='k', label='Experimental Data')
-        
-        ax.scatter(self.data[objectives[0]].iloc[indices], 
-                   self.data[objectives[1]].iloc[indices],
-                   c='k', alpha=0.5, label='Pareto Front')
+        # Plot all data
+        strategies = pd.unique(self.data['strategy'])
+        markers = ['o', 'x']
+        for strategy, marker in zip(strategies, markers):
+            strat_data = self.data[self.data['strategy']==strategy]
+            ax.scatter(strat_data[objectives[0]],
+                       strat_data[objectives[1]],
+                      c='k', marker=marker, label=strategy)
+
+        #Sort data so get nice pareto plot
+        pareto_data = self.data.iloc[indices].copy()
+        pareto_data = pareto_data.sort_values(by=objectives[0])
+        ax.plot(pareto_data[objectives[0]], 
+                pareto_data[objectives[1]],
+                c='k', label='Pareto Front')
         ax.set_xlabel(objectives[0])
         ax.set_ylabel(objectives[1])
-
+        ax.tick_params(direction='in')
+        ax.legend()
         if return_fig:
             return fig, ax
         else:
             return ax
+    
