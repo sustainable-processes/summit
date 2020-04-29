@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
+from summit.utils.multiobjective import pareto_efficient
+import matplotlib.pyplot as plt
 import time
 
 class Experiment(ABC):
@@ -68,3 +70,41 @@ class Experiment(ABC):
         self._data = DataSet(columns=columns, metadata_columns=md_columns)
         self.extras = []
     
+    def pareto_plot(self, objectives=None, ax=None):
+        if objectives is None:
+            objectives = [v.name for v in self.domain.variables
+                          if v.is_objective]
+        
+        if len(objectives) > 2:
+            raise ValueError("Can only plot 2 objectives")
+
+        data = self._data[objectives].copy()
+
+        #Handle minimize objectives
+        for objective in objectives:
+            if not self.domain[objective].maximize:
+                data[objective] = -1.0*data[objective]
+
+        values, indices = pareto_efficient(data.to_numpy(),
+                                           maximize=True)
+        if ax is None:
+            fig, ax = plt.subplots(1)
+            return_fig = True
+        else:
+            return_fig = False
+        
+        # Make plots
+        ax.scatter(self.data[objectives[0]],
+                   self.data[objectives[1]],
+                   c='k', label='Experimental Data')
+        
+        ax.scatter(self.data[objectives[0]].iloc[indices], 
+                   self.data[objectives[1]].iloc[indices],
+                   c='k', alpha=0.5, label='Pareto Front')
+        ax.set_xlabel(objectives[0])
+        ax.set_ylabel(objectives[1])
+
+        if return_fig:
+            return fig, ax
+        else:
+            return ax

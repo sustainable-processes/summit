@@ -18,7 +18,7 @@ class SnarBenchmark(Experiment):
     >>> values = np.array(values)
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
-    >>> results = b.run_experiment(conditions)
+    >>> results = b.run_experiments(conditions)
     
     Notes
     -----
@@ -33,29 +33,25 @@ class SnarBenchmark(Experiment):
         domain = Domain()
 
         # Decision variables
-        des_1 = "Flowrate of 2,4-difluoronitrobenzene in ethanol (ml/min)"
-        domain += ContinuousVariable(name='q_dfnb',
+        des_1 = "residence time in minutes"
+        domain += ContinuousVariable(name='tau',
                                      description=des_1,
-                                     bounds=[0, 10])
+                                     bounds=[0.5, 2])
         
-        des_2 = "Flowrate of pyrrolidine in ethanol (mL/min)"
-        domain += ContinuousVariable(name='q_pldn',
+        des_2 = "equivalents of pyrrolidine"
+        domain += ContinuousVariable(name='equiv_pldn',
                                      description=des_2,
-                                     bounds=[0, 10])   
+                                     bounds=[1.5, 3.5])   
 
-        des_3 = "Flowrate of ethanol (mL/min)"
-        domain += ContinuousVariable(name='q_eth',
+        des_3 = "concentration of 2,4 dinitrofluorobenenze at reactor inlet (after mixing) in M"
+        domain += ContinuousVariable(name='conc_dfnb',
                                      description=des_3,
-                                     bounds=[0, 10])
+                                     bounds=[0.1, 0.28])
 
-        des_4 = "Reactor temperature (deg C)"
+        des_4 = "Reactor temperature in degress celsius"
         domain += ContinuousVariable(name='temperature',
                                      description=des_4,
                                      bounds=[30, 120])
-
-        # Constraints
-        lhs = "q_dfnb+q_pldn+q_eth-10"
-        domain += Constraint(lhs, "<=")
 
         # Objectives
         des_5 = 'space time yield (kg/m^3/h)'
@@ -68,44 +64,43 @@ class SnarBenchmark(Experiment):
         des_6 = "E-factor"
         domain += ContinuousVariable(name='e_factor',
                                      description=des_6,
-                                     bounds=[0, 1000],
+                                     bounds=[0, 1e6],
                                      is_objective=True,
                                      maximize=False)
 
         return domain  
 
     def _run(self, conditions, **kwargs):
+        tau = float(conditions['tau'])
+        equiv_pldn = float(conditions['equiv_pldn'])
+        conc_dfnb = float(conditions['conc_dfnb'])
         T = float(conditions['temperature'])
-        q_dfnb = float(conditions['q_dfnb'])
-        q_pldn = float(conditions['q_pldn'])
-        q_eth = float(conditions['q_eth'])
-        q_tot = q_dfnb+q_pldn+q_eth
-        if q_tot > 10.0:
-            raise ValueError(f"Total flowrate must be less than 10.0 mL/min, currently is {q_tot} mL/min.")
-        y, e_factor, res = self._integrate_equations(q_dfnb, q_pldn, q_eth,T)   
-        conditions['sty'] = y
-        conditions['e_factor'] = e_factor
+        y, e_factor, res = self._integrate_equations(tau, equiv_pldn, conc_dfnb,T)   
+        conditions[('sty', 'DATA')] = y
+        conditions[('e_factor', 'DATA')] = e_factor
         return conditions, {'integration_result': res}
 
     def _integrate_equations(self, 
-                             q_dfnb,
-                             q_pldn,
-                             q_eth,
-                             temperature):
-        # Flowrate and residence time
-        V = 5 #mL
-        q_tot = q_dfnb+q_pldn+q_eth
-        tau = V/q_tot
-        
+                             tau,
+                             equiv_pldn,
+                             conc_dfnb,
+                             temperature):        
         # Initial Concentrations in mM
-        C_i = np.zeros(5)
-        C_10 = 1  # 1M = 1 mM
-        C_20 = 2  # 2M = 2 mM
-        C_i[0] = C_10*q_dfnb/q_tot
-        C_i[1] = C_10*q_pldn/q_tot
+        self.C_i = np.zeros(5)
+        self.C_i[0] = conc_dfnb
+        self.C_i[1] = equiv_pldn*conc_dfnb
+
+        # Flowrate and residence time
+        V = 3 #mL
+        q_tot = V/tau
+        C1_0 = 2.0  # reservoir concentration of 1 is 1 M = 1 mM
+        C2_0 = 4.2  # reservoi concentration of  2 is 2 M = 2 mM
+        q_1 = self.C_i[0]/C1_0*q_tot  # flowrate of 1 (dfnb)
+        q_2 = self.C_i[1]/C2_0*q_tot  # flowrate of 2 (pldn)
+        q_eth = q_tot-q_1-q_2    # flowrate of ethanol
 
         # Integrate
-        res = solve_ivp(self._integrand,[0, tau], C_i,
+        res = solve_ivp(self._integrand,[0, tau], self.C_i,
                         args=(temperature,))
         C_final = res.y[:, -1]
 
@@ -114,9 +109,14 @@ class SnarBenchmark(Experiment):
         sty = 6e4/1000*M[2]*C_final[2]*q_tot/V   # convert to kg m^-3 h^-1
         rho_eth = 0.789 # g/mL (should adjust to temp, but just using @ 25C)
         term_2 = 1e-3*sum([M[i]*C_final[i]*q_tot for i in range(5)
-                      if i!=2])
-        e_factor = (q_eth*rho_eth+term_2)/(1e-3*M[2]*C_final[2]*q_tot)
-
+                           if i!=2])
+        if np.isclose(C_final[2], 0.0):
+            #Set to a large value if no product formed
+            e_factor=1e9
+        else:
+            e_factor = term_2/(1e-3*M[2]*C_final[2]*q_tot)
+        if e_factor > 1e9:
+            e_factor = 1e9
         return sty, e_factor, res
         
     def _integrand(self,t, C, T):
@@ -125,14 +125,16 @@ class SnarBenchmark(Experiment):
         T_ref = 90 + 273.71  #Convert to deg K
         T = T + 273.71       #Convert to deg K
         #Need to convert from 10^-2 M^-1s^-1 to M^-1min^-1
-        k = lambda k_ref, E_a, temp: 6e4*k_ref*np.exp(-E_a/R*(1/temp-1/T_ref))
+        k = lambda k_ref, E_a, temp: 6e3*k_ref*np.exp(-E_a/R*(1/temp-1/T_ref))
         k_a = k(57.9, 33.3, T)
         k_b = k(2.70, 35.3, T)
-        k_c = k(0.864, 38.9, T)
+        k_c = k(0.865, 38.9, T)
         k_d = k(1.63, 44.8, T)
         
         # Reaction Rates
         r = np.zeros(5)
+        for i in [0, 1]: #Set to reactants when close
+            C[i] = 0 if C[i]< 1e-6*self.C_i[i] else C[i]
         r[0] = -(k_a+k_b)*C[0]*C[1]
         r[1] = -(k_a+k_b)*C[0]*C[1]-k_c*C[1]*C[2]-k_d*C[1]*C[3]
         r[2] = k_a*C[0]*C[1]-k_c*C[1]*C[2]
@@ -142,6 +144,8 @@ class SnarBenchmark(Experiment):
         # Deltas
         dcdtau = r
         return dcdtau
+
+
 
 
 
