@@ -633,6 +633,12 @@ class Domain:
         constraints = ''.join([c._html_table_rows() for c in self.constraints])
         return f"{variables}{constraints}"
 
+    def __getitem__(self, key):
+        for v in self.variables:
+            if v.name == key:
+                return v
+        raise ValueError("Variable not in domain")
+
 
 class DomainError(Exception):
     pass
