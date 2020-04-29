@@ -7,12 +7,7 @@ class Experiment(ABC):
     """Base class for benchmarks"""
     def __init__(self, domain):
         self._domain = domain
-        self.prev_itr_time = None
-        columns = [var.name for var in self.domain.variables]
-        md_columns = ['computation_time', 'experiment_time']
-        columns += md_columns
-        self._data = DataSet(columns=columns, metadata_columns=md_columns)
-        self.extras = []
+        self.reset()
 
     @property
     def domain(self):
@@ -24,10 +19,10 @@ class Experiment(ABC):
         """Data tracked by the experiment"""
         return self._data
 
-    def run_experiment(self, conditions,
-                       computation_time=None,
-                       **kwargs):
-        """Run the experiment at the given conditions
+    def run_experiments(self, conditions,
+                        computation_time=None,
+                        **kwargs):
+        """Run the experiment(s) at the given conditions
         
         Arguments
         ---------
@@ -66,9 +61,10 @@ class Experiment(ABC):
         raise NotImplementedError('_run be implemented by subclasses of Benchmark')
 
     def reset(self):
-        var_names = [v.name for v in self.domain.variables]
-        metadata_columns = ['computation_time', 'experiment_time']
-        self._data = DataSet(columns=var_names, metadata_columns=metadata_columns)
-        self.num_experiments = 0
         self.prev_itr_time = None
+        columns = [var.name for var in self.domain.variables]
+        md_columns = ['computation_time', 'experiment_time']
+        columns += md_columns
+        self._data = DataSet(columns=columns, metadata_columns=md_columns)
+        self.extras = []
     

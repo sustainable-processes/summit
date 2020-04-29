@@ -7,21 +7,21 @@ def test_snar_benchmark():
     """Test the SnAr benchmark"""
     b = SnarBenchmark()
     columns = [v.name for v in b.domain.variables]
-    values = [v.bounds[0]+ 0.1*(v.bounds[1]-v.bounds[0])
-              for v in b.domain.variables]
-    values = np.array(values)
-    values = np.atleast_2d(values)
+    values  =   {('temperature', 'DATA'): 60.0,  #deg C,
+                 ('q_dfnb', 'DATA'): 2.0,        #ml/min
+                 ('q_pldn', 'DATA'): 2.0,        #ml/min
+                 ('q_eth', 'DATA'): 0.5,         #ml/min
+                  }
 
     # Check that results are reasonable
-    conditions = DataSet(values, columns=columns)
-    results = b.run_experiment(conditions)
-    assert float(results['q_dfnb']) == 1.0
-    assert float(results['q_pldn']) == 1.0
-    assert float(results['q_eth']) == 1.0
-    assert float(results['temperature']) == 39.0
-    assert np.isclose(float(results['sty']), 0.173095)
-    assert np.isclose(float(results['e_factor']), 1.018594)
-
+    conditions = DataSet([values], columns=columns)
+    results = b.run_experiments(conditions)
+    assert float(results['q_dfnb']) == 2.0
+    assert float(results['q_pldn']) == 2.0
+    assert float(results['q_eth']) == 0.5
+    assert float(results['temperature']) == 60.0
+    assert np.isclose(float(results['sty']), 4446.812424)
+    assert np.isclose(float(results['e_factor']), 2.179134)
 
     # Check  total flowrate >10 raises error
     conditions['q_dfnb'].iloc[-1] = 12.0

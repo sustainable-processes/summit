@@ -58,7 +58,7 @@ class SnarBenchmark(Experiment):
         domain += Constraint(lhs, "<=")
 
         # Objectives
-        des_5 = 'space time yield'
+        des_5 = 'space time yield (kg/m^3/h)'
         domain += ContinuousVariable(name='sty',
                                      description=des_5,
                                      bounds=[0, 100],
@@ -96,11 +96,11 @@ class SnarBenchmark(Experiment):
         V = 5 #mL
         q_tot = q_dfnb+q_pldn+q_eth
         tau = V/q_tot
-
+        
         # Initial Concentrations in mM
         C_i = np.zeros(5)
-        C_10 = 1
-        C_20 = 2
+        C_10 = 1  # 1M = 1 mM
+        C_20 = 2  # 2M = 2 mM
         C_i[0] = C_10*q_dfnb/q_tot
         C_i[1] = C_10*q_pldn/q_tot
 
@@ -111,20 +111,21 @@ class SnarBenchmark(Experiment):
 
         # Calculate STY and E-factor
         M = [159.09, 71.12, 210.21, 210.21, 261.33] # molecular weights (g/mol)
-        sty = M[2]/1000*C_final[2]*q_tot/V
+        sty = 6e4/1000*M[2]*C_final[2]*q_tot/V   # convert to kg m^-3 h^-1
         rho_eth = 0.789 # g/mL (should adjust to temp, but just using @ 25C)
-        term_2 = sum([M[i]*C_final[i]*q_tot for i in range(5)
-                     if i!=2])
-        e_factor = (q_eth*rho_eth+term_2)/(M[2]*C_final[2]*q_tot)
+        term_2 = 1e-3*sum([M[i]*C_final[i]*q_tot for i in range(5)
+                      if i!=2])
+        e_factor = (q_eth*rho_eth+term_2)/(1e-3*M[2]*C_final[2]*q_tot)
 
         return sty, e_factor, res
         
     def _integrand(self,t, C, T):
         # Kinetic Constants
         R = 8.314/1000  #kJ/K/mol
-        T_ref = 90 + 273.71
-        #Need to convert from 10^-2 M/s to mM/min`
-        k = lambda k_ref, E_a, T: 1e5*60*k_ref*np.exp(-E_a/R*(1/T-1/T_ref))
+        T_ref = 90 + 273.71  #Convert to deg K
+        T = T + 273.71       #Convert to deg K
+        #Need to convert from 10^-2 M^-1s^-1 to M^-1min^-1
+        k = lambda k_ref, E_a, temp: 6e4*k_ref*np.exp(-E_a/R*(1/temp-1/T_ref))
         k_a = k(57.9, 33.3, T)
         k_b = k(2.70, 35.3, T)
         k_c = k(0.864, 38.9, T)
@@ -136,7 +137,7 @@ class SnarBenchmark(Experiment):
         r[1] = -(k_a+k_b)*C[0]*C[1]-k_c*C[1]*C[2]-k_d*C[1]*C[3]
         r[2] = k_a*C[0]*C[1]-k_c*C[1]*C[2]
         r[3] = k_a*C[0]*C[1]-k_d*C[1]*C[3]
-        r[4] = k_c*C[1]*C[2]-k_d*C[1]*C[3]
+        r[4] = k_c*C[1]*C[2]+k_d*C[1]*C[3]
 
         # Deltas
         dcdtau = r
