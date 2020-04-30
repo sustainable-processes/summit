@@ -264,7 +264,7 @@ description = "SnobFit - Stable Noisy Optimization by Branch and FIT"
 name = "sqsnobfit"
 optional = false
 python-versions = "*"
-version = "0.4.0"
+version = "0.4.2"
 
 [package.dependencies]
 SQCommon = "*"
@@ -284,7 +284,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "47feb3098ce43aac935be735d80c1c71b3f7625fa3c12b864f8e1601b7c6c774"
+content-hash = "282c397497f8fd095e5f4328236259cb0b08375c422521abbe752ef95105083b"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -462,7 +462,7 @@ sqcommon = [
     {file = "SQCommon-0.3.tar.gz", hash = "sha256:7b9ed377e1c08d763b12c4196ee98d8313c72835784bca1122855f3c0ac5f127"},
 ]
 sqsnobfit = [
-    {file = "SQSnobFit-0.4.0.tar.gz", hash = "sha256:23e551d8a7df689184778a3d0c7b1dde3da633d75c1329454d2b30abba34effe"},
+    {file = "SQSnobFit-0.4.2.tar.gz", hash = "sha256:66b941ec8d96afb22beb6ec1db637acbfa9364ccb8f7acd8846ccf3144ea772f"},
 ]
 zipp = [
     {file = "zipp-3.1.0-py3-none-any.whl", hash = "sha256:aa36550ff0c0b7ef7fa639055d797116ee891440eac1a56f378e2d3179e0320b"},

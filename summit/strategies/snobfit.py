@@ -1,10 +1,8 @@
 from .base import Strategy
-from .random import LHS
-from summit.domain import Domain, DomainError
+from summit.domain import Domain
 from summit.utils.dataset import DataSet
-from SQCommon import Result, ObjectiveFunction
+
 from SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
-from SQSnobFit._optset    import optset
 from SQSnobFit._snobinput import snobinput
 from SQSnobFit._snoblocf  import snoblocf, snobround
 from SQSnobFit._snoblp    import snoblp
@@ -15,7 +13,7 @@ from SQSnobFit._snobqfit  import snobqfit
 from SQSnobFit._snobsplit import snobsplit
 from SQSnobFit._snobupdt  import snobupdt
 from SQSnobFit._snob5     import snob5
-import logging
+
 import math
 import numpy
 
@@ -23,7 +21,20 @@ import numpy as np
 import pandas as pd
 
 class SNOBFIT(Strategy):
-    ''' SNOBFIT optimization algorithm from TODO: add reference
+    ''' SNOBFIT optimization algorithm from W. Huyer and A.Neumaier, University of Vienna.
+
+        This implementation is based on the python reimplementation SQSnobFit (v.0.4.2)
+        of the original MATLAB implementation of SNOBFIT (v2.1).
+
+    Copyright of SNOBFIT (v2.1):
+        Neumaier, University of Vienna
+
+        Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
+
+    Copyright of SQSnobfit (v0.4.2)
+        UC Regents, Berkeley
+
+        Website: https://pypi.org/project/SQSnobFit/
 
     Parameters
     ----------
@@ -45,7 +56,7 @@ class SNOBFIT(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.9])
     >>> domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
-    >>> d = {'temperature': [10,4,5,3], 'flowrate_a': [0.6,0.3,0.2,0.1], 'flowrate_b': [0.1,0.3,0.2,0.1], 'yield': [1,1,3,4]}
+    >>> d = {'temperature': [50,40,70,30], 'flowrate_a': [0.6,0.3,0.2,0.1], 'flowrate_b': [0.1,0.3,0.2,0.1], 'yield': [1,1,3,4]}
     >>> df = pd.DataFrame(data=d)
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
@@ -93,12 +104,19 @@ class SNOBFIT(Strategy):
             List with variable settings of experiment with best outcome
         fbest: float
             Objective value at xbest
-        res: list
+        param: list
             List with parameters and prev_param of SNOBFIT algorithm (required for next iteration)
         """
 
         # Extract dimension of input domain
         dim = self.domain.num_continuous_dimensions()
+
+        # Get bounds of input variables
+        bounds = []
+        for v in self.domain.variables:
+            if not v.is_objective:
+                bounds.append(v.bounds)
+        bounds = np.asarray(bounds, dtype=float)
 
         # Initialization
         x0 = []    # no initial starting point
@@ -113,19 +131,17 @@ class SNOBFIT(Strategy):
             # Add uncertainties to previous measurements TODO: include uncertainties in input
             y = []
             for i in range(y0.shape[0]):
-                y.append([y0[i].tolist()[0],-1])
+                y.append([y0[i].tolist()[0],math.sqrt(numpy.spacing(1))])
             y0 = np.asarray(y, dtype=float)
         # If no prev_res are given but prev_param -> raise error
         elif prev_param is not None:
             raise ValueError('Parameter from previous optimization iteration are given but previous results are '
                              'missing!')
 
-        # Get bounds of input variables
-        bounds = []
-        for v in self.domain.variables:
-            if not v.is_objective:
-                bounds.append(v.bounds)
-        bounds = np.asarray(bounds, dtype=float)
+        # if no previous results are given initialize with empty lists
+        if not len(x0):
+            x0 = np.array(x0).reshape(0,len(bounds))
+            y0 = np.array(y0).reshape(0,2)
 
         ''' Determine SNOBFIT parameters
           config       structure variable defining the box [u,v] in which the
@@ -141,11 +157,12 @@ class SNOBFIT(Strategy):
                        if they differ by at least dx(i) in at least one
                        coordinate i
         '''
+        # TODO: how to handle hyperparameters for algorithms, here p and dx
         config = {'bounds': bounds, 'p': .5, 'nreq': num_experiments}
-        dx = (bounds[:,1]-bounds[:,0])*1E-3
+        dx = (bounds[:,1]-bounds[:,0])*1E-5
 
         # Run SNOBFIT for one iteration
-        request, xbest, fbest, res = self.snobfit(x0, y0, config, dx, prev_param)
+        request, xbest, fbest, param = self.snobfit(x0, y0, config, dx, prev_param)
 
         # Generate DataSet object with variable values of next experiments
         next_experiments = {}
@@ -156,7 +173,7 @@ class SNOBFIT(Strategy):
 
         #pred_exp_outcomes = request[:,dim]
 
-        return next_experiments, xbest, fbest, res
+        return next_experiments, xbest, fbest, param
 
 
     """
@@ -169,7 +186,7 @@ class SNOBFIT(Strategy):
         
         Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
         
-    Copyright of SQSnobfit (v0.4.0)
+    Copyright of SQSnobfit (v0.4.2)
         UC Regents, Berkeley
         
         Website: https://pypi.org/project/SQSnobFit/
