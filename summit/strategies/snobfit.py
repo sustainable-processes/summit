@@ -63,11 +63,12 @@ class SNOBFIT(Strategy):
     >>> next_experiments, xbest, fbest, res = strategy.suggest_experiments(5, initial)
     >>> print(next_experiments)
     NAME  temperature  flowrate_a  flowrate_b
-    0            99.8       0.933      0.7456
-    1            55.0       0.797      0.3576
-    2            32.4       0.798      0.8504
-    3            77.5       0.142      0.8824
-    4            66.2       0.619      0.7440
+    0          99.821     0.93287    0.745568
+    1           0.262     0.66454    0.818840
+    2          15.205     0.85730    0.383856
+    3          85.150     0.31611    0.630024
+    4          59.901     0.40831    0.706296
+
 
 
     Notes
@@ -128,7 +129,7 @@ class SNOBFIT(Strategy):
             x0 = inputs.data_to_numpy()
             y0 = outputs.data_to_numpy()
 
-            # Add uncertainties to previous measurements TODO: include uncertainties in input
+            # Add uncertainties to measurements TODO: include uncertainties in input
             y = []
             for i in range(y0.shape[0]):
                 y.append([y0[i].tolist()[0],math.sqrt(numpy.spacing(1))])
@@ -170,8 +171,6 @@ class SNOBFIT(Strategy):
             if not v.is_objective:
                 next_experiments[v.name] = request[:,i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
-
-        #pred_exp_outcomes = request[:,dim]
 
         return next_experiments, xbest, fbest, param
 
