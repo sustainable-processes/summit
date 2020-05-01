@@ -41,10 +41,13 @@ class SNOBFIT(Strategy):
     ----------
     domain: `summit.domain.Domain`
         A summit domain object
-
-    Attributes
-    ----------
-    domain
+    probability_p: float, optional
+        The probability p that a point of class 4 is generated, i.e., higher p
+        leads to more exploration.
+    dx_dim: float, optional
+        only used for the definition of a new problem: two points are considered
+        to be different if they differ by at least dx(i) in at least one
+        coordinate i
 
     Examples
     -------
@@ -69,13 +72,6 @@ class SNOBFIT(Strategy):
     2          15.205     0.85730    0.383856
     3          85.150     0.31611    0.630024
     4          59.901     0.40831    0.706296
-
-
-
-    Notes
-    -----
-    Descriptors variables are selected randomly as if they were discrete variables instead of sampling evenly in the continuous space.
-
     '''
 
     def __init__(self, domain: Domain, **kwargs):
@@ -124,7 +120,7 @@ class SNOBFIT(Strategy):
         bounds = np.asarray(bounds, dtype=float)
 
         # Initialization
-        x0 = []    # no initial starting point
+        x0 = []
         y0 = []
 
         # Get previous results

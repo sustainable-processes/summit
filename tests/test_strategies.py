@@ -47,14 +47,14 @@ def test_snobfit():
     domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0, 1])
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
                                  bounds=[-1000,1000], is_objective=True, maximize=True)
-    domain += Constraint(lhs="temperature/50+flowrate_a+flowrate_b-1.5", constraint_type="<=") #TODO: implement decoding of constraints
+    domain += Constraint(lhs="temperatureflowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
     constraint = False
     strategy = SNOBFIT(domain, probability_p=0.5, dx_dim=1E-5)
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
     # here Hartmann 3D function: https://www.sfu.ca/~ssurjano/hart3.html
     # Note that SNOBFIT treats constraints implicitly, i.e., for variable sets that
-    # violate one of the constraints return NaN as function value
+    # violate one of the constraints return NaN as function value (so-called: hidden constraints)
     def sim_fun(x_exp):
         if constr(x_exp):
             x_exp = x_exp[:3]
@@ -84,7 +84,7 @@ def test_snobfit():
     initial_exp.insert(3,'yield', test_fun(initial_exp.to_numpy()))   # initial results
     initial_exp = DataSet.from_df(initial_exp)
 
-    # run snobfit loop for fixed <num_iter> number of iteration with <num_experiments> number of experiments each
+    # run SNOBFIT loop for fixed <num_iter> number of iteration with <num_experiments> number of experiments each
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
     num_experiments = 4
     num_iter = 100
@@ -145,5 +145,3 @@ def test_snobfit():
         # Extrema of test function with constraint: tbd /TODO: determine optimum with constraint with other algorithms
         assert fbest <= -1
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
-
-test_snobfit()
