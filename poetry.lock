@@ -165,6 +165,22 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 version = "1.8.1"
 
 [[package]]
+category = "main"
+description = "A flexible derivative-free solver for (bound constrained) general objective minimization"
+name = "py-bobyqa"
+optional = false
+python-versions = "*"
+version = "1.2"
+
+[package.dependencies]
+numpy = ">=1.11"
+pandas = ">=0.17"
+scipy = ">=0.17"
+
+[package.extras]
+trustregion = ["trustregion (>=1.1)"]
+
+[[package]]
 category = "dev"
 description = "pytest: simple powerful testing with Python"
 name = "pytest"
@@ -219,6 +235,23 @@ alldeps = ["numpy (>=1.11.0)", "scipy (>=0.17.0)"]
 
 [[package]]
 category = "main"
+description = "Integrator for Python-based quantum computing software"
+name = "scikit-quant"
+optional = false
+python-versions = "*"
+version = "0.6.1"
+
+[package.dependencies]
+Py-BOBYQA = ">=1.1"
+SQCommon = "0.3.1"
+SQImFil = "0.3.5"
+
+[package.source]
+reference = "239970b4abb030d3683d9a4e992d8279adb16598"
+type = "git"
+url = "https://github.com/sustainable-processes/scikit-quant.git"
+[[package]]
+category = "main"
 description = "SciPy: Scientific Library for Python"
 name = "scipy"
 optional = false
@@ -253,18 +286,18 @@ description = "SQCommon - Common Optimizer API"
 name = "sqcommon"
 optional = false
 python-versions = "*"
-version = "0.3"
+version = "0.3.1"
 
 [package.dependencies]
 numpy = "*"
 
 [[package]]
 category = "main"
-description = "SnobFit - Stable Noisy Optimization by Branch and FIT"
-name = "sqsnobfit"
+description = "ImFil - Implicit Filtering"
+name = "sqimfil"
 optional = false
 python-versions = "*"
-version = "0.4.2"
+version = "0.3.5"
 
 [package.dependencies]
 SQCommon = "*"
@@ -284,7 +317,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "282c397497f8fd095e5f4328236259cb0b08375c422521abbe752ef95105083b"
+content-hash = "acd2d022a19b20d520596dc74eb6634b0e798a729c62c8e106803ee4ef069113"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -393,6 +426,9 @@ py = [
     {file = "py-1.8.1-py2.py3-none-any.whl", hash = "sha256:c20fdd83a5dbc0af9efd622bee9a5564e278f6380fffcacc43ba6f43db2813b0"},
     {file = "py-1.8.1.tar.gz", hash = "sha256:5e27081401262157467ad6e7f851b7aa402c5852dbcb3dae06768434de5752aa"},
 ]
+py-bobyqa = [
+    {file = "Py-BOBYQA-1.2.tar.gz", hash = "sha256:df878e2546bb360cea6e1dc70d92529775218fba8ff561bf22d23dfd7334e696"},
+]
 pytest = [
     {file = "pytest-3.10.1-py2.py3-none-any.whl", hash = "sha256:3f193df1cfe1d1609d4c583838bea3d532b18d6160fd3f55c9447fdca30848ec"},
     {file = "pytest-3.10.1.tar.gz", hash = "sha256:e246cf173c01169b9617fc07264b7b1316e78d7a650055235d6d897bc80d9660"},
@@ -428,6 +464,7 @@ scikit-learn = [
     {file = "scikit_learn-0.22.2.post1-cp38-cp38-win32.whl", hash = "sha256:1bf45e62799b6938357cfce19f72e3751448c4b27010e4f98553da669b5bbd86"},
     {file = "scikit_learn-0.22.2.post1-cp38-cp38-win_amd64.whl", hash = "sha256:672ea38eb59b739a8907ec063642b486bcb5a2073dda5b72b7983eeaf1fd67c1"},
 ]
+scikit-quant = []
 scipy = [
     {file = "scipy-1.4.1-cp35-cp35m-macosx_10_6_intel.whl", hash = "sha256:c5cac0c0387272ee0e789e94a570ac51deb01c796b37fb2aad1fb13f85e2f97d"},
     {file = "scipy-1.4.1-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:a144811318853a23d32a07bc7fd5561ff0cac5da643d96ed94a4ffe967d89672"},
@@ -459,10 +496,10 @@ sklearn = [
     {file = "sklearn-0.0.tar.gz", hash = "sha256:e23001573aa194b834122d2b9562459bf5ae494a2d59ca6b8aa22c85a44c0e31"},
 ]
 sqcommon = [
-    {file = "SQCommon-0.3.tar.gz", hash = "sha256:7b9ed377e1c08d763b12c4196ee98d8313c72835784bca1122855f3c0ac5f127"},
+    {file = "SQCommon-0.3.1.tar.gz", hash = "sha256:c66fd1b2c3f3a2a7d37869412d45eae8eca84b91bc8881e4ed42b2bf71ec30d4"},
 ]
-sqsnobfit = [
-    {file = "SQSnobFit-0.4.2.tar.gz", hash = "sha256:66b941ec8d96afb22beb6ec1db637acbfa9364ccb8f7acd8846ccf3144ea772f"},
+sqimfil = [
+    {file = "SQImFil-0.3.5.tar.gz", hash = "sha256:49c5c631949c8e098a6344977dc5f42a9cf792095d41ae000e33f87815c67956"},
 ]
 zipp = [
     {file = "zipp-3.1.0-py3-none-any.whl", hash = "sha256:aa36550ff0c0b7ef7fa639055d797116ee891440eac1a56f378e2d3179e0320b"},

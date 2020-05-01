@@ -49,7 +49,7 @@ def test_snobfit():
                                  bounds=[-1000,1000], is_objective=True, maximize=True)
     domain += Constraint(lhs="temperature/50+flowrate_a+flowrate_b-1.5", constraint_type="<=") #TODO: implement decoding of constraints
     constraint = False
-    strategy = SNOBFIT(domain)
+    strategy = SNOBFIT(domain, probability_p=0.5, dx_dim=1E-5)
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
     # here Hartmann 3D function: https://www.sfu.ca/~ssurjano/hart3.html
@@ -124,16 +124,16 @@ def test_snobfit():
                     strategy.suggest_experiments(num_experiments, prev_res= \
                     next_experiments.loc[:,~next_experiments.columns.isin([('constraint','DATA')])],prev_param=res)
 
-            if fbest < fbestold:
-                fbestold = fbest
-                nstop = 0
-            else:
-                nstop += 1
-            if nstop >= max_stop:
-                print("No improvement in last " + str(max_stop) + " iterations.")
-                break
-            print(next_experiments)   # show next experiments
-            print("\n")
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+        print(next_experiments)   # show next experiments
+        print("\n")
 
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)

@@ -2,17 +2,18 @@ from .base import Strategy
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 
-from SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
-from SQSnobFit._snobinput import snobinput
-from SQSnobFit._snoblocf  import snoblocf, snobround
-from SQSnobFit._snoblp    import snoblp
-from SQSnobFit._snobnan   import snobnan
-from SQSnobFit._snobnn   import snobnn
-from SQSnobFit._snobpoint import snobpoint
-from SQSnobFit._snobqfit  import snobqfit
-from SQSnobFit._snobsplit import snobsplit
-from SQSnobFit._snobupdt  import snobupdt
-from SQSnobFit._snob5     import snob5
+# /TODO: change to SQSnobFit when original package is updated
+from opt.snobfit.python.SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
+from opt.snobfit.python.SQSnobFit._snobinput import snobinput
+from opt.snobfit.python.SQSnobFit._snoblocf  import snoblocf, snobround
+from opt.snobfit.python.SQSnobFit._snoblp    import snoblp
+from opt.snobfit.python.SQSnobFit._snobnan   import snobnan
+from opt.snobfit.python.SQSnobFit._snobnn   import snobnn
+from opt.snobfit.python.SQSnobFit._snobpoint import snobpoint
+from opt.snobfit.python.SQSnobFit._snobqfit  import snobqfit
+from opt.snobfit.python.SQSnobFit._snobsplit import snobsplit
+from opt.snobfit.python.SQSnobFit._snobupdt  import snobupdt
+from opt.snobfit.python.SQSnobFit._snob5     import snob5
 
 import math
 import numpy
@@ -79,6 +80,9 @@ class SNOBFIT(Strategy):
 
     def __init__(self, domain: Domain, **kwargs):
         Strategy.__init__(self, domain)
+
+        self._p = kwargs.get('probability_p', 0.5)
+        self._dx_dim = kwargs.get('dx_dim', 1E-5)
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
         """ Suggest experiments using Nelder-Mead Simplex method
@@ -158,9 +162,8 @@ class SNOBFIT(Strategy):
                        if they differ by at least dx(i) in at least one
                        coordinate i
         '''
-        # TODO: how to handle hyperparameters for algorithms, here p and dx
-        config = {'bounds': bounds, 'p': .5, 'nreq': num_experiments}
-        dx = (bounds[:,1]-bounds[:,0])*1E-5
+        config = {'bounds': bounds, 'p': self._p, 'nreq': num_experiments}
+        dx = (bounds[:,1]-bounds[:,0])*self._dx_dim
 
         # Run SNOBFIT for one iteration
         request, xbest, fbest, param = self.snobfit(x0, y0, config, dx, prev_param)
@@ -171,6 +174,7 @@ class SNOBFIT(Strategy):
             if not v.is_objective:
                 next_experiments[v.name] = request[:,i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
+        next_experiments['strategy', 'METADATA'] = ['SNOBFIT']*num_experiments
 
         return next_experiments, xbest, fbest, param
 
