@@ -58,7 +58,7 @@ class Experiment(ABC):
                 self._data['strategy'].iat[-1] = condition.get('strategy').values[0]
             self.extras.append(extras)
         self.prev_itr_time = time.time()
-        return self._data.iloc[[-len(conditions)]]
+        return self._data.iloc[-len(conditions):]
         
     @abstractmethod
     def _run(self, conditions, **kwargs):
