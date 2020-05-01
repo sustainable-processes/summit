@@ -19,7 +19,7 @@ class Experiment(ABC):
     
     @property
     def data(self):
-        """Data tracked by the experiment"""
+        """Datast of all experiments run"""
         return self._data
 
     def run_experiments(self, conditions,
@@ -65,6 +65,7 @@ class Experiment(ABC):
         raise NotImplementedError('_run be implemented by subclasses of Benchmark')
 
     def reset(self):
+        """Reset the experiment"""
         self.prev_itr_time = None
         columns = [var.name for var in self.domain.variables]
         md_columns = ['computation_time', 'experiment_time', 'strategy']
@@ -73,11 +74,43 @@ class Experiment(ABC):
         self.extras = []
     
     def pareto_plot(self, objectives=None, ax=None):
+        '''  Make a 2D pareto plot of the experiments thus far
+        
+        Parameters
+        ---------- 
+        objectives: array-like, optional
+            List of names of objectives to plot.
+            By default picks the first two objectives
+        ax: `matplotlib.pyplot.axes`, optional
+            An existing axis to apply the plot to
+
+        Returns
+        -------
+        if ax is None returns a tuple with the first component
+        as the a new figure and the second component the axis
+
+        if ax is a matplotlib axis, returns only the axis
+        
+        Raises
+        ------
+        ValueError
+            If the number of objectives is not equal to two
+        
+        Examples
+        --------
+        
+        
+        Notes
+        -----
+        
+        
+        ''' 
         if objectives is None:
             objectives = [v.name for v in self.domain.variables
                           if v.is_objective]
+            objectives = objectives[0:2]
         
-        if len(objectives) > 2:
+        if len(objectives) != 2:
             raise ValueError("Can only plot 2 objectives")
 
         data = self._data[objectives].copy()
@@ -89,6 +122,7 @@ class Experiment(ABC):
 
         values, indices = pareto_efficient(data.to_numpy(),
                                            maximize=True)
+        
         if ax is None:
             fig, ax = plt.subplots(1)
             return_fig = True
@@ -96,24 +130,26 @@ class Experiment(ABC):
             return_fig = False
         
         # Plot all data
-        strategies = pd.unique(self.data['strategy'])
-        markers = ['o', 'x']
-        for strategy, marker in zip(strategies, markers):
-            strat_data = self.data[self.data['strategy']==strategy]
-            ax.scatter(strat_data[objectives[0]],
-                       strat_data[objectives[1]],
-                      c='k', marker=marker, label=strategy)
+        if len(self.data) > 0:
+            strategies = pd.unique(self.data['strategy'])
+            markers = ['o', 'x']
+            for strategy, marker in zip(strategies, markers):
+                strat_data = self.data[self.data['strategy']==strategy]
+                ax.scatter(strat_data[objectives[0]],
+                        strat_data[objectives[1]],
+                        c='k', marker=marker, label=strategy)
 
-        #Sort data so get nice pareto plot
-        pareto_data = self.data.iloc[indices].copy()
-        pareto_data = pareto_data.sort_values(by=objectives[0])
-        ax.plot(pareto_data[objectives[0]], 
-                pareto_data[objectives[1]],
-                c='k', label='Pareto Front')
-        ax.set_xlabel(objectives[0])
-        ax.set_ylabel(objectives[1])
-        ax.tick_params(direction='in')
-        ax.legend()
+            #Sort data so get nice pareto plot
+            pareto_data = self.data.iloc[indices].copy()
+            pareto_data = pareto_data.sort_values(by=objectives[0])
+            ax.plot(pareto_data[objectives[0]], 
+                    pareto_data[objectives[1]],
+                    c='k', label='Pareto Front')
+            ax.set_xlabel(objectives[0])
+            ax.set_ylabel(objectives[1])
+            ax.tick_params(direction='in')
+            ax.legend()
+
         if return_fig:
             return fig, ax
         else:
