@@ -66,12 +66,13 @@ class SNOBFIT(Strategy):
     >>> strategy = SNOBFIT(domain)
     >>> next_experiments, xbest, fbest, res = strategy.suggest_experiments(5, initial)
     >>> print(next_experiments)
-    NAME  temperature  flowrate_a  flowrate_b
-    0          99.821     0.93287    0.745568
-    1           0.262     0.66454    0.818840
-    2          15.205     0.85730    0.383856
-    3          85.150     0.31611    0.630024
-    4          59.901     0.40831    0.706296
+    NAME  temperature  flowrate_a  flowrate_b strategy
+    0          99.821     0.93287    0.745568  SNOBFIT
+    1           0.262     0.66454    0.818840  SNOBFIT
+    2          15.205     0.85730    0.383856  SNOBFIT
+    3          85.150     0.31611    0.630024  SNOBFIT
+    4          59.901     0.40831    0.706296  SNOBFIT
+
     '''
 
     def __init__(self, domain: Domain, **kwargs):
