@@ -44,10 +44,12 @@ class SNOBFIT(Strategy):
     probability_p: float, optional
         The probability p that a point of class 4 is generated, i.e., higher p
         leads to more exploration.
+        Default is 0.5.
     dx_dim: float, optional
         only used for the definition of a new problem: two points are considered
         to be different if they differ by at least dx(i) in at least one
-        coordinate i
+        coordinate i.
+        Default is 1E-5.
 
     Examples
     -------
@@ -171,8 +173,7 @@ class SNOBFIT(Strategy):
             if not v.is_objective:
                 next_experiments[v.name] = request[:,i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
-        next_experiments['strategy', 'METADATA'] = ['SNOBFIT']*num_experiments
-
+        next_experiments[('strategy', 'METADATA')] = ['SNOBFIT']*num_experiments
         return next_experiments, xbest, fbest, param
 
 
