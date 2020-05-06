@@ -11,7 +11,20 @@ from abc import ABC, abstractmethod
 from typing import Type, Tuple
 
 class Strategy(ABC):
-    def __init__(self, domain:Domain):
+    def __init__(self, domain: Domain, transform: Transform=None):
+        self.domain = domain
+        if transform is None:
+            self.transform = Transform(domain)
+        elif type(transform) == Transform:
+            self.transform = transform(domain)
+        else:
+            raise TypeError('transform must be a Transform class')
+
+    def suggest_experiments(self):
+        raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
+
+class Transform:
+    def __init__(self, domain):
         self.domain = domain
 
     def get_inputs_outputs(self, ds: DataSet, copy=True):
@@ -60,8 +73,9 @@ class Strategy(ABC):
         #Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
 
-    def suggest_experiments(self):
-        raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
+    def make_ds(self, inputs, outputs):
+        pass
+
 
 class Design:
     """Representation of an experimental design

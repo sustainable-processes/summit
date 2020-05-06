@@ -1,4 +1,4 @@
-from .base import Strategy
+from .base import Strategy, Transform
 from .random import LHS
 from summit.domain import Domain, DomainError
 from summit.utils.multiobjective import pareto_efficient, HvI
@@ -48,8 +48,9 @@ class TSEMO2(Strategy):
     >>> result = strategy.suggest_experiments(5)
  
     ''' 
-    def __init__(self, domain, models=None, optimizer=None, **kwargs):
-        Strategy.__init__(self, domain)
+    def __init__(self, domain, transform=None,
+                 models=None, optimizer=None, **kwargs):
+        Strategy.__init__(self, domain, transform)
 
         if models is None:
             input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
@@ -98,7 +99,8 @@ class TSEMO2(Strategy):
             return lhs.suggest_experiments(num_experiments)
 
         #Get inputs and outputs
-        inputs, outputs = self.get_inputs_outputs(previous_results)
+        inputs, outputs = self.transform.get_inputs_outputs(previous_results)
+        
         #Fit models to new data
         self.models.fit(inputs, outputs)
 
