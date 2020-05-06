@@ -99,17 +99,26 @@ class TSEMO2(Strategy):
             return lhs.suggest_experiments(num_experiments)
 
         #Get inputs and outputs
-        inputs, outputs = self.transform.get_inputs_outputs(previous_results)
+        inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
         
         #Fit models to new data
         self.models.fit(inputs, outputs)
 
+        #Run internal optimization
         internal_res = self.optimizer.optimize(self.models)
         
         if internal_res is not None and len(internal_res.fun)!=0:
+            # Select points that give maximum hypervolume improvement
             hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
+
+            #Join to get single dataset with inputs and outputs
             result = internal_res.x.join(internal_res.fun) 
             result =  result.iloc[indices, :]
+
+            # Do any necessary transformations back
+            result = self.transform.un_transform(result)
+
+            #State the strategy used
             result[('strategy', 'METADATA')] = 'TSEMO2'
             return result
         else:

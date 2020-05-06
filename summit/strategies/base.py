@@ -10,24 +10,37 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from typing import Type, Tuple
 
-class Strategy(ABC):
-    def __init__(self, domain: Domain, transform: Transform=None):
-        self.domain = domain
-        if transform is None:
-            self.transform = Transform(domain)
-        elif type(transform) == Transform:
-            self.transform = transform(domain)
-        else:
-            raise TypeError('transform must be a Transform class')
-
-    def suggest_experiments(self):
-        raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
-
 class Transform:
+    '''  Pre/post-processing of data for strategies
+    
+    Parameters
+    ---------- 
+    domain: `sumit.domain.Domain``
+        A domain for that is being used in the strategy
+
+    Notes
+    ------
+    This class can be overridden to create custom transformations as necessary.    
+    
+    ''' 
     def __init__(self, domain):
         self.domain = domain
 
-    def get_inputs_outputs(self, ds: DataSet, copy=True):
+    def transform_inputs_outputs(self, ds: DataSet, copy=True):
+        '''  Transform of data into inputs and outptus for a strategy
+        
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+
+        Returns
+        -------
+        inputs, outputs
+            Datasets with the input and output datasets  
+        ''' 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
 
@@ -73,9 +86,77 @@ class Transform:
         #Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
 
-    def make_ds(self, inputs, outputs):
-        pass
+    def un_transform(self, ds):
+        ''' Transform data back into its original represetnation
+            after strategy is finished 
+        
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
 
+        Notes
+        -----
+        Override this class to achieve custom untransformations 
+        ''' 
+        return ds
+
+class MultitoSingleObjective(Transform):
+    '''  Transform a multiobjective problem into a single objective problems
+    
+    Parameters
+    ---------- 
+    domain: `sumit.domain.Domain``
+        A domain for that is being used in the strategy
+    expression: str
+        An expression in terms of variable names used to
+        convert the multiobjective problem into a single
+        objective problem
+    
+    Returns
+    -------
+    result: `bool`
+        description
+    
+    Raises
+    ------
+    ValueError
+        description
+    
+    Examples
+    --------
+    
+    
+    Notes
+    -----
+    
+    
+    ''' 
+    def __init__(self, domain: Domain, expression: str):
+        super().__init__(self, domain)
+        #Check that the domain has multiple objectives
+        num_objectives = len([v for v in self.domain.variables in v.is_objective])
+        if num_objectives <= 1:
+            raise ValueError(f"Domain must have at least two objectives; it currently has {num_objectives} objectives.")
+        self.expression = expression
+    
+    def transform_inputs_outputs(self, ds, copy=True):
+        inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
+        outputs = outputs.eval(expression)
+        return inputs, outputs
+
+class Strategy(ABC):
+    def __init__(self, domain: Domain, transform: Transform=None):
+        self.domain = domain
+        if transform is None:
+            self.transform = Transform(domain)
+        elif type(transform) == Transform:
+            self.transform = transform(domain)
+        else:
+            raise TypeError('transform must be a Transform class')
+
+    def suggest_experiments(self):
+        raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
 
 class Design:
     """Representation of an experimental design
