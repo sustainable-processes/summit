@@ -123,7 +123,6 @@ class MultitoSingleObjective(Transform):
     ValueError
         If domain does not have at least two objectives
     
-
     ''' 
     def __init__(self, domain: Domain, expression: str):
         super().__init__(domain)
