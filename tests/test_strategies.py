@@ -47,8 +47,8 @@ def test_snobfit():
     domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0, 1])
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
                                  bounds=[-1000,1000], is_objective=True, maximize=True)
-    domain += Constraint(lhs="temperature+flowrate_a+flowrate_b-2.5", constraint_type="<=") #TODO: implement decoding of constraints
-    dim = domain.num_continuous_dimensions()
+    domain += Constraint(lhs="temperatureflowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
+    constraint = False
     strategy = SNOBFIT(domain, probability_p=0.5, dx_dim=1E-5)
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
@@ -56,8 +56,8 @@ def test_snobfit():
     # Note that SNOBFIT treats constraints implicitly, i.e., for variable sets that
     # violate one of the constraints return NaN as function value (so-called: hidden constraints)
     def sim_fun(x_exp):
-        x_exp = x_exp[:dim]
         if constr(x_exp):
+            x_exp = x_exp[:3]
             A = np.array([[3,10,30],[0.1,10,35],[3,10,30],[0.1,10,35]])
             P = np.array([[3689,1170,2673],[4699,4387,7470],[1091,8732,5547],[381,5743,8828]])*10**(-4)
             alpha = np.array([1,1.2,3.0,3.2])
@@ -71,24 +71,17 @@ def test_snobfit():
     def test_fun(x):
         y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
         return y
-    # Check constraints
+    # Define hypothetical constraint (for real experiments, check constraint and return NaN)
     def constr(x):
-        if domain.constraints:
-            input_columns = [v.name for v in domain.variables if not v.is_objective]
-            X = DataSet(np.atleast_2d(x),
-                        columns=input_columns).astype(float)
-
-            constraint_res = [X.eval(c.lhs, resolvers=[X]) for c in domain.constraints]
-            constraint_res = [c.tolist()[0] <= 0 for c in constraint_res] # TODO handle operator
-
-            return all(constraint_res)
+        if constraint:
+            return (x[0]+x[1]+x[2]<=1)
         else:
             return True
 
     # Initialize with "experimental" data
     initial_exp = pd.DataFrame(data={'temperature': [0.409,0.112,0.17,0.8], 'flowrate_a': [0.424,0.33,0.252,0.1],
                                      'flowrate_b': [0.13,0.3,0.255,0.01]})   # initial experimental points
-    initial_exp.insert(dim,'yield', test_fun(initial_exp.to_numpy()))   # initial results
+    initial_exp.insert(3,'yield', test_fun(initial_exp.to_numpy()))   # initial results
     initial_exp = DataSet.from_df(initial_exp)
 
     # run SNOBFIT loop for fixed <num_iter> number of iteration with <num_experiments> number of experiments each
@@ -105,7 +98,7 @@ def test_snobfit():
         # runs with history
         else:
             next_experiments_mod = next_experiments.data_to_numpy()
-            if not domain.constraints:
+            if not constraint:
                 # This is the part where experiments take place
                 exp_yield = test_fun(next_experiments.data_to_numpy())
                 next_experiments['yield', 'DATA'] = exp_yield
@@ -127,10 +120,9 @@ def test_snobfit():
                 exp_yield = test_fun(next_experiments.iloc[constr_mask].data_to_numpy())
                 next_experiments.loc[next_experiments['constraint'] != False, 'yield'] = exp_yield   # set results for valid experiments
                 # Call of SNOBFIT
-                next_experiments, xbest, fbest, res= \
-                    strategy.suggest_experiments(num_experiments,
-                                                 prev_res=next_experiments[next_experiments.data_columns],
-                                                 prev_param=res)
+                next_experiments, xbest, fbest, res = \
+                    strategy.suggest_experiments(num_experiments, prev_res= \
+                    next_experiments.loc[:,~next_experiments.columns.isin([('constraint','DATA')])],prev_param=res)
 
         if fbest < fbestold:
             fbestold = fbest
@@ -145,7 +137,7 @@ def test_snobfit():
 
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
-    if not domain.constraints:
+    if not constraint:
         # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
         assert (xbest[0] >= 0.113 and xbest[0] <= 0.115) and (xbest[1] >= 0.555 and xbest[1] <= 0.557) and \
                (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
