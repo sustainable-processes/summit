@@ -124,7 +124,8 @@ class MultitoSingleObjective(Transform):
         If domain does not have at least two objectives
     
     ''' 
-    def __init__(self, domain: Domain, expression: str):
+    def __init__(self, domain: Domain, expression: str, maximize=True):
+        # TODO: make maximization and minimization work properly
         super().__init__(domain)
         #Check that the domain has multiple objectives
         num_objectives = len([v for v in self.domain.variables if v.is_objective])
@@ -135,7 +136,68 @@ class MultitoSingleObjective(Transform):
     def transform_inputs_outputs(self, ds, copy=True):
         inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
         outputs = outputs.eval(self.expression, resolvers=[outputs])
+        outputs = DataSet(outputs, columns=['objective'])
         return inputs, outputs
+
+class LogSpaceObjectives(Transform):
+    '''  Log transform objectives
+    
+    Parameters
+    ---------- 
+    domain: `sumit.domain.Domain``
+        A domain for that is being used in the strategy
+
+    Raises
+    ------
+    ValueError
+        When the domain has no objectives.
+    
+    ''' 
+    def __init__(self, domain: Domain):
+        super().__init__(domain)
+        num_objectives = len([v for v in self.domain.variables if v.is_objective])
+        if num_objectives ==0:
+            raise ValueError(f"The domain must have objectives. Currently has {num_objectives} objectives.")
+
+    def transform_inputs_outputs(self, ds, copy=True):
+        '''  Transform of data into inputs and outptus for a strategy
+        
+        This will do a log transform on the objectives (outputs).
+
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+
+        Returns
+        -------
+        inputs, outputs
+            Datasets with the input and output datasets  
+        ''' 
+        inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
+        outputs = outputs.apply(np.log)
+        return inputs, outputs
+
+    def un_transform(self, ds):
+        ''' Untransform objectives from log space to
+        
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+
+        Notes
+        -----
+        Override this class to achieve custom untransformations 
+        ''' 
+        ds = super().un_transform(ds)
+        for v in self.domain.variables:
+            if v.is_objective:
+                ds[v.name] = np.exp(ds[v.name])
+        return ds
+
 
 class Strategy(ABC):
     ''' Base class for strategies 
@@ -168,12 +230,12 @@ class Strategy(ABC):
     
     
     ''' 
-    def __init__(self, domain: Domain, transform: Transform=None):
+    def __init__(self, domain: Domain, transform: Transform=None, **kwargs):
         self.domain = domain
         if transform is None:
             self.transform = Transform(domain)
-        elif type(transform) == Transform:
-            self.transform = transform(domain)
+        elif isinstance(transform, Transform):
+            self.transform = transform
         else:
             raise TypeError('transform must be a Transform class')
 

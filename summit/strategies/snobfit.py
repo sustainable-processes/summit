@@ -41,6 +41,10 @@ class SNOBFIT(Strategy):
     ----------
     domain: `summit.domain.Domain`
         A summit domain object
+    transform: `summit.strategies.base.Transform`, optional
+        A transform class (i.e, not the object itself). By default
+        no transformation will be done the input variables or
+        objectives.
     probability_p: float, optional
         The probability p that a point of class 4 is generated, i.e., higher p
         leads to more exploration.
@@ -78,7 +82,7 @@ class SNOBFIT(Strategy):
     '''
 
     def __init__(self, domain: Domain, **kwargs):
-        Strategy.__init__(self, domain)
+        Strategy.__init__(self, domain, **kwargs)
 
         self._p = kwargs.get('probability_p', 0.5)
         self._dx_dim = kwargs.get('dx_dim', 1E-5)
@@ -128,7 +132,7 @@ class SNOBFIT(Strategy):
 
         # Get previous results
         if prev_res is not None:
-            inputs, outputs = self.get_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
             x0 = inputs.data_to_numpy()
             y0 = outputs.data_to_numpy()
 
