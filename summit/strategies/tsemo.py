@@ -16,7 +16,11 @@ class TSEMO2(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The domain of the optimization
-    models: dictionary of summit.utils.model.Model or summit.utils.model.ModelGroup, optional
+    transform: `summit.strategies.base.Transform`, optional
+        A transform class (i.e, not the object itself). By default
+        no transformation will be done the input variables or
+        objectives.
+    models: a dictionary of summit.utils.model.Model or a summit.utils.model.ModelGroup, optional
         A dictionary of surrogate models or a ModelGroup to be used in the optimization.
         By default, gaussian processes with the Matern kernel will be used.
     maximize: bool, optional

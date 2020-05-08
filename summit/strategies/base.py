@@ -121,6 +121,43 @@ class MultitoSingleObjective(Transform):
     Raises
     ------
     ValueError
+        If domain does not have at least two objectives
+    
+
+    ''' 
+    def __init__(self, domain: Domain, expression: str):
+        super().__init__(domain)
+        #Check that the domain has multiple objectives
+        num_objectives = len([v for v in self.domain.variables if v.is_objective])
+        if num_objectives <= 1:
+            raise ValueError(f"Domain must have at least two objectives; it currently has {num_objectives} objectives.")
+        self.expression = expression
+    
+    def transform_inputs_outputs(self, ds, copy=True):
+        inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
+        outputs = outputs.eval(self.expression, resolvers=[outputs])
+        return inputs, outputs
+
+class Strategy(ABC):
+    ''' Base class for strategies 
+    
+    Parameters
+    ---------- 
+    domain: `summit.domain.Domain`
+        A summit domain containing variables and constraints
+    transform: `summit.strategies.base.Transform`, optional
+        A transform class (i.e, not the object itself). By default
+        no transformation will be done the input variables or
+        objectives.
+    
+    Returns
+    -------
+    result: `bool`
+        description
+    
+    Raises
+    ------
+    ValueError
         description
     
     Examples
@@ -132,20 +169,6 @@ class MultitoSingleObjective(Transform):
     
     
     ''' 
-    def __init__(self, domain: Domain, expression: str):
-        super().__init__(self, domain)
-        #Check that the domain has multiple objectives
-        num_objectives = len([v for v in self.domain.variables in v.is_objective])
-        if num_objectives <= 1:
-            raise ValueError(f"Domain must have at least two objectives; it currently has {num_objectives} objectives.")
-        self.expression = expression
-    
-    def transform_inputs_outputs(self, ds, copy=True):
-        inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
-        outputs = outputs.eval(expression)
-        return inputs, outputs
-
-class Strategy(ABC):
     def __init__(self, domain: Domain, transform: Transform=None):
         self.domain = domain
         if transform is None:
