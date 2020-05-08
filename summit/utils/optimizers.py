@@ -42,12 +42,8 @@ class Optimizer(ABC):
                
         ''' 
         objective = objectivefx
-        try:
-            result = self._optimize(objective, **kwargs)
-        except KeyboardInterrupt:
-            result = OptimizeResult(x=objective._previous_x,
-                                    success=False,
-                                    message="Caught KeyboardInterrupt, returning last good value.")
+        result = self._optimize(objective, **kwargs)
+
         # result.nfev = objective.counter
         return result
 

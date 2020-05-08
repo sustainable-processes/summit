@@ -20,6 +20,8 @@ scikit-quant = {git = "https://github.com/sustainable-processes/scikit-quant.git
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
+ipdb = "^0.13.2"
+jupyterlab = "^2.1.1"
 
 
 [build-system]
