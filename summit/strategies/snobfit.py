@@ -62,7 +62,7 @@ class SNOBFIT(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.9])
     >>> domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
-    >>> d = {'temperature': [50,40,70,30], 'flowrate_a': [0.6,0.3,0.2,0.1], 'flowrate_b': [0.1,0.3,0.2,0.1], 'yield': [1,1,3,4]}
+    >>> d = {'temperature': [50,40,70,30], 'flowrate_a': [0.6,0.3,0.2,0.1], 'flowrate_b': [0.1,0.3,0.2,0.1], 'yield': [0.7,0.6,0.3,0.1]}
     >>> df = pd.DataFrame(data=d)
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
@@ -129,6 +129,12 @@ class SNOBFIT(Strategy):
         # Get previous results
         if prev_res is not None:
             inputs, outputs = self.get_inputs_outputs(prev_res)
+            
+            # Set up maximization and minimization
+            for v in self.domain.variables:
+                if v.is_objective and v.maximize:
+                    outputs[v.name] = -1 * outputs[v.name]
+                    
             x0 = inputs.data_to_numpy()
             y0 = outputs.data_to_numpy()
 
