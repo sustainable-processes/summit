@@ -66,7 +66,7 @@ def test_snobfit():
             d = np.zeros((4,1))
             for k in range(4):
                 d[k] = np.sum(np.dot(A[k,:],(x_exp-P[k,:])**2))
-            y_exp = - np.sum(np.dot(alpha,np.exp(-d)))
+            y_exp = np.sum(np.dot(alpha,np.exp(-d)))
         else:
             y_exp = np.nan
         return y_exp
