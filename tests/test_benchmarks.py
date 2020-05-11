@@ -1,5 +1,5 @@
 import pytest
-from summit.benchmarks import SnarBenchmark
+from summit.benchmarks import SnarBenchmark, DTLZ2
 from summit.utils.dataset import DataSet
 import numpy as np
 
@@ -24,3 +24,9 @@ def test_snar_benchmark():
     assert np.isclose(float(results['e_factor']), 191.260294)
 
     return results
+
+def test_dltz_benchmark():
+    """Test the DTLZ2 benchmark"""
+    b = DTLZ2()
+
+    b 

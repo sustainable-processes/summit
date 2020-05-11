@@ -1,8 +1,10 @@
 
 import pytest
 from summit.domain import Domain, ContinuousVariable, Constraint
-from summit.strategies import Random, LHS, SNOBFIT
+from summit.strategies import Random, LHS, SNOBFIT, TSEMO
 from summit.utils.dataset import DataSet
+
+from platypus import DTLZ2
 import numpy as np
 import pandas as pd
 
@@ -39,7 +41,9 @@ def test_lhs():
     return results
 
 def test_tsemo():
-    pass
+    problem = DTLZ2()
+
+    strategy = TSEMO()
 
 def test_snobfit():
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)

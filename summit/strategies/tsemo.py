@@ -9,8 +9,8 @@ from summit.utils.dataset import DataSet
 import numpy as np
 from abc import ABC, abstractmethod
         
-class TSEMO2(Strategy):
-    ''' A modified version of Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
+class TSEMO(Strategy):
+    ''' Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
     
     Parameters
     ---------- 
@@ -38,7 +38,7 @@ class TSEMO2(Strategy):
     Examples
     --------
     >>> from summit.domain import Domain, ContinuousVariable
-    >>> from summit.strategies import TSEMO2
+    >>> from summit.strategies import TSEMO
     >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
@@ -130,10 +130,6 @@ class TSEMO2(Strategy):
             and the indices of the corresponding points in samples       
         
         ''' 
-        #Get the reference point, r
-        # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0)) 
-        r = self._reference
-
         samples = samples.copy()
         y = y.copy()
         
@@ -147,6 +143,10 @@ class TSEMO2(Strategy):
         samples = samples.data_to_numpy()
         Ynew = y.data_to_numpy()
         # Ynew = (Ynew - mean)/std
+
+        #Reference
+        Yfront, _ = pareto_efficient(Ynew, maximize=False)
+        r = np.max(Yfront, axis=0)
         
         index = []
         n = samples.shape[1]
@@ -161,6 +161,7 @@ class TSEMO2(Strategy):
             random_selects = np.random.randint(0, num_evals, size=num_random)
         else:
             random_selects = np.array([])
+
         
         for i in range(num_evals):
             masked_samples = samples[mask, :]
@@ -169,14 +170,14 @@ class TSEMO2(Strategy):
                 raise ValueError('Pareto front length too short')
 
             hv_improvement = []
-            hvY = HvI.hypervolume(Yfront, [0, 0])
+            hvY = HvI.hypervolume(Yfront, r)
             #Determine hypervolume improvement by including
             #each point from samples (masking previously selected poonts)
             for sample in masked_samples:
                 sample = sample.reshape(1,n)
                 A = np.append(Ynew, sample, axis=0)
                 Afront, _ = pareto_efficient(A, maximize=False)
-                hv = HvI.hypervolume(Afront, [0,0])
+                hv = HvI.hypervolume(Afront, r)
                 hv_improvement.append(hv-hvY)
             
             hvY0 = hvY if i==0 else hvY0
