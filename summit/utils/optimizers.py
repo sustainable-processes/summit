@@ -101,8 +101,9 @@ class NSGAII(Optimizer):
         
         #Run optimization
         self.problem.function = problem_wrapper
-        algorithm = pp.NSGAII(self.problem, population_size=1000)
-        iterations = kwargs.get('iterations', 1000)
+        pop_size = kwargs.get('pop_size', 100)
+        algorithm = pp.NSGAII(self.problem, population_size=pop_size)
+        iterations = kwargs.get('iterations', 100)
         algorithm.run(iterations)
         
         x = [[s.variables[i] for i in range(self.domain.num_variables())]
@@ -110,6 +111,7 @@ class NSGAII(Optimizer):
         x = DataSet(x, columns = input_columns)
         y =[[s.objectives[i] for i in range(len(self.domain.output_variables))]
             for s in algorithm.result if s.feasible]
+            
         y = DataSet(y, columns=output_columns)
         return OptimizeResult(x=x, fun=y, success=True)
 

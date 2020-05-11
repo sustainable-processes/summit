@@ -75,7 +75,8 @@ class TSEMO(Strategy):
             raise ValueError('Random rate must be between 0 and 1.')
 
     def suggest_experiments(self, num_experiments, 
-                            previous_results: DataSet=None):
+                            previous_results: DataSet=None,
+                            **kwargs):
         """ Suggest experiments using TSEMO
         
         Parameters
@@ -99,10 +100,13 @@ class TSEMO(Strategy):
 
         #Get inputs and outputs
         inputs, outputs = self.get_inputs_outputs(previous_results)
-        #Fit models to new data
+        if inputs.shape[0] < self.domain.num_continuous_dimensions():
+            raise ValueError(f'The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS.')
+        
+        #Fit models to new dat
         self.models.fit(inputs, outputs)
 
-        internal_res = self.optimizer.optimize(self.models)
+        internal_res = self.optimizer.optimize(self.models, **kwargs)
         
         if internal_res is not None and len(internal_res.fun)!=0:
             hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
@@ -147,7 +151,7 @@ class TSEMO(Strategy):
         #Reference
         Yfront, _ = pareto_efficient(Ynew, maximize=False)
         r = np.max(Yfront, axis=0)
-        
+
         index = []
         n = samples.shape[1]
         mask = np.ones(samples.shape[0], dtype=bool)
