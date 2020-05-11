@@ -41,7 +41,8 @@ def test_lhs():
 def test_tsemo():
     pass
 
-def test_snobfit():
+@pytest.mark.parametrize('num_experiments', [1, 2, 4])
+def test_snobfit(num_experiments):
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
     domain = Domain()
     domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 1])
@@ -88,8 +89,8 @@ def test_snobfit():
 
     # run SNOBFIT loop for fixed <num_iter> number of iteration with <num_experiments> number of experiments each
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
-    num_experiments = 4
-    num_iter = 100
+    # num_experiments = 4
+    num_iter = 400//num_experiments
     max_stop = 10
     nstop = 0
     fbestold = float("inf")
