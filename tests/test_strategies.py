@@ -41,9 +41,10 @@ def test_lhs():
     return results
 
 def test_tsemo():
-    problem = DTLZ2()
+    pass
+    # problem = DTLZ2()
 
-    strategy = TSEMO()
+    # strategy = TSEMO()
 
 def test_snobfit():
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)

@@ -45,7 +45,6 @@ class DTLZ2(Experiment):
             f = [(1.0+g) *  reduce(mul, (cos(0.5*xi*pi) for xi in xc), 1.0)]
             f.extend((1.0+g) * reduce(mul, (cos(0.5*xi*pi) for xi in xc[:m]), 1) * sin(0.5*xc[m]*pi) for m in range(nobjs-2, -1, -1))
         
-
         #Convert to dataset
         ds = DataSet(x, 
                      columns=[f'x_{i}' for i in range(self.nvars)])

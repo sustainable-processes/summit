@@ -44,7 +44,7 @@ class TSEMO(Strategy):
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
-    >>> strategy = TSEMO2(domain, random_state=np.random.RandomState(3))
+    >>> strategy = TSEMO(domain, random_state=np.random.RandomState(3))
     >>> result = strategy.suggest_experiments(5)
  
     ''' 

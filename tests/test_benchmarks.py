@@ -25,8 +25,16 @@ def test_snar_benchmark():
 
     return results
 
-def test_dltz_benchmark():
+@pytest.mark.paramatrize('num_inputs', [6])
+def test_dltz2_benchmark(num_inputs):
     """Test the DTLZ2 benchmark"""
-    b = DTLZ2()
+    b = DTLZ2(num_inputs=num_inputs,
+              num_objectives=2)
 
-    b 
+    values = {f'x_{i}': 0.5 for  i in range(num_inputs)}
+    ds = DataSet(values)
+    b.run_experiments(ds)
+    data = b.data
+    assert data['y_0'].iloc[0] == 0.7071
+    assert data['y_1'].iloc[0] == 0.7071
+
