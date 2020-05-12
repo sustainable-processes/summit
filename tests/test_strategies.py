@@ -2,9 +2,10 @@
 import pytest
 from summit.domain import Domain, ContinuousVariable, Constraint
 from summit.strategies import Random, LHS, SNOBFIT, TSEMO
+from summit.benchmarks import DTLZ2
 from summit.utils.dataset import DataSet
+from summit.utils.multiobjective import pareto_efficient, HvI
 
-from platypus import DTLZ2
 import numpy as np
 import pandas as pd
 
@@ -41,11 +42,28 @@ def test_lhs():
     return results
 
 def test_tsemo():
-    pass
-    # problem = DTLZ2()
+    num_inputs = 6
+    num_objectives= 2
+    lab = DTLZ2(num_inputs=num_inputs,
+               num_objectives=num_objectives)
+    strategy = TSEMO(lab.domain, random_rate=0.05)
+    experiments = strategy.suggest_experiments(5*num_inputs)
 
-    # strategy = TSEMO()
-
+    for i in range(100):
+        # Run experiments
+        lab.run_experiments(experiments)
+        
+        # Get suggestions
+        nsga_options = dict(pop_size=100, iterations=100)
+        experiments = strategy.suggest_experiments(1, lab.data,
+                                                   **nsga_options)
+    y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
+                                   maximize=False)  
+    hv = HvI.hypervolume(y_pareto, [11,11])
+    n = len(y_pareto)
+    if n < 100:
+        assert 120+0.045396*np.log(n) < hv
+        
 def test_snobfit():
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
     domain = Domain()

@@ -8,7 +8,7 @@ from functools import reduce
 import numpy as np
 
 class DTLZ2(Experiment):
-    def __init__(self, num_inputs, num_objectives=2):
+    def __init__(self, num_inputs=6, num_objectives=2):
         if num_objectives >= num_inputs:
             raise ValueError('Number of objectives must be greater than number of inputs.')
         self.nobjs = num_objectives
