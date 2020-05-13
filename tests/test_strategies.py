@@ -91,7 +91,7 @@ def test_snobfit(num_experiments):
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
     # num_experiments = 4
     num_iter = 400//num_experiments
-    max_stop = 10
+    max_stop = 50//num_experiments
     nstop = 0
     fbestold = float("inf")
     for i in range(num_iter):
@@ -142,8 +142,8 @@ def test_snobfit(num_experiments):
     fbest = np.around(fbest, decimals=3)
     if not constraint:
         # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-        assert (xbest[0] >= 0.113 and xbest[0] <= 0.115) and (xbest[1] >= 0.555 and xbest[1] <= 0.557) and \
-               (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
+        assert (xbest[0] >= 0.11 and xbest[0] <= 0.12) and (xbest[1] >= 0.55 and xbest[1] <= 0.56) and \
+               (xbest[2] >= 0.85 and xbest[2] <= 0.86) and (fbest <= -3.85 and fbest >= -3.87)
     else:
         # Extrema of test function with constraint: tbd /TODO: determine optimum with constraint with other algorithms
         assert fbest <= -1

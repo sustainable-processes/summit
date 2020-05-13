@@ -179,7 +179,7 @@ class SNOBFIT(Strategy):
             if not v.is_objective:
                 next_experiments[v.name] = request[:,i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
-        next_experiments[('strategy', 'METADATA')] = ['SNOBFIT']*num_experiments
+        next_experiments[('strategy', 'METADATA')] = ['SNOBFIT']*len(request[:,0])
         return next_experiments, xbest, fbest, param
 
 
@@ -519,8 +519,6 @@ class SNOBFIT(Strategy):
 
         sreq = len(request)
         for l in isplit.flatten():
-            if sreq == nreq:
-                break
             jj = find(ind == l)
             ind = numpy.delete(ind, jj)  # ind(jj) = []
             y1, f1 = snobpoint(x[l], xl[l], xu[l], f[l, 0:2], g[l], sigma[l], u1, v1, dx)
@@ -532,6 +530,8 @@ class SNOBFIT(Strategy):
                 request = numpy.vstack((request, numpy.concatenate((y1, numpy.array((f1, 4), ndmin=2)), axis=1)))
 
             sreq = len(request)
+            if sreq == nreq:
+                break
 
         first = True
         while (sreq < nreq) and ind.size > 0:  # and find(small[ind] <= (minsmall + m1)).any():
