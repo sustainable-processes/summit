@@ -42,14 +42,15 @@ def test_tsemo():
     pass
 
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
-def test_snobfit(num_experiments):
+@pytest.mark.parametrize('maximize', [True, False])
+def test_snobfit(num_experiments, maximize):
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
     domain = Domain()
     domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 1])
     domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0, 1])
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
-                                 bounds=[-1000,1000], is_objective=True, maximize=True)
+                                 bounds=[-1000,1000], is_objective=True, maximize=maximize)
     domain += Constraint(lhs="temperatureflowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
     constraint = False
     strategy = SNOBFIT(domain, probability_p=0.5, dx_dim=1E-5)
@@ -68,6 +69,8 @@ def test_snobfit(num_experiments):
             for k in range(4):
                 d[k] = np.sum(np.dot(A[k,:],(x_exp-P[k,:])**2))
             y_exp = np.sum(np.dot(alpha,np.exp(-d)))
+            if not maximize:
+                y_exp *= -1.0
         else:
             y_exp = np.nan
         return y_exp
