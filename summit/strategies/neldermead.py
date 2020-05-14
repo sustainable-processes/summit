@@ -28,17 +28,13 @@ class NelderMead(Strategy):
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
-    >>> d = {'temperature': [0.5], 'flowrate_a': [0.6], 'yield': 1}
-    >>> df = pd.DataFrame(data=d)
-    >>> previous = DataSet.from_df(df)
     >>> strategy = NelderMead(domain)
-    >>> strategy.suggest_experiments(prev_res = previous)
-    NAME  temperature  flowrate_a  flowrate_b
-    0       77.539895    0.458517    0.111950
-    1       85.407391    0.150234    0.282733
-    2       64.545237    0.182897    0.359658
-    3       75.541380    0.120587    0.211395
-    4       94.647348    0.276324    0.370502
+    >>> strategy.suggest_experiments()
+    NAME  temperature  flowrate_a             strategy
+    0           0.500       0.500  Nelder-Mead Simplex
+    1           0.625       0.500  Nelder-Mead Simplex
+    2           0.500       0.625  Nelder-Mead Simplex
+
     '''
 
     def __init__(self, domain: Domain, **kwargs):
@@ -109,7 +105,7 @@ class NelderMead(Strategy):
                              'missing!')
 
         # if no previous results are given initialize center point as geometrical middle point of bounds
-        if not len(x0):
+        if not len(x0[0]):
             x0 = np.ones((1,len(bounds)))*1/2*((bounds[:,1] + bounds[:,0]).T)
 
         ''' Set Nelder-Mead parameters, i.e., initialize or include data from previous iterations
@@ -160,7 +156,6 @@ class NelderMead(Strategy):
             elif prev_param[1] is not None:
                 prev_fsim = prev_param[1]
                 x_iter = prev_param[2]
-                print(x_iter)
                 for key, value in x_iter.items():
                     if value is not None:
                         if key == 'x_shrink':
@@ -175,7 +170,6 @@ class NelderMead(Strategy):
                                     break
             else:
                 prev_fsim = y0
-                print("TEST")
 
         # initialize with given simplex points (including function evaluations) for initialization
         elif prev_res is not None:
@@ -234,29 +228,11 @@ class NelderMead(Strategy):
         ## if dimension is reduced and requested point has already been evaluated, recover dimension with
         # reflected and translated simplex before dimension reduction
         if red_dim and any(np.equal(np.asarray(memory), request).all(1)):
-            sim, fsim = self.recover_simplex_dim(red_sim, red_fsim, overfull_dim)
-            xr_red_dim = (red_sim[-1][overfull_dim] - red_sim[0][overfull_dim])
-            new_sim = red_sim.copy()
-            new_sim[:-1][:,[overfull_dim]] = red_sim[:-1][:,[overfull_dim]] + xr_red_dim
-            for dim in range(len(red_sim[0])):
-                if dim == overfull_dim:
-                    continue
-                else:
-                    xt_red_dim = (red_sim[-1][dim] - sim[0][dim])
-                    for s in range(len(new_sim[:-1])):
-                        xs = red_sim[s][dim] - xt_red_dim
-                        if bounds[dim][0] > xs:
-                            xs = bounds[dim][0]
-                        elif bounds[dim][1] < xs:
-                            xs = bounds[dim][1]
-                        new_sim[s][dim] = xs
-            new_sim[-1] = sim[0]
+            sim, fsim = self.recover_simplex_dim(sim, red_sim, red_fsim, overfull_dim, bounds)
+            request = sim [:-1]
+
             red_dim = False
             rec_dim = True
-            sim = new_sim
-            request = sim[:-1]
-            fsim = red_fsim
-            fsim[-1] = fsim[0]
 
         # append requested points to memory
         memory.append(request.tolist()[0])
@@ -272,10 +248,17 @@ class NelderMead(Strategy):
                 next_experiments[v.name] = request[:,i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
         next_experiments[('strategy', 'METADATA')] = ['Nelder-Mead Simplex']*len(request)
-        return next_experiments, 0, 0, param
+
+        x_best = None
+        f_best = float("inf")
+        if not initial_run:
+            x_best = sim[0]
+            f_best = fsim[0]
+
+        return next_experiments, x_best, f_best, param
 
 
-    # https://github.com/scipy/scipy/blob/master/scipy/optimize/optimize.py
+    # implementation partly follows: https://github.com/scipy/scipy/blob/master/scipy/optimize/optimize.py
     def minimize_neldermead(self, x0, bounds, x_iter=None, f=None, sim=None, initial_simplex=None, adaptive=False,
                              **unknown_options):
         """
@@ -445,7 +428,6 @@ class NelderMead(Strategy):
                                     break
                                 else:
                                     tmp_psi = (bounds[i][b] - xr[i]) / (xbar[i] - sim[-1][i])
-                                    print(tmp_psi)
                                     xc = (1 + tmp_psi * rho) * xbar - tmp_psi * rho * sim[-1]
                             if np.array_equal(xc,xr):
                                 x_iter['xc'] = [xc, float("inf")]
@@ -575,7 +557,7 @@ class NelderMead(Strategy):
                 tmp_x_iter[key] = [np.insert(value[0], overfull_dim, save_dim), value[1]]
         return tmp_x_iter
 
-    def recover_simplex_dim(self, tmp_red_sim, tmp_red_fsim, overfull_dim):
+    def recover_simplex_dim(self, tmp_sim, tmp_red_sim, tmp_red_fsim, overfull_dim, bounds):
         ## Translate all points of the simplex before the reduction along the axis of the reduced dimension
         # but the one, that caused dimension reduction (translation distance corresponds to distance of point, that
         # caused the dimension reduction, to the values of all other points at axis of the reduced dimension)
@@ -590,16 +572,18 @@ class NelderMead(Strategy):
             if dim == overfull_dim:
                 continue
             else:
-                xt_red_dim = (red_sim[-1][dim] - sim[0][dim])
+                xt_red_dim = (tmp_red_sim[-1][dim] - tmp_sim[0][dim])
                 for s in range(len(new_sim[:-1])):
-                    xs = red_sim[s][dim] - xt_red_dim
+                    xs = tmp_red_sim[s][dim] - xt_red_dim
                     # TODO: check bounds here, what happens if more points violate bound constraints)
                     if bounds[dim][0] > xs:
                         xs = bounds[dim][0]
                     elif bounds[dim][1] < xs:
                         xs = bounds[dim][1]
                     new_sim[s][dim] = xs
-        new_sim[-1] = sim[0]
+        new_sim[-1] = tmp_sim[0]
         sim = new_sim
-        fsim = red_fsim
+        fsim = tmp_red_fsim
         fsim[-1] = fsim[0]
+
+        return sim, fsim

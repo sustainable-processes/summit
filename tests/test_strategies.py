@@ -6,7 +6,7 @@ from summit.utils.dataset import DataSet
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib
+from matplotlib import ticker
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.mplot3d import Axes3D
@@ -47,22 +47,8 @@ def test_lhs():
 def test_tsemo():
     pass
 
-def test_nm():
-    from summit.domain import Domain, ContinuousVariable
-    from summit.strategies import NelderMead
-    from summit.utils.dataset import DataSet
-    import pandas as pd
-    domain = Domain()
-    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 1])
-    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
-    domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
-    d = {'temperature': [0.5], 'flowrate_a': [0.6], 'yield': 1}
-    df = pd.DataFrame(data=d)
-    previous = DataSet.from_df(df)
-    strategy = NelderMead(domain)
-    strategy.suggest_experiments(prev_res = previous)
 
-
+'''
 def test_nm1():
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
     domain = Domain()
@@ -195,7 +181,7 @@ def test_nm1():
     #for c, i in enumerate(points):
     #    ax.annotate("1", (points[c][0],points[c][1]))
     plt.show()
-'''
+
         if fbest < fbestold:
             fbestold = fbest
             nstop = 0
@@ -218,19 +204,20 @@ def test_nm1():
         assert fbest <= -1
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 '''
-#test_nm1()
 
-
-def test_nm2():
+@pytest.mark.parametrize('x_start', [[0,0],[4,4],[-1,-2]])
+@pytest.mark.parametrize('maximize', [True, False])
+def test_nm2(x_start,maximize):
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
+    #maximize = True
     domain = Domain()
     domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-4, 4])
     domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[-4, 4])
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
-                                 bounds=[-1000,1000], is_objective=True, maximize=True)
+                                 bounds=[-1000,1000], is_objective=True, maximize=maximize)
     domain += Constraint(lhs="temperatureflowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
     constraint = False
-    strategy =NelderMead(domain, x_start=[2,4])
+    strategy = NelderMead(domain, x_start=x_start)
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
     # here Hartmann 3D function: https://www.sfu.ca/~ssurjano/hart3.html
@@ -238,9 +225,10 @@ def test_nm2():
     # violate one of the constraints return NaN as function value (so-called: hidden constraints)
     def sim_fun(x_exp):
         x = x_exp
-        y_exp = ((x[0]**2 + x[1] - 11)**2+(x[0] + x[1]**2 -7)**2)
-        print(y_exp)
-        return - y_exp
+        y_exp = -((x[0]**2 + x[1] - 11)**2+(x[0] + x[1]**2 -7)**2)
+        if not maximize:
+            y_exp *= -1.0
+        return y_exp
     def test_fun(x):
         y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
         return y
@@ -253,15 +241,14 @@ def test_nm2():
 
     # Initialize with "experimental" data
     #initial_exp = pd.DataFrame(data={'temperature': [-0.5,0,0], 'flowrate_a': [4,4,1.1]})   # initial experimental points
-    initial_exp = pd.DataFrame(data={'temperature': [0,0.5,1], 'flowrate_a': [-3,-2,-3.4]})   # initial experimental points
-    initial_exp.insert(2,'yield', test_fun(initial_exp.to_numpy()))   # initial results
-    initial_exp = DataSet.from_df(initial_exp)
+    #initial_exp = pd.DataFrame(data={'temperature': [0,0.5,1], 'flowrate_a': [-3,-2,-3.4]})   # initial experimental points
+    #initial_exp.insert(2,'yield', test_fun(initial_exp.to_numpy()))   # initial results
+    #initial_exp = DataSet.from_df(initial_exp)
 
     # run SNOBFIT loop for fixed <num_iter> number of iteration with <num_experiments> number of experiments each
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
-    num_experiments = 4
-    num_iter = 30
-    max_stop = 30
+    num_iter = 100
+    max_stop = 10
     nstop = 0
     fbestold = float("inf")
     fig, ax = plt.subplots()
@@ -271,37 +258,23 @@ def test_nm2():
     for i in range(num_iter):
         # initial run without history
         if i == 0:
-            next_experiments, xbest, fbest, param = strategy.suggest_experiments(prev_res=initial_exp)
-            #next_experiments, xbest, fbest, res = strategy.suggest_experiments()
-            '''next = initial_exp.data_to_numpy()
-            print(next)
-            for i in range(len(next)):
-                points.append(np.asarray([next[i][:2].tolist()]))'''
-            x = np.asarray([param[0][i].tolist() for i in range(len(param[0]))])
-            polygon = Polygon(x, True, hatch='x')
-            patches.append(polygon)
-            next = next_experiments.data_to_numpy()
-            points.append(next)
-        # runs with history
+            #next_experiments, xbest, fbest, param = strategy.suggest_experiments(prev_res=initial_exp)
+            next_experiments, xbest, fbest, param = strategy.suggest_experiments()
 
-        # This is the part where experiments take place
-        exp_yield = test_fun(next_experiments.data_to_numpy())
-        next_experiments['yield', 'DATA'] = exp_yield
-        # Call of SNOBFIT
-        next_experiments, xbest, fbest, param = \
-            strategy.suggest_experiments(prev_res=next_experiments, prev_param=param)
-        #clear_output(wait=True)
-        x1 = [param[0][i][0] for i in range(len(param[0]))]
-        x2 = [param[0][i][1] for i in range(len(param[0]))]
-        next = next_experiments.data_to_numpy()
+        ### runs with history
+        else:
+            # This is the part where experiments take place
+            exp_yield = test_fun(next_experiments.data_to_numpy())
+            next_experiments[('yield', 'DATA')] = exp_yield
+            # Call Nelder-Mead Simplex
+            next_experiments, xbest, fbest, param = \
+                strategy.suggest_experiments(prev_res=next_experiments, prev_param=param)
+
         x = np.asarray([param[0][i].tolist() for i in range(len(param[0]))])
-        polygon = Polygon(x, True,hatch= 'x')
+        polygon = Polygon(x, True, hatch='x')
         patches.append(polygon)
-        points.append(next)
-        #plt.plot(x, marker=11)
-        #plt.show()
-        #print(next_experiments)
-        #print(param)
+        for i in range(len(next_experiments)):
+            points.append(next_experiments.data_to_numpy()[i].tolist())
 
         if fbest < fbestold-0.1:
             fbestold = fbest
@@ -317,30 +290,22 @@ def test_nm2():
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
 
+    assert fbest <= 0.1
+
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+
     xlist = np.linspace(-5, 5, 1000)
     ylist = np.linspace(-5, 5, 1000)
     X, Y = np.meshgrid(xlist, ylist)
     Z = (((X**2 + Y - 11)**2+(X + Y**2 -7)**2))
-    ax.contour(X,Y,Z, levels=[0.0, 0.5, 1, 1.5, 2, 3, 4, 5, 10, 15, 20, 30, 40, 50, 60 ,70, 80, 90, 100, 150, 200, 300], alpha=0.3)
+    ax.contour(X,Y,Z, levels=np.logspace(-2, 3, 30, base=10), alpha=0.3)
     p = PatchCollection(patches, facecolors="None", edgecolors='grey', alpha=1)
     ax.add_collection(p)
     for c in range(len(points)):
-        ax.scatter(points[c][0][0], points[c][0][1])
-        ax.text(points[c][0][0] + .01, points[c][0][1] + .01, c+1, fontsize=7)
+        ax.scatter(points[c][0], points[c][1])
+        ax.text(points[c][0] + .01, points[c][1] + .01, c+1, fontsize=7)
     ax.axvline(x=-4, color='k', linestyle='--')
     ax.axhline(y=4, color='k', linestyle='--')
     ax.axvline(x=4, color='k', linestyle='--')
     ax.axhline(y=-4, color='k', linestyle='--')
     plt.show()
-    '''
-    if not constraint:
-        # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-        assert (xbest[0] >= 0.113 and xbest[0] <= 0.115) and (xbest[1] >= 0.555 and xbest[1] <= 0.557) and \
-               (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
-    else:
-        # Extrema of test function with constraint: tbd /TODO: determine optimum with constraint with other algorithms
-        assert fbest <= -1
-    '''
-    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
-
-test_nm2()
