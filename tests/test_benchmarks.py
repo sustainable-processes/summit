@@ -25,7 +25,7 @@ def test_snar_benchmark():
 
     return results
 
-@pytest.mark.paramatrize('num_inputs', [6])
+@pytest.mark.parametrize('num_inputs', [6])
 def test_dltz2_benchmark(num_inputs):
     """Test the DTLZ2 benchmark"""
     b = DTLZ2(num_inputs=num_inputs,
