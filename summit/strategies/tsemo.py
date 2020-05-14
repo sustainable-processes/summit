@@ -103,9 +103,11 @@ class TSEMO(Strategy):
         if inputs.shape[0] < self.domain.num_continuous_dimensions():
             raise ValueError(f'The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS.')
         
-        #Fit models to new dat
-        self.models.fit(inputs, outputs)
+        # Fit models to new data
+        self.models.fit(inputs, outputs, spectral_sample=True)
 
+        # Sample function to optimize
+        kwargs.update({'use_spectral_sample': True})
         internal_res = self.optimizer.optimize(self.models, **kwargs)
         
         if internal_res is not None and len(internal_res.fun)!=0:

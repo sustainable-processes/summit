@@ -3,8 +3,12 @@ from .dataset import DataSet
 from abc import ABC, abstractmethod
 import GPy
 import numpy as np
+from numpy import matlib
 from GPy.models import GPRegression
 from GPy.kern import Matern52
+from scipy.stats import norm, invgamma
+from scipy.stats.distributions import chi2
+from .lhs import lhs
 from sklearn.base import BaseEstimator, RegressorMixin
 
 __all__ = ["Model", "ModelGroup", "GPyModel", "AnalyticalModel"]
@@ -84,14 +88,16 @@ class GPyModel(BaseEstimator, RegressorMixin):
         self._noise_var = noise_var
         self._optimizer = optimizer
         self._model = None
+        self.sampled_f = None
     
-    def fit(self, X, y, num_restarts=10, max_iters=2000, parallel=False):
+    def fit(self, X, y, num_restarts=10, max_iters=2000, parallel=False,
+            spectral_sample=False):
         """Fit Gaussian process regression model.
         Parameters
         ----------
         X : DataSet
             The data columns will be used as inputs for fitting the model
-        y : DataSEt
+        y : DataSet
             The data columns will be used as outputs for fitting the model
         num_restarts : int, optional (default=10)
             The number of random restarts of the optimizer.
@@ -99,6 +105,8 @@ class GPyModel(BaseEstimator, RegressorMixin):
             The maximum number of iterations of the optimizer.
         parallel : bool (default=False)
             Use parallel computation for the optimization.
+        spectral_sample: bool, optional
+            Calculate the spectral sampled function. Defaults to False.
 
         Returns
         -------
@@ -135,11 +143,13 @@ class GPyModel(BaseEstimator, RegressorMixin):
                                           verbose=False,
                                           max_iters=max_iters,
                                           parallel=parallel)
+        if spectral_sample:
+            self.spectral_sample(X, y)
+
         return self
 
     def predict(self, X, 
-                return_cov: bool = False,
-                return_std: bool = False):
+                use_spectral_sample = False):
         """Predict using the Gaussian process regression model
 
         In addition to the mean of the predictive distribution, also its
@@ -150,20 +160,16 @@ class GPyModel(BaseEstimator, RegressorMixin):
         ----------
         X : array-like, shape = (n_samples, n_features)
             Query points where the GP is evaluated
-        return_std : bool, default: False
-            If True, the standard-deviation of the predictive distribution at
-            the query points is returned along with the mean.
-        return_cov : bool, default: False
-            If True, the covariance of the joint predictive distribution at
-            the query points is returned along with the mean
+        use_sampled_f: bool, optional
+            Use a spectral sample of the GP instead of the posterior prediction.
         """
         if not self._model:
             raise ValueError('Fit must be called on the model prior to prediction')
 
-        if return_std and return_cov:
-            raise RuntimeError(
-                "Not returning standard deviation of predictions when "
-                "returning full covariance.")
+        if use_spectral_sample and self.sampled_f is not None:
+            return self.sampled_f(X)
+        elif use_spectral_sample:
+            raise ValueError("Spectral Sample must be called during fitting prior to prediction.")
         
         if isinstance(X, np.ndarray):
             X_std =  (X-self.input_mean)/self.input_std
@@ -174,14 +180,85 @@ class GPyModel(BaseEstimator, RegressorMixin):
         m_std, v_std = self._model.predict(X_std)
         m = m_std*self.output_std + self.output_mean
 
-        # if return_cov:
-        #     result = m, v
-        # elif return_std:
-        #     result = m, self._model.Kdiag(X)
-        # else:
-        #     result = m
-
         return m
+
+    def spectral_sample(self, X, Y, n_spectral_points=4000):
+        '''Sample GP using spectral sampling
+
+        Parameters
+        ----------
+        X: DataSet
+            The data columns will be used as inputs for fitting the model
+        y: DataSet
+            The data columns will be used as outputs for fitting the model
+        n_spectral_points: float, optional
+            The number of points to use in spectral sampling. Defaults to 4000.
+        '''
+
+        if type(self._model.kern) == GPy.kern.Exponential:
+            matern_nu = 1
+        elif type(self._model.kern) == GPy.kern.Matern32:
+            matern_nu = 3
+        elif type(self._model.kern) == GPy.kern.Matern52:
+            matern_nu = 5
+        elif type(self._model.kern) == GPy.kern.RBF:
+            matern_nu = np.inf
+        else:
+            raise TypeError("Spectral sample currently only works with Matern type kernels, including RBF.")
+
+        if isinstance(X, np.ndarray):
+            X_std =  (X-self.input_mean)/self.input_std
+            X_std[abs(X_std) < 1e-5] = 0.0
+        elif isinstance(X, DataSet):
+            X_std = X.standardize(mean=self.input_mean, 
+                                  std=self.input_std)
+
+        # Get variables from problem structure
+        n, D = np.shape(X_std)
+        ell = np.array(self._model.kern.lengthscale) 
+        sf2 = np.array(self._model.kern.variance)
+        sn2 = np.array(self._model.Gaussian_noise.variance)
+
+        # Monte carlo samples of W and b
+        # W = p*norminv(sW1)*q
+        sW = lhs(D, n_spectral_points)
+        p = matlib.repmat(np.divide(1, ell), n_spectral_points, 1)
+        if matern_nu != np.inf:            
+            inv = chi2.ppf(sW, matern_nu)
+            q = np.sqrt(np.divide(matern_nu, inv)+1e-7)
+            W = np.multiply(p, norm.ppf(sW))
+            W = np.multiply(W, q)
+        else:
+            raise NotImplementedError("RBF not implemented yet!")
+
+        b = 2*np.pi*lhs(1, n_spectral_points)
+
+        # Calculate phi
+        phi = np.sqrt(2*sf2/n_spectral_points)*np.cos(W@X_std.T +  matlib.repmat(b, 1, n))
+
+        #Sampling of theta according to phi
+        A = phi@phi.T + sn2*np.identity(n_spectral_points)
+        c = np.linalg.inv(np.linalg.cholesky(A))
+        invA = np.dot(c.T,c)
+        mu_theta = invA@phi@Y
+        cov_theta = sn2*invA
+        cov_theta = 0.5*(cov_theta+cov_theta.T)
+        theta = np.random.multivariate_normal(mu_theta[:, 0], cov_theta)
+        
+        #Posterior sample according to theta
+        def f(x):
+            if isinstance(x, np.ndarray):
+                x =  (x-self.input_mean)/self.input_std
+                x[abs(x) < 1e-5] = 0.0
+            elif isinstance(X, DataSet):
+                x = x.standardize(mean=self.input_mean, 
+                                  std=self.input_std)
+            inputs, _ = np.shape(x)
+            bprime = matlib.repmat(b, 1, inputs)
+            output =  (theta.T*np.sqrt(2*sf2/n_spectral_points))@np.cos(W@x.T+bprime)
+            return output.T
+        self.sampled_f = f
+        return f
     
 class AnalyticalModel(Model):
     ''' An analytical model instead of statistical model
