@@ -186,66 +186,55 @@ class NelderMead(Strategy):
         overfull_simplex = False
         if not red_dim:
             request, sim, fsim, x_iter = self.minimize_neldermead(x0=x0[0], bounds=bounds, x_iter=x_iter, f=prev_fsim, sim=prev_sim)
-            '''if not initial_run:
-                test_sim = np.asarray(sim[:-1])
-                overfull_sim_dim = np.all(test_sim == test_sim[0, :], axis=0)
-                for i in range(len(overfull_sim_dim)):
-                    if overfull_sim_dim[i]:
-                        if request[0][i] == test_sim[0][i]:
-                            overfull_dim = i
-                            overfull = True
-                            prev_sim = sim[:-1]
-                            prev_fsim = fsim[:-1]
-                            red_sim = sim
-                            red_fsim = fsim
-                            break'''
             if not initial_run:
                 overfull_simplex, prev_sim, prev_fsim, red_sim, red_fsim, overfull_dim = self.check_overfull(request, sim, fsim)
 
-        # reduce dimension if n+1 points are located in n-1 dimensions
+        ## Reduce dimension if n+1 points are located in n-1 dimensions (if either red_dim = True, i.e.,
+        # optimization in the reduced dimension space was not finished in the last iteration, or overfull_simplex, i.e.,
+        # last Nelder-Mead call (with red_dim = False) lead to an overfull simplex).
+        ## Note that in order to not loose any information, the simplex without dimension reduction is returned even
+        # if the optimization in the reduced dimension space is not finished.
+        ## If the optimization in the reduced dimension space was not finished in the last iteration (red_dim = True),
+        # the simplex will automatically be reduced again.
         if red_dim or overfull_simplex:
+            # prepare dimension reduction
             if red_dim:
-                overfull_sim_dim = np.all(prev_sim == prev_sim[0, :], axis=0)
-                overfull_dim = np.where(overfull_sim_dim)[0][0]
-                if x_iter:
-                    for key, value in x_iter.items():
-                        if value is not None:
-                            if key is 'xbar':
-                                x_iter[key] = np.delete(value,overfull_dim)
-                                continue
-                            if key is 'x_shrink':
-                                for v in range(len(value)):
-                                    x_iter[key][v] = [np.delete(value[v][0], overfull_dim), value[v][1]]
-                                continue
-                            x_iter[key] = [np.delete(value[0], overfull_dim), value[1]]
+                x_iter, overfull_dim = self.upstream_simplex_dim_red(prev_sim, x_iter)
             else:
                 x_iter = None
 
+            # save value of dimension reduced
             save_dim = prev_sim[0][overfull_dim]
+            # delete overfull dimension
             new_prev_sim = np.delete(prev_sim, overfull_dim, 1)
-            new_prev_fsim = prev_fsim
+            # delete bounds for overfull dimension
             new_bounds = np.delete(bounds, overfull_dim,0)
-            request, sim, fsim, x_iter = self.minimize_neldermead(x0=new_prev_sim[0], x_iter=x_iter, bounds=new_bounds, f=new_prev_fsim,
+
+            # Run one iteration of Nelder-Mead Simplex algorithm for reduced simplex
+            request, sim, fsim, x_iter = self.minimize_neldermead(x0=new_prev_sim[0], x_iter=x_iter, bounds=new_bounds, f=prev_fsim,
                                                                   sim=new_prev_sim)
+
+            overfull_simplex, _, _, _, _, _ = self.check_overfull(request, sim, fsim)
+            if overfull_simplex:
+                raise NotImplementedError("Recursive dimension reduction not implemented yet.")
+
+            # recover dimension after Nelder-Mead Simplex run (to return full request for experiment)
             request = np.insert(request, overfull_dim, save_dim, 1)
             sim = np.insert(sim, overfull_dim, save_dim, 1)
 
-            for key, value in x_iter.items():
-                if value is not None:
-                    if key is 'xbar':
-                        x_iter[key] = np.insert(value, overfull_dim, save_dim)
-                        continue
-                    if key is 'x_shrink':
-                        for v in range(len(value)):
-                            x_iter[key][v] = [np.insert(value[v][0], overfull_dim, save_dim), value[v][1]]
-                        continue
-                    x_iter[key] = [np.insert(value[0], overfull_dim, save_dim), value[1]]
+            # follow-up of dimension reduction
+            x_iter = self.downstream_simplex_dim_red(x_iter, overfull_dim, save_dim)
+
             red_dim = True
+
+        # if not overfull and no reduced dimension from previous iteration
         else:
             red_dim = False
 
+        ## if dimension is reduced and requested point has already been evaluated, recover dimension with
+        # reflected and translated simplex before dimension reduction
         if red_dim and any(np.equal(np.asarray(memory), request).all(1)):
-            # recover dimension
+            sim, fsim = self.recover_simplex_dim(red_sim, red_fsim, overfull_dim)
             xr_red_dim = (red_sim[-1][overfull_dim] - red_sim[0][overfull_dim])
             new_sim = red_sim.copy()
             new_sim[:-1][:,[overfull_dim]] = red_sim[:-1][:,[overfull_dim]] + xr_red_dim
@@ -268,6 +257,8 @@ class NelderMead(Strategy):
             request = sim[:-1]
             fsim = red_fsim
             fsim[-1] = fsim[0]
+
+        # append requested points to memory
         memory.append(request.tolist()[0])
 
         # store parameters of iteration as parameter array
@@ -552,5 +543,63 @@ class NelderMead(Strategy):
                     break
         return False, None, None, None, None, None
 
+    def upstream_simplex_dim_red(self, tmp_prev_sim, tmp_x_iter):
+        tmp_x_iter = tmp_x_iter
+        overfull_sim_dim = np.all(tmp_prev_sim == tmp_prev_sim[0, :], axis=0)
+        overfull_dim = np.where(overfull_sim_dim)[0][0]
+        if tmp_x_iter:
+            for key, value in tmp_x_iter.items():
+                if value is not None:
+                    if key is 'xbar':
+                        tmp_x_iter[key] = np.delete(value, overfull_dim)
+                        continue
+                    if key is 'x_shrink':
+                        for v in range(len(value)):
+                            tmp_x_iter[key][v] = [np.delete(value[v][0], overfull_dim), value[v][1]]
+                        continue
+                    tmp_x_iter[key] = [np.delete(value[0], overfull_dim), value[1]]
+            return tmp_x_iter, overfull_dim
+        else:
+            return None, overfull_dim
 
+    def downstream_simplex_dim_red(self, tmp_x_iter, overfull_dim, save_dim):
+        for key, value in tmp_x_iter.items():
+            if value is not None:
+                if key is 'xbar':
+                    tmp_x_iter[key] = np.insert(value, overfull_dim, save_dim)
+                    continue
+                if key is 'x_shrink':
+                    for v in range(len(value)):
+                        tmp_x_iter[key][v] = [np.insert(value[v][0], overfull_dim, save_dim), value[v][1]]
+                    continue
+                tmp_x_iter[key] = [np.insert(value[0], overfull_dim, save_dim), value[1]]
+        return tmp_x_iter
 
+    def recover_simplex_dim(self, tmp_red_sim, tmp_red_fsim, overfull_dim):
+        ## Translate all points of the simplex before the reduction along the axis of the reduced dimension
+        # but the one, that caused dimension reduction (translation distance corresponds to distance of point, that
+        # caused the dimension reduction, to the values of all other points at axis of the reduced dimension)
+        xr_red_dim = (tmp_red_sim[-1][overfull_dim] - tmp_red_sim[0][overfull_dim])
+        new_sim = tmp_red_sim.copy()
+        new_sim[:-1][:, [overfull_dim]] = tmp_red_sim[:-1][:, [overfull_dim]] + xr_red_dim
+
+        ## Translate all points of the simplex before the reduction along the remaining axes but the one, that caused
+        # dimension reduction (translation distance corresponds to distance of point, that caused the dimension
+        # reduction, to optimal point found in reduced space optimization)
+        for dim in range(len(tmp_red_sim[0])):
+            if dim == overfull_dim:
+                continue
+            else:
+                xt_red_dim = (red_sim[-1][dim] - sim[0][dim])
+                for s in range(len(new_sim[:-1])):
+                    xs = red_sim[s][dim] - xt_red_dim
+                    # TODO: check bounds here, what happens if more points violate bound constraints)
+                    if bounds[dim][0] > xs:
+                        xs = bounds[dim][0]
+                    elif bounds[dim][1] < xs:
+                        xs = bounds[dim][1]
+                    new_sim[s][dim] = xs
+        new_sim[-1] = sim[0]
+        sim = new_sim
+        fsim = red_fsim
+        fsim[-1] = fsim[0]
