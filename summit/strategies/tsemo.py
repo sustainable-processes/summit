@@ -150,8 +150,8 @@ class TSEMO(Strategy):
 
         #Reference
         Yfront, _ = pareto_efficient(Ynew, maximize=False)
-        r = np.max(Yfront, axis=0)
-
+        r = np.max(Yfront, axis=0)+0.01*(np.max(Yfront, axis=0)-np.min(Yfront,axis=0))
+        
         index = []
         n = samples.shape[1]
         mask = np.ones(samples.shape[0], dtype=bool)

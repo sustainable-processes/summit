@@ -46,7 +46,7 @@ def test_tsemo():
     num_objectives= 2
     lab = DTLZ2(num_inputs=num_inputs,
                num_objectives=num_objectives)
-    strategy = TSEMO(lab.domain, random_rate=0.05)
+    strategy = TSEMO(lab.domain, random_rate=0.00)
     experiments = strategy.suggest_experiments(5*num_inputs)
 
     for i in range(100):
@@ -60,10 +60,13 @@ def test_tsemo():
     y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
                                    maximize=False)  
     hv = HvI.hypervolume(y_pareto, [11,11])
-    n = len(y_pareto)
-    if n < 100:
-        assert 120+0.045396*np.log(n) < hv
-        
+
+    #This is a really loose bound. It's generally testing
+    #to see if the optimization goes in the correct direction
+    #If it identifies even some of the pareto points this will work
+    #https://sop.tik.ee.ethz.ch/download/supplementary/testproblems/dtlz2/index.php
+    assert hv > 120.0
+
 def test_snobfit():
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
     domain = Domain()
