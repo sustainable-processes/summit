@@ -13,7 +13,7 @@ keywords = []
 pandas = "^0.24.1"
 python = "^3.6"
 GPy = "^1.9"
-numpy = "1.16.0"
+numpy = "1.18.0"
 platypus-opt = "^1.0"
 sklearn = "^0.0.0"
 scikit-quant = {git = "https://github.com/sustainable-processes/scikit-quant.git"}

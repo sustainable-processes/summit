@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import GPy
 import numpy as np
 from numpy import matlib
+from numpy.random import default_rng
 from GPy.models import GPRegression
 from GPy.kern import Matern52
 from scipy.stats import norm, invgamma
@@ -37,7 +38,7 @@ class ModelGroup:
 
     def fit(self, X, y, **kwargs):
         for column_name, model in self.models.items():
-            model.fit(X, y[[column_name]]) 
+            model.fit(X, y[[column_name]], **kwargs) 
 
     def predict(self, X, **kwargs):
         """
@@ -46,7 +47,7 @@ class ModelGroup:
         This the make the assumption that each model returns a n_samples x 1 array
         from the predict method.
         """
-        result = [model.predict(X)[:, 0] for model in self.models.values()]
+        result = [model.predict(X, **kwargs)[:, 0] for model in self.models.values()]
         return np.array(result).T
     
     def __getitem__(self, key):
@@ -90,8 +91,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         self._model = None
         self.sampled_f = None
     
-    def fit(self, X, y, num_restarts=10, max_iters=2000, parallel=False,
-            spectral_sample=False):
+    def fit(self, X, y, **kwargs):
         """Fit Gaussian process regression model.
         Parameters
         ----------
@@ -112,7 +112,12 @@ class GPyModel(BaseEstimator, RegressorMixin):
         -------
         self : returns an instance of self.
         -----
-        """ 
+        """
+        num_restarts=kwargs.get('num_restarts',10)
+        max_iters=kwargs.get('max_iters', 2000)
+        parallel=kwargs.get('parallel',False)
+        spectral_sample=kwargs.get('spectral_sample',False)
+
         #Standardize inputs and outputs
         if isinstance(X, DataSet):
             X_std, self.input_mean, self.input_std = X.standardize(return_mean=True, return_std=True)
@@ -148,8 +153,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
 
         return self
 
-    def predict(self, X, 
-                use_spectral_sample = False):
+    def predict(self, X, **kwargs):
         """Predict using the Gaussian process regression model
 
         In addition to the mean of the predictive distribution, also its
@@ -160,12 +164,13 @@ class GPyModel(BaseEstimator, RegressorMixin):
         ----------
         X : array-like, shape = (n_samples, n_features)
             Query points where the GP is evaluated
-        use_sampled_f: bool, optional
+        use_spectral_sample: bool, optional
             Use a spectral sample of the GP instead of the posterior prediction.
         """
         if not self._model:
             raise ValueError('Fit must be called on the model prior to prediction')
 
+        use_spectral_sample = kwargs.get('use_spectral_sample', False)
         if use_spectral_sample and self.sampled_f is not None:
             return self.sampled_f(X)
         elif use_spectral_sample:
@@ -225,7 +230,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         p = matlib.repmat(np.divide(1, ell), n_spectral_points, 1)
         if matern_nu != np.inf:            
             inv = chi2.ppf(sW, matern_nu)
-            q = np.sqrt(np.divide(matern_nu, inv)+1e-7)
+            q = np.sqrt(np.divide(matern_nu, inv))
             W = np.multiply(p, norm.ppf(sW))
             W = np.multiply(W, q)
         else:
@@ -235,15 +240,20 @@ class GPyModel(BaseEstimator, RegressorMixin):
 
         # Calculate phi
         phi = np.sqrt(2*sf2/n_spectral_points)*np.cos(W@X_std.T +  matlib.repmat(b, 1, n))
+        phi = np.round(phi, 3) # Round due to truncation errors that causes problems with inverse
 
         #Sampling of theta according to phi
         A = phi@phi.T + sn2*np.identity(n_spectral_points)
         c = np.linalg.inv(np.linalg.cholesky(A))
         invA = np.dot(c.T,c)
+        if isinstance(Y, DataSet):
+            Y = Y.data_to_numpy()
         mu_theta = invA@phi@Y
         cov_theta = sn2*invA
         cov_theta = 0.5*(cov_theta+cov_theta.T)
-        theta = np.random.multivariate_normal(mu_theta[:, 0], cov_theta)
+        rng = default_rng()
+        theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
+                                        method='cholesky')
         
         #Posterior sample according to theta
         def f(x):
@@ -256,7 +266,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
             inputs, _ = np.shape(x)
             bprime = matlib.repmat(b, 1, inputs)
             output =  (theta.T*np.sqrt(2*sf2/n_spectral_points))@np.cos(W@x.T+bprime)
-            return output.T
+            return np.atleast_2d(output).T
         self.sampled_f = f
         return f
     
