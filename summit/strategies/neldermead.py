@@ -12,7 +12,10 @@ class NelderMead(Strategy):
     ----------
     domain: `summit.domain.Domain`
         A summit domain object
-
+    x_start: array_like of shape (1, N), optional
+        Initial center point of simplex
+        Default: empty list that will initialize generation of x_start as geoemetrical center point of bounds
+        Note that x_start is ignored when initial call of suggest_exp contains prev_res and/or prev_param
 
     Examples
     -------
@@ -41,6 +44,7 @@ class NelderMead(Strategy):
     def __init__(self, domain: Domain, **kwargs):
         Strategy.__init__(self, domain)
 
+        self._x_start = kwargs.get('x_start', [])
         self._adaptive = kwargs.get('adaptive', False)
 
     def suggest_experiments(self, prev_res: DataSet=None, prev_param=None):
@@ -48,8 +52,8 @@ class NelderMead(Strategy):
 
         Parameters
         ----------
-        num_experiments: int
-            The number of experiments (i.e., samples) to generate
+        x_start: np.array of size 1xdim, optional
+            Initial center point for simplex
         prev_res: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, the Nelder-Mead optimization algorithm
@@ -83,12 +87,20 @@ class NelderMead(Strategy):
         bounds = np.asarray(bounds, dtype=float)
 
         # Initialization
-        x0 = []
+        initial_run = True
+        x0 = [self._x_start]
         y0 = []
 
         # Get previous results
         if prev_res is not None:
+            initial_run = False
             inputs, outputs = self.get_inputs_outputs(prev_res)
+
+            # Set up maximization and minimization
+            for v in self.domain.variables:
+                if v.is_objective and v.maximize:
+                    outputs[v.name] = -1 * outputs[v.name]
+
             x0 = inputs.data_to_numpy()
             y0 = outputs.data_to_numpy()
 
@@ -96,27 +108,39 @@ class NelderMead(Strategy):
             raise ValueError('Parameter from previous optimization iteration are given but previous results are '
                              'missing!')
 
-        # if no previous results are given initialize center point as zero-vector
+        # if no previous results are given initialize center point as geometrical middle point of bounds
         if not len(x0):
-            x0 = np.zeros((1,len(bounds)))
-
+            x0 = np.ones((1,len(bounds)))*1/2*((bounds[:,1] + bounds[:,0]).T)
 
         ''' Set Nelder-Mead parameters, i.e., initialize or include data from previous iterations
             --------
-            prev_sim: 
-                variable coordinates of simplex from previous run
-            prev_fsim: 
-                function evaluations corresponding to points of simplex from previous run
-            x_iter: 
-                variable coordinates and corresponding function evaluations of potential new 
+            prev_sim: array-like
+                variable coordinates (points) of simplex from previous run
+            prev_fsim: array-like
+                function values corresponding to points of simplex from previous run
+            x_iter: array-like
+                variable coordinates and corresponding function values of potential new 
                 simplex points determined in one iteration of the NMS algorithm; note that 
                 within one iteration multiple points need to be evaluated; that's why we have
                 to store the points of an unfinished iteration (start iteration -> request point
                 -> run experiment -> restart same iteration with results of experiment 
                 -> request point -> run experiment ... -> finish iteration)
+            red_dim: boolean
+                True if dimension was reduced in one of the previous iteration and has not been recovered yet
+            red_sim: array-like
+                variable coordinates (points) of simplex before dimension was reduced
+            red_fsim: array-like
+                function values of points corresponding to simplex before dimension was reduced
+            rec_dim: boolean
+                True if dimension was revocered in last iteration
+            memory: array-like
+                list of all points for which the function was evaluated
         '''
-        prev_sim, prev_fsim, x_iter, red_dim, red_sim, red_fsim, rec_dim, memory = None, None, None, None, None, None, None, [[-100,-100]]
 
+        prev_sim, prev_fsim, x_iter, red_dim, red_sim, red_fsim, rec_dim, memory = \
+            None, None, None, None, None, None, None, [[float("-inf"),float("inf")]]
+
+        # if this is not the first iteration of the Nelder-Mead algorithm, get parameters from previous iteration
         if prev_param:
             prev_sim= prev_param[0]
             red_dim = prev_param[3]
@@ -124,14 +148,15 @@ class NelderMead(Strategy):
             red_fsim = prev_param[5]
             rec_dim = prev_param[6]
             memory = prev_param[7]
-            print(prev_param)
+
+            # if dimension was recovered in last iteration, N functions evaluations were requested
+            # that need to be assigned to the respective points in the simplex
             if rec_dim:
                 flat_y0 = [y0[i] for i in range(len(y0))]
                 prev_fsim = prev_param[1]
-                ##print(prev_fsim)
                 prev_fsim[:-1] = flat_y0
                 rec_dim = False
-                ##print(prev_fsim)
+            # assign function values to respective points
             elif prev_param[1] is not None:
                 prev_fsim = prev_param[1]
                 x_iter = prev_param[2]
@@ -148,53 +173,40 @@ class NelderMead(Strategy):
                                 if np.array_equal(value[0], np.asarray(x0[k])):
                                     x_iter[key][1] = y0[k]
                                     break
-                print(x_iter)
             else:
                 prev_fsim = y0
+                print("TEST")
+
+        # initialize with given simplex points (including function evaluations) for initialization
         elif prev_res is not None:
             prev_sim = x0
             prev_fsim = y0
-            red_dim =  None
-            red_sim = None
-            red_fsim = None
-            rec_dim = None
-            memory = [[-100,-100]]
 
         # Run Nelder-Mead Simplex algorithm for one iteration
+        overfull_simplex = False
         if not red_dim:
-            print("HERE")
-            print(x_iter)
-            request, sim, fsim, x_iter = self.minimize_neldermead(x0=x0[0], bounds=bounds, x=x_iter, f=prev_fsim, sim=prev_sim)
-            test_sim = np.asarray(sim[:-1])
-            overfull_sim_dim = np.all(test_sim == test_sim[0, :], axis=0)
-            overfull = False
-            print(x_iter)
-            #print(request)
-            for i in range(len(overfull_sim_dim)):
-                if overfull_sim_dim[i]:
-                    ##print("MARKER")
-                    ##print(request[0][i])
-                    ##print(test_sim[0][i])
-                    if request[0][i] == test_sim[0][i]:
-                        overfull_dim = i
-                        overfull = True
-                        #print("OVER")
+            request, sim, fsim, x_iter = self.minimize_neldermead(x0=x0[0], bounds=bounds, x_iter=x_iter, f=prev_fsim, sim=prev_sim)
+            '''if not initial_run:
+                test_sim = np.asarray(sim[:-1])
+                overfull_sim_dim = np.all(test_sim == test_sim[0, :], axis=0)
+                for i in range(len(overfull_sim_dim)):
+                    if overfull_sim_dim[i]:
+                        if request[0][i] == test_sim[0][i]:
+                            overfull_dim = i
+                            overfull = True
+                            prev_sim = sim[:-1]
+                            prev_fsim = fsim[:-1]
+                            red_sim = sim
+                            red_fsim = fsim
+                            break'''
+            if not initial_run:
+                overfull_simplex, prev_sim, prev_fsim, red_sim, red_fsim, overfull_dim = self.check_overfull(request, sim, fsim)
 
-                        prev_sim = sim[:-1]
-                        prev_fsim = fsim[:-1]
-                        red_sim = sim
-                        red_fsim = fsim
-                        break
         # reduce dimension if n+1 points are located in n-1 dimensions
-        if red_dim or overfull:
-            print("HALLO")
+        if red_dim or overfull_simplex:
             if red_dim:
-                print(prev_sim)
                 overfull_sim_dim = np.all(prev_sim == prev_sim[0, :], axis=0)
                 overfull_dim = np.where(overfull_sim_dim)[0][0]
-                print(overfull_sim_dim)
-                print(overfull_dim)
-                #print(x_iter)
                 if x_iter:
                     for key, value in x_iter.items():
                         if value is not None:
@@ -205,29 +217,19 @@ class NelderMead(Strategy):
                                 for v in range(len(value)):
                                     x_iter[key][v] = [np.delete(value[v][0], overfull_dim), value[v][1]]
                                 continue
-                            ##print(x_iter[key])
                             x_iter[key] = [np.delete(value[0], overfull_dim), value[1]]
-                    #print(x_iter)
             else:
-                ##print("tRE")
                 x_iter = None
-            #overfull_dim = np.where(overfull_sim_dim)[0][0]
+
             save_dim = prev_sim[0][overfull_dim]
-            print(save_dim)
             new_prev_sim = np.delete(prev_sim, overfull_dim, 1)
-            ##print(x_iter)
-            ##print(prev_fsim)
             new_prev_fsim = prev_fsim
             new_bounds = np.delete(bounds, overfull_dim,0)
-            ##print(new_prev_sim)
-            ##print(new_bounds)
-            ##print("STOP - DIM")
-            request, sim, fsim, x_iter = self.minimize_neldermead(x0=new_prev_sim[0], x=x_iter, bounds=new_bounds, f=new_prev_fsim,
+            request, sim, fsim, x_iter = self.minimize_neldermead(x0=new_prev_sim[0], x_iter=x_iter, bounds=new_bounds, f=new_prev_fsim,
                                                                   sim=new_prev_sim)
-            #print(request)
             request = np.insert(request, overfull_dim, save_dim, 1)
             sim = np.insert(sim, overfull_dim, save_dim, 1)
-            #print(x_iter)
+
             for key, value in x_iter.items():
                 if value is not None:
                     if key is 'xbar':
@@ -237,29 +239,14 @@ class NelderMead(Strategy):
                         for v in range(len(value)):
                             x_iter[key][v] = [np.insert(value[v][0], overfull_dim, save_dim), value[v][1]]
                         continue
-                    ##print(x_iter[key])
                     x_iter[key] = [np.insert(value[0], overfull_dim, save_dim), value[1]]
-            #print(request)
-            #print(x_iter)
-            red_dim = True
-            ##print("STOP - DIM")
             red_dim = True
         else:
             red_dim = False
-        #red_dim = False
-        ##print(rec_dim)
-        print("RE")
-        print(sim)
-        print(request)
-        print(memory)
+
         if red_dim and any(np.equal(np.asarray(memory), request).all(1)):
             # recover dimension
-            ##print(sim[0])
-            ##print(red_sim[-1])
-            ##print(red_sim)
             xr_red_dim = (red_sim[-1][overfull_dim] - red_sim[0][overfull_dim])
-            ##print(xr_red_dim)
-            ##print(red_sim[:-1][:,[0]]+1)
             new_sim = red_sim.copy()
             new_sim[:-1][:,[overfull_dim]] = red_sim[:-1][:,[overfull_dim]] + xr_red_dim
             for dim in range(len(red_sim[0])):
@@ -267,7 +254,6 @@ class NelderMead(Strategy):
                     continue
                 else:
                     xt_red_dim = (red_sim[-1][dim] - sim[0][dim])
-                    ##print(xt_red_dim)
                     for s in range(len(new_sim[:-1])):
                         xs = red_sim[s][dim] - xt_red_dim
                         if bounds[dim][0] > xs:
@@ -276,18 +262,16 @@ class NelderMead(Strategy):
                             xs = bounds[dim][1]
                         new_sim[s][dim] = xs
             new_sim[-1] = sim[0]
-            ##print(new_sim)
             red_dim = False
             rec_dim = True
             sim = new_sim
             request = sim[:-1]
             fsim = red_fsim
             fsim[-1] = fsim[0]
-            ##print("STOP STOP")
         memory.append(request.tolist()[0])
-        print(memory)
-        print(x_iter)
-        res = [sim, fsim, x_iter, red_dim, red_sim, red_fsim, rec_dim, memory]
+
+        # store parameters of iteration as parameter array
+        param = [sim, fsim, x_iter, red_dim, red_sim, red_fsim, rec_dim, memory]
 
 
         # Generate DataSet object with variable values of next experiments
@@ -297,45 +281,30 @@ class NelderMead(Strategy):
                 next_experiments[v.name] = request[:,i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
         next_experiments[('strategy', 'METADATA')] = ['Nelder-Mead Simplex']*len(request)
-        ###print("\n ITER")
-        ###print(next_experiments)
-        ###print(res)
-        return next_experiments, sim[0], fsim[0], res
+        return next_experiments, 0, 0, param
 
 
     # https://github.com/scipy/scipy/blob/master/scipy/optimize/optimize.py
-    def minimize_neldermead(self, x0, bounds, x=None, f=None, sim= None, initial_simplex= None, adaptive=False,
+    def minimize_neldermead(self, x0, bounds, x_iter=None, f=None, sim=None, initial_simplex=None, adaptive=False,
                              **unknown_options):
         """
         Minimization of scalar function of one or more variables using the
         Nelder-Mead algorithm.
         Options
         -------
-        disp : bool
-            Set to True to ##print convergence messages.
-        maxiter, maxfev : int
-            Maximum allowed number of iterations and function evaluations.
-            Will default to ``N*200``, where ``N`` is the number of
-            variables, if neither `maxiter` or `maxfev` is set. If both
-            `maxiter` and `maxfev` are set, minimization will stop at the
-            first reached.
-        return_all : bool, optional
-            Set to True to return a list of the best solution at each of the
-            iterations.
+        x0: array_like of shape (1, N)
+        x_iter:
+        f:
+        sim:
+
         initial_simplex : array_like of shape (N + 1, N)
             Initial simplex. If given, overrides `x0`.
             ``initial_simplex[j,:]`` should contain the coordinates of
             the jth vertex of the ``N+1`` vertices in the simplex, where
             ``N`` is the dimension.
-        xatol : float, optional
-            Absolute error in xopt between iterations that is acceptable for
-            convergence.
-        fatol : number, optional
-            Absolute error in func(xopt) between iterations that is acceptable for
-            convergence.
         adaptive : bool, optional
             Adapt algorithm parameters to dimensionality of problem. Useful for
-            high-dimensional minimization [1]_.
+            high-dimensional minimization [1].
         References
         ----------
         .. [1] Gao, F. and Han, L.
@@ -356,26 +325,31 @@ class NelderMead(Strategy):
             psi = 0.5
             sigma = 0.5
 
-        nonzdelt = 0.05
-        zdelt = 0.00025
+        # TODO: discuss hyperparameter, find literature
+        zdelt = 0.25
 
         x0 = np.asfarray(x0).flatten()
         N = len(x0)
 
+        # generate N points based on center point, each point varying in
+        # one different variable compared to center point -> initial simplex with N+1 points
         if initial_simplex is None and sim is None:
-            ##print(1)
             sim = np.zeros((N + 1, N), dtype=x0.dtype)
             sim[0] = x0
             for k in range(N):
                 y = np.array(x0, copy=True)
-                if y[k] != 0:
-                    y[k] = (1 + nonzdelt) * y[k]
-                else:
-                    y[k] = zdelt
+                y[k] = y[k] + zdelt * 1 / 2 * (bounds[k,1] - bounds[k,0])
+                bool, _, _ = self.check_bounds(y, bounds)
+                # if point violates bound restriction, change variable in opposite direction
+                if not bool:
+                    y[k] = y[k] - zdelt * (bounds[k, 1] - bounds[k, 0])
+                # if point violates constraint, try opposite direction
+                # if point violates other constraint or bound, calculate max zdelt <zdelt_mod> that meets
+                # constraint for both direction and choose direction with greater zdelt_mod
+                # TODO: check constraints
                 sim[k + 1] = y
             return sim, sim, None, None
         elif sim is None:
-            ##print(2)
             sim = np.asfarray(initial_simplex).copy()
             if sim.ndim != 2 or sim.shape[0] != sim.shape[1] + 1:
                 raise ValueError("`initial_simplex` should be an array of shape (N+1,N)")
@@ -383,9 +357,7 @@ class NelderMead(Strategy):
                 raise ValueError("Size of `initial_simplex` is not consistent with `x0`")
             N = sim.shape[1]
         else:
-            ##print(3)
             sim = np.asfarray(sim).copy()
-            ##print(sim)
             if sim.ndim != 2 or sim.shape[0] != sim.shape[1] + 1:
                 raise ValueError("`initial_simplex` should be an array of shape (N+1,N)")
             if len(x0) != sim.shape[1]:
@@ -400,34 +372,22 @@ class NelderMead(Strategy):
 
         ind = np.argsort(fsim)
         fsim = np.take(fsim, ind, 0)
-        # sort so sim[0,:] has the lowest function value
         sim = np.take(sim, ind, 0)
 
         # Catch information on previous experiment
-        if x:
-            x_iter = x
-        else:
+        if not x_iter:
             x_iter = {'xbar': None, 'xr': None, 'xe': None, 'xc': None, 'xcc': None, 'x_shrink': None}
 
         # Iteration
         while 1:
-            ###print(x_iter)
-            ###print(sim)
-            ##print("HALLO")
             if not x_iter['xr']:
                 # Centroid point: xbar
                 xbar = np.add.reduce(sim[:-1], 0) / N
                 x_iter['xbar'] = xbar
                 # Reflection point xr
                 xr = (1 + rho) * xbar - rho * sim[-1]
-                ##print(sim)
-                ##print(x_iter)
                 for l in range(len(bounds)):
-                    ##print(xr)
                     _bool, i, b = self.check_bounds(xr, bounds)
-                    ##print(_bool)
-                    ##print(i)
-                    ##print(b)
                     if _bool:
                         break
                     else:
@@ -440,22 +400,13 @@ class NelderMead(Strategy):
             doshrink = 0
 
             # if function value of reflected point is better than best point of simplex, determine expansion point
-            ##print(fxr)
-            ##print(fsim[0])
             if fxr < fsim[0]:
                 if not x_iter['xe']:
                     # expansion point: xe
                     xbar = x_iter['xbar']
-                    #xe = (1 + rho * chi) * xbar - rho * chi * sim[-1]
                     xe = xr + chi * xbar - chi * sim[-1]
-                    ##print(sim)
-                    ##print(x_iter)
                     for l in range(len(bounds)):
-                        ##print(xe)
                         _bool, i, b = self.check_bounds(xe, bounds)
-                        ##print(_bool)
-                        ##print(i)
-                        ##print(b)
                         if _bool:
                             break
                         else:
@@ -493,9 +444,9 @@ class NelderMead(Strategy):
                         # contracted point: xc
                         if not x_iter['xc']:
                             xbar = x_iter['xbar']
-                            rho = np.min((xr- xbar)/(xbar - sim[-1]))
-                            ##print("RHO")
-                            ##print(rho)
+                            # avoid division with zero (some coordinates of xbar, xr, and sim[-1] may be identical)
+                            # by applying np.max and np.min
+                            rho = np.min(np.max(xr- xbar)/np.max((xbar - sim[-1])))
                             xc = (1 + psi * rho) * xbar - psi * rho * sim[-1]
                             for l in range(len(bounds)):
                                 _bool, i, b = self.check_bounds(xc, bounds)
@@ -503,6 +454,7 @@ class NelderMead(Strategy):
                                     break
                                 else:
                                     tmp_psi = (bounds[i][b] - xr[i]) / (xbar[i] - sim[-1][i])
+                                    print(tmp_psi)
                                     xc = (1 + tmp_psi * rho) * xbar - tmp_psi * rho * sim[-1]
                             if np.array_equal(xc,xr):
                                 x_iter['xc'] = [xc, float("inf")]
@@ -550,7 +502,6 @@ class NelderMead(Strategy):
                         x_shrink = []
                         x_shrink_f = []
                         if not x_iter['x_shrink']:
-                            iteration_stop_point = 5
                             for j in one2np1:
                                 sim[j] = sim[0] + sigma * (sim[j] - sim[0])
                                 xj = sim[j]
@@ -559,29 +510,47 @@ class NelderMead(Strategy):
                             x_iter['x_shrink'] = x_shrink_f
                             return np.asarray(x_shrink), sim, fsim, x_iter
                         for j in one2np1:
-                            ##print(x_iter["x_shrink"])
                             sim[j] = x_iter['x_shrink'][j-1][0]
                             fsim[j] = x_iter['x_shrink'][j-1][1]
             x_iter = {'xbar': None, 'xr': None, 'xe': None, 'xc': None, 'xcc': None, 'x_shrink': None}
             ind = np.argsort(fsim)
             sim = np.take(sim, ind, 0)
             fsim = np.take(fsim, ind, 0)
-        # end of iteration
 
-        x = sim[0]
-        return None, sim, fsim, None
 
+    # Function to check whether a point x lies within the variable bounds of the domain
     def check_bounds(self, x, bounds):
         for i, b in enumerate(bounds):
             upper_b = b[1] < x[i]
             lower_b = b[0] > x[i]
+            # Point violated bound constraints
             if upper_b or lower_b:
-                ##print(x)
-                ##print("Point violated bound constraints")
                 if lower_b:
                     return False, i, 0
                 else:
                     return False, i, 1
         return True, None, None
+
+
+    # Function to check whether a point meets the constraints of the domain
+    def check_constraints(self, x, constraints):
+        raise NotImplementedError("Constraints not implemented yet")
+        return True, None, None
+
+    def check_overfull(self, tmp_request, tmp_sim, tmp_fsim):
+        test_sim = np.asarray(tmp_sim[:-1])
+        overfull_sim_dim = np.all(test_sim == test_sim[0, :], axis=0)
+        for i in range(len(overfull_sim_dim)):
+            if overfull_sim_dim[i]:
+                if tmp_request[0][i] == test_sim[0][i]:
+                    overfull_dim = i
+                    prev_sim = tmp_sim[:-1]
+                    prev_fsim = tmp_fsim[:-1]
+                    red_sim = tmp_sim
+                    red_fsim = tmp_fsim
+                    return True, prev_sim, prev_fsim, red_sim, red_fsim, overfull_dim
+                    break
+        return False, None, None, None, None, None
+
 
 
