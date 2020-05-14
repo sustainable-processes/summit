@@ -29,7 +29,8 @@ class NelderMead(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
     >>> strategy = NelderMead(domain)
-    >>> strategy.suggest_experiments()
+    >>> next_experiments, xbest, fbest, param = strategy.suggest_experiments()
+    >>> print(next_experiments)
     NAME  temperature  flowrate_a             strategy
     0           0.500       0.500  Nelder-Mead Simplex
     1           0.625       0.500  Nelder-Mead Simplex
@@ -365,7 +366,7 @@ class NelderMead(Strategy):
                     if _bool:
                         break
                     else:
-                        tmp_rho = (bounds[i][b] - xbar[i])/(xbar[i] - sim[-1][i])
+                        tmp_rho = np.min(np.max(np.abs((bounds[i][b] - xbar[i])))/np.max(np.abs((xbar[i] - sim[-1][i]))))
                         xr = (1 + tmp_rho) * xbar - tmp_rho * sim[-1]
                 x_iter['xr'] = [xr, None]
                 return np.asarray([xr]), sim, fsim, x_iter
@@ -384,7 +385,7 @@ class NelderMead(Strategy):
                         if _bool:
                             break
                         else:
-                            tmp_chi = (bounds[i][b] - xr[i])/(xbar[i] - sim[-1][i])
+                            tmp_chi = np.min(np.max(np.abs((bounds[i][b] - xr[i])))/np.max(np.abs((xbar[i] - sim[-1][i]))))
                             xe = xr + tmp_chi * xbar - tmp_chi * sim[-1]
                     if np.array_equal(xe,xr):
                         x_iter['xe'] = [xe, float("inf")]
@@ -416,18 +417,20 @@ class NelderMead(Strategy):
                     # if reflected point is better than worst point
                     if fxr < fsim[-1]:
                         # contracted point: xc
+                        print("TEST")
                         if not x_iter['xc']:
+                            print(123)
                             xbar = x_iter['xbar']
                             # avoid division with zero (some coordinates of xbar, xr, and sim[-1] may be identical)
                             # by applying np.max and np.min
-                            rho = np.min(np.max(xr- xbar)/np.max((xbar - sim[-1])))
+                            rho = np.min(np.max(np.abs(xr- xbar))/np.max(np.abs((xbar - sim[-1]))))
                             xc = (1 + psi * rho) * xbar - psi * rho * sim[-1]
                             for l in range(len(bounds)):
                                 _bool, i, b = self.check_bounds(xc, bounds)
                                 if _bool:
                                     break
                                 else:
-                                    tmp_psi = (bounds[i][b] - xr[i]) / (xbar[i] - sim[-1][i])
+                                    tmp_psi = np.min(np.max(np.abs((bounds[i][b] - xr[i]))) / np.max(np.abs((xbar[i] - sim[-1][i]))))
                                     xc = (1 + tmp_psi * rho) * xbar - tmp_psi * rho * sim[-1]
                             if np.array_equal(xc,xr):
                                 x_iter['xc'] = [xc, float("inf")]
@@ -436,6 +439,7 @@ class NelderMead(Strategy):
                                 return np.asarray([xc]), sim, fsim, x_iter
                         xc = x_iter['xc'][0]
                         fxc = x_iter['xc'][1]
+                        print(x_iter)
 
                         # if contracted point is better than reflected point
                         if fxc <= fxr:
@@ -454,7 +458,7 @@ class NelderMead(Strategy):
                                 if _bool:
                                     break
                                 else:
-                                    tmp_psi = (bounds[i][b] - xbar[i])/(sim[-1][i] - xbar[i])
+                                    tmp_psi = np.min(np.max(np.abs((bounds[i][b] - xbar[i])))/np.max(np.abs((sim[-1][i] - xbar[i]))))
                                     xcc = (1 - tmp_psi) * xbar + tmp_psi * sim[-1]
                             if np.array_equal(xcc,xr):
                                 x_iter['xcc'] = [xcc, None]

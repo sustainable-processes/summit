@@ -205,14 +205,14 @@ def test_nm1():
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 '''
 
-@pytest.mark.parametrize('x_start', [[0,0],[4,4],[-1,-2]])
+
+@pytest.mark.parametrize('x_start', [[0,0],[6,6],[-3,-4],[1,2],[-5,5]])
 @pytest.mark.parametrize('maximize', [True, False])
 def test_nm2(x_start,maximize):
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
-    #maximize = True
     domain = Domain()
-    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-4, 4])
-    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[-4, 4])
+    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-6, 6])
+    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[-6, 6])
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
                                  bounds=[-1000,1000], is_objective=True, maximize=maximize)
     domain += Constraint(lhs="temperatureflowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
@@ -220,9 +220,7 @@ def test_nm2(x_start,maximize):
     strategy = NelderMead(domain, x_start=x_start)
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
-    # here Hartmann 3D function: https://www.sfu.ca/~ssurjano/hart3.html
-    # Note that SNOBFIT treats constraints implicitly, i.e., for variable sets that
-    # violate one of the constraints return NaN as function value (so-called: hidden constraints)
+    # here Himmelblau (2D) function: http://benchmarkfcns.xyz/benchmarkfcns/himmelblaufcn.html
     def sim_fun(x_exp):
         x = x_exp
         y_exp = -((x[0]**2 + x[1] - 11)**2+(x[0] + x[1]**2 -7)**2)
@@ -252,7 +250,7 @@ def test_nm2(x_start,maximize):
     nstop = 0
     fbestold = float("inf")
     fig, ax = plt.subplots()
-    plt.axis([-5, 5, -5, 5])
+    plt.axis([-7, 7, -7, 7])
     patches = []
     points = []
     for i in range(num_iter):
@@ -294,8 +292,8 @@ def test_nm2(x_start,maximize):
 
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 
-    xlist = np.linspace(-5, 5, 1000)
-    ylist = np.linspace(-5, 5, 1000)
+    xlist = np.linspace(-7, 7, 1000)
+    ylist = np.linspace(-7, 7, 1000)
     X, Y = np.meshgrid(xlist, ylist)
     Z = (((X**2 + Y - 11)**2+(X + Y**2 -7)**2))
     ax.contour(X,Y,Z, levels=np.logspace(-2, 3, 30, base=10), alpha=0.3)
@@ -304,8 +302,8 @@ def test_nm2(x_start,maximize):
     for c in range(len(points)):
         ax.scatter(points[c][0], points[c][1])
         ax.text(points[c][0] + .01, points[c][1] + .01, c+1, fontsize=7)
-    ax.axvline(x=-4, color='k', linestyle='--')
-    ax.axhline(y=4, color='k', linestyle='--')
-    ax.axvline(x=4, color='k', linestyle='--')
-    ax.axhline(y=-4, color='k', linestyle='--')
+    ax.axvline(x=-6, color='k', linestyle='--')
+    ax.axhline(y=6, color='k', linestyle='--')
+    ax.axvline(x=6, color='k', linestyle='--')
+    ax.axhline(y=-6, color='k', linestyle='--')
     plt.show()
