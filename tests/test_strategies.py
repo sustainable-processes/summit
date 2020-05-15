@@ -208,7 +208,7 @@ def test_nm1():
 
 @pytest.mark.parametrize('x_start', [[0,0],[6,6],[-3,-4],[1,2],[-5,5]])
 @pytest.mark.parametrize('maximize', [True, False])
-def test_nm2(x_start,maximize):
+def test_nm1(x_start,maximize):
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
     domain = Domain()
     domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-6, 6])
@@ -217,7 +217,7 @@ def test_nm2(x_start,maximize):
                                  bounds=[-1000,1000], is_objective=True, maximize=maximize)
     domain += Constraint(lhs="temperatureflowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
     constraint = False
-    strategy = NelderMead(domain, x_start=x_start)
+    strategy = NelderMead(domain, x_start=x_start, adaptive=False)
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
     # here Himmelblau (2D) function: http://benchmarkfcns.xyz/benchmarkfcns/himmelblaufcn.html
@@ -230,23 +230,18 @@ def test_nm2(x_start,maximize):
     def test_fun(x):
         y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
         return y
-    # Define hypothetical constraint (for real experiments, check constraint and return NaN)
-    def constr(x):
-        if constraint:
-            return (x[0]+x[1]+x[2]<=1)
-        else:
-            return True
 
     # Initialize with "experimental" data
+    initial_exp = None
     #initial_exp = pd.DataFrame(data={'temperature': [-0.5,0,0], 'flowrate_a': [4,4,1.1]})   # initial experimental points
-    #initial_exp = pd.DataFrame(data={'temperature': [0,0.5,1], 'flowrate_a': [-3,-2,-3.4]})   # initial experimental points
+    #initial_exp = pd.DataFrame(data={'temperature': [6.0,6.0,4.0], 'flowrate_a': [2.0,3.0,-6.0]})   # initial experimental points
     #initial_exp.insert(2,'yield', test_fun(initial_exp.to_numpy()))   # initial results
     #initial_exp = DataSet.from_df(initial_exp)
 
     # run SNOBFIT loop for fixed <num_iter> number of iteration with <num_experiments> number of experiments each
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
     num_iter = 100
-    max_stop = 10
+    max_stop = 20
     nstop = 0
     fbestold = float("inf")
     fig, ax = plt.subplots()
@@ -256,8 +251,14 @@ def test_nm2(x_start,maximize):
     for i in range(num_iter):
         # initial run without history
         if i == 0:
-            #next_experiments, xbest, fbest, param = strategy.suggest_experiments(prev_res=initial_exp)
-            next_experiments, xbest, fbest, param = strategy.suggest_experiments()
+            if initial_exp is not None:
+                for i in range(len(initial_exp)):
+                    points.append(initial_exp.data_to_numpy()[i][:2].tolist())
+                polygon = Polygon(points, True, hatch='x')
+                patches.append(polygon)
+                next_experiments, xbest, fbest, param = strategy.suggest_experiments(prev_res=initial_exp)
+            else:
+                next_experiments, xbest, fbest, param = strategy.suggest_experiments()
 
         ### runs with history
         else:
@@ -289,7 +290,6 @@ def test_nm2(x_start,maximize):
     fbest = np.around(fbest, decimals=3)
 
     assert fbest <= 0.1
-
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 
     xlist = np.linspace(-7, 7, 1000)

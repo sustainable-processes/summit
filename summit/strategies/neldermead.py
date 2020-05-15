@@ -149,9 +149,11 @@ class NelderMead(Strategy):
             # if dimension was recovered in last iteration, N functions evaluations were requested
             # that need to be assigned to the respective points in the simplex
             if rec_dim:
-                flat_y0 = [y0[i] for i in range(len(y0))]
                 prev_fsim = prev_param[1]
-                prev_fsim[:-1] = flat_y0
+                for k in range(len(x0)):
+                    for s in range(len(prev_sim)):
+                        if np.array_equal(prev_sim[s], x0[k]):
+                            prev_fsim[s] = y0[k]
                 rec_dim = False
             # assign function values to respective points
             elif prev_param[1] is not None:
@@ -176,11 +178,12 @@ class NelderMead(Strategy):
         elif prev_res is not None:
             prev_sim = x0
             prev_fsim = y0
-
+            for p in x0.astype(float).tolist():
+                memory.append(p)
         # Run Nelder-Mead Simplex algorithm for one iteration
         overfull_simplex = False
         if not red_dim:
-            request, sim, fsim, x_iter = self.minimize_neldermead(x0=x0[0], bounds=bounds, x_iter=x_iter, f=prev_fsim, sim=prev_sim)
+            request, sim, fsim, x_iter = self.minimize_neldermead(x0=x0[0], bounds=bounds, x_iter=x_iter, f=prev_fsim, sim=prev_sim,adaptive=self._adaptive)
             if not initial_run:
                 overfull_simplex, prev_sim, prev_fsim, red_sim, red_fsim, overfull_dim = self.check_overfull(request, sim, fsim)
 
@@ -207,7 +210,7 @@ class NelderMead(Strategy):
 
             # Run one iteration of Nelder-Mead Simplex algorithm for reduced simplex
             request, sim, fsim, x_iter = self.minimize_neldermead(x0=new_prev_sim[0], x_iter=x_iter, bounds=new_bounds, f=prev_fsim,
-                                                                  sim=new_prev_sim)
+                                                                  sim=new_prev_sim, adaptive=self._adaptive)
 
             overfull_simplex, _, _, _, _, _ = self.check_overfull(request, sim, fsim)
             if overfull_simplex:
@@ -226,17 +229,31 @@ class NelderMead(Strategy):
         else:
             red_dim = False
 
-        ## if dimension is reduced and requested point has already been evaluated, recover dimension with
-        # reflected and translated simplex before dimension reduction
-        if red_dim and any(np.equal(np.asarray(memory), request).all(1)):
-            sim, fsim = self.recover_simplex_dim(sim, red_sim, red_fsim, overfull_dim, bounds)
-            request = sim [:-1]
+        # Circle (suggested point that already has been investigated)
+        if any((memory == x).all(1).any() for x in request):
+            ## if dimension is reduced and requested point has already been evaluated, recover dimension with
+            # reflected and translated simplex before dimension reduction
+            if red_dim:
+                sim, fsim, request = self.recover_simplex_dim(sim, red_sim, red_fsim, overfull_dim, bounds, memory)
+                red_dim = False
+                rec_dim = True
+            # raise error
+            else:
+                raise "Circle - point has already been investigated."
 
-            red_dim = False
-            rec_dim = True
-
+        # Only little chances in requested points, xatol = tolerance for changes in x
+        xatol = (bounds[:,1] - bounds[:,0])/100
+        fatol = 1
+        if (np.max(np.abs(sim[1:] - sim[0]),0) <= xatol).all(): #and (np.max(np.abs(fsim[0] - fsim[1:])) <= fatol).any():
+            if red_dim:
+                sim, fsim, request = self.recover_simplex_dim(sim, red_sim, red_fsim, overfull_dim, bounds, memory)
+                red_dim = False
+                rec_dim = True
+            #else:
+                #raise "End"
         # append requested points to memory
-        memory.append(request.tolist()[0])
+        for p in request.astype(float).tolist():
+            memory.append(p)
 
         # store parameters of iteration as parameter array
         param = [sim, fsim, x_iter, red_dim, red_sim, red_fsim, rec_dim, memory]
@@ -417,9 +434,7 @@ class NelderMead(Strategy):
                     # if reflected point is better than worst point
                     if fxr < fsim[-1]:
                         # contracted point: xc
-                        print("TEST")
                         if not x_iter['xc']:
-                            print(123)
                             xbar = x_iter['xbar']
                             # avoid division with zero (some coordinates of xbar, xr, and sim[-1] may be identical)
                             # by applying np.max and np.min
@@ -439,7 +454,6 @@ class NelderMead(Strategy):
                                 return np.asarray([xc]), sim, fsim, x_iter
                         xc = x_iter['xc'][0]
                         fxc = x_iter['xc'][1]
-                        print(x_iter)
 
                         # if contracted point is better than reflected point
                         if fxc <= fxr:
@@ -526,7 +540,6 @@ class NelderMead(Strategy):
                     red_sim = tmp_sim
                     red_fsim = tmp_fsim
                     return True, prev_sim, prev_fsim, red_sim, red_fsim, overfull_dim
-                    break
         return False, None, None, None, None, None
 
     def upstream_simplex_dim_red(self, tmp_prev_sim, tmp_x_iter):
@@ -561,7 +574,7 @@ class NelderMead(Strategy):
                 tmp_x_iter[key] = [np.insert(value[0], overfull_dim, save_dim), value[1]]
         return tmp_x_iter
 
-    def recover_simplex_dim(self, tmp_sim, tmp_red_sim, tmp_red_fsim, overfull_dim, bounds):
+    def recover_simplex_dim(self, tmp_sim, tmp_red_sim, tmp_red_fsim, overfull_dim, bounds, memory):
         ## Translate all points of the simplex before the reduction along the axis of the reduced dimension
         # but the one, that caused dimension reduction (translation distance corresponds to distance of point, that
         # caused the dimension reduction, to the values of all other points at axis of the reduced dimension)
@@ -585,9 +598,42 @@ class NelderMead(Strategy):
                     elif bounds[dim][1] < xs:
                         xs = bounds[dim][1]
                     new_sim[s][dim] = xs
+        # Alter simplex in case one point is twice into recovered simplex due to bound constraints
+        p = 0
+        c_i = 0
+        while p < len(new_sim) and c_i < len(new_sim):
+            l_new_sim = new_sim.tolist()
+            x = l_new_sim.count(l_new_sim[p])
+            if x > 1:
+                t_x = l_new_sim[p]
+                for dim in range(len(t_x)):
+                    if t_x[dim] == bounds[dim,0]:
+                        new_sim[p][dim] = new_sim[p][dim] + 0.25 * 1 / 2 * (bounds[dim,1] - bounds[dim,0])
+                        p = 0
+                        c_i += 1
+                    elif t_x[dim] == bounds[dim,1]:
+                        new_sim[p][dim] = new_sim[p][dim] - 0.25 * 1 / 2 * (bounds[dim, 1] - bounds[dim, 0])
+                        p = 0
+                        c_i += 1
+            else:
+                p += 1
+
         new_sim[-1] = tmp_sim[0]
         sim = new_sim
         fsim = tmp_red_fsim
         fsim[-1] = fsim[0]
-
-        return sim, fsim
+        request = sim[:-1]
+        if any((memory == x).all(1).any() for x in request):
+            len_req = len(request)
+            len_req_mod = len_req
+            i = 0
+            while i < len_req_mod:
+                if (memory == request[i]).all(1).any():
+                    fsim[i + len_req - len_req_mod] = float("inf")
+                    request = np.delete(request, i, 0)
+                    len_req_mod -= 1
+                else:
+                    i += 1
+            if len_req_mod == 0:
+                raise "Recovering dimension failed due to error in generating new points."
+        return sim, fsim, request
