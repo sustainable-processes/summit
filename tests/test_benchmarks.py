@@ -30,11 +30,10 @@ def test_dltz2_benchmark(num_inputs):
     """Test the DTLZ2 benchmark"""
     b = DTLZ2(num_inputs=num_inputs,
               num_objectives=2)
-
-    values = {f'x_{i}': 0.5 for  i in range(num_inputs)}
+    values = {(f'x_{i}', 'DATA'): [0.5] for  i in range(num_inputs)}
     ds = DataSet(values)
     b.run_experiments(ds)
     data = b.data
-    assert data['y_0'].iloc[0] == 0.7071
-    assert data['y_1'].iloc[0] == 0.7071
+    assert np.isclose(data['y_0'].iloc[0], 0.7071)
+    assert np.isclose(data['y_1'].iloc[0], 0.7071)
 

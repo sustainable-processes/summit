@@ -11,9 +11,9 @@ def test_gpy_model():
     sampled_f = m.spectral_sample(X, Y)
     predict_Y = m.predict(X)
     sample_Y = sampled_f(X)
-    mae_sample = np.mean(np.abs(sample_Y-Y[:,0]))
+    mae_sample = np.mean(np.abs(sample_Y[:,0]-Y[:,0]))
     mae_pred = np.mean(np.abs(predict_Y[:,0]-Y[:,0]))
-    assert mae_sample < 0.05
-    assert mae_pred < 0.05
+    assert mae_sample < 0.1
+    assert mae_pred < 0.1
 
 

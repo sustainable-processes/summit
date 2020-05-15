@@ -53,7 +53,7 @@ class ModelGroup:
     def __getitem__(self, key):
         return self.models[key]
 
-class GPyModel(BaseEstimator, RegressorMixin):
+class GPyModel:
     ''' A Gaussian Process Regression model from GPy
 
     This is implemented as an alternative to the sklearn
@@ -230,7 +230,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         p = matlib.repmat(np.divide(1, ell), n_spectral_points, 1)
         if matern_nu != np.inf:            
             inv = chi2.ppf(sW, matern_nu)
-            q = np.sqrt(np.divide(matern_nu, inv))
+            q = np.sqrt(np.divide(matern_nu, inv)+1e-7)
             W = np.multiply(p, norm.ppf(sW))
             W = np.multiply(W, q)
         else:
@@ -240,21 +240,30 @@ class GPyModel(BaseEstimator, RegressorMixin):
 
         # Calculate phi
         phi = np.sqrt(2*sf2/n_spectral_points)*np.cos(W@X_std.T +  matlib.repmat(b, 1, n))
-        phi = np.round(phi, 3) # Round due to truncation errors that causes problems with inverse
 
         #Sampling of theta according to phi
         A = phi@phi.T + sn2*np.identity(n_spectral_points)
-        c = np.linalg.inv(np.linalg.cholesky(A))
-        invA = np.dot(c.T,c)
+        try:
+            c = np.linalg.inv(np.linalg.cholesky(A))
+            invA = np.dot(c.T,c)
+        except np.linalg.LinAlgError:
+            print('here')
+            u,s, vh = np.linalg.svd(A)
+            invA = vh.T@np.diag(1/s)@u.T
         if isinstance(Y, DataSet):
             Y = Y.data_to_numpy()
         mu_theta = invA@phi@Y
         cov_theta = sn2*invA
-        cov_theta = 0.5*(cov_theta+cov_theta.T)
-        rng = default_rng()
-        theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
-                                        method='cholesky')
-        
+        cov_theta = 0.5*(cov_theta+cov_theta.T)+1e-4*np.identity(n_spectral_points)
+        # try:
+        #     theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
+        #                                    method='cholesky')
+        # except np.linalg.LinAlgError:
+        #     theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
+        #                                    method='svd')
+
+        theta = np.random.multivariate_normal(mu_theta[:, 0], cov_theta)
+
         #Posterior sample according to theta
         def f(x):
             if isinstance(x, np.ndarray):

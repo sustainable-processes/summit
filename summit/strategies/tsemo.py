@@ -107,7 +107,8 @@ class TSEMO(Strategy):
         self.models.fit(inputs, outputs, spectral_sample=True)
 
         # Sample function to optimize
-        kwargs.update({'use_spectral_sample': True})
+        use_spectral_sample = kwargs.get('use_spectral_sample', True)
+        kwargs.update({'use_spectral_sample': use_spectral_sample})
         internal_res = self.optimizer.optimize(self.models, **kwargs)
         
         if internal_res is not None and len(internal_res.fun)!=0:

@@ -54,9 +54,9 @@ def test_tsemo():
         lab.run_experiments(experiments)
         
         # Get suggestions
-        nsga_options = dict(pop_size=100, iterations=100)
+        options = dict(pop_size=100, iterations=100, use_spectral_sample=False)
         experiments = strategy.suggest_experiments(1, lab.data,
-                                                   **nsga_options)
+                                                   **options)
     y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
                                    maximize=False)  
     hv = HvI.hypervolume(y_pareto, [11,11])
