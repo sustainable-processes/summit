@@ -41,14 +41,16 @@ def test_lhs():
 def test_tsemo():
     pass
 
-def test_snobfit():
+@pytest.mark.parametrize('num_experiments', [1, 2, 4])
+@pytest.mark.parametrize('maximize', [True, False])
+def test_snobfit(num_experiments, maximize):
     # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
     domain = Domain()
     domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 1])
     domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0, 1])
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
-                                 bounds=[-1000,1000], is_objective=True, maximize=True)
+                                 bounds=[-1000,1000], is_objective=True, maximize=maximize)
     domain += Constraint(lhs="temperatureflowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
     constraint = False
     strategy = SNOBFIT(domain, probability_p=0.5, dx_dim=1E-5)
@@ -66,7 +68,9 @@ def test_snobfit():
             d = np.zeros((4,1))
             for k in range(4):
                 d[k] = np.sum(np.dot(A[k,:],(x_exp-P[k,:])**2))
-            y_exp = - np.sum(np.dot(alpha,np.exp(-d)))
+            y_exp = np.sum(np.dot(alpha,np.exp(-d)))
+            if not maximize:
+                y_exp *= -1.0
         else:
             y_exp = np.nan
         return y_exp
@@ -88,9 +92,9 @@ def test_snobfit():
 
     # run SNOBFIT loop for fixed <num_iter> number of iteration with <num_experiments> number of experiments each
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
-    num_experiments = 4
-    num_iter = 100
-    max_stop = 10
+    # num_experiments = 4
+    num_iter = 400//num_experiments
+    max_stop = 50//num_experiments
     nstop = 0
     fbestold = float("inf")
     for i in range(num_iter):
@@ -141,8 +145,8 @@ def test_snobfit():
     fbest = np.around(fbest, decimals=3)
     if not constraint:
         # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-        assert (xbest[0] >= 0.113 and xbest[0] <= 0.115) and (xbest[1] >= 0.555 and xbest[1] <= 0.557) and \
-               (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
+        assert (xbest[0] >= 0.11 and xbest[0] <= 0.12) and (xbest[1] >= 0.55 and xbest[1] <= 0.56) and \
+               (xbest[2] >= 0.85 and xbest[2] <= 0.86) and (fbest <= -3.85 and fbest >= -3.87)
     else:
         # Extrema of test function with constraint: tbd /TODO: determine optimum with constraint with other algorithms
         assert fbest <= -1

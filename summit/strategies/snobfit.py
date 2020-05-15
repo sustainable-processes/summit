@@ -24,18 +24,7 @@ import pandas as pd
 class SNOBFIT(Strategy):
     ''' SNOBFIT optimization algorithm from W. Huyer and A.Neumaier, University of Vienna.
 
-        This implementation is based on the python reimplementation SQSnobFit (v.0.4.2)
-        of the original MATLAB implementation of SNOBFIT (v2.1).
 
-    Copyright of SNOBFIT (v2.1):
-        Neumaier, University of Vienna
-
-        Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
-
-    Copyright of SQSnobfit (v0.4.2)
-        UC Regents, Berkeley
-
-        Website: https://pypi.org/project/SQSnobFit/
 
     Parameters
     ----------
@@ -54,6 +43,25 @@ class SNOBFIT(Strategy):
         to be different if they differ by at least dx(i) in at least one
         coordinate i.
         Default is 1E-5.
+    
+    Notes
+    ------
+    This implementation is based on the python reimplementation SQSnobFit (v.0.4.2)
+    of the original MATLAB implementation of SNOBFIT (v2.1).
+
+    Copyright of SNOBFIT (v2.1):
+        Neumaier, University of Vienna
+
+        Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
+
+    Copyright of SQSnobfit (v0.4.2)
+        UC Regents, Berkeley
+
+        Website: https://pypi.org/project/SQSnobFit/
+
+    Note that SNOBFIT sometimes returns more experiments than requested when the number of experiments
+    request is small (i.e., 1 or 2). This seems to be a general issue with the algorithm
+    instead of the specific implementation used here. 
 
     Examples
     -------
@@ -66,7 +74,7 @@ class SNOBFIT(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.9])
     >>> domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
-    >>> d = {'temperature': [50,40,70,30], 'flowrate_a': [0.6,0.3,0.2,0.1], 'flowrate_b': [0.1,0.3,0.2,0.1], 'yield': [1,1,3,4]}
+    >>> d = {'temperature': [50,40,70,30], 'flowrate_a': [0.6,0.3,0.2,0.1], 'flowrate_b': [0.1,0.3,0.2,0.1], 'yield': [0.7,0.6,0.3,0.1]}
     >>> df = pd.DataFrame(data=d)
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
@@ -133,6 +141,12 @@ class SNOBFIT(Strategy):
         # Get previous results
         if prev_res is not None:
             inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
+            
+            # Set up maximization and minimization
+            for v in self.domain.variables:
+                if v.is_objective and v.maximize:
+                    outputs[v.name] = -1 * outputs[v.name]
+                    
             x0 = inputs.data_to_numpy()
             y0 = outputs.data_to_numpy()
 
@@ -177,7 +191,7 @@ class SNOBFIT(Strategy):
             if not v.is_objective:
                 next_experiments[v.name] = request[:,i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
-        next_experiments[('strategy', 'METADATA')] = ['SNOBFIT']*num_experiments
+        next_experiments[('strategy', 'METADATA')] = ['SNOBFIT']*len(request[:,0])
         return next_experiments, xbest, fbest, param
 
 
