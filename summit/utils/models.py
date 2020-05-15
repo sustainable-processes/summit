@@ -187,7 +187,7 @@ class GPyModel:
 
         return m
 
-    def spectral_sample(self, X, Y, n_spectral_points=4000):
+    def spectral_sample(self, X, Y, n_spectral_points=1500):
         '''Sample GP using spectral sampling
 
         Parameters
@@ -242,27 +242,29 @@ class GPyModel:
         phi = np.sqrt(2*sf2/n_spectral_points)*np.cos(W@X_std.T +  matlib.repmat(b, 1, n))
 
         #Sampling of theta according to phi
+        #For the matrix inverses, I defualt to Cholesky when possible
         A = phi@phi.T + sn2*np.identity(n_spectral_points)
         try:
             c = np.linalg.inv(np.linalg.cholesky(A))
             invA = np.dot(c.T,c)
         except np.linalg.LinAlgError:
-            print('here')
             u,s, vh = np.linalg.svd(A)
             invA = vh.T@np.diag(1/s)@u.T
         if isinstance(Y, DataSet):
             Y = Y.data_to_numpy()
         mu_theta = invA@phi@Y
         cov_theta = sn2*invA
+        #Add some noise to covariance to prevent issues
         cov_theta = 0.5*(cov_theta+cov_theta.T)+1e-4*np.identity(n_spectral_points)
-        # try:
-        #     theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
-        #                                    method='cholesky')
-        # except np.linalg.LinAlgError:
-        #     theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
-        #                                    method='svd')
+        rng = default_rng()
+        try:
+            theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
+                                           method='cholesky')
+        except np.linalg.LinAlgError:
+            theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
+                                           method='svd')
 
-        theta = np.random.multivariate_normal(mu_theta[:, 0], cov_theta)
+        # theta = np.random.multivariate_normal(mu_theta[:, 0], cov_theta)
 
         #Posterior sample according to theta
         def f(x):
