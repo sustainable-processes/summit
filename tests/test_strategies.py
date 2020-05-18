@@ -60,6 +60,7 @@ def test_nm2D(x_start,maximize,constraint):
                                  bounds=[-1000,1000], is_objective=True, maximize=maximize)
     if constraint:
         domain += Constraint(lhs="temperature+flowrate_a+7", constraint_type=">=")
+        domain += Constraint(lhs="temperature+flowrate_a+9", constraint_type=">=")
     strategy = NelderMead(domain, x_start=x_start, adaptive=False)
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,

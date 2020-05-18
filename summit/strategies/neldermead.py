@@ -650,8 +650,12 @@ class NelderMead(Strategy):
         constr_mask = np.asarray([True]*len(tmp_next_experiments)).T
         if len(self.domain.constraints)>0:
             constr = [c.constraint_type + "0" for c in self.domain.constraints]
-            test = [c.lhs + constr[i] for i,c in enumerate(self.domain.constraints)]
-            constr_mask = [pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments]) for i, c in enumerate(self.domain.constraints)]
+            constr_mask = []
+            for i, c in enumerate(self.domain.constraints):
+                tmp_c = c.lhs + constr[i]
+                tmp_r = pd.eval(tmp_c, resolvers=[tmp_next_experiments])
+                constr_mask.append(tmp_r)
+            #constr_mask = [pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments]) for i, c in enumerate(self.domain.constraints)]
             constr_mask = [c.tolist() for c in constr_mask][0]
         return constr_mask
 
