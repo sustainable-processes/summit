@@ -52,7 +52,7 @@ def test_tsemo():
 @pytest.mark.parametrize('maximize', [True, False])
 @pytest.mark.parametrize('constraint', [True, False])
 def test_nm2D(x_start,maximize,constraint):
-    # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
+    # Single-objective optimization problem with 2 dimensional input domain (only continuous inputs)
     domain = Domain()
     domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-4, 4])
     domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[-6, 6])
