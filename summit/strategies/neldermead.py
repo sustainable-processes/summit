@@ -1,5 +1,5 @@
 from .base import Strategy
-from summit.domain import Domain, DomainError
+from summit.domain import Domain
 from summit.utils.dataset import DataSet
 
 import numpy as np
@@ -647,12 +647,11 @@ class NelderMead(Strategy):
 
     # Function to check whether a point meets the constraints of the domain
     def check_constraints(self, tmp_next_experiments):
-        input_columns = [v.name for  v in self.domain.variables if not v.is_objective]
-        tmp_next_experiments = DataSet(np.atleast_2d(tmp_next_experiments), columns=input_columns)
         constr_mask = np.asarray([True]*len(tmp_next_experiments)).T
-        if self.domain.constraints:
+        if len(self.domain.constraints)>0:
             constr = [c.constraint_type + "0" for c in self.domain.constraints]
-            constr_mask = [tmp_next_experiments.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments]) for i, c in enumerate(self.domain.constraints)]
+            test = [c.lhs + constr[i] for i,c in enumerate(self.domain.constraints)]
+            constr_mask = [pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments]) for i, c in enumerate(self.domain.constraints)]
             constr_mask = [c.tolist() for c in constr_mask][0]
         return constr_mask
 
