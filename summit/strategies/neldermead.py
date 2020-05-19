@@ -153,13 +153,13 @@ class NelderMead(Strategy):
         Returns
         -------
         next_experiments: DataSet
-            A `Dataset` object with the suggested experiments by SNOBFIT algorithm
+            A `Dataset` object with the suggested experiments by Nelder-Mead Simplex algorithm
         xbest: list
             List with variable settings of experiment with best outcome
         fbest: float
             Objective value at xbest
         param: list
-            List with parameters and prev_param of SNOBFIT algorithm (required for next iteration)
+            List with parameters and prev_param of Nelder-Mead Simplex algorithm (required for next iteration)
         """
 
         # Extract dimension of input domain
@@ -656,7 +656,7 @@ class NelderMead(Strategy):
                 tmp_r = pd.eval(tmp_c, resolvers=[tmp_next_experiments])
                 constr_mask.append(tmp_r)
             #constr_mask = [pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments]) for i, c in enumerate(self.domain.constraints)]
-            constr_mask = [c.tolist() for c in constr_mask][0]
+            constr_mask = np.asarray([c.tolist() for c in constr_mask][0]).T
         return constr_mask
 
     # Function to check whether a simplex contains only points that are identical in one dimension and the
@@ -664,11 +664,8 @@ class NelderMead(Strategy):
     def check_overfull(self, tmp_request, tmp_sim, tmp_fsim, bounds):
         test_sim = np.asarray(tmp_sim[:-1])
         overfull_sim_dim = np.all(test_sim == test_sim[0, :], axis=0)
-        #print(tmp_request)
-        #print(tmp_sim)
         for i in range(len(overfull_sim_dim)):
             if overfull_sim_dim[i]:
-                #print(i)
                 if tmp_request[0][i] == test_sim[0][i]:
                     if any(bounds[i] == test_sim[0][i]):
                         overfull_dim = i

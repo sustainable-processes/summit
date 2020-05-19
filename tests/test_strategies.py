@@ -181,8 +181,6 @@ def test_nm3D(maximize,x_start):
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
     # here Hartmann 3D function: https://www.sfu.ca/~ssurjano/hart3.html
-    # Note that SNOBFIT treats constraints implicitly, i.e., for variable sets that
-    # violate one of the constraints return NaN as function value (so-called: hidden constraints)
     def sim_fun(x_exp):
         x_exp = x_exp[:3]
         A = np.array([[3,10,30],[0.1,10,35],[3,10,30],[0.1,10,35]])
