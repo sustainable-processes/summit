@@ -51,10 +51,12 @@ class NelderMead(Strategy):
     >>> strategy = NelderMead(domain)
     >>> next_experiments, xbest, fbest, param = strategy.suggest_experiments()
     >>> print(next_experiments)
-    NAME  temperature  flowrate_a             strategy
-    0           0.500       0.500  Nelder-Mead Simplex
-    1           0.625       0.500  Nelder-Mead Simplex
-    2           0.500       0.625  Nelder-Mead Simplex
+    NAME temperature flowrate_a             strategy
+    TYPE        DATA       DATA             METADATA
+    0          0.500      0.500  Nelder-Mead Simplex
+    1          0.625      0.500  Nelder-Mead Simplex
+    2          0.500      0.625  Nelder-Mead Simplex
+
 
     '''
 
@@ -378,7 +380,6 @@ class NelderMead(Strategy):
             # add optimization strategy
             next_experiments[('constraint', 'DATA')] = mask_valid_next_experiments
             next_experiments[('strategy', 'METADATA')] = ['Nelder-Mead Simplex'] * len(request)
-
         x_best = None
         f_best = float("inf")
         if not initial_run:
@@ -650,13 +651,10 @@ class NelderMead(Strategy):
         constr_mask = np.asarray([True]*len(tmp_next_experiments)).T
         if len(self.domain.constraints)>0:
             constr = [c.constraint_type + "0" for c in self.domain.constraints]
-            constr_mask = []
-            for i, c in enumerate(self.domain.constraints):
-                tmp_c = c.lhs + constr[i]
-                tmp_r = pd.eval(tmp_c, resolvers=[tmp_next_experiments])
-                constr_mask.append(tmp_r)
-            #constr_mask = [pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments]) for i, c in enumerate(self.domain.constraints)]
-            constr_mask = np.asarray([c.tolist() for c in constr_mask][0]).T
+            constr_mask = [pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments])
+                           for i, c in enumerate(self.domain.constraints)]
+            constr_mask = np.asarray([c.tolist() for c in constr_mask]).T
+            constr_mask = constr_mask.all(1)
         return constr_mask
 
     # Function to check whether a simplex contains only points that are identical in one dimension and the

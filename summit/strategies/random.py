@@ -33,12 +33,14 @@ class Random(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> strategy = Random(domain, random_state=np.random.RandomState(3))
     >>> strategy.suggest_experiments(5)
-    NAME  temperature  flowrate_a  flowrate_b strategy
-    0       77.539895    0.458517    0.111950   Random
-    1       85.407391    0.150234    0.282733   Random
-    2       64.545237    0.182897    0.359658   Random
-    3       75.541380    0.120587    0.211395   Random
-    4       94.647348    0.276324    0.370502   Random
+    NAME temperature flowrate_a flowrate_b strategy
+    TYPE        DATA       DATA       DATA METADATA
+    0      77.539895   0.458517   0.111950   Random
+    1      85.407391   0.150234   0.282733   Random
+    2      64.545237   0.182897   0.359658   Random
+    3      75.541380   0.120587   0.211395   Random
+    4      94.647348   0.276324   0.370502   Random
+
 
     Notes
     -----
@@ -130,12 +132,14 @@ class LHS(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> strategy = LHS(domain, random_state=np.random.RandomState(3))
     >>> strategy.suggest_experiments(5)
-    NAME  temperature  flowrate_a  flowrate_b strategy
-    0            95.0        0.46        0.38      LHS
-    1            65.0        0.14        0.14      LHS
-    2            55.0        0.22        0.30      LHS
-    3            85.0        0.30        0.46      LHS
-    4            75.0        0.38        0.22      LHS
+    NAME temperature flowrate_a flowrate_b strategy
+    TYPE        DATA       DATA       DATA METADATA
+    0           95.0       0.46       0.38      LHS
+    1           65.0       0.14       0.14      LHS
+    2           55.0       0.22       0.30      LHS
+    3           85.0       0.30       0.46      LHS
+    4           75.0       0.38       0.22      LHS
+
 
     ''' 
     def __init__(self, domain: Domain, random_state: np.random.RandomState=None):

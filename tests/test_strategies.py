@@ -2,14 +2,10 @@
 import pytest
 from summit.domain import Domain, ContinuousVariable, Constraint
 from summit.strategies import Random, LHS, NelderMead
-from summit.utils.dataset import DataSet
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
-from matplotlib import ticker
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
-from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 def test_random():
@@ -48,7 +44,7 @@ def test_tsemo():
     pass
 
 
-@pytest.mark.parametrize('x_start', [[0,0],[4,6],[-3,-4],[1,2],[-4,5]])
+@pytest.mark.parametrize('x_start', [[0,0],[4,6],[-3,-4],[1,2],[-2,5]])
 @pytest.mark.parametrize('maximize', [True, False])
 @pytest.mark.parametrize('constraint', [True, False])
 def test_nm2D(x_start,maximize,constraint):
@@ -60,7 +56,7 @@ def test_nm2D(x_start,maximize,constraint):
                                  bounds=[-1000,1000], is_objective=True, maximize=maximize)
     if constraint:
         domain += Constraint(lhs="temperature+flowrate_a+7", constraint_type=">=")
-        domain += Constraint(lhs="temperature+flowrate_a+9", constraint_type=">=")
+        domain += Constraint(lhs="temperature*flowrate_a+10", constraint_type=">=")
     strategy = NelderMead(domain, x_start=x_start, adaptive=False)
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
@@ -70,7 +66,6 @@ def test_nm2D(x_start,maximize,constraint):
         y_exp = -((x[0]**2 + x[1] - 11)**2+(x[0] + x[1]**2 -7)**2)
         if not maximize:
             y_exp *= -1.0
-        print(y_exp)
         return y_exp
     def test_fun(x):
         y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
@@ -163,7 +158,14 @@ def test_nm2D(x_start,maximize,constraint):
     ax.axhline(y=6, color='k', linestyle='--')
     ax.axvline(x=4, color='k', linestyle='--')
     ax.axhline(y=-6, color='k', linestyle='--')
+    if constraint:
+        x = np.linspace(-4, 4, 400)
+        y = np.linspace(-6, 6, 400)
+        x, y = np.meshgrid(x, y)
+        ax.contour(x, y, (x*y+10), [0], colors='grey',linestyles='dashed')
+        ax.contour(x, y, (x+y+7), [0], colors='grey', linestyles='dashed')
     plt.show()
+    plt.close()
 
 
 @pytest.mark.parametrize('x_start', [[0,0,0],[1,1,0.2],[],[0.4,0.2,0.6]])
@@ -192,7 +194,6 @@ def test_nm3D(maximize,x_start):
         y_exp = np.sum(np.dot(alpha,np.exp(-d)))
         if not maximize:
             y_exp = - y_exp
-        print(y_exp)
         return y_exp
     def test_fun(x):
         y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
@@ -272,6 +273,7 @@ def test_nm3D(maximize,x_start):
         ax.scatter(points[c][0], points[c][1], points[c][2])
         ax.text(points[c][0] + .05, points[c][1] + .05, points[c][2] + .05, c+1, fontsize=9)
     plt.show()
+    plt.close()
 
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
