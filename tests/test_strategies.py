@@ -1,7 +1,7 @@
 
 import pytest
 from summit.domain import Domain, ContinuousVariable, Constraint
-from summit.strategies import Random, LHS, SNOBFIT
+from summit.strategies import Random, LHS, SNOBFIT, SOBO
 from summit.utils.dataset import DataSet
 import numpy as np
 import pandas as pd
@@ -151,3 +151,88 @@ def test_snobfit(num_experiments, maximize):
         # Extrema of test function with constraint: tbd /TODO: determine optimum with constraint with other algorithms
         assert fbest <= -1
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+
+
+@pytest.mark.parametrize('x_start', [[0, 0], [4, 6], [-3, -4], [1, 2], [-2, 5]])
+@pytest.mark.parametrize('maximize', [True, False])
+@pytest.mark.parametrize('constraint', [True, False])
+def test_sobo():
+    # Single-objective optimization problem with 2 dimensional input domain (only continuous inputs)
+    domain = Domain()
+    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-4, 4])
+    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[-6, 6])
+    domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
+                                 bounds=[-1000, 1000], is_objective=True, maximize=True)
+    if False:
+        domain += Constraint(lhs="temperature+flowrate_a-3", constraint_type="<=")
+        domain += Constraint(lhs="flowrate_a*temperature+10", constraint_type="<=")
+    strategy = SOBO(domain)
+
+    maximize = False
+
+    # Simulating experiments with hypothetical relationship of inputs and outputs,
+    # here Himmelblau (2D) function: http://benchmarkfcns.xyz/benchmarkfcns/himmelblaufcn.html
+    def sim_fun(x_exp):
+        x = x_exp
+        y_exp = -((x[0] ** 2 + x[1] - 11) ** 2 + (x[0] + x[1] ** 2 - 7) ** 2)
+        if not maximize:
+            y_exp *= -1.0
+        return y_exp
+
+    def test_fun(x):
+        y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
+        print(y)
+        return y
+
+    # Uncomment to start algorithm with pre-defined initial experiments
+    initial_exp = None
+    # initial_exp = pd.DataFrame(data={'temperature': [-0.5,0,0], 'flowrate_a': [4,4,1.1]})   # initial experimental points
+    # initial_exp = pd.DataFrame(data={'temperature': [4.0,4.0,2.0], 'flowrate_a': [2.0,3.0,-6.0]})   # initial experimental points
+    # initial_exp.insert(2,'yield', test_fun(initial_exp.to_numpy()))   # initial results
+    # initial_exp = DataSet.from_df(initial_exp)
+
+    # run SOBO loop for fixed <num_iter> number of iteration
+    # stop loop if <max_stop> consecutive iterations have not produced an improvement
+    num_iter = 100
+    max_stop = 20
+    num_experiments = 8
+    nstop = 0
+    fbestold = float("inf")
+    for i in range(num_iter):
+        # initial run without history
+        if i == 0:
+            if initial_exp is not None:
+                next_experiments, xbest, fbest, param = strategy.suggest_experiments(num_experiments=num_experiments, prev_res=initial_exp)
+            else:
+                next_experiments, xbest, fbest, param = strategy.suggest_experiments(num_experiments=num_experiments)
+
+        # runs with history
+        else:
+            # This is the part where experiments take place
+            exp_yield = test_fun(next_experiments.data_to_numpy())
+            next_experiments[('yield', 'DATA')] = exp_yield
+            # Call single-objective Bayesian Optimization
+            next_experiments, xbest, fbest, param = \
+                strategy.suggest_experiments(num_experiments=num_experiments, prev_res=next_experiments, prev_param=param)
+
+        print(next_experiments)  # show next experiments
+        print("\n")
+
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+
+    xbest = np.around(xbest, decimals=3)
+    fbest = np.around(fbest, decimals=3)
+
+    #assert fbest <= 0.1
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # Extrema of test function without constraints: four identical local minima f = 0 at x1 = (3.000, 2.000),
+    # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
+
+test_sobo()
