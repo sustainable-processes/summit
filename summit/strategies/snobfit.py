@@ -24,18 +24,7 @@ import pandas as pd
 class SNOBFIT(Strategy):
     ''' SNOBFIT optimization algorithm from W. Huyer and A.Neumaier, University of Vienna.
 
-        This implementation is based on the python reimplementation SQSnobFit (v.0.4.2)
-        of the original MATLAB implementation of SNOBFIT (v2.1).
 
-    Copyright of SNOBFIT (v2.1):
-        Neumaier, University of Vienna
-
-        Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
-
-    Copyright of SQSnobfit (v0.4.2)
-        UC Regents, Berkeley
-
-        Website: https://pypi.org/project/SQSnobFit/
 
     Parameters
     ----------
@@ -50,6 +39,25 @@ class SNOBFIT(Strategy):
         to be different if they differ by at least dx(i) in at least one
         coordinate i.
         Default is 1E-5.
+    
+    Notes
+    ------
+    This implementation is based on the python reimplementation SQSnobFit (v.0.4.2)
+    of the original MATLAB implementation of SNOBFIT (v2.1).
+
+    Copyright of SNOBFIT (v2.1):
+        Neumaier, University of Vienna
+
+        Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
+
+    Copyright of SQSnobfit (v0.4.2)
+        UC Regents, Berkeley
+
+        Website: https://pypi.org/project/SQSnobFit/
+
+    Note that SNOBFIT sometimes returns more experiments than requested when the number of experiments
+    request is small (i.e., 1 or 2). This seems to be a general issue with the algorithm
+    instead of the specific implementation used here. 
 
     Examples
     -------
