@@ -1,6 +1,6 @@
 
 import pytest
-from summit.domain import Domain, ContinuousVariable, Constraint
+from summit.domain import Domain, ContinuousVariable, DescriptorsVariable, Constraint
 from summit.strategies import Random, LHS, SNOBFIT, SOBO
 from summit.utils.dataset import DataSet
 import numpy as np
@@ -161,8 +161,13 @@ def test_sobo():
     domain = Domain()
     domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-4, 4])
     domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[-6, 6])
+
+    solvent_df = DataSet([[5, 81], [-93, 111]], index=['benzene', 'toluene'],
+                         columns=['melting_point', 'boiling_point'])
+    #domain += DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
                                  bounds=[-1000, 1000], is_objective=True, maximize=True)
+
     if False:
         domain += Constraint(lhs="temperature+flowrate_a-3", constraint_type="<=")
         domain += Constraint(lhs="flowrate_a*temperature+10", constraint_type="<=")
@@ -195,7 +200,7 @@ def test_sobo():
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
     num_iter = 100
     max_stop = 20
-    num_experiments = 8
+    num_experiments = 3
     nstop = 0
     fbestold = float("inf")
     for i in range(num_iter):
