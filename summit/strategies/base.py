@@ -24,6 +24,7 @@ class Transform:
     
     ''' 
     def __init__(self, domain):
+        self.transform_domain = domain.copy()
         self.domain = domain
 
     def transform_inputs_outputs(self, ds: DataSet, copy=True):
@@ -125,18 +126,27 @@ class MultitoSingleObjective(Transform):
     
     ''' 
     def __init__(self, domain: Domain, expression: str, maximize=True):
-        # TODO: make maximization and minimization work properly
         super().__init__(domain)
-        #Check that the domain has multiple objectives
-        num_objectives = len([v for v in self.domain.variables if v.is_objective])
+        objectives = [v for v in self.transform_domain.variables if v.is_objective]
+        num_objectives = len(objectives)
         if num_objectives <= 1:
             raise ValueError(f"Domain must have at least two objectives; it currently has {num_objectives} objectives.")
         self.expression = expression
+
+        #Replace objectives in transform domain
+        for v in objectives:
+            i =self.transform_domain.variables.index(v)
+            self.transform_domain.variables.pop(i)
+        self.transform_domain += ContinuousVariable('scalar_objective', 
+                                                    description=expression,
+                                                    bounds=[-np.inf, np.inf],
+                                                    is_objective=True,
+                                                    maximize=maximize)
     
     def transform_inputs_outputs(self, ds, copy=True):
         inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
         outputs = outputs.eval(self.expression, resolvers=[outputs])
-        outputs = DataSet(outputs, columns=['objective'])
+        outputs = DataSet(outputs, columns=['scalar_objective'])
         return inputs, outputs
 
 class LogSpaceObjectives(Transform):
@@ -155,9 +165,15 @@ class LogSpaceObjectives(Transform):
     ''' 
     def __init__(self, domain: Domain):
         super().__init__(domain)
-        num_objectives = len([v for v in self.domain.variables if v.is_objective])
+        objectives = [(i,v) for i, v in enumerate(self.transform_domain.variables) 
+                      if v.is_objective]
+        num_objectives = len(objectives)
         if num_objectives ==0:
             raise ValueError(f"The domain must have objectives. Currently has {num_objectives} objectives.")
+
+        #Rename objectives in new domain
+        for i,v in objectives:
+            v.name = 'log_'+v.name
 
     def transform_inputs_outputs(self, ds, copy=True):
         '''  Transform of data into inputs and outptus for a strategy
@@ -177,7 +193,11 @@ class LogSpaceObjectives(Transform):
             Datasets with the input and output datasets  
         ''' 
         inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
+        if (outputs.any() < 0).any():
+            raise ValueError("Cannot complete log transform for values less than zero.")
         outputs = outputs.apply(np.log)
+        columns = [v.name for v in self.transform_domain.variables if v.is_objective]
+        outputs = DataSet(outputs.data_to_numpy(), columns=columns)
         return inputs, outputs
 
     def un_transform(self, ds):
@@ -194,10 +214,9 @@ class LogSpaceObjectives(Transform):
         ''' 
         ds = super().un_transform(ds)
         for v in self.domain.variables:
-            if v.is_objective:
-                ds[v.name] = np.exp(ds[v.name])
+            if v.is_objective and ds.get('log_'+v.name):
+                ds[v.name] = np.exp(ds['log_'+v.name])
         return ds
-
 
 class Strategy(ABC):
     ''' Base class for strategies 
@@ -231,13 +250,13 @@ class Strategy(ABC):
     
     ''' 
     def __init__(self, domain: Domain, transform: Transform=None, **kwargs):
-        self.domain = domain
         if transform is None:
             self.transform = Transform(domain)
         elif isinstance(transform, Transform):
             self.transform = transform
         else:
             raise TypeError('transform must be a Transform class')
+        self.domain = self.transform.transform_domain
 
     def suggest_experiments(self):
         raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
