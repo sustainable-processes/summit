@@ -175,9 +175,11 @@ class SNOBFIT(Strategy):
 
         # Generate DataSet object with variable values of next experiments
         next_experiments = {}
-        for i, v in enumerate(self.domain.variables):
+        i_inp = 0
+        for v in self.domain.variables:
             if not v.is_objective:
-                next_experiments[v.name] = request[:,i]
+                next_experiments[v.name] = request[:, i_inp]
+                i_inp += 1
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
         next_experiments[('strategy', 'METADATA')] = ['SNOBFIT']*len(request[:,0])
         return next_experiments, xbest, fbest, param
