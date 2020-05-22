@@ -10,7 +10,7 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
-        python-version: 3.8.2
+        python-version: 3.7.7
     - name: Cache poetry environment
       uses: actions/cache@v1
       env:
@@ -23,12 +23,12 @@ jobs:
     - name: Install
       uses: abatilo/actions-poetry@v1.5.0
       with:
-        python_version: 3.8.2
+        python_version: 3.7.7
         poetry_version: 1.0.3
         args: install
     - name: Run pytest
       uses: abatilo/actions-poetry@v1.5.0
       with:
-        python_version: 3.8.2
+        python_version: 3.7.7
         poetry_version: 1.0.3
         args: run python -m pytest --doctest-modules --ignore=case_studies
