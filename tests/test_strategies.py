@@ -158,6 +158,7 @@ def test_snobfit(num_experiments, maximize):
 @pytest.mark.parametrize('constraint', [True, False])
 def test_sobo():
     # Single-objective optimization problem with 2 dimensional input domain (only continuous inputs)
+    maximize = True
     domain = Domain()
     domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-4, 4])
     domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[-6, 6])
@@ -166,14 +167,12 @@ def test_sobo():
                          columns=['melting_point', 'boiling_point'])
     #domain += DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
-                                 bounds=[-1000, 1000], is_objective=True, maximize=True)
+                                 bounds=[-1000, 1000], is_objective=True, maximize=maximize)
 
     if False:
         domain += Constraint(lhs="temperature+flowrate_a-3", constraint_type="<=")
         domain += Constraint(lhs="flowrate_a*temperature+10", constraint_type="<=")
     strategy = SOBO(domain)
-
-    maximize = False
 
     # Simulating experiments with hypothetical relationship of inputs and outputs,
     # here Himmelblau (2D) function: http://benchmarkfcns.xyz/benchmarkfcns/himmelblaufcn.html

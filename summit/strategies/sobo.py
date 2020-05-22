@@ -16,19 +16,19 @@ class SOBO(Strategy):
     Parameters
     ---------- 
     domain: summit.domain.Domain
-        The domain of the optimization
+        The Summit domain describin the the optimization problem.
     gp_model_type: string, optional
-        A dictionary of surrogate models or a ModelGroup to be used in the optimization.
-        By default, gaussian processes with the Matern kernel will be used.
+        The GPy Gaussian Process model type.
+        By default, gaussian processes with the Matern 5.2 kernel will be used.
     acquisition_type: string, optional
-        Whether optimization should be treated as a maximization or minimization problem.
-        Defaults to maximization. 
+        The acquisition function type from GPyOpt.
+        By default, Excpected Improvement (EI).
     optimizer_type: string, optional
-        The internal optimizer used in GPyOpt for maximization of the acquisition function. By default,
-        lfbgs will be used if there is a combination of continuous, discrete and/or descriptors variables.
-        If there is a single descriptors variable, then all of the potential values of the descriptors
-        will be evaluated.
+        The internal optimizer used in GPyOpt for maximization of the acquisition function.
+        By default, lfbgs will be used.
     evaluator_type: string, optional
+        The evaluator type used for batch mode (how multiple points are chosen in one iteration).
+        By default, thompson sampling will be used.
 
     Notes
     ----------
@@ -52,8 +52,8 @@ class SOBO(Strategy):
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
-    >>> strategy = SOBO(domain, random_state=np.random.RandomState(3))
-    >>> result = strategy.suggest_experiments(5
+    >>> strategy = SOBO(domain)
+    >>> result = strategy.suggest_experiments(5)
 
     '''
 
@@ -77,7 +77,8 @@ class SOBO(Strategy):
                         'type': 'discrete',
                         'domain': tuple(v.levels)})
                 # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
-                # Do we need descriptors/bandit variables here? We can use categorical...
+                # Do we need descriptors/bandit variables here? We could introduce a new variable class "categorial"
+                # TODO: if we keep the Descriptor class, we need to transform it to categorial and transform it back at the end
                 elif v.variable_type == 'descriptors':
                     '''
                     self.input_domain.append({'name': v.name,
@@ -89,13 +90,6 @@ class SOBO(Strategy):
                                             'domain': tuple(np.arange(v.ds.data_to_numpy().shape[0]).tolist())})
                 else:
                     raise TypeError('Unknown variable type.')
-
-        print(self.input_domain)
-
-        #self.input_domain = [{'name': v.name,
-        #                      'type': v.variable_type if v.variable_type == 'continuous' else 'categorial',
-        #                      'domain': (v.bounds[0], v.bounds[1]) if v.variable_type == 'continuous' else (ind_l for ind_l, l in enumerate(v.levels))}
-        #                    for v in self.domain.variables if not v.is_objective and not (v.variable_type == 'descriptor')]
 
         # TODO: how to handle equality constraints? Could we remove '==' from constraint types as each equality
         #  constraint reduces the degrees of freedom?
@@ -167,11 +161,10 @@ class SOBO(Strategy):
             self.evaluator_type = 'random'
 
 
-        self.kernel = kwargs.get('kernel', GPy.kern.Matern52(self.input_dim))
+        self.kernel = kwargs.get('kernel', GPy.kern.Matern52(self.input_dim))   # https://gpy.readthedocs.io/en/deploy/GPy.kern.html#subpackages
         self.exact_feval = kwargs.get('exact_feval', False)
         self.ARD = kwargs.get('ARD', True)
-
-
+        self.standardize_outputs = kwargs.get('standardize_outputs', True)
 
 
     def suggest_experiments(self, num_experiments, 
@@ -182,20 +175,31 @@ class SOBO(Strategy):
         ----------  
         num_experiments: int
             The number of experiments (i.e., samples) to generate
-        previous_results: summit.utils.data.DataSet, optional
-            Dataset with data from previous experiments.
-            If no data is passed, then latin hypercube sampling will
+        prev_res: summit.utils.data.DataSet, optional
+            Dataset with data from previous experiments of previous iteration.
+            If no data is passed, then random sampling will
             be used to suggest an initial design.
+        prev_param: array-like, optional TODO: how to handle this?
+            File with results from previous iterations of SOBO algorithm.
+            If no data is passed, only results from prev_res will be used.
         
         Returns
         -------
-        ds
+        next_experiments
             A `Dataset` object with points to be evaluated next
+        xbest
+            Best point from all iterations.
+        fbest
+            Objective value at best point from all iterations.
+        param
+            A list containing all evaluated X and corresponding Y values.
         """
 
         param = None
         xbest = None
         fbest = float("inf")
+        if self.maximize:
+            fbest = float("-inf")
 
         # Suggest random initial design
         if prev_res is None:
@@ -206,7 +210,6 @@ class SOBO(Strategy):
             '''
             feasible_region = GPyOpt.Design_space(space=self.input_domain, constraints=self.constraints)
             request = GPyOpt.experiment_design.initial_design('random', feasible_region, num_experiments)
-
 
         else:
             # Get inputs and outputs
@@ -226,6 +229,7 @@ class SOBO(Strategy):
                 X_step = inputs
                 Y_step = outputs
 
+
             sobo_model = GPyOpt.methods.BayesianOptimization(f=None,
                                                              domain=self.input_domain,
                                                              constraints=self.constraints,
@@ -233,6 +237,7 @@ class SOBO(Strategy):
                                                              kernel=self.kernel,
                                                              acquisition_type=self.acquisition_type,
                                                              acquisition_optimizer_type=self.optimizer_type,
+                                                             normalize_Y=self.standardize_outputs,
                                                              batch_size=num_experiments,
                                                              evaluator_type=self.evaluator_type,
                                                              maximize=self.maximize,
@@ -242,11 +247,16 @@ class SOBO(Strategy):
                                                              Y=Y_step)
             request = sobo_model.suggest_next_locations()
 
+
             # Store parameters (history of suggested points and function evaluations)
             param = [X_step, Y_step]
 
-            fbest = np.min(Y_step)
-            xbest = X_step[np.argmin(Y_step)]
+            if self.maximize:
+                fbest = np.max(Y_step)
+                xbest = X_step[np.argmax(Y_step)]
+            else:
+                fbest = np.min(Y_step)
+                xbest = X_step[np.argmin(Y_step)]
 
 
         # Generate DataSet object with variable values of next
