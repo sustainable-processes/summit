@@ -1,4 +1,4 @@
-from .base import Strategy
+from .base import Strategy, Transform
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 
@@ -14,6 +14,10 @@ class NelderMead(Strategy):
     ----------
     domain: `summit.domain.Domain`
         A summit domain object
+    transform: `summit.strategies.base.Transform`, optional
+        A transform class (i.e, not the object itself). By default
+        no transformation will be done the input variables or
+        objectives.
     x_start: array_like of shape (1, N), optional
         Initial center point of simplex
         Default: empty list that will initialize generation of x_start as geoemetrical center point of bounds
@@ -60,8 +64,8 @@ class NelderMead(Strategy):
 
     '''
 
-    def __init__(self, domain: Domain, **kwargs):
-        Strategy.__init__(self, domain)
+    def __init__(self, domain: Domain, transform: Transform=None, **kwargs):
+        Strategy.__init__(self, domain, transform)
 
         self.domain = domain
         self._x_start = kwargs.get('x_start', [])
@@ -185,7 +189,7 @@ class NelderMead(Strategy):
         # Get previous results
         if prev_res is not None:
             initial_run = False
-            inputs, outputs = self.get_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
 
             # Set up maximization and minimization
             for v in self.domain.variables:

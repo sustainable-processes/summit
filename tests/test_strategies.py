@@ -2,7 +2,7 @@
 import pytest
 
 from summit.domain import Domain, ContinuousVariable, Constraint
-from summit.strategies import Strategy, Random, LHS, SNOBFIT, MultitoSingleObjective, LogSpaceObjectives
+from summit.strategies import *
 from summit.utils.dataset import DataSet
 
 import matplotlib.pyplot as plt
