@@ -10,11 +10,38 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from typing import Type, Tuple
 
-class Strategy(ABC):
-    def __init__(self, domain:Domain):
+class Transform:
+    '''  Pre/post-processing of data for strategies
+    
+    Parameters
+    ---------- 
+    domain: `sumit.domain.Domain``
+        A domain for that is being used in the strategy
+
+    Notes
+    ------
+    This class can be overridden to create custom transformations as necessary.    
+    
+    ''' 
+    def __init__(self, domain):
+        self.transform_domain = domain.copy()
         self.domain = domain
 
-    def get_inputs_outputs(self, ds: DataSet, copy=True):
+    def transform_inputs_outputs(self, ds: DataSet, copy=True):
+        '''  Transform of data into inputs and outptus for a strategy
+        
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+
+        Returns
+        -------
+        inputs, outputs
+            Datasets with the input and output datasets  
+        ''' 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
 
@@ -59,6 +86,177 @@ class Strategy(ABC):
 
         #Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
+
+    def un_transform(self, ds):
+        ''' Transform data back into its original represetnation
+            after strategy is finished 
+        
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+
+        Notes
+        -----
+        Override this class to achieve custom untransformations 
+        ''' 
+        return ds
+
+class MultitoSingleObjective(Transform):
+    '''  Transform a multiobjective problem into a single objective problems
+    
+    Parameters
+    ---------- 
+    domain: `sumit.domain.Domain``
+        A domain for that is being used in the strategy
+    expression: str
+        An expression in terms of variable names used to
+        convert the multiobjective problem into a single
+        objective problem
+    
+    Returns
+    -------
+    result: `bool`
+        description
+    
+    Raises
+    ------
+    ValueError
+        If domain does not have at least two objectives
+    
+    ''' 
+    def __init__(self, domain: Domain, expression: str, maximize=True):
+        super().__init__(domain)
+        objectives = [v for v in self.transform_domain.variables if v.is_objective]
+        num_objectives = len(objectives)
+        if num_objectives <= 1:
+            raise ValueError(f"Domain must have at least two objectives; it currently has {num_objectives} objectives.")
+        self.expression = expression
+
+        #Replace objectives in transform domain
+        for v in objectives:
+            i =self.transform_domain.variables.index(v)
+            self.transform_domain.variables.pop(i)
+        self.transform_domain += ContinuousVariable('scalar_objective', 
+                                                    description=expression,
+                                                    bounds=[-np.inf, np.inf],
+                                                    is_objective=True,
+                                                    maximize=maximize)
+    
+    def transform_inputs_outputs(self, ds, copy=True):
+        inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
+        outputs = outputs.eval(self.expression, resolvers=[outputs])
+        outputs = DataSet(outputs, columns=['scalar_objective'])
+        return inputs, outputs
+
+class LogSpaceObjectives(Transform):
+    '''  Log transform objectives
+    
+    Parameters
+    ---------- 
+    domain: `sumit.domain.Domain``
+        A domain for that is being used in the strategy
+
+    Raises
+    ------
+    ValueError
+        When the domain has no objectives.
+    
+    ''' 
+    def __init__(self, domain: Domain):
+        super().__init__(domain)
+        objectives = [(i,v) for i, v in enumerate(self.transform_domain.variables) 
+                      if v.is_objective]
+        num_objectives = len(objectives)
+        if num_objectives ==0:
+            raise ValueError(f"The domain must have objectives. Currently has {num_objectives} objectives.")
+
+        #Rename objectives in new domain
+        for i,v in objectives:
+            v.name = 'log_'+v.name
+
+    def transform_inputs_outputs(self, ds, copy=True):
+        '''  Transform of data into inputs and outptus for a strategy
+        
+        This will do a log transform on the objectives (outputs).
+
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+
+        Returns
+        -------
+        inputs, outputs
+            Datasets with the input and output datasets  
+        ''' 
+        inputs, outputs =  super().transform_inputs_outputs(ds, copy=copy)
+        if (outputs.any() < 0).any():
+            raise ValueError("Cannot complete log transform for values less than zero.")
+        outputs = outputs.apply(np.log)
+        columns = [v.name for v in self.transform_domain.variables if v.is_objective]
+        outputs = DataSet(outputs.data_to_numpy(), columns=columns)
+        return inputs, outputs
+
+    def un_transform(self, ds):
+        ''' Untransform objectives from log space to
+        
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+
+        Notes
+        -----
+        Override this class to achieve custom untransformations 
+        ''' 
+        ds = super().un_transform(ds)
+        for v in self.domain.variables:
+            if v.is_objective and ds.get('log_'+v.name):
+                ds[v.name] = np.exp(ds['log_'+v.name])
+        return ds
+
+class Strategy(ABC):
+    ''' Base class for strategies 
+    
+    Parameters
+    ---------- 
+    domain: `summit.domain.Domain`
+        A summit domain containing variables and constraints
+    transform: `summit.strategies.base.Transform`, optional
+        A transform class (i.e, not the object itself). By default
+        no transformation will be done the input variables or
+        objectives.
+    
+    Returns
+    -------
+    result: `bool`
+        description
+    
+    Raises
+    ------
+    ValueError
+        description
+    
+    Examples
+    --------
+    
+    
+    Notes
+    -----
+    
+    
+    ''' 
+    def __init__(self, domain: Domain, transform: Transform=None, **kwargs):
+        if transform is None:
+            self.transform = Transform(domain)
+        elif isinstance(transform, Transform):
+            self.transform = transform
+        else:
+            raise TypeError('transform must be a Transform class')
+        self.domain = self.transform.transform_domain
 
     def suggest_experiments(self):
         raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")

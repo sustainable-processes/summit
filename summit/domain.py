@@ -4,6 +4,7 @@ import pandas as pd
 from typing import List, Optional, Type, Dict
 from abc import ABC, abstractmethod
 import json
+from copy import deepcopy
 
 __all__ = ["Variable", "ContinuousVariable", "DiscreteVariable", 
            "DescriptorsVariable", "Constraint", "Domain"]
@@ -638,6 +639,9 @@ class Domain:
             if v.name == key:
                 return v
         raise ValueError("Variable not in domain")
+
+    def copy(self):
+        return deepcopy(self)
 
 
 class DomainError(Exception):

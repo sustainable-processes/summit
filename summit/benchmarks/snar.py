@@ -1,3 +1,4 @@
+from summit.strategies.base import Transform
 from summit.experiment import Experiment
 from summit.domain import *
 from summit.utils.dataset import DataSet
@@ -146,9 +147,5 @@ class SnarBenchmark(Experiment):
         # Deltas
         dcdtau = r
         return dcdtau
-
-
-
-
 
  
