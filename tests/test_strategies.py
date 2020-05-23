@@ -1,7 +1,7 @@
 
 import pytest
 from summit.domain import Domain, ContinuousVariable, Constraint
-from summit.strategies import Random, LHS, SNOBFIT
+from summit.strategies import Strategy, Random, LHS, SNOBFIT, MultitoSingleObjective, LogSpaceObjectives
 from summit.utils.dataset import DataSet
 import numpy as np
 import pandas as pd
@@ -37,6 +37,63 @@ def test_lhs():
     results_arr = results.data_to_numpy().astype(np.float32)
     assert np.isclose(results_arr.all(), arr.all())
     return results
+
+def test_multitosingleobjective_transform():
+    class MockStrategy(Strategy):
+        def suggest_experiments(self, num_experiments, previous_results):
+            inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
+            objectives = [v for v in self.domain.variables if v.is_objective]
+            assert len(objectives) == 1
+            assert objectives[0].name == 'scalar_objective'
+            assert outputs['scalar_objective'].iloc[0] == 70.0
+            return self.transform.un_transform(inputs)
+
+    domain = Domain()
+    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
+    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
+    domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    domain += ContinuousVariable(name='yield_', description='', bounds=[0,100], is_objective=True, maximize=True)
+    domain += ContinuousVariable(name='de', description='diastereomeric excess', bounds=[0,100], is_objective=True, maximize=True)
+    columns = [v.name for v in domain.variables]
+    values  =   {('temperature', 'DATA'): 60, 
+                ('flowrate_a', 'DATA'): 0.5,  
+                ('flowrate_b', 'DATA'): 0.5,
+                ('yield_', 'DATA'): 50, 
+                ('de', 'DATA'): 90,
+                }
+    previous_results = DataSet([values], columns=columns)
+    transform = MultitoSingleObjective(domain, expression='(yield_+de)/2', maximize=True)
+    strategy = MockStrategy(domain, transform=transform)
+    strategy.suggest_experiments(5, previous_results)
+
+def test_logspaceobjectives_transform():
+    class MockStrategy(Strategy):
+        def suggest_experiments(self, num_experiments, previous_results):
+            inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
+            objectives = [v for v in self.domain.variables if v.is_objective]
+            assert len(objectives) == 2
+            assert np.isclose(outputs['log_yield_'].iloc[0], np.log(50))
+            assert np.isclose(outputs['log_de'].iloc[0], np.log(90))
+            return self.transform.un_transform(inputs)
+
+    domain = Domain()
+    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
+    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
+    domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    domain += ContinuousVariable(name='yield_', description='', bounds=[0,100], is_objective=True, maximize=True)
+    domain += ContinuousVariable(name='de', description='diastereomeric excess', bounds=[0,100], is_objective=True, maximize=True)
+    columns = [v.name for v in domain.variables]
+    values  =   {('temperature', 'DATA'): [60, 100],
+                ('flowrate_a', 'DATA'): [0.5, 0.4],  
+                ('flowrate_b', 'DATA'): [0.5, 0.4],
+                ('yield_', 'DATA'): [50, 60], 
+                ('de', 'DATA'): [90, 80],
+                }
+    previous_results = DataSet(values, columns=columns)
+    transform = LogSpaceObjectives(domain)
+    strategy = MockStrategy(domain, transform=transform)
+    strategy.suggest_experiments(5, previous_results)
+    
 
 def test_tsemo():
     pass
