@@ -55,10 +55,10 @@ def test_multitosingleobjective_transform():
     domain += ContinuousVariable(name='yield_', description='', bounds=[0,100], is_objective=True, maximize=True)
     domain += ContinuousVariable(name='de', description='diastereomeric excess', bounds=[0,100], is_objective=True, maximize=True)
     columns = [v.name for v in domain.variables]
-    values  =   {('temperature', 'DATA'): 60,  # minutes
+    values  =   {('temperature', 'DATA'): 60, 
                 ('flowrate_a', 'DATA'): 0.5,  
-                ('flowrate_b', 'DATA'): 0.5, #molar
-                ('yield_', 'DATA'): 50, # degrees celsius,
+                ('flowrate_b', 'DATA'): 0.5,
+                ('yield_', 'DATA'): 50, 
                 ('de', 'DATA'): 90,
                 }
     previous_results = DataSet([values], columns=columns)
@@ -83,10 +83,10 @@ def test_logspaceobjectives_transform():
     domain += ContinuousVariable(name='yield_', description='', bounds=[0,100], is_objective=True, maximize=True)
     domain += ContinuousVariable(name='de', description='diastereomeric excess', bounds=[0,100], is_objective=True, maximize=True)
     columns = [v.name for v in domain.variables]
-    values  =   {('temperature', 'DATA'): [60, 100],  # minutes
+    values  =   {('temperature', 'DATA'): [60, 100],
                 ('flowrate_a', 'DATA'): [0.5, 0.4],  
-                ('flowrate_b', 'DATA'): [0.5, 0.4], #molar
-                ('yield_', 'DATA'): [50, 60], # degrees celsius,
+                ('flowrate_b', 'DATA'): [0.5, 0.4],
+                ('yield_', 'DATA'): [50, 60], 
                 ('de', 'DATA'): [90, 80],
                 }
     previous_results = DataSet(values, columns=columns)
