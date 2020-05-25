@@ -74,6 +74,31 @@ class NelderMead(Strategy):
         self._adaptive = kwargs.get('adaptive', False)
 
     def suggest_experiments(self, prev_res: DataSet=None, prev_param=None):
+        """ Suggest experiments using Nelder-Mead Simplex method
+
+        Parameters
+        ----------
+        prev_res: summit.utils.data.DataSet, optional
+            Dataset with data from previous experiments.
+            If no data is passed, the Nelder-Mead optimization algorithm
+            will be initialized and suggest initial experiments.
+        prev_param: file.txt TODO: how to handle this?
+            File with parameters of Nelder-Mead algorithm from previous
+            iterations of a optimization problem.
+            If no data is passed, the Nelder-Mead optimization algorithm
+            will be initialized.
+
+        Returns
+        -------
+        next_experiments: DataSet
+            A `Dataset` object with the suggested experiments by Nelder-Mead Simplex algorithm
+        xbest: list
+            List with variable settings of experiment with best outcome
+        fbest: float
+            Objective value at xbest
+        param: list
+            List with parameters and prev_param of Nelder-Mead Simplex algorithm (required for next iteration)
+        """
 
         # get objective name and whether optimization is maximization problem
         obj_name = None
@@ -140,12 +165,10 @@ class NelderMead(Strategy):
         return next_experiments, xbest, fbest, param
 
     def inner_suggest_experiments(self, prev_res: DataSet=None, prev_param=None):
-        """ Suggest experiments using Nelder-Mead Simplex method
+        """ Inner loop for suggestion of experiments using Nelder-Mead Simplex method
 
         Parameters
         ----------
-        x_start: np.array of size 1xdim, optional
-            Initial center point for simplex
         prev_res: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, the Nelder-Mead optimization algorithm
@@ -388,12 +411,16 @@ class NelderMead(Strategy):
             next_experiments[('strategy', 'METADATA')] = ['Nelder-Mead Simplex'] * len(request)
         x_best = None
         f_best = float("inf")
+        # fbest corresponds to the transformed function values
         if not initial_run:
             x_best = sim[0]
             f_best = fsim[0]
             x_best = self.round(x_best, bounds, self._dx)
             #f_best = np.around(f_best, decimals=self._dx)
         #next_experiments = np.around(next_experiments, decimals=self._dx)
+
+        # Do any necessary transformation back
+        next_experiments = self.transform.un_transform(next_experiments)
 
         return next_experiments, x_best, f_best, param
 
