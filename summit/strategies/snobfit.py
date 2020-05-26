@@ -2,18 +2,17 @@ from .base import Strategy
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 
-# /TODO: change to SQSnobFit when original package is updated
-from opt.snobfit.python.SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
-from opt.snobfit.python.SQSnobFit._snobinput import snobinput
-from opt.snobfit.python.SQSnobFit._snoblocf  import snoblocf, snobround
-from opt.snobfit.python.SQSnobFit._snoblp    import snoblp
-from opt.snobfit.python.SQSnobFit._snobnan   import snobnan
-from opt.snobfit.python.SQSnobFit._snobnn   import snobnn
-from opt.snobfit.python.SQSnobFit._snobpoint import snobpoint
-from opt.snobfit.python.SQSnobFit._snobqfit  import snobqfit
-from opt.snobfit.python.SQSnobFit._snobsplit import snobsplit
-from opt.snobfit.python.SQSnobFit._snobupdt  import snobupdt
-from opt.snobfit.python.SQSnobFit._snob5     import snob5
+from SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
+from SQSnobFit._snobinput import snobinput
+from SQSnobFit._snoblocf  import snoblocf, snobround
+from SQSnobFit._snoblp    import snoblp
+from SQSnobFit._snobnan   import snobnan
+from SQSnobFit._snobnn   import snobnn
+from SQSnobFit._snobpoint import snobpoint
+from SQSnobFit._snobqfit  import snobqfit
+from SQSnobFit._snobsplit import snobsplit
+from SQSnobFit._snobupdt  import snobupdt
+from SQSnobFit._snob5     import snob5
 
 import math
 import numpy
@@ -23,8 +22,6 @@ import pandas as pd
 
 class SNOBFIT(Strategy):
     ''' SNOBFIT optimization algorithm from W. Huyer and A.Neumaier, University of Vienna.
-
-
 
     Parameters
     ----------
@@ -88,7 +85,6 @@ class SNOBFIT(Strategy):
     3         85.150    0.31611   0.630024  SNOBFIT
     4         59.901    0.40831   0.706296  SNOBFIT
 
-
     '''
 
     def __init__(self, domain: Domain, **kwargs):
@@ -98,10 +94,36 @@ class SNOBFIT(Strategy):
         self._dx_dim = kwargs.get('dx_dim', 1E-5)
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
+        """ Suggest experiments using the SNOBFIT method
+
+                Parameters
+                ----------
+                num_experiments: int
+                    The number of experiments (i.e., samples) to generate
+                prev_res: summit.utils.data.DataSet, optional
+                    Dataset with data from previous experiments.
+                    If no data is passed, the SNOBFIT optimization algorithm
+                    will be initialized and suggest initial experiments.
+                prev_param: file.txt TODO: how to handle this?
+                    File with parameters of SNOBFIT algorithm from previous
+                    iterations of a optimization problem.
+                    If no data is passed, the SNOBFIT optimization algorithm
+                    will be initialized.
+
+                Returns
+                -------
+                next_experiments: DataSet
+                    A `Dataset` object with the suggested experiments by SNOBFIT algorithm
+                xbest: list
+                    List with variable settings of experiment with best outcome
+                fbest: float
+                    Objective value at xbest
+                param: list
+                    List with parameters and prev_param of SNOBFIT algorithm (required for next iteration)
+                """
 
         # get objective name and whether optimization is maximization problem
         obj_name = None
-        obj_maximize = False
         for v in self.domain.variables:
             i = 0
             if v.is_objective:
@@ -156,7 +178,7 @@ class SNOBFIT(Strategy):
         return next_experiments, xbest, fbest, param
 
     def inner_suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
-        """ Suggest experiments using Nelder-Mead Simplex method
+        """ Inner loop for generation of suggested experiments using the SNOBFIT method
 
         Parameters
         ----------

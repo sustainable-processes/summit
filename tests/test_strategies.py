@@ -102,13 +102,16 @@ def test_tsemo():
     pass
 
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
-@pytest.mark.parametrize('maximize', [True, False])
-def test_snobfit(num_experiments, maximize):
+@pytest.mark.parametrize('maximize', [False, True])
+@pytest.mark.parametrize('constraints', [False, True])
+def test_snobfit(num_experiments, maximize, constraints):
 
-    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=True)
+    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraints)
     strategy = SNOBFIT(hartmann3D.domain, probability_p=0.5, dx_dim=1E-5)
 
-    # Initialize with "experimental" data
+
+    initial_exp = None
+    # Comment out to start without initial data
     initial_exp = pd.DataFrame(data={'x_1': [0.409,0.112,0.17,0.8], 'x_2': [0.424,0.33,0.252,0.1],
                                      'x_3': [0.13,0.3,0.255,0.01]})   # initial experimental points
     initial_exp = DataSet.from_df(initial_exp)
@@ -155,8 +158,6 @@ def test_snobfit(num_experiments, maximize):
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 
     hartmann3D.plot()
-
-#test_snobfit(num_experiments=2,maximize=True)
 
 @pytest.mark.parametrize('x_start', [[0,0],[4,6],[-3,-4],[1,2],[-2,5]])
 @pytest.mark.parametrize('maximize', [True, False])
