@@ -121,7 +121,7 @@ def test_snobfit(num_experiments, maximize, constraints):
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
     # num_experiments = 4
     num_iter = 400//num_experiments
-    max_stop = 100//num_experiments
+    max_stop = 80//num_experiments
     nstop = 0
     fbestold = float("inf")
     for i in range(num_iter):
