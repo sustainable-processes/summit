@@ -1,4 +1,4 @@
-from .base import Strategy
+from .base import Strategy, Transform
 from .random import LHS
 from summit.domain import Domain, DomainError
 from summit.utils.multiobjective import pareto_efficient, HvI
@@ -16,7 +16,11 @@ class TSEMO2(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The domain of the optimization
-    models: dictionary of summit.utils.model.Model or summit.utils.model.ModelGroup, optional
+    transform: `summit.strategies.base.Transform`, optional
+        A transform class (i.e, not the object itself). By default
+        no transformation will be done the input variables or
+        objectives.
+    models: a dictionary of summit.utils.model.Model or a summit.utils.model.ModelGroup, optional
         A dictionary of surrogate models or a ModelGroup to be used in the optimization.
         By default, gaussian processes with the Matern kernel will be used.
     maximize: bool, optional
@@ -48,8 +52,9 @@ class TSEMO2(Strategy):
     >>> result = strategy.suggest_experiments(5)
  
     ''' 
-    def __init__(self, domain, models=None, optimizer=None, **kwargs):
-        Strategy.__init__(self, domain)
+    def __init__(self, domain, transform=None,
+                 models=None, optimizer=None, **kwargs):
+        Strategy.__init__(self, domain, transform)
 
         if models is None:
             input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
@@ -98,16 +103,26 @@ class TSEMO2(Strategy):
             return lhs.suggest_experiments(num_experiments)
 
         #Get inputs and outputs
-        inputs, outputs = self.get_inputs_outputs(previous_results)
+        inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
+        
         #Fit models to new data
         self.models.fit(inputs, outputs)
 
+        #Run internal optimization
         internal_res = self.optimizer.optimize(self.models)
         
         if internal_res is not None and len(internal_res.fun)!=0:
+            # Select points that give maximum hypervolume improvement
             hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
+
+            #Join to get single dataset with inputs and outputs
             result = internal_res.x.join(internal_res.fun) 
             result =  result.iloc[indices, :]
+
+            # Do any necessary transformations back
+            result = self.transform.un_transform(result)
+
+            #State the strategy used
             result[('strategy', 'METADATA')] = 'TSEMO2'
             return result
         else:
