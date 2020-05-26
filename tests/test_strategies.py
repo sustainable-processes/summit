@@ -121,7 +121,7 @@ def test_snobfit(num_experiments, maximize, constraints):
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
     # num_experiments = 4
     num_iter = 400//num_experiments
-    max_stop = 50//num_experiments
+    max_stop = 100//num_experiments
     nstop = 0
     fbestold = float("inf")
     for i in range(num_iter):
@@ -158,6 +158,8 @@ def test_snobfit(num_experiments, maximize, constraints):
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 
     hartmann3D.plot()
+
+test_snobfit(num_experiments=2, maximize=True, constraints=True)
 
 @pytest.mark.parametrize('x_start', [[0,0],[4,6],[-3,-4],[1,2],[-2,5]])
 @pytest.mark.parametrize('maximize', [True, False])
