@@ -98,6 +98,64 @@ class SNOBFIT(Strategy):
         self._dx_dim = kwargs.get('dx_dim', 1E-5)
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
+
+        # get objective name and whether optimization is maximization problem
+        obj_name = None
+        obj_maximize = False
+        for v in self.domain.variables:
+            i = 0
+            if v.is_objective:
+                i += 1
+                if i > 1:
+                    raise ValueError("Nelder-Mead is not able to optimize multiple objectives, please use transform.")
+                obj_name = v.name
+
+        # get parameters from previous iterations
+        inner_prev_param = None
+        if prev_param is not None:
+            # get parameters for Nelder-Mead from previous iterations
+            inner_prev_param = prev_param[0]
+            # recover invalid experiments from previous iteration
+            if prev_param[1] is not None:
+                invalid_res = prev_param[1][0].drop(('constraint','DATA'),1)
+                prev_res = pd.concat([prev_res,invalid_res])
+
+        ## Generation of new suggested experiments.
+        # An inner function is called loop-wise to get valid experiments and
+        # avoid suggestions of experiments that violate constraints.
+        # If no valid experiment is found after #<inner_iter_tol>, an error is raised.
+        inner_iter_tol = 5
+        c_iter = 0
+        valid_next_experiments = False
+        next_experiments = None
+        while not valid_next_experiments and c_iter < inner_iter_tol:
+            valid_next_experiments = False
+            next_experiments, xbest, fbest, param = self.inner_suggest_experiments(num_experiments=num_experiments,
+                                                                                   prev_res=prev_res,
+                                                                                   prev_param=inner_prev_param)
+            invalid_experiments = next_experiments.loc[next_experiments[('constraint', 'DATA')] == False]
+            next_experiments = next_experiments.loc[next_experiments[('constraint', 'DATA')] != False]
+            prev_res = prev_res
+            if len(next_experiments) and len(invalid_experiments):
+                valid_next_experiments = True
+                # pass NaN if at least one constraint is violated
+                invalid_experiments[(obj_name, 'DATA')] = np.nan
+            #
+            elif len(invalid_experiments):
+                # pass NaN if at least one constraint is violated
+                invalid_experiments[(obj_name, 'DATA')] = np.nan
+                prev_res = invalid_experiments
+            else:
+                valid_next_experiments = True
+            inner_prev_param = param
+            param = [param, [invalid_experiments]]
+            c_iter += 1
+
+        # return only valid experiments (invalid experiments are stored in param[1])
+        next_experiments = next_experiments.drop(('constraint', 'DATA'), 1)
+        return next_experiments, xbest, fbest, param
+
+    def inner_suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
         """ Suggest experiments using Nelder-Mead Simplex method
 
         Parameters
@@ -129,6 +187,9 @@ class SNOBFIT(Strategy):
         # Extract dimension of input domain
         dim = self.domain.num_continuous_dimensions()
 
+        # intern
+        stay_inner = False
+
         # Get bounds of input variables
         bounds = []
         for v in self.domain.variables:
@@ -137,11 +198,13 @@ class SNOBFIT(Strategy):
         bounds = np.asarray(bounds, dtype=float)
 
         # Initialization
+        initial_run = True
         x0 = []
         y0 = []
 
         # Get previous results
         if prev_res is not None:
+            initial_run = False
             inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
             
             # Set up maximization and minimization
@@ -195,7 +258,22 @@ class SNOBFIT(Strategy):
                 next_experiments[v.name] = request[:, i_inp]
                 i_inp += 1
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
-        next_experiments[('strategy', 'METADATA')] = ['SNOBFIT']*len(request[:,0])
+
+        # Violate constraint
+        mask_valid_next_experiments = self.check_constraints(next_experiments)
+        if initial_run and not all(mask_valid_next_experiments):
+            raise ValueError("Default initialization failed due to constraints. Please enter an initial simplex with feasible points")
+        if not any(mask_valid_next_experiments):
+            stay_inner = True
+
+        if stay_inner:
+            # add infinity as
+            next_experiments[('constraint', 'DATA')] = False
+        else:
+            # add optimization strategy
+            next_experiments[('constraint', 'DATA')] = mask_valid_next_experiments
+            next_experiments[('strategy', 'METADATA')] = ['SNOBFIT'] * len(request)
+
         return next_experiments, xbest, fbest, param
 
 
@@ -604,3 +682,14 @@ class SNOBFIT(Strategy):
 
         im_storage = xbest, fbest, x, f, xl, xu, y, nsplit, small, near, d, np, t, fnan, u, v, dx
         return request, xbest, fbest, im_storage
+
+    # Function to check whether a point meets the constraints of the domain
+    def check_constraints(self, tmp_next_experiments):
+        constr_mask = np.asarray([True]*len(tmp_next_experiments)).T
+        if len(self.domain.constraints)>0:
+            constr = [c.constraint_type + "0" for c in self.domain.constraints]
+            constr_mask = [pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments])
+                           for i, c in enumerate(self.domain.constraints)]
+            constr_mask = np.asarray([c.tolist() for c in constr_mask]).T
+            constr_mask = constr_mask.all(1)
+        return constr_mask
