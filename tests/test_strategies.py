@@ -159,7 +159,6 @@ def test_snobfit(num_experiments, maximize, constraints):
 
     hartmann3D.plot()
 
-test_snobfit(num_experiments=2, maximize=True, constraints=True)
 
 @pytest.mark.parametrize('x_start', [[0,0],[4,6],[-3,-4],[1,2],[-2,5]])
 @pytest.mark.parametrize('maximize', [True, False])

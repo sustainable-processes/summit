@@ -220,13 +220,11 @@ class SNOBFIT(Strategy):
         bounds = np.asarray(bounds, dtype=float)
 
         # Initialization
-        initial_run = True
         x0 = []
         y0 = []
 
         # Get previous results
         if prev_res is not None:
-            initial_run = False
             inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
             
             # Set up maximization and minimization
@@ -283,8 +281,6 @@ class SNOBFIT(Strategy):
 
         # Violate constraint
         mask_valid_next_experiments = self.check_constraints(next_experiments)
-        if initial_run and not all(mask_valid_next_experiments):
-            raise ValueError("Default initialization failed due to constraints. Please enter an initial simplex with feasible points")
         if not any(mask_valid_next_experiments):
             stay_inner = True
 
