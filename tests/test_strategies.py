@@ -6,11 +6,6 @@ from summit.strategies import *
 from summit.utils.dataset import DataSet
 from summit.benchmarks import test_functions
 
-import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon
-from matplotlib.collections import PatchCollection
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-
 import numpy as np
 import pandas as pd
 
@@ -116,7 +111,7 @@ def test_snobfit(num_experiments, maximize):
     domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0, 1])
     domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
                                  bounds=[-1000,1000], is_objective=True, maximize=maximize)
-    domain += Constraint(lhs="temperatureflowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
+    domain += Constraint(lhs="temperature+flowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
     constraint = False
     strategy = SNOBFIT(domain, probability_p=0.5, dx_dim=1E-5)
 
@@ -150,8 +145,8 @@ def test_snobfit(num_experiments, maximize):
             return True
 
     # Initialize with "experimental" data
-    initial_exp = pd.DataFrame(data={'x_1': [0.409,0.112,0.17,0.8], 'x_2': [0.424,0.33,0.252,0.1],
-                                     'x_2': [0.13,0.3,0.255,0.01]})   # initial experimental points
+    initial_exp = pd.DataFrame(data={'temperature': [0.409,0.112,0.17,0.8], 'flowrate_a': [0.424,0.33,0.252,0.1],
+                                     'flowrate_b': [0.13,0.3,0.255,0.01]})   # initial experimental points
     initial_exp.insert(3,'yield', test_fun(initial_exp.to_numpy()))   # initial results
     initial_exp = DataSet.from_df(initial_exp)
 
@@ -221,47 +216,37 @@ def test_snobfit(num_experiments, maximize):
 @pytest.mark.parametrize('maximize', [True, False])
 @pytest.mark.parametrize('constraint', [True, False])
 def test_nm2D(x_start,maximize,constraint):
-    # Single-objective optimization problem with 2 dimensional input domain (only continuous inputs)
-    himmelblau = test_functions.Himmelblau()
 
-    if constraint:
-        himmelblau.domain += Constraint(lhs="x_1+x_2+7", constraint_type=">=")
-        himmelblau.domain += Constraint(lhs="x_1*x_2+10", constraint_type=">=")
+    himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
     strategy = NelderMead(himmelblau.domain, x_start=x_start, adaptive=False)
 
-    # Uncomment to create test case which results in reduction dimension and dimension recovery
     initial_exp = None
-    #initial_exp = pd.DataFrame(data={'x_1': [-0.5,0,0], 'x_2': [4,4,1.1]})   # initial experimental points
+    # Uncomment to create test case which results in reduction dimension and dimension recovery
     #initial_exp = pd.DataFrame(data={'x_1': [4.0,4.0,2.0], 'x_2': [2.0,3.0,-6.0]})   # initial experimental points
     #initial_exp = DataSet.from_df(initial_exp)
     #initial_exp = himmelblau.run_experiments(initial_exp)  # initial results
 
     # run Nelder-Mead loop for fixed <num_iter> number of iteration
-    # stop loop if <max_stop> consecutive iterations have not produced an improvement
-    num_iter = 100
-    max_stop = 20
+    num_iter = 100   # maximum number of iterations
+    max_stop = 20   # allowed number of consecutive iterations w/o improvement
     nstop = 0
     fbestold = float("inf")
-    fig, ax = plt.subplots()
-    plt.axis([-7, 7, -7, 7])
-    patches = []
-    points = []
+    polygons_points = []
     for i in range(num_iter):
         # initial run without history
         if i == 0:
             try:
                 if initial_exp is not None:
-                    for i in range(len(initial_exp)):
-                        points.append(initial_exp.data_to_numpy()[i][:2].tolist())
-                    polygon = Polygon(points, True, hatch='x')
-                    patches.append(polygon)
+                    x = np.asarray([initial_exp.data_to_numpy()[i][:2] for i in range(len(initial_exp))])
+                    polygons_points.append(x)
                     next_experiments, xbest, fbest, param = strategy.suggest_experiments(prev_res=initial_exp)
                 else:
                     next_experiments, xbest, fbest, param = strategy.suggest_experiments()
+
             # TODO: how to handle internal errors? Here implemented as ValueError - maybe introduce a InternalError class for strategies
             except ValueError as e:
                 print(e)
-                return
+                break
 
         # runs with history
         else:
@@ -272,16 +257,15 @@ def test_nm2D(x_start,maximize,constraint):
             try:
                 next_experiments, xbest, fbest, param = \
                     strategy.suggest_experiments(prev_res=next_experiments, prev_param=param)
+
             # TODO: how to handle internal stopping criteria? Here implemented as ValueError - maybe introduce a StoppingError class for strategies
             except (NotImplementedError, ValueError) as e:
                 print(e)
                 break
 
+        # save polygon points for plotting
         x = np.asarray([param[0][0][i].tolist() for i in range(len(param[0][0]))])
-        polygon = Polygon(x, True, hatch='x')
-        patches.append(polygon)
-        for i in range(len(next_experiments)):
-            points.append(next_experiments.data_to_numpy()[i].tolist())
+        polygons_points.append(x)
 
         if fbest < fbestold:
             fbestold = fbest
@@ -291,79 +275,55 @@ def test_nm2D(x_start,maximize,constraint):
         if nstop >= max_stop:
             print("No improvement in last " + str(max_stop) + " iterations.")
             break
+
         print(next_experiments)   # show next experiments
         print("\n")
 
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
-
     assert fbest <= 0.1
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraints: four identical local minima f = 0 at x1 = (3.000, 2.000),
     # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
 
-    xlist = np.linspace(-7, 7, 1000)
-    ylist = np.linspace(-7, 7, 1000)
-    X, Y = np.meshgrid(xlist, ylist)
-    Z = (((X**2 + Y - 11)**2+(X + Y**2 -7)**2))
-    ax.contour(X,Y,Z, levels=np.logspace(-2, 3, 30, base=10), alpha=0.3)
-    p = PatchCollection(patches, facecolors="None", edgecolors='grey', alpha=1)
-    ax.add_collection(p)
-    for c in range(len(points)):
-        ax.scatter(points[c][0], points[c][1])
-        ax.text(points[c][0] + .01, points[c][1] + .01, c+1, fontsize=7)
-    ax.axvline(x=-4, color='k', linestyle='--')
-    ax.axhline(y=6, color='k', linestyle='--')
-    ax.axvline(x=4, color='k', linestyle='--')
-    ax.axhline(y=-6, color='k', linestyle='--')
-    if constraint:
-        x = np.linspace(-4, 4, 400)
-        y = np.linspace(-6, 6, 400)
-        x, y = np.meshgrid(x, y)
-        ax.contour(x, y, (x*y+10), [0], colors='grey',linestyles='dashed')
-        ax.contour(x, y, (x+y+7), [0], colors='grey', linestyles='dashed')
-    plt.show()
-    plt.close()
+    # plot
+    himmelblau.plot(polygons=polygons_points)
 
 @pytest.mark.parametrize('x_start', [[0,0,0],[1,1,0.2],[],[0.4,0.2,0.6]])
 @pytest.mark.parametrize('maximize', [True, False])
-def test_nm3D(maximize,x_start):
-    # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
-    hartmann3D = test_functions.Hartmann3D()
+@pytest.mark.parametrize('constraint', [True, False])
+def test_nm3D(maximize,x_start,constraint):
+
+    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = NelderMead(hartmann3D.domain,x_start=x_start)
 
-    # Uncomment to create test case which results in reduction dimension and dimension recovery
     initial_exp = None
+    # Uncomment to create test case which results in reduction dimension and dimension recovery
     #initial_exp = pd.DataFrame(data={'x_1': [0.1,0.1,0.4,0.3], 'x_2': [0.6,0.2,0.4,0.5], 'x_3': [1,1,1,0.3]})   # initial experimental points
     #initial_exp = DataSet.from_df(initial_exp)
     #initial_exp = hartmann3D.run_experiments(initial_exp)
 
     # run Nelder-Mead loop for fixed <num_iter> number of iteration
-    # stop loop if <max_stop> consecutive iterations have not produced an improvement
-    num_iter = 200
-    max_stop = 20
+    num_iter = 200   # maximum number of iterations
+    max_stop = 20   # allowed number of consecutive iterations w/o improvement
     nstop = 0
     fbestold = float("inf")
-    fig = plt.figure()
-    ax = fig.add_subplot(111,projection='3d')
-    points = []
+    polygons_points = []
     for i in range(num_iter):
         # initial run without history
         if i == 0:
             try:
                 if initial_exp is not None:
+                    polygons_points.append(np.asarray(
+                        [(initial_exp.data_to_numpy()[i][:3].tolist(), initial_exp.data_to_numpy()[j][:3])
+                         for i in range(len(initial_exp.data_to_numpy())) for j in
+                         range(len(initial_exp.data_to_numpy()))]))
+
                     next_experiments, xbest, fbest, param = strategy.suggest_experiments(prev_res=initial_exp)
 
-                    for i in range(len(initial_exp)):
-                        points.append(initial_exp.data_to_numpy()[i][:3].tolist())
-                    x = np.asarray(
-                        [(initial_exp.data_to_numpy()[i][:3].tolist(), initial_exp.data_to_numpy()[j][:3])
-                         for i in range(len(initial_exp.data_to_numpy())) for j in range(len(initial_exp.data_to_numpy()))])
-                    polygon = Poly3DCollection(x, alpha=0.1)
-                    polygon.set_edgecolor('b')
-                    ax.add_collection3d(polygon)
                 else:
                     next_experiments, xbest, fbest, param = strategy.suggest_experiments()
+
             # TODO: how to handle internal errors? Here implemented as ValueError - maybe introduce a InternalError class for strategies
             except ValueError as e:
                 print(e)
@@ -374,20 +334,18 @@ def test_nm3D(maximize,x_start):
         else:
             # This is the part where experiments take place
             next_experiments = hartmann3D.run_experiments(next_experiments)
+
             try:
                 next_experiments, xbest, fbest, param = \
                     strategy.suggest_experiments(prev_res=next_experiments, prev_param=param)
+
             # TODO: how to handle internal stopping criteria? Here implemented as ValueError - maybe introduce a StoppingError class for strategies
             except (ValueError, NotImplementedError) as e:
                 print(e)
                 break
 
-        x = np.asarray([(param[0][0][i].tolist(),param[0][0][j].tolist()) for i in range(len(param[0][0])) for j in range(len(param[0][0]))])
-        polygon = Poly3DCollection(x, alpha=0.1)
-        polygon.set_edgecolor('b')
-        ax.add_collection3d(polygon)
-        for i in range(len(next_experiments)):
-            points.append(next_experiments.data_to_numpy()[i].tolist())
+        polygons_points.append(np.asarray([(param[0][0][i].tolist(),param[0][0][j].tolist())
+                        for i in range(len(param[0][0])) for j in range(len(param[0][0]))]))
 
         if fbest < fbestold:
             fbestold = fbest
@@ -400,12 +358,6 @@ def test_nm3D(maximize,x_start):
         print(next_experiments)   # show next experiments
         print("\n")
 
-    for c in range(len(points)):
-        ax.scatter(points[c][0], points[c][1], points[c][2])
-        ax.text(points[c][0] + .05, points[c][1] + .05, points[c][2] + .05, c+1, fontsize=9)
-    plt.show()
-    plt.close()
-
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
 
@@ -414,5 +366,4 @@ def test_nm3D(maximize,x_start):
         #assert (xbest[0] >= 0.113 and xbest[0] <= 0.115) and (xbest[1] >= 0.555 and xbest[1] <= 0.557) and \
         #       (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
 
-#test_nm2D(maximize=True,x_start=[],constraint=False)
-test_nm3D(maximize=True,x_start=[])
+    hartmann3D.plot(polygons=polygons_points)
