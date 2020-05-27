@@ -310,40 +310,25 @@ def test_nm3D(maximize,x_start,constraint, plot=False):
     nstop = 0
     fbestold = float("inf")
     polygons_points = []
+
+    #Initial experiments
+    if initial_exp is not None:
+        polygons_points.append(np.asarray(
+            [(initial_exp.data_to_numpy()[i][:3].tolist(), initial_exp.data_to_numpy()[j][:3])
+                for i in range(len(initial_exp.data_to_numpy())) for j in
+                range(len(initial_exp.data_to_numpy()))]))
+        next_experiments=initial_exp
+        # hartmann3D.run_experiments(next_experiments)
+    else:
+        next_experiments = None
+
+    param=None
     for i in range(num_iter):
-        # initial run without history
-        if i == 0:
-            try:
-                if initial_exp is not None:
-                    polygons_points.append(np.asarray(
-                        [(initial_exp.data_to_numpy()[i][:3].tolist(), initial_exp.data_to_numpy()[j][:3])
-                         for i in range(len(initial_exp.data_to_numpy())) for j in
-                         range(len(initial_exp.data_to_numpy()))]))
-
-                    next_experiments, xbest, fbest, param = strategy.suggest_experiments(prev_res=initial_exp)
-
-                else:
-                    next_experiments, xbest, fbest, param = strategy.suggest_experiments()
-
-            # TODO: how to handle internal errors? Here implemented as ValueError - maybe introduce a InternalError class for strategies
-            except ValueError as e:
-                print(e)
-                return
-
-
-        # runs with history
-        else:
-            # This is the part where experiments take place
-            next_experiments = hartmann3D.run_experiments(next_experiments)
-
-            try:
-                next_experiments, xbest, fbest, param = \
+        next_experiments, xbest, fbest, param = \
                     strategy.suggest_experiments(prev_res=next_experiments, prev_param=param)
-
-            # TODO: how to handle internal stopping criteria? Here implemented as ValueError - maybe introduce a StoppingError class for strategies
-            except (ValueError, NotImplementedError) as e:
-                print(e)
-                break
+            # This is the part where experiments take place
+        
+        next_experiments = hartmann3D.run_experiments(next_experiments)
 
         polygons_points.append(np.asarray([(param[0][0][i].tolist(),param[0][0][j].tolist())
                         for i in range(len(param[0][0])) for j in range(len(param[0][0]))]))
