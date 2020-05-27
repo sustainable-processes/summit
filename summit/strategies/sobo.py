@@ -61,11 +61,9 @@ class SOBO(Strategy):
         Strategy.__init__(self, domain)
 
         # TODO: notation - discrete in our model (e.g., catalyst type) = categorical?
-        # TODO: decrypt levels of discrete/categorical inputs
         self.input_domain = []
         for v in self.domain.variables:
             if not v.is_objective:
-                print(v.variable_type)
                 if v.variable_type == 'continuous':
                     self.input_domain.append(
                         {'name': v.name,
@@ -77,8 +75,6 @@ class SOBO(Strategy):
                         'type': 'discrete',
                         'domain': tuple(v.levels)})
                 # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
-                # Do we need descriptors/bandit variables here? We could introduce a new variable class "categorial"
-                # TODO: if we keep the Descriptor class, we need to transform it to categorial and transform it back at the end
                 elif v.variable_type == 'descriptors':
                     '''
                     self.input_domain.append({'name': v.name,
@@ -140,7 +136,7 @@ class SOBO(Strategy):
             ES: entropy search 
         """
         if acquisition_type in ['EI', 'EI_MCMC', 'LCB', 'LCB_MCMC', 'MPI', 'MPI_MCMC', 'LP', 'ES']:
-            self.acquisition = acquisition_type
+            self.acquisition_type = acquisition_type
         else:
             self.acquisition_type = 'EI'  # default acquisition function is expected utility improvement
 
@@ -198,8 +194,6 @@ class SOBO(Strategy):
         param = None
         xbest = None
         fbest = float("inf")
-        if self.maximize:
-            fbest = float("-inf")
 
         # Suggest random initial design
         if prev_res is None:
@@ -213,7 +207,7 @@ class SOBO(Strategy):
 
         else:
             # Get inputs and outputs
-            inputs, outputs = self.get_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
 
             inputs = inputs.to_numpy()
             outputs = outputs.to_numpy()
@@ -228,7 +222,6 @@ class SOBO(Strategy):
             else:
                 X_step = inputs
                 Y_step = outputs
-
 
             sobo_model = GPyOpt.methods.BayesianOptimization(f=None,
                                                              domain=self.input_domain,
@@ -252,7 +245,7 @@ class SOBO(Strategy):
             param = [X_step, Y_step]
 
             if self.maximize:
-                fbest = np.max(Y_step)
+                fbest = -np.max(Y_step)
                 xbest = X_step[np.argmax(Y_step)]
             else:
                 fbest = np.min(Y_step)

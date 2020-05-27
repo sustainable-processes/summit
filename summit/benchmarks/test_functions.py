@@ -131,13 +131,14 @@ class Himmelblau(Experiment):
                 ax.contour(x_1, x_2, z, [0], colors='grey', linestyles='dashed')
 
         # plot polygons
-        patches = []
-        for i in range(len(polygons)):
-            polygon_obj = Polygon(polygons[i], True, hatch='x')
-            patches.append(polygon_obj)
+        if polygons:
+            patches = []
+            for i in range(len(polygons)):
+                polygon_obj = Polygon(polygons[i], True, hatch='x')
+                patches.append(polygon_obj)
 
-        p = PatchCollection(patches, facecolors="None", edgecolors='grey', alpha=1)
-        ax.add_collection(p)
+            p = PatchCollection(patches, facecolors="None", edgecolors='grey', alpha=1)
+            ax.add_collection(p)
 
         plt.show()
         plt.close()
@@ -282,10 +283,11 @@ class Hartmann3D(Experiment):
                 ax.plot_surface(x_1, x_2, z, vmin=bounds_x_3[0], vmax=bounds_x_3[1], rstride=4, cstride=4,alpha=0.8)
 
         # plot polygons
-        for i in range(len(polygons)):
-            polygon = Poly3DCollection(polygons[i], alpha=0.1)
-            polygon.set_edgecolor('b')
-            ax.add_collection3d(polygon)
+        if polygons:
+            for i in range(len(polygons)):
+                polygon = Poly3DCollection(polygons[i], alpha=0.1)
+                polygon.set_edgecolor('b')
+                ax.add_collection3d(polygon)
 
         plt.show()
         plt.close()

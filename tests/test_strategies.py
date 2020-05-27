@@ -100,7 +100,7 @@ def test_logspaceobjectives_transform():
 
 def test_tsemo():
     pass
-
+'''
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
 @pytest.mark.parametrize('maximize', [True, False])
 def test_snobfit(num_experiments, maximize):
@@ -368,55 +368,26 @@ def test_nm3D(maximize,x_start,constraint):
         #       (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
 
     hartmann3D.plot(polygons=polygons_points)
+'''
 
-
-@pytest.mark.parametrize('x_start', [[0, 0], [4, 6], [-3, -4], [1, 2], [-2, 5]])
+@pytest.mark.parametrize('num_experiments', [1, 2, 4])
 @pytest.mark.parametrize('maximize', [True, False])
 @pytest.mark.parametrize('constraint', [True, False])
-def test_sobo():
-    # Single-objective optimization problem with 2 dimensional input domain (only continuous inputs)
-    maximize = True
-    domain = Domain()
-    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[-4, 4])
-    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[-6, 6])
+def test_sobo(num_experiments, maximize, constraint):
 
-    solvent_df = DataSet([[5, 81], [-93, 111]], index=['benzene', 'toluene'],
-                         columns=['melting_point', 'boiling_point'])
-    #domain += DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
-    domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
-                                 bounds=[-1000, 1000], is_objective=True, maximize=maximize)
-
-    if False:
-        domain += Constraint(lhs="temperature+flowrate_a-3", constraint_type="<=")
-        domain += Constraint(lhs="flowrate_a*temperature+10", constraint_type="<=")
-    strategy = SOBO(domain)
-
-    # Simulating experiments with hypothetical relationship of inputs and outputs,
-    # here Himmelblau (2D) function: http://benchmarkfcns.xyz/benchmarkfcns/himmelblaufcn.html
-    def sim_fun(x_exp):
-        x = x_exp
-        y_exp = -((x[0] ** 2 + x[1] - 11) ** 2 + (x[0] + x[1] ** 2 - 7) ** 2)
-        if not maximize:
-            y_exp *= -1.0
-        return y_exp
-
-    def test_fun(x):
-        y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
-        print(y)
-        return y
+    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
+    strategy = SOBO(domain=hartmann3D.domain)
 
     # Uncomment to start algorithm with pre-defined initial experiments
     initial_exp = None
-    # initial_exp = pd.DataFrame(data={'temperature': [-0.5,0,0], 'flowrate_a': [4,4,1.1]})   # initial experimental points
-    # initial_exp = pd.DataFrame(data={'temperature': [4.0,4.0,2.0], 'flowrate_a': [2.0,3.0,-6.0]})   # initial experimental points
-    # initial_exp.insert(2,'yield', test_fun(initial_exp.to_numpy()))   # initial results
-    # initial_exp = DataSet.from_df(initial_exp)
+    # Uncomment to create test case which results in reduction dimension and dimension recovery
+    #initial_exp = pd.DataFrame(data={'x_1': [0.1,0.1,0.4,0.3], 'x_2': [0.6,0.2,0.4,0.5], 'x_3': [1,1,1,0.3]})   # initial experimental points
+    #initial_exp = DataSet.from_df(initial_exp)
+    #initial_exp = hartmann3D.run_experiments(initial_exp)
 
     # run SOBO loop for fixed <num_iter> number of iteration
-    # stop loop if <max_stop> consecutive iterations have not produced an improvement
-    num_iter = 100
-    max_stop = 20
-    num_experiments = 3
+    num_iter = 200//num_experiments   # maximum number of iterations
+    max_stop = 80//num_experiments   # allowed number of consecutive iterations w/o improvement
     nstop = 0
     fbestold = float("inf")
     for i in range(num_iter):
@@ -426,3 +397,32 @@ def test_sobo():
                 next_experiments, xbest, fbest, param = strategy.suggest_experiments(num_experiments=num_experiments, prev_res=initial_exp)
             else:
                 next_experiments, xbest, fbest, param = strategy.suggest_experiments(num_experiments=num_experiments)
+
+        # runs with history
+        else:
+            # This is the part where experiments take place
+            next_experiments = hartmann3D.run_experiments(next_experiments)
+
+            # Call SOBO
+            next_experiments, xbest, fbest, param = \
+                strategy.suggest_experiments(num_experiments=num_experiments, prev_res=next_experiments, prev_param=param)
+
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+
+        print(next_experiments)  # show next experiments
+        print("\n")
+
+    xbest = np.around(xbest, decimals=3)
+    fbest = np.around(fbest, decimals=3)
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
+    assert (fbest <= -3.85 and fbest >= -3.87)
+
+    hartmann3D.plot()
