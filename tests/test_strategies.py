@@ -215,7 +215,7 @@ def test_snobfit(num_experiments, maximize):
 @pytest.mark.parametrize('x_start', [[0,0],[4,6],[-3,-4],[1,2],[-2,5]])
 @pytest.mark.parametrize('maximize', [True, False])
 @pytest.mark.parametrize('constraint', [True, False])
-def test_nm2D(x_start,maximize,constraint):
+def test_nm2D(x_start,maximize,constraint, plot=False):
 
     himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
     strategy = NelderMead(himmelblau.domain, x_start=x_start, adaptive=False)
@@ -287,12 +287,13 @@ def test_nm2D(x_start,maximize,constraint):
     # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
 
     # plot
-    himmelblau.plot(polygons=polygons_points)
+    if plot:
+        himmelblau.plot(polygons=polygons_points)
 
 @pytest.mark.parametrize('x_start', [[0,0,0],[1,1,0.2],[],[0.4,0.2,0.6]])
 @pytest.mark.parametrize('maximize', [True, False])
 @pytest.mark.parametrize('constraint', [True, False])
-def test_nm3D(maximize,x_start,constraint):
+def test_nm3D(maximize,x_start,constraint, plot=False):
 
     hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = NelderMead(hartmann3D.domain,x_start=x_start)
@@ -365,5 +366,5 @@ def test_nm3D(maximize,x_start,constraint):
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
         #assert (xbest[0] >= 0.113 and xbest[0] <= 0.115) and (xbest[1] >= 0.555 and xbest[1] <= 0.557) and \
         #       (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
-
-    hartmann3D.plot(polygons=polygons_points)
+    if plot:
+        hartmann3D.plot(polygons=polygons_points)
