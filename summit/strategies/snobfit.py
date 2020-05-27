@@ -79,7 +79,6 @@ class SNOBFIT(Strategy):
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
     >>> next_experiments, xbest, fbest, res = strategy.suggest_experiments(5, initial)
-    >>> print(next_experiments)
 
     '''
 
