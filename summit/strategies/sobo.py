@@ -97,16 +97,6 @@ class SOBO(Strategy):
         else:
             self.constraints = None
 
-        self.maximize = None
-        for v in self.domain.variables:
-            if v.is_objective:
-                if self.maximize is not None:
-                    raise ValueError("Single-objective Bayesian Operation strategy only operates "
-                                     "on domains with one objective.")
-                self.maximize = v.maximize
-        if self.maximize is None:
-            raise ValueError("No objective is defined. Please add an objective to the domain.")
-
         self.input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
 
         """
@@ -209,6 +199,11 @@ class SOBO(Strategy):
             # Get inputs and outputs
             inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
 
+            # Set up maximization and minimization
+            for v in self.domain.variables:
+                if v.is_objective and v.maximize:
+                    outputs[v.name] = -1 * outputs[v.name]
+
             inputs = inputs.to_numpy()
             outputs = outputs.to_numpy()
 
@@ -233,7 +228,7 @@ class SOBO(Strategy):
                                                              normalize_Y=self.standardize_outputs,
                                                              batch_size=num_experiments,
                                                              evaluator_type=self.evaluator_type,
-                                                             maximize=self.maximize,
+                                                             maximize=False,
                                                              ARD=self.ARD,
                                                              exact_feval=self.exact_feval,
                                                              X=X_step,
@@ -244,12 +239,8 @@ class SOBO(Strategy):
             # Store parameters (history of suggested points and function evaluations)
             param = [X_step, Y_step]
 
-            if self.maximize:
-                fbest = -np.max(Y_step)
-                xbest = X_step[np.argmax(Y_step)]
-            else:
-                fbest = np.min(Y_step)
-                xbest = X_step[np.argmin(Y_step)]
+            fbest = np.min(Y_step)
+            xbest = X_step[np.argmin(Y_step)]
 
 
         # Generate DataSet object with variable values of next

@@ -373,7 +373,8 @@ def test_nm3D(maximize,x_start,constraint):
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
 @pytest.mark.parametrize('maximize', [True, False])
 @pytest.mark.parametrize('constraint', [True, False])
-def test_sobo(num_experiments, maximize, constraint):
+@pytest.mark.parametrize('plot', [False])
+def test_sobo(num_experiments, maximize, constraint, plot):
 
     hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = SOBO(domain=hartmann3D.domain)
@@ -425,4 +426,5 @@ def test_sobo(num_experiments, maximize, constraint):
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
     assert (fbest <= -3.85 and fbest >= -3.87)
 
-    hartmann3D.plot()
+    if plot:
+        hartmann3D.plot()
