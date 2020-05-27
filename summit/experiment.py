@@ -65,7 +65,11 @@ class Experiment(ABC):
         raise NotImplementedError('_run be implemented by subclasses of Benchmark')
 
     def reset(self):
-        """Reset the experiment"""
+        """Reset the experiment
+        
+        This will clear all data.
+
+        """
         self.prev_itr_time = None
         columns = [var.name for var in self.domain.variables]
         md_columns = ['computation_time', 'experiment_time', 'strategy']
@@ -73,6 +77,12 @@ class Experiment(ABC):
         self._data = DataSet(columns=columns, metadata_columns=md_columns)
         self.extras = []
     
+    def save(self, filename: str):
+        """ Save data to a CSV file.
+        """
+        self.data.to_csv(filename)
+
+
     def pareto_plot(self, objectives=None, ax=None):
         '''  Make a 2D pareto plot of the experiments thus far
         
