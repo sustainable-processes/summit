@@ -102,8 +102,8 @@ def test_tsemo():
     pass
 
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
-@pytest.mark.parametrize('maximize', [False, True])
-@pytest.mark.parametrize('constraints', [False, True])
+@pytest.mark.parametrize('maximize', [True, False])
+@pytest.mark.parametrize('constraints', [True, False])
 def test_snobfit(num_experiments, maximize, constraints):
 
     hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraints)
@@ -112,16 +112,15 @@ def test_snobfit(num_experiments, maximize, constraints):
 
     initial_exp = None
     # Comment out to start without initial data
-    initial_exp = pd.DataFrame(data={'x_1': [0.409,0.112,0.17,0.8], 'x_2': [0.424,0.33,0.252,0.1],
-                                     'x_3': [0.13,0.3,0.255,0.01]})   # initial experimental points
-    initial_exp = DataSet.from_df(initial_exp)
-    initial_exp = hartmann3D.run_experiments(initial_exp)   # initial results
+    #initial_exp = pd.DataFrame(data={'x_1': [0.409,0.112,0.17,0.8], 'x_2': [0.424,0.33,0.252,0.1],
+    #                                 'x_3': [0.13,0.3,0.255,0.01]})   # initial experimental points
+    #initial_exp = DataSet.from_df(initial_exp)
+    #initial_exp = hartmann3D.run_experiments(initial_exp)   # initial results
 
     # run SNOBFIT loop for fixed <num_iter> number of iteration with <num_experiments> number of experiments each
     # stop loop if <max_stop> consecutive iterations have not produced an improvement
-    # num_experiments = 4
     num_iter = 400//num_experiments
-    max_stop = 80//num_experiments
+    max_stop = 50//num_experiments
     nstop = 0
     fbestold = float("inf")
     for i in range(num_iter):
@@ -152,8 +151,8 @@ def test_snobfit(num_experiments, maximize, constraints):
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-    assert (xbest[0] >= 0.11 and xbest[0] <= 0.12) and (xbest[1] >= 0.55 and xbest[1] <= 0.56) and \
-               (xbest[2] >= 0.85 and xbest[2] <= 0.86) and (fbest <= -3.85 and fbest >= -3.87)
+    assert (xbest[0] >= 0.10 and xbest[0] <= 0.12) and (xbest[1] >= 0.55 and xbest[1] <= 0.57) and \
+               (xbest[2] >= 0.84 and xbest[2] <= 0.86) and (fbest <= -3.85 and fbest >= -3.87)
 
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 
