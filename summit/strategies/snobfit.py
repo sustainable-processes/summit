@@ -30,6 +30,10 @@ class SNOBFIT(Strategy):
     ----------
     domain: `summit.domain.Domain`
         A summit domain object
+    transform: `summit.strategies.base.Transform`, optional
+        A transform class (i.e, not the object itself). By default
+        no transformation will be done the input variables or
+        objectives.
     probability_p: float, optional
         The probability p that a point of class 4 is generated, i.e., higher p
         leads to more exploration.
@@ -76,17 +80,19 @@ class SNOBFIT(Strategy):
     >>> strategy = SNOBFIT(domain)
     >>> next_experiments, xbest, fbest, res = strategy.suggest_experiments(5, initial)
     >>> print(next_experiments)
-    NAME  temperature  flowrate_a  flowrate_b strategy
-    0          99.821     0.93287    0.745568  SNOBFIT
-    1           0.262     0.66454    0.818840  SNOBFIT
-    2          15.205     0.85730    0.383856  SNOBFIT
-    3          85.150     0.31611    0.630024  SNOBFIT
-    4          59.901     0.40831    0.706296  SNOBFIT
+    NAME temperature flowrate_a flowrate_b strategy
+    TYPE        DATA       DATA       DATA METADATA
+    0         99.821    0.93287   0.745568  SNOBFIT
+    1          0.262    0.66454   0.818840  SNOBFIT
+    2         15.205    0.85730   0.383856  SNOBFIT
+    3         85.150    0.31611   0.630024  SNOBFIT
+    4         59.901    0.40831   0.706296  SNOBFIT
+
 
     '''
 
     def __init__(self, domain: Domain, **kwargs):
-        Strategy.__init__(self, domain)
+        Strategy.__init__(self, domain, **kwargs)
 
         self._p = kwargs.get('probability_p', 0.5)
         self._dx_dim = kwargs.get('dx_dim', 1E-5)
@@ -136,7 +142,7 @@ class SNOBFIT(Strategy):
 
         # Get previous results
         if prev_res is not None:
-            inputs, outputs = self.get_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
             
             # Set up maximization and minimization
             for v in self.domain.variables:
