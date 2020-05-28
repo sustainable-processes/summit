@@ -50,10 +50,10 @@ class SOBO(Strategy):
     >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
-    >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
+    >>> domain += DiscreteVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> strategy = SOBO(domain)
-    >>> result = strategy.suggest_experiments(5)
+    >>> result, xbest, fbest, param = strategy.suggest_experiments(5)
 
     '''
 
@@ -76,14 +76,15 @@ class SOBO(Strategy):
                         'domain': tuple(v.levels)})
                 # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
                 elif v.variable_type == 'descriptors':
-                    '''
                     self.input_domain.append({'name': v.name,
                      'type': 'bandit',
                      'domain': [tuple(t) for t in v.ds.data_to_numpy().tolist()]})
-                    '''
+
+                    ''' possible workaround for mixed-type variable problems: treat descriptor as categorical variables
                     self.input_domain.append({'name': v.name,
                                             'type': 'categorical',
                                             'domain': tuple(np.arange(v.ds.data_to_numpy().shape[0]).tolist())})
+                    '''
                 else:
                     raise TypeError('Unknown variable type.')
 
@@ -112,7 +113,7 @@ class SOBO(Strategy):
         if gp_model_type in ['GP', 'GP_MCMC', 'sparseGP', 'warpedGP', 'InputWarpedGP', 'RF']:
             self.gp_model_type = gp_model_type
         else:
-            self.gp_model_type = 'GP'
+            self.gp_model_type = 'GP'   # default model type is a standard Gaussian Process (from GPy package)
 
         """
         Acquisition function type
@@ -137,7 +138,7 @@ class SOBO(Strategy):
            CMA: covariance matrix adaption
         """
         if optimizer_type in ['lbfgs', 'DIRECT', 'CMA']:
-            self.optimizer_type = optimizer_type   # Optimizer in GPyOpt
+            self.optimizer_type = optimizer_type
         else:
             self.optimizer_type = 'lbfgs'   # default optimizer: lbfgs
 
@@ -199,7 +200,7 @@ class SOBO(Strategy):
             # Get inputs and outputs
             inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
 
-            # Set up maximization and minimization
+            # Set up maximization and minimization by converting maximization to minimization problem
             for v in self.domain.variables:
                 if v.is_objective and v.maximize:
                     outputs[v.name] = -1 * outputs[v.name]
@@ -253,7 +254,6 @@ class SOBO(Strategy):
                     next_experiments[v.name] = request[:, i_inp]
                     i_inp += 1
             next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
-
 
         return next_experiments, xbest, fbest, param
 

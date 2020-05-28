@@ -373,8 +373,7 @@ def test_nm3D(maximize,x_start,constraint):
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
 @pytest.mark.parametrize('maximize', [True, False])
 @pytest.mark.parametrize('constraint', [True, False])
-@pytest.mark.parametrize('plot', [False])
-def test_sobo(num_experiments, maximize, constraint, plot):
+def test_sobo(num_experiments, maximize, constraint, plot=False):
 
     hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = SOBO(domain=hartmann3D.domain)
@@ -428,3 +427,5 @@ def test_sobo(num_experiments, maximize, constraint, plot):
 
     if plot:
         hartmann3D.plot()
+
+
