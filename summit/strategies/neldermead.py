@@ -29,7 +29,7 @@ class NelderMead(Strategy):
         Default is 1E-5.
     df: float, optional
         Parameter for stopping criterion: two function values are considered
-        to be different if they differ by at most df.
+        to be different if they differ by at least df.
         Default is 1E-5.
 
     Notes
@@ -159,6 +159,9 @@ class NelderMead(Strategy):
             inner_prev_param = param
             param = [param, [invalid_experiments]]
             c_iter += 1
+
+        if c_iter >= inner_iter_tol:
+            raise ValueError("No new points found. Internal stopping criterion is reached.")
 
         # return only valid experiments (invalid experiments are stored in param[1])
         next_experiments = next_experiments.drop(('constraint', 'DATA'), 1)
@@ -376,8 +379,8 @@ class NelderMead(Strategy):
                     red_dim = False
                     rec_dim = True
                 else:
-                    stopping_error = 'Stopping criterion is reached.'
-                    raise ValueError(stopping_error)
+                    print('Warning, internal stopping criterion is reached. '
+                          'Either points of simplex or function values of points of simplex are very close to each other.')
 
         # add requested points to memory
         for p in request.astype(float).tolist():
@@ -416,7 +419,7 @@ class NelderMead(Strategy):
             x_best = sim[0]
             f_best = fsim[0]
             x_best = self.round(x_best, bounds, self._dx)
-            #f_best = np.around(f_best, decimals=self._dx)
+            f_best = int(f_best * 10**int(np.log10(1/self._df))) / 10**int(np.log10(1/self._df))
         #next_experiments = np.around(next_experiments, decimals=self._dx)
 
         # Do any necessary transformation back
