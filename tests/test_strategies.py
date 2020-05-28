@@ -100,7 +100,7 @@ def test_logspaceobjectives_transform():
 
 def test_tsemo():
     pass
-'''
+
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
 @pytest.mark.parametrize('maximize', [True, False])
 def test_snobfit(num_experiments, maximize):
@@ -368,7 +368,7 @@ def test_nm3D(maximize,x_start,constraint):
         #       (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
 
     hartmann3D.plot(polygons=polygons_points)
-'''
+
 
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
 @pytest.mark.parametrize('maximize', [True, False])
@@ -390,22 +390,19 @@ def test_sobo(num_experiments, maximize, constraint, plot=False):
     max_stop = 80//num_experiments   # allowed number of consecutive iterations w/o improvement
     nstop = 0
     fbestold = float("inf")
+
+    if initial_exp is not None:
+        next_experiments = initial_exp
+    else:
+        next_experiments = None
+
+    param = None
     for i in range(num_iter):
-        # initial run without history
-        if i == 0:
-            if initial_exp is not None:
-                next_experiments, xbest, fbest, param = strategy.suggest_experiments(num_experiments=num_experiments, prev_res=initial_exp)
-            else:
-                next_experiments, xbest, fbest, param = strategy.suggest_experiments(num_experiments=num_experiments)
+        next_experiments, xbest, fbest, param = \
+            strategy.suggest_experiments(num_experiments=num_experiments, prev_res=next_experiments, prev_param=param)
 
-        # runs with history
-        else:
-            # This is the part where experiments take place
-            next_experiments = hartmann3D.run_experiments(next_experiments)
-
-            # Call SOBO
-            next_experiments, xbest, fbest, param = \
-                strategy.suggest_experiments(num_experiments=num_experiments, prev_res=next_experiments, prev_param=param)
+        # This is the part where experiments take place
+        next_experiments = hartmann3D.run_experiments(next_experiments)
 
         if fbest < fbestold:
             fbestold = fbest
@@ -427,5 +424,3 @@ def test_sobo(num_experiments, maximize, constraint, plot=False):
 
     if plot:
         hartmann3D.plot()
-
-

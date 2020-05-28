@@ -254,6 +254,7 @@ class SOBO(Strategy):
                     next_experiments[v.name] = request[:, i_inp]
                     i_inp += 1
             next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
+            next_experiments[('strategy', 'METADATA')] = 'Single-objective BayOpt'
 
         return next_experiments, xbest, fbest, param
 
