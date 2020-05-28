@@ -160,7 +160,7 @@ class NelderMead(Strategy):
             param = [param, [invalid_experiments]]
             c_iter += 1
 
-        if c_iter >= 5:
+        if c_iter >= inner_iter_tol:
             raise ValueError("No new points found. Internal stopping criterion is reached.")
 
         # return only valid experiments (invalid experiments are stored in param[1])
