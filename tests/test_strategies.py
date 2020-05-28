@@ -224,7 +224,7 @@ def test_nm2D(x_start,maximize,constraint, plot=False):
 
     initial_exp = None
     # Uncomment to create test case which results in reduction dimension and dimension recovery
-    #initial_exp = pd.DataFrame(data={'x_1': [4.0,4.0,2.0], 'x_2': [2.0,3.0,-6.0]})   # initial experimental points
+    #initial_exp = pd.DataFrame(data={'x_1': [4.0,4.0,2.0], 'x_2': [2.0,3.0,-6.0]})
     #initial_exp = DataSet.from_df(initial_exp)
     #initial_exp = himmelblau.run_experiments(initial_exp)  # initial results
 
@@ -294,7 +294,7 @@ def test_nm3D(maximize,x_start,constraint, plot=False):
 
     initial_exp = None
     # Uncomment to create test case which results in reduction dimension and dimension recovery
-    #initial_exp = pd.DataFrame(data={'x_1': [0.1,0.1,0.4,0.3], 'x_2': [0.6,0.2,0.4,0.5], 'x_3': [1,1,1,0.3]})   # initial experimental points
+    #initial_exp = pd.DataFrame(data={'x_1': [0.1,0.1,0.4,0.3], 'x_2': [0.6,0.2,0.4,0.5], 'x_3': [1,1,1,0.3]})
     #initial_exp = DataSet.from_df(initial_exp)
     #initial_exp = hartmann3D.run_experiments(initial_exp)
 
