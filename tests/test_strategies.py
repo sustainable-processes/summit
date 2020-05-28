@@ -101,7 +101,7 @@ def test_logspaceobjectives_transform():
 def test_tsemo():
     pass
 
-'''
+
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
 @pytest.mark.parametrize('maximize', [True, False])
 def test_snobfit(num_experiments, maximize):
@@ -212,7 +212,7 @@ def test_snobfit(num_experiments, maximize):
         # Extrema of test function with constraint: tbd /TODO: determine optimum with constraint with other algorithms
         assert fbest <= -1
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
-'''
+
 
 @pytest.mark.parametrize('x_start', [[0,0],[4,6],[1,2],[-2,5]])
 @pytest.mark.parametrize('maximize', [True, False])
