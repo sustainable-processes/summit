@@ -45,7 +45,7 @@ class SOBO(Strategy):
 
     Examples
     --------
-    >>> from summit.domain import Domain, ContinuousVariable
+    >>> from summit.domain import Domain, ContinuousVariable, DiscreteVariable
     >>> from summit.strategies import SOBO
     >>> import numpy as np
     >>> domain = Domain()
