@@ -77,6 +77,8 @@ class SNOBFIT(Strategy):
     >>> strategy = SNOBFIT(domain)
     >>> next_experiments, xbest, fbest, res = strategy.suggest_experiments(5, initial)
 
+
+
     '''
 
     def __init__(self, domain: Domain, **kwargs):
