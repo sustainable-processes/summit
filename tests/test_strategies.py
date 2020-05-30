@@ -104,46 +104,11 @@ def test_tsemo():
 
 @pytest.mark.parametrize('num_experiments', [1, 2, 4])
 @pytest.mark.parametrize('maximize', [True, False])
-def test_snobfit(num_experiments, maximize):
-    # Single-objective optimization problem with 3 dimensional input domain (only continuous inputs)
-    domain = Domain()
-    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 1])
-    domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
-    domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0, 1])
-    domain += ContinuousVariable(name='yield', description='relative conversion to xyz',
-                                 bounds=[-1000,1000], is_objective=True, maximize=maximize)
-    domain += Constraint(lhs="temperature+flowrate_a+flowrate_b-1", constraint_type="<=") #TODO: implement decoding of constraints
-    constraint = False
-    strategy = SNOBFIT(domain, probability_p=0.5, dx_dim=1E-5)
+@pytest.mark.parametrize('constraints', [True, False])
+def test_snobfit(num_experiments, maximize, constraints):
 
-    # Simulating experiments with hypothetical relationship of inputs and outputs,
-    # here Hartmann 3D function: https://www.sfu.ca/~ssurjano/hart3.html
-    # Note that SNOBFIT treats constraints implicitly, i.e., for variable sets that
-    # violate one of the constraints return NaN as function value (so-called: hidden constraints)
-    def sim_fun(x_exp):
-        if constr(x_exp):
-            x_exp = x_exp[:3]
-            A = np.array([[3,10,30],[0.1,10,35],[3,10,30],[0.1,10,35]])
-            P = np.array([[3689,1170,2673],[4699,4387,7470],[1091,8732,5547],[381,5743,8828]])*10**(-4)
-            alpha = np.array([1,1.2,3.0,3.2])
-            d = np.zeros((4,1))
-            for k in range(4):
-                d[k] = np.sum(np.dot(A[k,:],(x_exp-P[k,:])**2))
-            y_exp = np.sum(np.dot(alpha,np.exp(-d)))
-            if not maximize:
-                y_exp *= -1.0
-        else:
-            y_exp = np.nan
-        return y_exp
-    def test_fun(x):
-        y = np.array([sim_fun(x[i]) for i in range(0, x.shape[0])])
-        return y
-    # Define hypothetical constraint (for real experiments, check constraint and return NaN)
-    def constr(x):
-        if constraint:
-            return (x[0]+x[1]+x[2]<=1)
-        else:
-            return True
+    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraints)
+    strategy = SNOBFIT(hartmann3D.domain, probability_p=0.5, dx_dim=1E-5)
 
     initial_exp = None
     # Comment out to start without initial data
