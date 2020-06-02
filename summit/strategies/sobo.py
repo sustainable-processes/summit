@@ -16,7 +16,7 @@ class SOBO(Strategy):
     Parameters
     ---------- 
     domain: summit.domain.Domain
-        The Summit domain describin the the optimization problem.
+        The Summit domain describing the optimization problem.
     gp_model_type: string, optional
         The GPy Gaussian Process model type.
         By default, gaussian processes with the Matern 5.2 kernel will be used.
@@ -29,6 +29,18 @@ class SOBO(Strategy):
     evaluator_type: string, optional
         The evaluator type used for batch mode (how multiple points are chosen in one iteration).
         By default, thompson sampling will be used.
+    kernel: GPy kernel object, optional
+        The kernel used in the GP.
+        By default a Matern 5.2 kernel (GPy object) will be used.
+    exact_feval: boolean, optional
+        Whether the function evaluations are exact (True) or noisy (False).
+        By default: False.
+    ard: boolean, optional
+        Whether automatic relevance determination should be applied (True).
+        By default: True.
+    standardize_outputs: boolean, optional
+        Whether the outputs should be standardized (True).
+        By default: True.
 
     Notes
     ----------
@@ -147,10 +159,13 @@ class SOBO(Strategy):
         else:
             self.evaluator_type = 'random'
 
-
-        self.kernel = kwargs.get('kernel', GPy.kern.Matern52(self.input_dim))   # https://gpy.readthedocs.io/en/deploy/GPy.kern.html#subpackages
+        # specify GPy kernel: # https://gpy.readthedocs.io/en/deploy/GPy.kern.html#subpackages
+        self.kernel = kwargs.get('kernel', GPy.kern.Matern52(self.input_dim))   
+        # Are function values exact (w/o noise)?
         self.exact_feval = kwargs.get('exact_feval', False)
+        # automatic relevance determination
         self.ARD = kwargs.get('ARD', True)
+        # Standardization of outputs?
         self.standardize_outputs = kwargs.get('standardize_outputs', True)
 
 
