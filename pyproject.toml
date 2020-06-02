@@ -17,6 +17,7 @@ numpy = "1.16.0"
 platypus-opt = "^1.0"
 sklearn = "^0.0.0"
 SQSnobFit = "^0.4.3"
+gpyopt = "^1.2.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
