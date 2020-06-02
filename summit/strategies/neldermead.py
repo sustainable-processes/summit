@@ -379,13 +379,8 @@ class NelderMead(Strategy):
                     red_dim = False
                     rec_dim = True
                 else:
-<<<<<<< HEAD
-                    stopping_error = 'Stopping criterion is reached.'
-                    raise ValueError(stopping_error)
-=======
                     print('Warning, internal stopping criterion is reached. '
                           'Either points of simplex or function values of points of simplex are very close to each other.')
->>>>>>> origin/master
 
         # add requested points to memory
         for p in request.astype(float).tolist():
