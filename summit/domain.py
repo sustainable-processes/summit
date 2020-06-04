@@ -595,7 +595,6 @@ class Domain:
             variables.append(new_variable)
         return Domain(variables)
 
-
     def __add__(self, obj):
         #TODO: make this work with adding arrays of variable or constraints
         if isinstance(obj, Variable):

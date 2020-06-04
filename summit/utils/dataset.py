@@ -73,6 +73,12 @@ class DataSet(pd.core.frame.DataFrame):
         df = pd.read_csv(filepath_or_buffer, header=header, index_col=index_col)
         return DataSet(df.to_numpy(), columns=df.columns, index=df.index)
 
+    @classmethod
+    def from_dict(cls, data):
+        ds = cls(data)
+        ds.columns.names = ['NAME', 'TYPE']
+        return ds
+
     def zero_to_one(self, small_tol=1.0e-5) -> np.ndarray:
         ''' Scale the data columns between zero and one 
 

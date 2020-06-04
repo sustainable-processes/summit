@@ -26,6 +26,7 @@ class Transform:
     def __init__(self, domain):
         self.transform_domain = domain.copy()
         self.domain = domain
+        self.transform_type = self.__class__.__name__
 
     def transform_inputs_outputs(self, ds: DataSet, copy=True):
         '''  Transform of data into inputs and outptus for a strategy
@@ -101,6 +102,13 @@ class Transform:
         Override this class to achieve custom untransformations 
         ''' 
         return ds
+    
+    def to_dict(self):
+        """ Output a dictionary representation of the transform"""
+        return dict(transform_type=self.transform_type,
+                    transform_domain=self.transform_domain,
+                    domain=self.domain)
+
 
 class MultitoSingleObjective(Transform):
     '''  Transform a multiobjective problem into a single objective problems
@@ -257,9 +265,16 @@ class Strategy(ABC):
         else:
             raise TypeError('transform must be a Transform class')
         self.domain = self.transform.transform_domain
+        self.strategy_name = self.__class__.__name__
 
     def suggest_experiments(self):
         raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
+
+    def to_dict(self):
+        return dict(strategy_name=self.strategy_name,
+                    domain=self.domain.to_dict(), 
+                    transform=self.transform.to_dict())
+
 
 class Design:
     """Representation of an experimental design

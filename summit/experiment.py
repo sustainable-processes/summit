@@ -8,7 +8,7 @@ import time
 
 class Experiment(ABC):
     """Base class for benchmarks"""
-    def __init__(self, domain):
+    def __init__(self, domain, **kwargs):
         self._domain = domain
         self.reset()
 
@@ -73,6 +73,16 @@ class Experiment(ABC):
         self._data = DataSet(columns=columns, metadata_columns=md_columns)
         self.extras = []
     
+    def to_dict(self):
+        return {domain: self.domain, data: self.data.to_dict()}
+
+    @classmethod
+    def from_dict(cls, dict):
+        params = dict.get('experiment_params', {})
+        exp = cls(dict['domain'], **params)
+        exp._data = dict['data']
+        return exp
+
     def pareto_plot(self, objectives=None, ax=None):
         '''  Make a 2D pareto plot of the experiments thus far
         
