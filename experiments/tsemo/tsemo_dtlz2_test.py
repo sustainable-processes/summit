@@ -20,7 +20,7 @@ def dtlz2_test():
         # Get suggestions
         nsga_options = dict(pop_size=100, iterations=100)
         experiments = strategy.suggest_experiments(1, lab.data,
-                                                **nsga_options)
+                                                   **nsga_options)
 
     return lab
 
