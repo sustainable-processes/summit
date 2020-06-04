@@ -80,14 +80,14 @@ class TSEMO2(Strategy):
             raise ValueError('Random rate must be between 0 and 1.')
 
     def suggest_experiments(self, num_experiments, 
-                            previous_results: DataSet=None):
+                            prev_res: DataSet=None):
         """ Suggest experiments using TSEMO
         
         Parameters
         ----------  
         num_experiments: int
             The number of experiments (i.e., samples) to generate
-        previous_results: summit.utils.data.DataSet, optional
+        prev_res: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, then latin hypercube sampling will
             be used to suggest an initial design.
@@ -98,12 +98,12 @@ class TSEMO2(Strategy):
             A `Dataset` object with the random design
         """
         # Suggest lhs initial design
-        if previous_results is None:
+        if prev_res is None:
             lhs = LHS(self.domain)
             return lhs.suggest_experiments(num_experiments)
 
         #Get inputs and outputs
-        inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
+        inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
         
         #Fit models to new data
         self.models.fit(inputs, outputs)

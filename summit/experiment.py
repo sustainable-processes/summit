@@ -7,7 +7,19 @@ import pandas as pd
 import time
 
 class Experiment(ABC):
-    """Base class for benchmarks"""
+    """Base class for experiments
+    
+    Parameters
+    ---------
+    domain: summit.domain.Domain
+        The domain of the experiment
+    
+    Notes
+    -----
+    Developers that subclass `Experiment` need to implement
+    `_run`, which runs the experiments.
+    
+    """
     def __init__(self, domain, **kwargs):
         self._domain = domain
         self.reset()
@@ -27,7 +39,7 @@ class Experiment(ABC):
                         **kwargs):
         """Run the experiment(s) at the given conditions
         
-        Arguments
+        Parameters
         ---------
         conditions: summit.utils.dataset.Dataset
             A dataset with columns matching the variables in the domain
@@ -62,6 +74,23 @@ class Experiment(ABC):
         
     @abstractmethod
     def _run(self, conditions, **kwargs):
+        """ Run experiments at the specified conditions. 
+        
+        Arguments
+        ---------
+        conditions: summit.utils.dataset.Dataset
+            A dataset with columns matching the variables in the domain
+            of a experiment(s) to run.
+
+        Returns
+        -------
+        res, extras
+            Should return a tuple where the first element is the 
+            DataSet with the conditions and results.  The second element
+            is a dictionary with extra parameters to store about the run.
+            The later can be an empty dictionary.
+        """
+
         raise NotImplementedError('_run be implemented by subclasses of Benchmark')
 
     def reset(self):
@@ -74,12 +103,18 @@ class Experiment(ABC):
         self.extras = []
     
     def to_dict(self):
+        """Serialize the class to a dictionary
+        
+        Subclasses can add a experiment_params dictionary
+        key with custom parameters for the experiment
+        """
         return {domain: self.domain, data: self.data.to_dict()}
 
     @classmethod
     def from_dict(cls, dict):
         params = dict.get('experiment_params', {})
-        exp = cls(dict['domain'], **params)
+        domain = Domain.from_dict(dict['domain'])
+        exp = cls(domain, **params)
         exp._data = dict['data']
         return exp
 
@@ -105,13 +140,6 @@ class Experiment(ABC):
         ------
         ValueError
             If the number of objectives is not equal to two
-        
-        Examples
-        --------
-        
-        
-        Notes
-        -----
         
         
         ''' 
@@ -164,4 +192,34 @@ class Experiment(ABC):
             return fig, ax
         else:
             return ax
+
+class ExternalExperiment(Experiment):
+    """ Keep track of experimental data collected externally
+
+    This is useful when running experiments manually or 
+    using an automation system that will call summit directly 
+    (instead of summit calling the automation system).
     
+    Parameters
+    ----------
+    domain: summit.domain.Domain
+        The domain of the experiment
+    """ 
+
+    def _run(self, conditions, **kwargs):
+        raise NotImplementedError("""_run is not implemented in ExternalExperiment. 
+                                  Experiments should be run externally and added using
+                                  add_data.
+                                  """)
+    
+    def add_data(self, results, **kwargs):
+        # Add data
+        self._data.append(results)
+
+        # Add on extras
+        extras = kwargs.get('extras')
+        if self.extras is not None:
+            if type(self.extras) == dict:
+                self.extras.append(extras)
+            elif type(self.extras) == list:
+                self.extras += extras
