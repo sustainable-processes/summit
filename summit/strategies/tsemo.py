@@ -86,8 +86,11 @@ class TSEMO(Strategy):
         previous_results: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, then latin hypercube sampling will
-            be used to suggest an initial design.
-        
+            be used to suggest an initial design. 
+        n_spectral_points: int
+            Number of spectral points used in spectral sampling.
+            Default is 1500.
+            
         Returns
         -------
         ds
@@ -104,7 +107,10 @@ class TSEMO(Strategy):
             raise ValueError(f'The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS.')
         
         # Fit models to new data
-        self.models.fit(inputs, outputs, spectral_sample=True)
+        self.models.fit(inputs, outputs, spectral_sample=False)
+        n_spectral_points = kwargs.get('n_spectral_points', 1500)
+        self.models.spectral_sample(inputs, outputs,
+                                    n_spectral_points=n_spectral_points)
 
         # Sample function to optimize
         use_spectral_sample = kwargs.get('use_spectral_sample', True)

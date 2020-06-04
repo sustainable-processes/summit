@@ -3,6 +3,9 @@ from summit.benchmarks import DTLZ2
 import matplotlib.pyplot as plt
 import numpy as np
 
+#Two tests were run; one with 1500 and one with 4000
+N_SPECTRAL_POINTS = 4000
+DATE="20200604"
 
 def dtlz2_test():
     #Run the DTLZ2 benchmark
@@ -18,9 +21,10 @@ def dtlz2_test():
         lab.run_experiments(experiments)
         
         # Get suggestions
-        nsga_options = dict(pop_size=100, iterations=100)
+        tsemo_options = dict(pop_size=100, iterations=100,
+                             n_spectral_points=N_SPECTRAL_POINTS)
         experiments = strategy.suggest_experiments(1, lab.data,
-                                                   **nsga_options)
+                                                   **tsemo_options)
 
     return lab
 
@@ -28,4 +32,4 @@ def dtlz2_test():
 if __name__ == '__main__':
     for i in range(12, 21,1):
         lab = dtlz2_test()
-        lab.save(f'data/python/experiment_{i}.csv')
+        lab.save(f'data/python/{DATE}/experiment_{i}.csv')
