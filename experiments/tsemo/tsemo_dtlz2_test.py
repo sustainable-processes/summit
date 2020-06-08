@@ -12,7 +12,7 @@ DATE="20200608"
 tsemo_options = dict(pop_size=100, iterations=100,
                      n_spectral_points=N_SPECTRAL_POINTS,
                      num_restarts=200, parallel=True)
-description="Description: Used exponential kernel instead of matern and increase num restarts"
+description="Description: Used exponential kernel instead of matern and increase num restarts."
 
 def dtlz2_test():
     #Run the DTLZ2 benchmark
@@ -38,7 +38,8 @@ def dtlz2_test():
 
 if __name__ == '__main__':
     tsemo_options.update({'description': description})
-    json.dump(f'data/python/{DATE}/params.json', tsemo_options)
+    with open(f'data/python/{DATE}/params.json', 'w') as f:
+        json.dump(tsemo_options,f)
     for i in range(20):
         lab, options = dtlz2_test()
         lab.save(f'data/python/{DATE}/experiment_{i}.csv')
