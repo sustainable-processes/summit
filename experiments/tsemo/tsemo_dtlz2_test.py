@@ -30,6 +30,6 @@ def dtlz2_test():
 
 
 if __name__ == '__main__':
-    for i in range(12, 21,1):
+    for i in range(20):
         lab = dtlz2_test()
         lab.save(f'data/python/{DATE}/experiment_{i}.csv')

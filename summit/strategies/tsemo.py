@@ -109,8 +109,9 @@ class TSEMO(Strategy):
         # Fit models to new data
         self.models.fit(inputs, outputs, spectral_sample=False)
         n_spectral_points = kwargs.get('n_spectral_points', 1500)
-        self.models.spectral_sample(inputs, outputs,
-                                    n_spectral_points=n_spectral_points)
+        for model in self.models.models.values():
+            model.spectral_sample(inputs, outputs,
+                                  n_spectral_points=n_spectral_points)
 
         # Sample function to optimize
         use_spectral_sample = kwargs.get('use_spectral_sample', True)
