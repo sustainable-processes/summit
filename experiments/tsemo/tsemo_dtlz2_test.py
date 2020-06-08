@@ -4,13 +4,15 @@ from summit.utils.models import GPyModel
 from GPy.kern import Exponential
 import matplotlib.pyplot as plt
 import numpy as np
+import json
 
 #Two tests were run; one with 1500 and one with 4000
 N_SPECTRAL_POINTS = 1500
 DATE="20200608"
 tsemo_options = dict(pop_size=100, iterations=100,
-                        n_spectral_points=N_SPECTRAL_POINTS)
-description="Description: Used exponential kernel instead of matern"
+                     n_spectral_points=N_SPECTRAL_POINTS,
+                     num_restarts=200, parallel=True)
+description="Description: Used exponential kernel instead of matern and increase num restarts"
 
 def dtlz2_test():
     #Run the DTLZ2 benchmark
@@ -35,11 +37,8 @@ def dtlz2_test():
 
 
 if __name__ == '__main__':
-    with open(f'data/python/{DATE}/params.txt', 'w+') as f:
-        f.write(f"spectral points: {N_SPECTRAL_POINTS}")
-        f.write(f"NSGA pop size: {tsemo_options['pop_size']}")
-        f.write(f"NSGA iterations: {tsemo_options['iterations']}")
-        f.write(description)
+    tsemo_options.update({'description': description})
+    json.dump(f'data/python/{DATE}/params.json', tsemo_options)
     for i in range(20):
         lab, options = dtlz2_test()
         lab.save(f'data/python/{DATE}/experiment_{i}.csv')
