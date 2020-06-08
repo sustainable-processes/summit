@@ -138,19 +138,19 @@ class GPyModel:
 
         #Initialize and fit model
         self._model = GPRegression(X_std,y_std, self._kernel, noise_var=self._noise_var)
-        # if self._optimizer:
-        #     self._model.optimize_restarts(num_restarts = num_restarts, 
-        #                                   verbose=verbose,
-        #                                   max_iters=max_iters,
-        #                                   optimizer=self._optimizer,
-        #                                   parallel=parallel)
-        # else:
-        #     self._model.optimize_restarts(num_restarts = num_restarts, 
-        #                                   verbose=verbose,
-        #                                   max_iters=max_iters,
-        #                                   parallel=parallel)
-        # if spectral_sample:
-        #     self.spectral_sample(X, y)
+        if self._optimizer:
+            self._model.optimize_restarts(num_restarts = num_restarts, 
+                                          verbose=verbose,
+                                          max_iters=max_iters,
+                                          optimizer=self._optimizer,
+                                          parallel=parallel)
+        else:
+            self._model.optimize_restarts(num_restarts = num_restarts, 
+                                          verbose=verbose,
+                                          max_iters=max_iters,
+                                          parallel=parallel)
+        if spectral_sample:
+            self.spectral_sample(X, y)
 
         return self
 
