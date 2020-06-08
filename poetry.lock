@@ -120,6 +120,23 @@ optional = ["mpi4py", "ipython (>=4.0.0)"]
 plotting = ["matplotlib (>=3.0)", "plotly (>=1.8.6)"]
 
 [[package]]
+category = "main"
+description = "The Bayesian Optimization Toolbox"
+name = "gpyopt"
+optional = false
+python-versions = "*"
+version = "1.2.6"
+
+[package.dependencies]
+GPy = ">=1.8"
+numpy = ">=1.7"
+scipy = ">=0.16"
+
+[package.extras]
+docs = ["matplotlib (>=1.3)", "sphinx", "ipython"]
+optimizer = ["direct", "cma", "pydoe", "sobol-seq", "emcee"]
+
+[[package]]
 category = "dev"
 description = "Internationalized Domain Names in Applications (IDNA)"
 name = "idna"
@@ -731,22 +748,6 @@ alldeps = ["numpy (>=1.13.3)", "scipy (>=0.19.1)"]
 
 [[package]]
 category = "main"
-description = "Integrator for Python-based quantum computing software"
-name = "scikit-quant"
-optional = false
-python-versions = "*"
-version = "0.6.1"
-
-[package.dependencies]
-Py-BOBYQA = ">=1.1"
-
-[package.source]
-reference = "84e158b0f902eb96167e93a6603103feb4f58d52"
-type = "git"
-url = "https://github.com/sustainable-processes/scikit-quant.git"
-
-[[package]]
-category = "main"
 description = "SciPy: Scientific Library for Python"
 name = "scipy"
 optional = false
@@ -905,7 +906,7 @@ docs = ["sphinx", "jaraco.packaging (>=3.2)", "rst.linker (>=1.9)"]
 testing = ["jaraco.itertools", "func-timeout"]
 
 [metadata]
-content-hash = "285ad44b8cc6b564d14261ce6363b7cf99a9277c6760d90f4d8ba5c5b8cdc34b"
+content-hash = "8cc7cb847e0e7b7adaa7078fc6d50540ea078d65853beac6d16d563696e59611"
 python-versions = "^3.6"
 
 [metadata.files]
@@ -967,6 +968,9 @@ gpy = [
     {file = "GPy-1.9.9.win-amd64-py3.5.exe", hash = "sha256:ece8bb969be93af97394633428d4be2365e9a93d2c474edc45a5dd95dcd286b0"},
     {file = "GPy-1.9.9.win-amd64-py3.6.exe", hash = "sha256:9231368ce5f79aadbf4e06a805742c1376cdd68326f613091f9ebca7aa113fbb"},
     {file = "GPy-1.9.9.win-amd64-py3.7.exe", hash = "sha256:138ac1574beabe321a2bf84615a3c00c2d4e0085a4ed74afb9ef8c086804d890"},
+]
+gpyopt = [
+    {file = "GPyOpt-1.2.6.tar.gz", hash = "sha256:e714daa035bb529a6db23c53665a762a4ab3456b9329c19ad3b03983f94c9b2a"},
 ]
 idna = [
     {file = "idna-2.9-py2.py3-none-any.whl", hash = "sha256:a068a21ceac8a4d63dbfd964670474107f541babbd2250d61922f029858365fa"},
@@ -1274,7 +1278,6 @@ scikit-learn = [
     {file = "scikit_learn-0.23.1-cp38-cp38-win32.whl", hash = "sha256:5bcea4d6ee431c814261117281363208408aa4e665633655895feb059021aca6"},
     {file = "scikit_learn-0.23.1-cp38-cp38-win_amd64.whl", hash = "sha256:16feae4361be6b299d4d08df5a30956b4bfc8eadf173fe9258f6d59630f851d4"},
 ]
-scikit-quant = []
 scipy = [
     {file = "scipy-1.4.1-cp35-cp35m-macosx_10_6_intel.whl", hash = "sha256:c5cac0c0387272ee0e789e94a570ac51deb01c796b37fb2aad1fb13f85e2f97d"},
     {file = "scipy-1.4.1-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:a144811318853a23d32a07bc7fd5561ff0cac5da643d96ed94a4ffe967d89672"},

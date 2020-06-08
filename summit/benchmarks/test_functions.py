@@ -292,4 +292,3 @@ class Hartmann3D(Experiment):
             plt.show()
             plt.close()
 
- 

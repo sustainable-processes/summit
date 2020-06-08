@@ -419,3 +419,59 @@ def test_nm3D(maximize,x_start,constraint, plot=False):
     #          (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
     if plot:
         hartmann3D.plot(polygons=polygons_points)
+
+
+@pytest.mark.parametrize('num_experiments', [1, 2, 4])
+@pytest.mark.parametrize('maximize', [True, False])
+@pytest.mark.parametrize('constraint', [True, False])
+def test_sobo(num_experiments, maximize, constraint, plot=False):
+
+    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
+    strategy = SOBO(domain=hartmann3D.domain)
+
+    # Uncomment to start algorithm with pre-defined initial experiments
+    initial_exp = None
+    # Uncomment to create test case which results in reduction dimension and dimension recovery
+    #initial_exp = pd.DataFrame(data={'x_1': [0.1,0.1,0.4,0.3], 'x_2': [0.6,0.2,0.4,0.5], 'x_3': [1,1,1,0.3]})   # initial experimental points
+    #initial_exp = DataSet.from_df(initial_exp)
+    #initial_exp = hartmann3D.run_experiments(initial_exp)
+
+    # run SOBO loop for fixed <num_iter> number of iteration
+    num_iter = 200//num_experiments   # maximum number of iterations
+    max_stop = 80//num_experiments   # allowed number of consecutive iterations w/o improvement
+    nstop = 0
+    fbestold = float("inf")
+
+    if initial_exp is not None:
+        next_experiments = initial_exp
+    else:
+        next_experiments = None
+
+    param = None
+    for i in range(num_iter):
+        next_experiments, xbest, fbest, param = \
+            strategy.suggest_experiments(num_experiments=num_experiments, prev_res=next_experiments, prev_param=param)
+
+        # This is the part where experiments take place
+        next_experiments = hartmann3D.run_experiments(next_experiments)
+
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+
+        print(next_experiments)  # show next experiments
+        print("\n")
+
+    xbest = np.around(xbest, decimals=3)
+    fbest = np.around(fbest, decimals=3)
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
+    assert (fbest <= -3.85 and fbest >= -3.87)
+
+    if plot:
+        hartmann3D.plot()
