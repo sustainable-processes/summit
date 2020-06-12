@@ -2,6 +2,7 @@
 from .dataset import DataSet
 from abc import ABC, abstractmethod
 import GPy
+import pyrff
 import numpy as np
 from numpy import matlib
 from numpy.random import default_rng
@@ -11,6 +12,7 @@ from scipy.stats import norm, invgamma
 from scipy.stats.distributions import chi2
 from .lhs import lhs
 from sklearn.base import BaseEstimator, RegressorMixin
+
 
 __all__ = ["Model", "ModelGroup", "GPyModel", "AnalyticalModel"]
 
@@ -188,7 +190,8 @@ class GPyModel:
 
         return m
 
-    def spectral_sample(self, X, Y, n_spectral_points=1500):
+    def spectral_sample(self, X, y, n_spectral_points=1500,
+                        n_retries=10):
         '''Sample GP using spectral sampling
 
         Parameters
@@ -197,10 +200,14 @@ class GPyModel:
             The data columns will be used as inputs for fitting the model
         y: DataSet
             The data columns will be used as outputs for fitting the model
-        n_spectral_points: float, optional
+        n_spectral_points: int, optional
             The number of points to use in spectral sampling. Defaults to 4000.
+        n_retries: int, optional
+            The number of retries for the spectral sampling code in the case
+            the singular value decomposition fails.
         '''
 
+        # Determine the degrees of freedom
         if type(self._model.kern) == GPy.kern.Exponential:
             matern_nu = 1
         elif type(self._model.kern) == GPy.kern.Matern32:
@@ -212,6 +219,7 @@ class GPyModel:
         else:
             raise TypeError("Spectral sample currently only works with Matern type kernels, including RBF.")
 
+        # Normalize data
         if isinstance(X, np.ndarray):
             X_std =  (X-self.input_mean)/self.input_std
             X_std[abs(X_std) < 1e-5] = 0.0
@@ -219,55 +227,31 @@ class GPyModel:
             X_std = X.standardize(mean=self.input_mean, 
                                   std=self.input_std)
 
-        # Get variables from problem structure
-        n, D = np.shape(X_std)
-        ell = np.array(self._model.kern.lengthscale) 
-        sf2 = np.array(self._model.kern.variance)
-        sn2 = np.array(self._model.Gaussian_noise.variance)
+        if isinstance(y, DataSet):
+            y_std, self.output_mean, self.output_std = y.standardize(return_mean=True, return_std=True)
+        elif isinstance(y, np.ndarray):
+            self.output_mean = np.mean(y,axis=0)
+            self.output_std = np.std(y, axis=0)
+            y_std = (y-self.output_mean)/self.output_std
+            y_std[abs(y_std) < 1e-5] = 0.0
 
-        # Monte carlo samples of W and b
-        # W = p*norminv(sW1)*q
-        sW = lhs(D, n_spectral_points)
-        p = matlib.repmat(np.divide(1, ell), n_spectral_points, 1)
-        if matern_nu != np.inf:            
-            inv = chi2.ppf(sW, matern_nu)
-            q = np.sqrt(np.divide(matern_nu, inv)+1e-7)
-            W = np.multiply(p, norm.ppf(sW))
-            W = np.multiply(W, q)
-        else:
-            raise NotImplementedError("RBF not implemented yet!")
+        # Spectral sampling
+        for i in range(n_retries):
+            try:
+                sampled_f = pyrff.sample_rff(
+                    lengthscales=self._model.kern.lengthscale.values,
+                    scaling=self._model.kern.variance.values[0],
+                    noise=self._model.Gaussian_noise.variance.values[0],
+                    kernel_nu=matern_nu,
+                    X=X_std,
+                    Y=y_std[:,0],
+                    M=n_spectral_points,
+                    )
+                break
+            except np.linalg.LinAlgError:
+                pass
 
-        b = 2*np.pi*lhs(1, n_spectral_points)
-
-        # Calculate phi
-        phi = np.sqrt(2*sf2/n_spectral_points)*np.cos(W@X_std.T +  matlib.repmat(b, 1, n))
-
-        #Sampling of theta according to phi
-        #For the matrix inverses, I defualt to Cholesky when possible
-        A = phi@phi.T + sn2*np.identity(n_spectral_points)
-        try:
-            c = np.linalg.inv(np.linalg.cholesky(A))
-            invA = np.dot(c.T,c)
-        except np.linalg.LinAlgError:
-            u,s, vh = np.linalg.svd(A)
-            invA = vh.T@np.diag(1/s)@u.T
-        if isinstance(Y, DataSet):
-            Y = Y.data_to_numpy()
-        mu_theta = invA@phi@Y
-        cov_theta = sn2*invA
-        #Add some noise to covariance to prevent issues
-        cov_theta = 0.5*(cov_theta+cov_theta.T)+1e-4*np.identity(n_spectral_points)
-        rng = default_rng()
-        try:
-            theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
-                                           method='cholesky')
-        except np.linalg.LinAlgError:
-            theta = rng.multivariate_normal(mu_theta[:, 0], cov_theta,
-                                           method='svd')
-
-        # theta = np.random.multivariate_normal(mu_theta[:, 0], cov_theta)
-
-        #Posterior sample according to theta
+        # Define function wrapper
         def f(x):
             if isinstance(x, np.ndarray):
                 x =  (x-self.input_mean)/self.input_std
@@ -275,11 +259,9 @@ class GPyModel:
             elif isinstance(X, DataSet):
                 x = x.standardize(mean=self.input_mean, 
                                   std=self.input_std)
-            inputs, _ = np.shape(x)
-            bprime = matlib.repmat(b, 1, inputs)
-            output =  (theta.T*np.sqrt(2*sf2/n_spectral_points))@np.cos(W@x.T+bprime)
-            return np.atleast_2d(output).T
-        self.sampled_f = f
+            y_s = sampled_f(x)
+            return self.output_mean+y_s*self.output_std
+
         return f
     
 class AnalyticalModel(Model):
