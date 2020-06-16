@@ -32,6 +32,7 @@ class Experiment(ABC):
     @property
     def data(self):
         """Datast of all experiments run"""
+        self._data = self._data.reset_index(drop=True)
         return self._data
 
     def run_experiments(self, conditions,
@@ -64,8 +65,8 @@ class Experiment(ABC):
             res, extras = self._run(condition, **kwargs)
             experiment_time = time.time() - start
             self._data = self._data.append(res)
-            self._data['experiment_time'].iat[-1] = experiment_time
-            self._data['computation_time'].iat[-1] = diff
+            self._data['experiment_t'].iat[-1] = float(experiment_time)
+            self._data['computation_t'].iat[-1] = float(diff)
             if condition.get('strategy') is not None:
                 self._data['strategy'].iat[-1] = condition.get('strategy').values[0]
             self.extras.append(extras)
@@ -97,7 +98,7 @@ class Experiment(ABC):
         """Reset the experiment"""
         self.prev_itr_time = None
         columns = [var.name for var in self.domain.variables]
-        md_columns = ['computation_time', 'experiment_time', 'strategy']
+        md_columns = ['computation_t', 'experiment_t', 'strategy']
         columns += md_columns
         self._data = DataSet(columns=columns, metadata_columns=md_columns)
         self.extras = []

@@ -73,11 +73,18 @@ class DataSet(pd.core.frame.DataFrame):
         df = pd.read_csv(filepath_or_buffer, header=header, index_col=index_col)
         return DataSet(df.to_numpy(), columns=df.columns, index=df.index)
 
+    def to_dict(self):
+        return super().to_dict(orient='split')
+        
     @classmethod
-    def from_dict(cls, data):
-        ds = cls(data)
-        ds.columns.names = ['NAME', 'TYPE']
-        return ds
+    def from_dict(cls, d):
+        columns = []
+        metadata_columns = []
+        for c in d['columns']:
+            if c[1] == 'METADATA':
+                metadata_columns.append(c[0])
+        columns = [c[0] for  c in d['columns']]
+        return DataSet(d['data'], columns=columns, metadata_columns=metadata_columns)
 
     def zero_to_one(self, small_tol=1.0e-5) -> np.ndarray:
         ''' Scale the data columns between zero and one 

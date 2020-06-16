@@ -53,9 +53,10 @@ class TSEMO2(Strategy):
  
     ''' 
     def __init__(self, domain, transform=None,
-                 models=None, optimizer=None, **kwargs):
+                 models=None, **kwargs):
         Strategy.__init__(self, domain, transform)
 
+        # Internal models
         if models is None:
             input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
             models = {v.name: GPyModel(input_dim=input_dim) for v in self.domain.variables 
@@ -68,10 +69,8 @@ class TSEMO2(Strategy):
         else: 
             raise TypeError('models must be a ModelGroup or a dictionary of models.')
 
-        if not optimizer:
-            self.optimizer = NSGAII(self.domain)
-        else:
-            self.optimizer = optimizer
+        # NSGAII internal optimizer
+        self.optimizer = NSGAII(self.domain)
 
         self._reference = kwargs.get('reference',
                                      [0 for v in self.domain.variables if v.is_objective])
@@ -127,6 +126,18 @@ class TSEMO2(Strategy):
             return result
         else:
             return None
+
+    def to_dict(self):
+        d = super().to_dict()
+        d.update(dict(models=self.models.to_dict(),
+                      random_rate=self.random_rate))
+        return d
+    
+    @classmethod
+    def from_dict(cls, d):
+        tsemo = super().from_dict(d)
+        tsemo.random_rate = d['random_rate']
+        return tsemo
 
     def select_max_hvi(self, y, samples, num_evals=1):
         '''  Returns the point(s) that maximimize hypervolume improvement 

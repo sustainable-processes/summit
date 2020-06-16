@@ -1,4 +1,4 @@
-from .base import Strategy
+from .base import Strategy, Transform
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 
@@ -16,7 +16,7 @@ from SQSnobFit._snob5     import snob5
 
 import math
 import numpy
-
+from copy import deepcopy
 import numpy as np
 import pandas as pd
 
@@ -75,10 +75,7 @@ class SNOBFIT(Strategy):
     >>> df = pd.DataFrame(data=d)
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
-    >>> next_experiments, xbest, fbest, res = strategy.suggest_experiments(5, initial)
-
-
-
+    >>> next_experiments = strategy.suggest_experiments(5, initial)
     '''
 
     def __init__(self, domain: Domain, **kwargs):
@@ -181,8 +178,31 @@ class SNOBFIT(Strategy):
         """Reset internal parameters"""
         self.prev_param = None
 
-    def save(self):
-        return self.prev_param
+    def to_dict(self):
+        """Convert hyperparameters and internal state to a dictionary"""
+        d = super().to_dict()
+        if self.prev_param is not None:
+            params = deepcopy(self.prev_param)
+            params[0] = (params[0][0].tolist(), params[0][1], params[0][2].tolist())
+            params[1] = [p.to_dict() for p in params[1]]
+        else: 
+            params = None
+        d.update(dict(probability_p=self._p,
+                    dx_dim=self._dx_dim,
+                    prev_param=params))
+        return d
+    
+    @classmethod
+    def from_dict(cls, d):
+        snobfit = super().from_dict(d)
+        snobfit.probability_p = d['probability_p']
+        snobfit.dx_dim = d['dx_dim']
+        params = d['prev_param']
+        if params is not None:
+            params[0] = (np.array(params[0][0]), params[0][1], np.array(params[0][2]))
+            params[1] = [DataSet.from_dict(p) for p in params[1]]
+        snobfit.prev_param = params
+        return snobfit
 
     def inner_suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
         """ Inner loop for generation of suggested experiments using the SNOBFIT method

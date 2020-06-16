@@ -9,6 +9,7 @@ import pandas as pd
 
 from abc import ABC, abstractmethod
 from typing import Type, Tuple
+import json
 
 class Transform:
     '''  Pre/post-processing of data for strategies
@@ -106,9 +107,22 @@ class Transform:
     def to_dict(self):
         """ Output a dictionary representation of the transform"""
         return dict(transform_type=self.transform_type,
-                    transform_domain=self.transform_domain,
-                    domain=self.domain)
+                    transform_domain=self.transform_domain.to_dict(),
+                    domain=self.domain.to_dict())
+    
+    @classmethod
+    def from_dict(cls, d):
+        t = cls(Domain.from_dict(d['domain']))
+        t.transform_domain = Domain.from_dict(d['transform_domain'])
+        return t
 
+def transform_from_dict(d):
+    if d['transform_type'] == "MultitoSingleObjective":
+        return MultitoSingleObjective.from_dict(d)
+    elif d['transform_type'] == "LogSpaceObjectives":
+        return LogSpaceObjectives.from_dict(d)
+    elif d['transform_type'] == "Transform":
+        return Transform.from_dict(d)
 
 class MultitoSingleObjective(Transform):
     '''  Transform a multiobjective problem into a single objective problems
@@ -156,6 +170,18 @@ class MultitoSingleObjective(Transform):
         outputs = outputs.eval(self.expression, resolvers=[outputs])
         outputs = DataSet(outputs, columns=['scalar_objective'])
         return inputs, outputs
+    
+    def to_dict(self):
+        """ Output a dictionary representation of the transform"""
+        d = super().to_dict()
+        d.update(dict(expression=self.expression))
+        return d
+    
+    @classmethod
+    def from_dict(cls, d):
+        t = super().from_dict(d)
+        t.expression = d['expression']
+        return t
 
 class LogSpaceObjectives(Transform):
     '''  Log transform objectives
@@ -207,6 +233,7 @@ class LogSpaceObjectives(Transform):
         columns = [v.name for v in self.transform_domain.variables if v.is_objective]
         outputs = DataSet(outputs.data_to_numpy(), columns=columns)
         return inputs, outputs
+
 
     def un_transform(self, ds):
         ''' Untransform objectives from log space to
@@ -271,10 +298,23 @@ class Strategy(ABC):
         raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
 
     def to_dict(self):
+        super
         return dict(strategy_name=self.strategy_name,
-                    domain=self.domain.to_dict(), 
                     transform=self.transform.to_dict())
 
+    @classmethod
+    def from_dict(cls, d):
+        transform = transform_from_dict(d['transform'])
+        return cls(domain=transform.domain, transform=transform)
+
+    def save(self, filename):
+        with open(filename, 'w') as f:
+            json.dump(self.to_dict(), f)
+
+    @classmethod
+    def load(cls, filename):
+        d = json.load(filename)
+        return cls.from_dict(d)
 
 class Design:
     """Representation of an experimental design
