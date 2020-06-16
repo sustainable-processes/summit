@@ -86,35 +86,37 @@ class SNOBFIT(Strategy):
 
         self._p = kwargs.get('probability_p', 0.5)
         self._dx_dim = kwargs.get('dx_dim', 1E-5)
+        self.prev_param = None
 
-    def suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
+    def suggest_experiments(self, num_experiments, prev_res: DataSet=None):
         """ Suggest experiments using the SNOBFIT method
 
-                Parameters
-                ----------
-                num_experiments: int
-                    The number of experiments (i.e., samples) to generate
-                prev_res: summit.utils.data.DataSet, optional
-                    Dataset with data from previous experiments.
-                    If no data is passed, the SNOBFIT optimization algorithm
-                    will be initialized and suggest initial experiments.
-                prev_param: file.txt TODO: how to handle this?
-                    File with parameters of SNOBFIT algorithm from previous
-                    iterations of a optimization problem.
-                    If no data is passed, the SNOBFIT optimization algorithm
-                    will be initialized.
+        Parameters
+        ----------
+        num_experiments: int
+            The number of experiments (i.e., samples) to generate
+        prev_res: summit.utils.data.DataSet, optional
+            Dataset with data from previous experiments.
+            If no data is passed, the SNOBFIT optimization algorithm
+            will be initialized and suggest initial experiments.
+        prev_param: file.txt TODO: how to handle this?
+            File with parameters of SNOBFIT algorithm from previous
+            iterations of a optimization problem.
+            If no data is passed, the SNOBFIT optimization algorithm
+            will be initialized.
 
-                Returns
-                -------
-                next_experiments: DataSet
-                    A `Dataset` object with the suggested experiments by SNOBFIT algorithm
-                xbest: list
-                    List with variable settings of experiment with best outcome
-                fbest: float
-                    Objective value at xbest
-                param: list
-                    List with parameters and prev_param of SNOBFIT algorithm (required for next iteration)
-                """
+        Returns
+        -------
+        next_experiments: DataSet
+            A `Dataset` object with the suggested experiments by SNOBFIT algorithm
+        xbest: list
+            List with variable settings of experiment with best outcome
+        fbest: float
+            Objective value at xbest
+        param: list
+            List with parameters and prev_param of SNOBFIT algorithm (required for next iteration)
+            
+        """
 
         # get objective name and whether optimization is maximization problem
         obj_name = None
@@ -128,12 +130,12 @@ class SNOBFIT(Strategy):
 
         # get parameters from previous iterations
         inner_prev_param = None
-        if prev_param is not None:
+        if self.prev_param is not None:
             # get parameters for Nelder-Mead from previous iterations
-            inner_prev_param = prev_param[0]
+            inner_prev_param = self.prev_param[0]
             # recover invalid experiments from previous iteration
-            if prev_param[1] is not None:
-                invalid_res = prev_param[1][0].drop(('constraint','DATA'),1)
+            if self.prev_param[1] is not None:
+                invalid_res = self.prev_param[1][0].drop(('constraint','DATA'),1)
                 prev_res = pd.concat([prev_res,invalid_res])
 
         ## Generation of new suggested experiments.
@@ -172,7 +174,15 @@ class SNOBFIT(Strategy):
 
         # return only valid experiments (invalid experiments are stored in param[1])
         next_experiments = next_experiments.drop(('constraint', 'DATA'), 1)
-        return next_experiments, xbest, fbest, param
+        self.prev_param = param
+        return next_experiments
+    
+    def reset(self):
+        """Reset internal parameters"""
+        self.prev_param = None
+
+    def save(self):
+        return self.prev_param
 
     def inner_suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
         """ Inner loop for generation of suggested experiments using the SNOBFIT method
