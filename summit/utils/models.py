@@ -48,6 +48,25 @@ class ModelGroup:
     def __getitem__(self, key):
         return self.models[key]
 
+    def to_dict(self):
+        models = {}
+        for k,v in self._models.items():
+            models[k] = v.to_dict()
+        return models
+    
+    @classmethod
+    def from_dict(cls, d):
+        models = {}
+        for k,v in d.items():
+            models[k] = model_from_dict(v)
+        return cls(models)
+
+def model_from_dict(d):
+    if d['model_type'] == 'GPyModel':
+        return GPyModel.from_dict(d)
+    elif d['model_type'] == 'AnalyticalModel':
+        return AnalyticalModel.from_dict(d)
+ 
 class GPyModel(BaseEstimator, RegressorMixin):
     ''' A Gaussian Process Regression model from GPy
 
@@ -170,18 +189,21 @@ class GPyModel(BaseEstimator, RegressorMixin):
             X_std[abs(X_std) < 1e-5] = 0.0
         elif isinstance(X, DataSet):
             X_std = X.standardize(mean=self.input_mean, std=self.input_std)
+        else:
+            raise TypeError("X must be a numpy array or summit DataSet.")
 
         m_std, v_std = self._model.predict(X_std)
         m = m_std*self.output_std + self.output_mean
 
-        # if return_cov:
-        #     result = m, v
-        # elif return_std:
-        #     result = m, self._model.Kdiag(X)
-        # else:
-        #     result = m
-
         return m
+    
+    def to_dict(self):
+        return dict(_model=self._model.to_dict(),
+                    input_mean=self.input_mean,
+                    input_std=self.input_std,
+                    output_mean=self.output_mean,
+                    output_std=self.output_std)
+
     
 class AnalyticalModel(Model):
     ''' An analytical model instead of statistical model

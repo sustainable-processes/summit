@@ -313,7 +313,8 @@ class Strategy(ABC):
 
     @classmethod
     def load(cls, filename):
-        d = json.load(filename)
+        with open(filename, 'r') as f:
+            d = json.load(f)
         return cls.from_dict(d)
 
 class Design:

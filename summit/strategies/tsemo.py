@@ -137,6 +137,7 @@ class TSEMO2(Strategy):
     def from_dict(cls, d):
         tsemo = super().from_dict(d)
         tsemo.random_rate = d['random_rate']
+        tsemo.models = None
         return tsemo
 
     def select_max_hvi(self, y, samples, num_evals=1):
