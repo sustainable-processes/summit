@@ -261,7 +261,7 @@ class GPyModel:
                                   std=self.input_std)
             y_s = sampled_f(x)
             y_o = self.output_mean+y_s*self.output_std
-            return np.atleast_2d(y).T
+            return np.atleast_2d(y).T   
         self.sampled_f = f
         return f
     
