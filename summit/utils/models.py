@@ -260,7 +260,8 @@ class GPyModel:
                 x = x.standardize(mean=self.input_mean, 
                                   std=self.input_std)
             y_s = sampled_f(x)
-            return self.output_mean+y_s*self.output_std
+            y_o = self.output_mean+y_s*self.output_std
+            return np.atleast_2d(y).T   
         self.sampled_f = f
         return f
     
