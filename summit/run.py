@@ -1,5 +1,6 @@
-from summit.strategies import Strategy
+from summit.strategies import Strategy, strategy_from_dict
 from summit.experiment import Experiment
+from summit.benchmarks import *
 from fastprogress.fastprogress import progress_bar
 
 import os
@@ -46,7 +47,6 @@ class Runner:
                                                                 prev_res=prev_res)                                      
             prev_res = self.experiment.run_experiments(next_experiments)
 
-
     def to_dict(self,):
         runner_params = dict(max_iterations=self.max_iterations, 
                              batch_size=self.batch_size)
@@ -55,5 +55,28 @@ class Runner:
                     strategy=self.strategy.to_dict(),
                     experiment=self.experiment.to_dict())
 
+    @classmethod
+    def from_dict(cls, d):
+        strategy = strategy_from_dict(d['strategy'])
+        experiment = experiment_from_dict(d['experiment'])
+        return cls(strategy=strategy, experiment=experiment,
+                   max_iterations=d['runner']['max_iterations'],
+                   batch_size=d['runner']['batch_size'])
+
     def save(self, filename):
-        json.dump(filename, self.to_dict())
+        with open(filename, 'w') as f:
+            json.dump(self.to_dict(), f)
+
+    @classmethod
+    def load(cls, filename):
+        with open(filename, 'r') as f:
+            d = json.load(f)
+        return cls.from_dict(d)
+
+def experiment_from_dict(d):
+    if d['name']== 'SnarBenchmark':
+        return SnarBenchmark.from_dict(d)
+    elif d['name']== 'Hartmann3D':
+        return Hartmann3D.from_dict(d)
+    elif d['name']== 'Himmelblau':
+        return Himmelblau.from_dict(d)

@@ -26,8 +26,7 @@ class Transform:
     ''' 
     def __init__(self, domain):
         self.transform_domain = domain.copy()
-        self.domain = domain
-        self.transform_type = self.__class__.__name__
+        self.domain = domain 
 
     def transform_inputs_outputs(self, ds: DataSet, copy=True):
         '''  Transform of data into inputs and outptus for a strategy
@@ -106,8 +105,8 @@ class Transform:
     
     def to_dict(self):
         """ Output a dictionary representation of the transform"""
-        return dict(transform_type=self.transform_type,
-                    transform_domain=self.transform_domain.to_dict(),
+        return dict(transform_domain=self.transform_domain.to_dict(),
+                    name=self.__class__.__name__,
                     domain=self.domain.to_dict())
     
     @classmethod
@@ -117,11 +116,11 @@ class Transform:
         return t
 
 def transform_from_dict(d):
-    if d['transform_type'] == "MultitoSingleObjective":
+    if d['name'] == "MultitoSingleObjective":
         return MultitoSingleObjective.from_dict(d)
-    elif d['transform_type'] == "LogSpaceObjectives":
+    elif d['name'] == "LogSpaceObjectives":
         return LogSpaceObjectives.from_dict(d)
-    elif d['transform_type'] == "Transform":
+    elif d['name'] == "Transform":
         return Transform.from_dict(d)
 
 class MultitoSingleObjective(Transform):
@@ -291,8 +290,7 @@ class Strategy(ABC):
             self.transform = transform
         else:
             raise TypeError('transform must be a Transform class')
-        self.domain = self.transform.transform_domain
-        self.strategy_name = self.__class__.__name__
+        self.domain = self.transform.transform_domain 
 
     @abstractmethod
     def suggest_experiments(self):
@@ -300,7 +298,7 @@ class Strategy(ABC):
 
     def to_dict(self):
         super
-        return dict(strategy_name=self.strategy_name,
+        return dict(name=self.__class__.__name__,
                     transform=self.transform.to_dict())
 
     @classmethod

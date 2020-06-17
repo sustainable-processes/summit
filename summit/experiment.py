@@ -2,8 +2,10 @@ from abc import ABC, abstractmethod
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient
+from summit.utils import jsonify_dict, unjsonify_dict
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 import time
 
 class Experiment(ABC):
@@ -109,14 +111,32 @@ class Experiment(ABC):
         Subclasses can add a experiment_params dictionary
         key with custom parameters for the experiment
         """
-        return {domain: self.domain, data: self.data.to_dict()}
+        extras = []
+        for e in self.extras:
+            if type(e) == dict:
+                extras.append(jsonify_dict(e))
+            if type(e) == np.ndarray:
+                extras.append(e.tolist())
+            else:
+                extras.append(e)
+            
+        return dict(domain=self.domain.to_dict(),
+                    name=self.__class__.__name__,
+                    data=self.data.to_dict(),
+                    extras=extras)
 
     @classmethod
-    def from_dict(cls, dict):
-        params = dict.get('experiment_params', {})
-        domain = Domain.from_dict(dict['domain'])
-        exp = cls(domain, **params)
-        exp._data = dict['data']
+    def from_dict(cls, d, **kwargs):
+        domain = Domain.from_dict(d['domain'])
+        exp = cls(domain, **kwargs)
+        exp._data = DataSet.from_dict(d['data'])
+        for e in d['extras']:
+            if type(e) == dict:
+                exp.extras.append(unjsonify_dict(e))
+            elif type(e) == list:
+                exp.extras.append(np.array(e))
+            else:
+                exp.extras.append(e)
         return exp
 
     def pareto_plot(self, objectives=None, ax=None):
@@ -193,34 +213,3 @@ class Experiment(ABC):
             return fig, ax
         else:
             return ax
-
-class ExternalExperiment(Experiment):
-    """ Keep track of experimental data collected externally
-
-    This is useful when running experiments manually or 
-    using an automation system that will call summit directly 
-    (instead of summit calling the automation system).
-    
-    Parameters
-    ----------
-    domain: summit.domain.Domain
-        The domain of the experiment
-    """ 
-
-    def _run(self, conditions, **kwargs):
-        raise NotImplementedError("""_run is not implemented in ExternalExperiment. 
-                                  Experiments should be run externally and added using
-                                  add_data.
-                                  """)
-    
-    def add_data(self, results, **kwargs):
-        # Add data
-        self._data.append(results)
-
-        # Add on extras
-        extras = kwargs.get('extras')
-        if self.extras is not None:
-            if type(self.extras) == dict:
-                self.extras.append(extras)
-            elif type(self.extras) == list:
-                self.extras += extras
