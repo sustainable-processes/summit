@@ -294,6 +294,7 @@ class Strategy(ABC):
         self.domain = self.transform.transform_domain
         self.strategy_name = self.__class__.__name__
 
+    @abstractmethod
     def suggest_experiments(self):
         raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
 

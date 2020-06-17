@@ -130,14 +130,14 @@ class TSEMO2(Strategy):
     def to_dict(self):
         d = super().to_dict()
         d.update(dict(models=self.models.to_dict(),
-                      random_rate=self.random_rate))
+                      random_rate=self._random_rate))
         return d
     
     @classmethod
     def from_dict(cls, d):
         tsemo = super().from_dict(d)
-        tsemo.random_rate = d['random_rate']
-        tsemo.models = None
+        tsemo._random_rate = d['random_rate']
+        tsemo.models = ModelGroup.from_dict(d['models'])
         return tsemo
 
     def select_max_hvi(self, y, samples, num_evals=1):

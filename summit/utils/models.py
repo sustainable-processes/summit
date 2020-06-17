@@ -103,6 +103,10 @@ class GPyModel(BaseEstimator, RegressorMixin):
         self._noise_var = noise_var
         self._optimizer = optimizer
         self._model = None
+        self.input_mean = []
+        self.input_std = []
+        self.output_mean = []
+        self.output_std = []
     
     def fit(self, X, y, num_restarts=10, max_iters=2000, parallel=False):
         """Fit Gaussian process regression model.
@@ -198,11 +202,27 @@ class GPyModel(BaseEstimator, RegressorMixin):
         return m
     
     def to_dict(self):
-        return dict(_model=self._model.to_dict(),
-                    input_mean=self.input_mean,
-                    input_std=self.input_std,
-                    output_mean=self.output_mean,
-                    output_std=self.output_std)
+        _model = self._model.to_dict() if self._model is not None else self._model
+        return dict(model_type="GPyModel",
+                    _model=_model,
+                    kernel = self._kernel.to_dict(),
+                    noise_var = self._noise_var,
+                    input_mean=list(self.input_mean),
+                    input_std=list(self.input_std),
+                    output_mean=list(self.output_mean),
+                    output_std=list(self.output_std))
+    
+    @classmethod
+    def from_dict(cls, d):
+        kernel = GPy.kern.Kern.from_dict(d['kernel'])
+        m = cls(kernel=kernel, noise_var=d['noise_var'])
+        if d['_model'] is not None:
+            m._model = GPRegression.from_dict(d['_model'])
+        m.input_mean = np.array(d['input_mean'])
+        m.input_std = np.array(d['input_std'])
+        m.output_mean = np.array(d['output_mean'])
+        m.output_std = np.array(d['output_std'])
+        return m
 
     
 class AnalyticalModel(Model):
