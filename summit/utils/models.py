@@ -56,6 +56,19 @@ class ModelGroup:
     def __getitem__(self, key):
         return self.models[key]
 
+    def to_dict(self):
+        models = {}
+        for k, v in self._models.items():
+            models[k] = v.to_dict()
+        return models
+
+    @classmethod
+    def from_dict(cls, d):
+        models = {}
+        for k, v in d.items():
+            models[k] = model_from_dict(v)
+        return cls(models)
+
 
 
 def model_from_dict(d):
@@ -111,7 +124,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         self.output_mean = []
         self.output_std = []
 
-    def fit(self, X, y, num_restarts=10, max_iters=2000, parallel=False):
+    def fit(self, X, y, **kwargs):
         """Fit Gaussian process regression model.
         Parameters
         ----------
@@ -182,7 +195,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         return self
 
 
-    def predict(self, X):
+    def predict(self, X, **kwargs):
         """Predict using the Gaussian process regression model
 
         In addition to the mean of the predictive distribution, also its

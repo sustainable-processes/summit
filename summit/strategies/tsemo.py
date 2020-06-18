@@ -87,7 +87,8 @@ class TSEMO(Strategy):
 
         self.all_experiments = None
 
-    def suggest_experiments(self, num_experiments, prev_res: DataSet = None):
+    def suggest_experiments(self, num_experiments, 
+                            prev_res: DataSet = None, **kwargs):
         """ Suggest experiments using TSEMO
         
         Parameters
@@ -114,10 +115,10 @@ class TSEMO(Strategy):
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
-            self.all_experiments = self.all_experiments.concat(prev_res)
+            self.all_experiments = self.all_experiments.append(prev_res)
 
         #Get inputs and outputs
-        inputs, outputs = self.get_inputs_outputs(self.all_experiments)
+        inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
         if inputs.shape[0] < self.domain.num_continuous_dimensions():
             raise ValueError(f'The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS.')
         
@@ -133,11 +134,21 @@ class TSEMO(Strategy):
         kwargs.update({'use_spectral_sample': use_spectral_sample})
         internal_res = self.optimizer.optimize(self.models, **kwargs)
         
-        if internal_res is not None and len(internal_res.fun)!=0:
-            hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
-            result = internal_res.x.join(internal_res.fun) 
-            result =  result.iloc[indices, :]
-            result[('strategy', 'METADATA')] = 'TSEMO'
+        if internal_res is not None and len(internal_res.fun) != 0:
+            # Select points that give maximum hypervolume improvement
+            hv_imp, indices = self.select_max_hvi(
+                outputs, internal_res.fun, num_experiments
+            )
+
+            # Join to get single dataset with inputs and outputs
+            result = internal_res.x.join(internal_res.fun)
+            result = result.iloc[indices, :]
+
+            # Do any necessary transformations back
+            result = self.transform.un_transform(result)
+
+            # State the strategy used
+            result[("strategy", "METADATA")] = "TSEMO"
             return result
         else:
             return None
@@ -212,11 +223,7 @@ class TSEMO(Strategy):
             random_selects = np.random.randint(0, num_evals, size=num_random)
         else:
             random_selects = np.array([])
-
-<<<<<<< HEAD
         
-=======
->>>>>>> add_runner
         for i in range(num_evals):
             masked_samples = samples[mask, :]
             Yfront, _ = pareto_efficient(Ynew, maximize=False)
@@ -224,30 +231,17 @@ class TSEMO(Strategy):
                 raise ValueError("Pareto front length too short")
 
             hv_improvement = []
-<<<<<<< HEAD
             hvY = HvI.hypervolume(Yfront, r)
             #Determine hypervolume improvement by including
             #each point from samples (masking previously selected poonts)
-=======
-            hvY = HvI.hypervolume(Yfront, [0, 0])
-            # Determine hypervolume improvement by including
-            # each point from samples (masking previously selected poonts)
->>>>>>> add_runner
             for sample in masked_samples:
                 sample = sample.reshape(1, n)
                 A = np.append(Ynew, sample, axis=0)
                 Afront, _ = pareto_efficient(A, maximize=False)
-<<<<<<< HEAD
                 hv = HvI.hypervolume(Afront, r)
                 hv_improvement.append(hv-hvY)
             
             hvY0 = hvY if i==0 else hvY0
-=======
-                hv = HvI.hypervolume(Afront, [0, 0])
-                hv_improvement.append(hv - hvY)
-
-            hvY0 = hvY if i == 0 else hvY0
->>>>>>> add_runner
 
             if i in random_selects:
                 masked_index = np.random.randint(0, masked_samples.shape[0])
