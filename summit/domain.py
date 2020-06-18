@@ -4,10 +4,18 @@ import pandas as pd
 from typing import List, Optional, Type, Dict
 from abc import ABC, abstractmethod
 import json
+from copy import deepcopy
 
-__all__ = ["Variable", "ContinuousVariable", "DiscreteVariable", 
-           "DescriptorsVariable", "Constraint", "Domain"]
-           
+__all__ = [
+    "Variable",
+    "ContinuousVariable",
+    "DiscreteVariable",
+    "DescriptorsVariable",
+    "Constraint",
+    "Domain",
+]
+
+
 class Variable(ABC):
     """A base class for variables
     
@@ -30,17 +38,18 @@ class Variable(ABC):
     name
     description
     """
+
     def __init__(self, name: str, description: str, variable_type: str, **kwargs):
         Variable._check_name(name)
         self._name = name
         self._description = description
         self._variable_type = variable_type
-        self._is_objective = kwargs.get('is_objective', False)
-        self._maximize = kwargs.get('maximize', True)
-        self._units = kwargs.get('units', None)
+        self._is_objective = kwargs.get("is_objective", False)
+        self._maximize = kwargs.get("maximize", True)
+        self._units = kwargs.get("units", None)
 
     @property
-    def name(self)-> str:
+    def name(self) -> str:
         """str: name of the variable"""
         return self._name
 
@@ -65,7 +74,7 @@ class Variable(ABC):
     @property
     def maximize(self) -> bool:
         return self._maximize
-        
+
     @property
     def is_objective(self) -> bool:
         return self._is_objective
@@ -76,26 +85,31 @@ class Variable(ABC):
 
     def to_dict(self):
         variable_dict = {
-           'type': self._variable_type,
-           'is_objective': self._is_objective,
-           'name': self.name,
-           'description': self.description,
-           'units': self.units}
+            "type": self._variable_type,
+            "is_objective": self._is_objective,
+            "name": self.name,
+            "description": self.description,
+            "units": self.units,
+        }
         return variable_dict
 
     @staticmethod
     @abstractmethod
     def from_dict():
-        raise NotImplementedError('Must be implemented by subclasses of Variable')
+        raise NotImplementedError("Must be implemented by subclasses of Variable")
 
     @staticmethod
     def _check_name(name: str):
         if type(name) != str:
-            raise ValueError(f"""{name} is not a string. Variable names must be strings.""")
+            raise ValueError(
+                f"""{name} is not a string. Variable names must be strings."""
+            )
 
         test_name = name
         if name != test_name.replace(" ", ""):
-            raise ValueError(f"""Error with variable name "{name}". Variable names cannot have spaces. Try replacing spaces with _ or -""")
+            raise ValueError(
+                f"""Error with variable name "{name}". Variable names cannot have spaces. Try replacing spaces with _ or -"""
+            )
 
     def __repr__(self):
         return f"Variable(name={self.name}, description={self.description})"
@@ -106,16 +120,17 @@ class Variable(ABC):
 
     def _make_html_table_rows(self, value):
         name_column = f"<td>{self.name}</td>"
-        input_output = 'output' if self.is_objective else 'input'
+        input_output = "output" if self.is_objective else "input"
         if self.is_objective:
-            direction = 'maximize' if self.maximize else 'minimize'
-            input_output = f'{direction} objective'
+            direction = "maximize" if self.maximize else "minimize"
+            input_output = f"{direction} objective"
         else:
-            input_output = 'input'
+            input_output = "input"
         type_column = f"<td>{self.variable_type}, {input_output}</td>"
         description_column = f"<td>{self.description}</td>"
         values_column = f"<td>{value}</td>"
         return f"<tr>{name_column}{type_column}{description_column}{values_column}</tr>"
+
 
 class ContinuousVariable(Variable):
     """Representation of a continuous variable
@@ -149,7 +164,7 @@ class ContinuousVariable(Variable):
     """
 
     def __init__(self, name: str, description: str, bounds: list, **kwargs):
-        Variable.__init__(self, name, description, 'continuous', **kwargs)
+        Variable.__init__(self, name, description, "continuous", **kwargs)
         self._lower_bound = bounds[0]
         self._upper_bound = bounds[1]
 
@@ -170,18 +185,22 @@ class ContinuousVariable(Variable):
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"[{self.lower_bound},{self.upper_bound}]")
-    
+
     def to_dict(self):
         variable_dict = super().to_dict()
-        variable_dict.update({'bounds': [float(self.lower_bound), float(self.upper_bound)]})
+        variable_dict.update(
+            {"bounds": [float(self.lower_bound), float(self.upper_bound)]}
+        )
         return variable_dict
 
     @staticmethod
     def from_dict(variable_dict):
-        return ContinuousVariable(name= variable_dict['name'],
-                           description=variable_dict['description'],
-                           bounds=variable_dict['bounds'],
-                           is_objective=variable_dict['is_objective'])
+        return ContinuousVariable(
+            name=variable_dict["name"],
+            description=variable_dict["description"],
+            bounds=variable_dict["bounds"],
+            is_objective=variable_dict["is_objective"],
+        )
 
 
 class DiscreteVariable(Variable):
@@ -215,13 +234,14 @@ class DiscreteVariable(Variable):
     >>> reactant = DiscreteVariable('reactant', 'aromatic reactant', ['benzene', 'toluene'])
 
     """
+
     def __init__(self, name, description, levels, **kwargs):
-        Variable.__init__(self, name, description, 'discrete', **kwargs)
+        Variable.__init__(self, name, description, "discrete", **kwargs)
 
         if type(levels) != list:
             raise TypeError("Levels must be a list")
-        
-        #check that levels are unique
+
+        # check that levels are unique
         if len(levels) != len(set(levels)):
             raise ValueError("Levels must have unique values.")
         self._levels = levels
@@ -271,23 +291,25 @@ class DiscreteVariable(Variable):
             self._levels.remove(level)
         except ValueError:
             raise ValueError(f"Level {level} is not in the list of levels.")
-        
-    
+
     def to_dict(self):
         """ Return json encoding of the variable"""
         variable_dict = super().to_dict()
-        variable_dict.update({'levels': self.levels})
+        variable_dict.update({"levels": self.levels})
         return variable_dict
 
     @staticmethod
     def from_dict(variable_dict):
-        return DiscreteVariable(name=variable_dict['name'],
-                                description=variable_dict['description'],
-                                levels=variable_dict['levels'],
-                                is_objective=variable_dict['is_objective'])
+        return DiscreteVariable(
+            name=variable_dict["name"],
+            description=variable_dict["description"],
+            levels=variable_dict["levels"],
+            is_objective=variable_dict["is_objective"],
+        )
 
     def _html_table_rows(self):
         return self._make_html_table_rows(f"{self.num_levels} levels")
+
 
 class DescriptorsVariable(Variable):
     """Representation of a set of descriptors
@@ -319,10 +341,10 @@ class DescriptorsVariable(Variable):
     --------
     >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
     >>> solvent = DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
-    """    
-    def __init__(self, name: str, description: str, 
-                 ds: DataSet, **kwargs):
-        Variable.__init__(self, name, description, 'descriptors', **kwargs)
+    """
+
+    def __init__(self, name: str, description: str, ds: DataSet, **kwargs):
+        Variable.__init__(self, name, description, "descriptors", **kwargs)
         self.ds = ds
 
     @property
@@ -336,24 +358,27 @@ class DescriptorsVariable(Variable):
     def to_dict(self):
         """ Return json encoding of the variable"""
         variable_dict = super().to_dict()
-        variable_dict.update({'ds': self.ds.to_dict()})
+        variable_dict.update({"ds": self.ds.to_dict()})
         return variable_dict
-    
+
     @staticmethod
     def from_dict(variable_dict):
-        ds = DataSet(variable_dict['ds'])
-        ds.columns.names = ['NAME', 'TYPE']
-        return DescriptorsVariable(name=variable_dict['name'],
-                                   description=variable_dict['description'],
-                                   ds=ds,
-                                   is_objective=variable_dict['is_objective'])
+        ds = DataSet().from_dict(variable_dict["ds"])
+        return DescriptorsVariable(
+            name=variable_dict["name"],
+            description=variable_dict["description"],
+            ds=ds,
+            is_objective=variable_dict["is_objective"],
+        )
 
     def _html_table_rows(self):
-        return self._make_html_table_rows(f"{self.num_examples} examples of {self.num_descriptors} descriptors")
+        return self._make_html_table_rows(
+            f"{self.num_examples} examples of {self.num_descriptors} descriptors"
+        )
 
 
-class Constraint: 
-    ''' A constraint for an optimization domain 
+class Constraint:
+    """ A constraint for an optimization domain 
     
     Parameters
     ---------- 
@@ -373,13 +398,14 @@ class Constraint:
     >> Constraint(lhs="x+y-3", constraint_type="==")
     Or x+y<0 would be:
     >> Constraint(lhs="x+y", constraint_type="<")
-    ''' 
+    """
+
     def __init__(self, lhs, constraint_type="<="):
         self._lhs = lhs
         self._constraint_type = constraint_type
-        if self.constraint_type not in ['<', '<=', '==', '>', '>=']:
-            raise ValueError('Constraint type must be <, <=, ==, > or >=')
-    
+        if self.constraint_type not in ["<", "<=", "==", ">", ">="]:
+            raise ValueError("Constraint type must be <, <=, ==, > or >=")
+
     @property
     def lhs(self):
         return self._lhs
@@ -390,14 +416,14 @@ class Constraint:
 
     def _html_table_rows(self):
         columns = []
-        columns.append("") #name column
-        columns.append("constraint") #type column
-        columns.append(self.lhs) #description columns
-        columns.append("") #value column
-        html = ''.join([f"<td>{column}</td>" for column in columns])
-        return f'<tr>{html}</tr>'
+        columns.append("")  # name column
+        columns.append("constraint")  # type column
+        columns.append(self.lhs)  # description columns
+        columns.append("")  # value column
+        html = "".join([f"<td>{column}</td>" for column in columns])
+        return f"<tr>{html}</tr>"
 
-    
+
 class Domain:
     """Representation of the optimization domain
 
@@ -425,19 +451,20 @@ class Domain:
     >>> domain += ContinuousVariable('temperature', 'reaction temperature', [1, 100])
 
     """
+
     def __init__(self, variables=[], constraints=[]):
-        #Check types
-        e = TypeError('variables must be Variable or list of Variable objects')
-        if isinstance(variables,Variable):
+        # Check types
+        e = TypeError("variables must be Variable or list of Variable objects")
+        if isinstance(variables, Variable):
             variables = [variables]
-        elif not isinstance(variables,list):
+        elif not isinstance(variables, list):
             raise e
         else:
             for l in variables:
                 if not isinstance(l, Variable):
                     raise e
 
-        e  = TypeError('constraints must be Constraint or list of Constraint objects')
+        e = TypeError("constraints must be Constraint or list of Constraint objects")
         if isinstance(constraints, Constraint):
             constraints = [constraints]
         elif not isinstance(constraints, list):
@@ -449,7 +476,7 @@ class Domain:
 
         self._variables = variables
         self._constraints = constraints
-        #Check that all the output variables continuous
+        # Check that all the output variables continuous
         # self._raise_noncontinuous_outputs()
         self._raise_names_not_unique()
 
@@ -466,9 +493,9 @@ class Domain:
     #     '''For accessing variables like a dictionary'''
     #     for v in self.variables:
     #         if v.name == key:
-    #             return v    
+    #             return v
     #     raise KeyError(f'No variable {key} found in the domain.')
-    
+
     # def _ipython_key_completions_(self):
     #     return [v.name for v in self.variables]
 
@@ -493,9 +520,9 @@ class Domain:
         return output_variables
 
     def _raise_noncontinuous_outputs(self):
-        '''Raise an error if the outputs are not continuous variables'''
+        """Raise an error if the outputs are not continuous variables"""
         for v in self.output_variables:
-            if v.variable_type != 'continuous':
+            if v.variable_type != "continuous":
                 raise DomainError("All output variables must be continuous")
 
     def _raise_names_not_unique(self):
@@ -503,7 +530,7 @@ class Domain:
             raise ValueError("Variable names are not unique")
 
     def num_variables(self, include_outputs=False) -> int:
-        ''' Number of variables in the domain 
+        """ Number of variables in the domain 
         
         Parameters
         ---------- 
@@ -515,16 +542,16 @@ class Domain:
         -------
         num_variables: int
             Number of variables in the domain
-        ''' 
-        k=0
+        """
+        k = 0
         for v in self.variables:
             if v.is_objective and not include_outputs:
                 continue
-            k+=1
+            k += 1
         return k
 
     def num_discrete_variables(self, include_outputs=False) -> int:
-        ''' Number of discrete varibles in the domain 
+        """ Number of discrete varibles in the domain 
         
         Parameters
         ---------- 
@@ -536,17 +563,17 @@ class Domain:
         -------
         num_variables: int
             Number of discrete variables in the domain
-        '''
-        k=0
+        """
+        k = 0
         for v in self._variables:
             if v.is_objective and not include_outputs:
                 continue
-            elif v.variable_type == 'discrete':
-                k+= 1
+            elif v.variable_type == "discrete":
+                k += 1
         return k
 
     def num_continuous_dimensions(self, include_outputs=False) -> int:
-        '''The number of continuous dimensions
+        """The number of continuous dimensions
         
         This includes dimensions of descriptors variables
         
@@ -560,15 +587,15 @@ class Domain:
         -------
         num_variables: int
             Number of variables in the domain
-        '''
+        """
         k = 0
         for v in self._variables:
             if v.is_objective and not include_outputs:
                 continue
-            if v.variable_type == 'continuous':
-                k+=1
-            if v.variable_type == 'descriptors':
-                k+= v.num_descriptors
+            if v.variable_type == "continuous":
+                k += 1
+            if v.variable_type == "descriptors":
+                k += v.num_descriptors
         return k
 
     def to_dict(self):
@@ -583,29 +610,34 @@ class Domain:
     def from_dict(domain_dict):
         variables = []
         for variable in domain_dict:
-            if variable['type'] == "continuous":
+            if variable["type"] == "continuous":
                 new_variable = ContinuousVariable.from_dict(variable)
-            elif variable['type'] == "discrete":
+            elif variable["type"] == "discrete":
                 new_variable = DiscreteVariable.from_dict(variable)
-            elif variable['type'] == 'descriptors':
-                new_variable =  DescriptorsVariable.from_dict(variable)
+            elif variable["type"] == "descriptors":
+                new_variable = DescriptorsVariable.from_dict(variable)
             else:
-                raise ValueError(f"Cannot load variable of type:{variable['type']}. Variable should be continuous, discrete or descriptors")
+                raise ValueError(
+                    f"Cannot load variable of type:{variable['type']}. Variable should be continuous, discrete or descriptors"
+                )
             variables.append(new_variable)
         return Domain(variables)
 
-
     def __add__(self, obj):
-        #TODO: make this work with adding arrays of variable or constraints
+        # TODO: make this work with adding arrays of variable or constraints
         if isinstance(obj, Variable):
-            if obj.is_objective and obj.variable_type != 'continuous':
+            if obj.is_objective and obj.variable_type != "continuous":
                 raise DomainError("Output variables must be continuous")
-            return Domain(variables=self._variables + [obj], constraints=self.constraints) 
+            return Domain(
+                variables=self._variables + [obj], constraints=self.constraints
+            )
         elif isinstance(obj, Constraint):
-            return Domain(variables=self.variables, constraints = self.constraints + [obj])
+            return Domain(
+                variables=self.variables, constraints=self.constraints + [obj]
+            )
         else:
-            raise RuntimeError('Not a supported domain object.')
-    
+            raise RuntimeError("Not a supported domain object.")
+
     def _repr_html_(self):
         """Build html string for table display in jupyter notebooks.
         
@@ -616,9 +648,9 @@ class Domain:
         html = ["<table id='domain' width=100%>"]
 
         # Table header
-        columns = ['Name', 'Type', 'Description', 'Values']
+        columns = ["Name", "Type", "Description", "Values"]
         header = "<tr>"
-        header += ''.join(map(lambda l: "<td><b>{0}</b></td>".format(l), columns))
+        header += "".join(map(lambda l: "<td><b>{0}</b></td>".format(l), columns))
         header += "</tr>"
         html.append(header)
 
@@ -626,11 +658,11 @@ class Domain:
         html.append(self._html_table_rows())
         html.append("</table>")
 
-        return ''.join(html)
+        return "".join(html)
 
     def _html_table_rows(self):
-        variables = ''.join([v._html_table_rows() for v in self.variables])
-        constraints = ''.join([c._html_table_rows() for c in self.constraints])
+        variables = "".join([v._html_table_rows() for v in self.variables])
+        constraints = "".join([c._html_table_rows() for c in self.constraints])
         return f"{variables}{constraints}"
 
     def __getitem__(self, key):
@@ -638,6 +670,9 @@ class Domain:
             if v.name == key:
                 return v
         raise ValueError("Variable not in domain")
+
+    def copy(self):
+        return deepcopy(self)
 
 
 class DomainError(Exception):
