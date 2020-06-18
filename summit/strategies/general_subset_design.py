@@ -2,13 +2,19 @@
 Original GSD code Copyright (C) 2018 - Rickard Sjoegren
 """
 from .base import Strategy, Design
-from summit.domain import (Domain, Variable, ContinuousVariable, 
-                          DiscreteVariable, DescriptorsVariable,
-                          DomainError)
+from summit.domain import (
+    Domain,
+    Variable,
+    ContinuousVariable,
+    DiscreteVariable,
+    DescriptorsVariable,
+    DomainError,
+)
 import itertools
 import numpy as np
 import pandas as pd
 from typing import Type, Tuple
+
 
 class GSDesigner(Strategy):
     def __init__(self, domain: Domain):
@@ -36,27 +42,31 @@ class GSDesigner(Strategy):
         num_var = self.domain.num_variables(include_outputs=False)
         levels = []
         for v in self.domain.variables:
-            if v.variable_type == 'discrete' and not v.is_objective:
+            if v.variable_type == "discrete" and not v.is_objective:
                 levels += [len(v.levels)]
-            elif v.variable_type == 'continuous' and not v.is_objective:
+            elif v.variable_type == "continuous" and not v.is_objective:
                 levels += [2]
             else:
-                raise DomainError(f"Variable {v} is not one of the possible variable types (continuous, discrete or descriptors).")
-        num_experiments = np.prod(levels)/reduction
-        design = Design(self.domain, num_experiments, 'gsd')
+                raise DomainError(
+                    f"Variable {v} is not one of the possible variable types (continuous, discrete or descriptors)."
+                )
+        num_experiments = np.prod(levels) / reduction
+        design = Design(self.domain, num_experiments, "gsd")
         samples = gsd(levels, reduction, n=1)
-        
+
         return samples
+
 
 def gsd(levels, reduction, n=1):
 
     try:
-        assert all(isinstance(v, int) for v in levels), \
-            'levels has to be sequence of integers'
-        assert isinstance(reduction, int) and reduction > 1, \
-            'reduction has to be integer larger than 1'
-        assert isinstance(n, int) and n > 0, \
-            'n has to be positive integer'
+        assert all(
+            isinstance(v, int) for v in levels
+        ), "levels has to be sequence of integers"
+        assert (
+            isinstance(reduction, int) and reduction > 1
+        ), "reduction has to be integer larger than 1"
+        assert isinstance(n, int) and n > 0, "n has to be positive integer"
     except AssertionError as e:
         raise ValueError(e)
 
@@ -65,10 +75,11 @@ def gsd(levels, reduction, n=1):
     ortogonal_arrays = _make_orthogonal_arrays(latin_square, len(levels))
 
     try:
-        designs = [_map_partitions_to_design(partitions, oa) - 1 for oa in
-                   ortogonal_arrays]
+        designs = [
+            _map_partitions_to_design(partitions, oa) - 1 for oa in ortogonal_arrays
+        ]
     except ValueError:
-        raise ValueError('reduction too large compared to factor levels')
+        raise ValueError("reduction too large compared to factor levels")
 
     if n == 1:
         return designs[0]
@@ -91,8 +102,9 @@ def _make_orthogonal_arrays(latin_square, n_cols):
 
         for i, A_matrix in enumerate(A_matrices):
             sub_a = list()
-            for constant, other_A in zip(first_row,
-                                         np.array(A_matrices)[latin_square[i]]):
+            for constant, other_A in zip(
+                first_row, np.array(A_matrices)[latin_square[i]]
+            ):
                 constant_vec = np.repeat(constant, len(other_A))[:, np.newaxis]
                 combined = np.hstack([constant_vec, other_A])
                 sub_a.append(combined)
@@ -112,9 +124,9 @@ def _map_partitions_to_design(partitions, ortogonal_array):
     Map partitioned factor to final design using orthogonal-array produced
     by augmenting latin square.
     """
-    assert len(
-        partitions) == ortogonal_array.max() + 1 and ortogonal_array.min() == 0, \
-        'Orthogonal array indexing does not match partition structure'
+    assert (
+        len(partitions) == ortogonal_array.max() + 1 and ortogonal_array.min() == 0
+    ), "Orthogonal array indexing does not match partition structure"
 
     mappings = list()
     for row in ortogonal_array:

@@ -1,4 +1,3 @@
-
 from .dataset import DataSet
 from abc import ABC, abstractmethod
 import GPy
@@ -16,12 +15,13 @@ from sklearn.base import BaseEstimator, RegressorMixin
 
 __all__ = ["Model", "ModelGroup", "GPyModel", "AnalyticalModel"]
 
+
 class Model(ABC):
-    ''' Base class for model
+    """ Base class for model
     
     The model format is meant to reflect the sklearn API 
-    ''' 
-    
+    """
+
     @abstractmethod
     def fit(self, X, Y):
         pass
@@ -29,6 +29,7 @@ class Model(ABC):
     @abstractmethod
     def predict(self, X):
         pass
+
 
 class ModelGroup:
     def __init__(self, models: dict):
@@ -51,12 +52,23 @@ class ModelGroup:
         """
         result = [model.predict(X, **kwargs)[:, 0] for model in self.models.values()]
         return np.array(result).T
-    
+
     def __getitem__(self, key):
         return self.models[key]
 
-class GPyModel:
-    ''' A Gaussian Process Regression model from GPy
+
+
+def model_from_dict(d):
+    if d["name"] == "GPyModel":
+        return GPyModel.from_dict(d)
+    elif d["name"] == "AnalyticalModel":
+        return AnalyticalModel.from_dict(d)
+    else:
+        raise TypeError(f"Model Type {d['name']} is not valid.")
+
+
+class GPyModel(BaseEstimator, RegressorMixin):
+    """ A Gaussian Process Regression model from GPy
 
     This is implemented as an alternative to the sklearn
     gaussian process because GPy offers several performance speed-ups. 
@@ -79,21 +91,27 @@ class GPyModel:
     For instructions on how to implement a custom optimizer, see
     here: https://nbviewer.jupyter.org/github/SheffieldML/notebook/blob/master/GPy/optimizer-implementation.ipynb
     
-    ''' 
-    def __init__(self, kernel=None, input_dim=None,noise_var=1.0, optimizer=None):
+    """
+
+    def __init__(self, kernel=None, input_dim=None, noise_var=1.0, optimizer=None):
         if kernel:
             self._kernel = kernel
-        else: 
+        else:
             if not input_dim:
-                raise ValueError('input_dim must be specified if no kernel is specified.')
+                raise ValueError(
+                    "input_dim must be specified if no kernel is specified."
+                )
             self.input_dim = input_dim
-            self._kernel =  Matern52(input_dim = self.input_dim, ARD=True)
+            self._kernel = Matern52(input_dim=self.input_dim, ARD=True)
         self._noise_var = noise_var
         self._optimizer = optimizer
         self._model = None
-        self.sampled_f = None
-    
-    def fit(self, X, y, **kwargs):
+        self.input_mean = []
+        self.input_std = []
+        self.output_mean = []
+        self.output_std = []
+
+    def fit(self, X, y, num_restarts=10, max_iters=2000, parallel=False):
         """Fit Gaussian process regression model.
         Parameters
         ----------
@@ -115,31 +133,38 @@ class GPyModel:
         self : returns an instance of self.
         -----
         """
+
         num_restarts=kwargs.get('num_restarts',10)
         max_iters=kwargs.get('max_iters', 2000)
         parallel=kwargs.get('parallel',False)
         spectral_sample=kwargs.get('spectral_sample',False)
         verbose = kwargs.get('verbose', False)
 
-        #Standardize inputs and outputs
+        # Standardize inputs and outputs
         if isinstance(X, DataSet):
-            X_std, self.input_mean, self.input_std = X.standardize(return_mean=True, return_std=True)
+            X_std, self.input_mean, self.input_std = X.standardize(
+                return_mean=True, return_std=True
+            )
         elif isinstance(X, np.ndarray):
-            self.input_mean = np.mean(X,axis=0)
+            self.input_mean = np.mean(X, axis=0)
             self.input_std = np.std(X, axis=0)
-            X_std = (X-self.input_mean)/self.input_std
+            X_std = (X - self.input_mean) / self.input_std
             X_std[abs(X_std) < 1e-5] = 0.0
 
         if isinstance(y, DataSet):
-            y_std, self.output_mean, self.output_std = y.standardize(return_mean=True, return_std=True)
+            y_std, self.output_mean, self.output_std = y.standardize(
+                return_mean=True, return_std=True
+            )
         elif isinstance(y, np.ndarray):
-            self.output_mean = np.mean(y,axis=0)
+            self.output_mean = np.mean(y, axis=0)
             self.output_std = np.std(y, axis=0)
-            y_std = (y-self.output_mean)/self.output_std
+            y_std = (y - self.output_mean) / self.output_std
             y_std[abs(y_std) < 1e-5] = 0.0
 
-        #Initialize and fit model
-        self._model = GPRegression(X_std,y_std, self._kernel, noise_var=self._noise_var)
+        # Initialize and fit model
+        self._model = GPRegression(
+            X_std, y_std, self._kernel, noise_var=self._noise_var
+        )
         if self._optimizer:
             self._model.optimize_restarts(num_restarts = num_restarts, 
                                           verbose=verbose,
@@ -156,7 +181,8 @@ class GPyModel:
 
         return self
 
-    def predict(self, X, **kwargs):
+
+    def predict(self, X):
         """Predict using the Gaussian process regression model
 
         In addition to the mean of the predictive distribution, also its
@@ -171,22 +197,25 @@ class GPyModel:
             Use a spectral sample of the GP instead of the posterior prediction.
         """
         if not self._model:
-            raise ValueError('Fit must be called on the model prior to prediction')
+            raise ValueError("Fit must be called on the model prior to prediction")
 
         use_spectral_sample = kwargs.get('use_spectral_sample', False)
         if use_spectral_sample and self.sampled_f is not None:
             return self.sampled_f(X)
         elif use_spectral_sample:
             raise ValueError("Spectral Sample must be called during fitting prior to prediction.")
-        
+
+
         if isinstance(X, np.ndarray):
-            X_std =  (X-self.input_mean)/self.input_std
+            X_std = (X - self.input_mean) / self.input_std
             X_std[abs(X_std) < 1e-5] = 0.0
         elif isinstance(X, DataSet):
             X_std = X.standardize(mean=self.input_mean, std=self.input_std)
+        else:
+            raise TypeError("X must be a numpy array or summit DataSet.")
 
         m_std, v_std = self._model.predict(X_std)
-        m = m_std*self.output_std + self.output_mean
+        m = m_std * self.output_std + self.output_mean
 
         return m
 
@@ -265,8 +294,34 @@ class GPyModel:
         self.sampled_f = f
         return f
     
+
+    def to_dict(self):
+        _model = self._model.to_dict() if self._model is not None else self._model
+        return dict(
+            name="GPyModel",
+            _model=_model,
+            kernel=self._kernel.to_dict(),
+            noise_var=self._noise_var,
+            input_mean=list(self.input_mean),
+            input_std=list(self.input_std),
+            output_mean=list(self.output_mean),
+            output_std=list(self.output_std),
+        )
+
+    @classmethod
+    def from_dict(cls, d):
+        kernel = GPy.kern.Kern.from_dict(d["kernel"])
+        m = cls(kernel=kernel, noise_var=d["noise_var"])
+        if d["_model"] is not None:
+            m._model = GPRegression.from_dict(d["_model"])
+        m.input_mean = np.array(d["input_mean"])
+        m.input_std = np.array(d["input_std"])
+        m.output_mean = np.array(d["output_mean"])
+        m.output_std = np.array(d["output_std"])
+        return m
+
 class AnalyticalModel(Model):
-    ''' An analytical model instead of statistical model
+    """ An analytical model instead of statistical model
 
     Use this for an objective that is a 
     known analytical function of the inputs 
@@ -276,14 +331,14 @@ class AnalyticalModel(Model):
     function: callable
         An an analytical function that takes an input 
         array and returns the output
-    '''
+    """
 
     def __init__(self, function: callable):
         self._function = function
 
     def fit(self, X, Y, **kwargs):
-        '''This method is here because it is required.
-           No fitting actually occurs'''
+        """This method is here because it is required.
+           No fitting actually occurs"""
         pass
 
     def predict(self, X, **kwargs):
@@ -300,4 +355,3 @@ class AnalyticalModel(Model):
     @property
     def function(self) -> callable:
         return self._function
-
