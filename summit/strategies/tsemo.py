@@ -78,6 +78,8 @@ class TSEMO2(Strategy):
         if self._random_rate < 0.0 or self._random_rate > 1.0:
             raise ValueError('Random rate must be between 0 and 1.')
 
+        self.all_experiments = None
+
     def suggest_experiments(self, num_experiments, 
                             prev_res: DataSet=None):
         """ Suggest experiments using TSEMO
@@ -96,15 +98,19 @@ class TSEMO2(Strategy):
         ds
             A `Dataset` object with the random design
         """
-        # Suggest lhs initial design
+        # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
             return lhs.suggest_experiments(num_experiments)
+        elif prev_res is not None and self.all_experiments is None:
+            self.all_experiments = next_experiments
+        elif prev_res is not None and self.all_experiments is not None:
+            self.all_experiments = self.all_experiments.concat(next_experiments)
 
-        #Get inputs and outputs
-        inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
+        # Get inputs and outputs
+        inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
         
-        #Fit models to new data
+        # Fit models to new data
         self.models.fit(inputs, outputs)
 
         #Run internal optimization

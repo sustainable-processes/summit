@@ -1,6 +1,7 @@
 from .base import Strategy, Transform
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
+from summit.utils import jsonify_dict, unjsonify_dict
 
 import numpy as np
 import pandas as pd
@@ -126,7 +127,7 @@ class NelderMead(Strategy):
             inner_prev_param = self.prev_param[0]
             # recover invalid experiments from previous iteration
             if self.prev_param[1] is not None:
-                invalid_res = self.prev_param[1][0].drop(('constraint','DATA'),1)
+                invalid_res = self.prev_param[1].drop(('constraint','DATA'),1)
                 prev_res = pd.concat([prev_res,invalid_res])
 
         ## Generation of new suggested experiments.
@@ -140,6 +141,7 @@ class NelderMead(Strategy):
         while not valid_next_experiments and c_iter < inner_iter_tol:
             valid_next_experiments = False
             next_experiments, xbest, fbest, param = self.inner_suggest_experiments(prev_res=prev_res, prev_param=inner_prev_param)
+            # Invalid experiments hidden from data returned to user but stored internally in param
             invalid_experiments = next_experiments.loc[next_experiments[('constraint','DATA')] == False]
             next_experiments = next_experiments.loc[next_experiments[('constraint','DATA')] != False]
             prev_res = prev_res
@@ -159,7 +161,7 @@ class NelderMead(Strategy):
             else:
                 valid_next_experiments = True
             inner_prev_param = param
-            param = [param, [invalid_experiments]]
+            param = [param, invalid_experiments]
             c_iter += 1
 
         if c_iter >= inner_iter_tol:
@@ -174,19 +176,25 @@ class NelderMead(Strategy):
         """Reset internal parameters"""
         self.prev_param = None
 
-    @classmethod
-    def from_dict(self, d):
-        nm = super().from_dict(d)
-        nm.prev_param = d['strategy_params']['prev_param']
-        return nm
-
     def to_dict(self):
+        # Previous param first element is a dictionary of internal parameters
+        # Second element is a dataset with invalid experiments
+        prev_param = [jsonify_dict(self.prev_param[0]),
+                      self.prev_param[1].to_dict()]
         strategy_params = dict(x_start=self._x_start,
                                dx=self._dx,
                                df=self._df,
                                adaptive=self._adaptive,
-                               prev_param=self.prev_param)
+                               prev_param=prev_param)
         return super().to_dict(**strategy_params)
+
+    @classmethod
+    def from_dict(self, d):
+        nm = super().from_dict(d)
+        prev_param = d['strategy_params']['prev_param']
+        nm.prev_param = [unjsonify_dict(prev_param[0]),
+                         DataSet.from_dict(prev_param[1])]
+        return nm
 
     def inner_suggest_experiments(self, prev_res: DataSet=None, prev_param=None):
         """ Inner loop for suggestion of experiments using Nelder-Mead Simplex method
@@ -284,12 +292,12 @@ class NelderMead(Strategy):
 
         # if this is not the first iteration of the Nelder-Mead algorithm, get parameters from previous iteration
         if prev_param:
-            prev_sim= prev_param[0]
-            red_dim = prev_param[3]
-            red_sim = prev_param[4]
-            red_fsim = prev_param[5]
-            rec_dim = prev_param[6]
-            memory = prev_param[7]
+            prev_sim= prev_param['sim']
+            red_dim = prev_param['red_dim']
+            red_sim = prev_param['red_sim']
+            red_fsim = prev_param['red_fsim']
+            rec_dim = prev_param['rec_dim']
+            memory = prev_param['memory']
 
             # if dimension was recovered in last iteration, N functions evaluations were requested
             # that need to be assigned to the respective points in the simplex
@@ -301,9 +309,9 @@ class NelderMead(Strategy):
                             prev_fsim[s] = y0[k]
                 rec_dim = False
             # assign function values to respective points
-            elif prev_param[1] is not None:
-                prev_fsim = prev_param[1]
-                x_iter = prev_param[2]
+            elif prev_param['fsim'] is not None:
+                prev_fsim = prev_param['fsim']
+                x_iter = prev_param['x_iter']
                 for key, value in x_iter.items():
                     if value is not None:
                         if key == 'x_shrink':
@@ -408,9 +416,11 @@ class NelderMead(Strategy):
             memory.append(p)
 
         # store parameters of iteration as parameter array
-        import ipdb; ipdb.set_trace()
         param = [sim, fsim, x_iter, red_dim, red_sim, red_fsim, rec_dim, memory]
-
+        param = dict(sim=sim, fsim=fsim, x_iter=x_iter, red_sim=red_sim, 
+                     red_fsim=red_fsim, red_dim=red_dim, rec_dim=rec_dim,
+                     memory=memory)
+                     
         # Generate DataSet object with variable values of next experiments
         next_experiments = {}
         i_inp = 0

@@ -140,6 +140,7 @@ class SNOBFIT(Strategy):
             next_experiments, xbest, fbest, param = self.inner_suggest_experiments(num_experiments=num_experiments,
                                                                                    prev_res=prev_res,
                                                                                    prev_param=inner_prev_param)
+            # Invalid experiments hidden from data returned to user but stored internally elswehere
             invalid_experiments = next_experiments.loc[next_experiments[('constraint', 'DATA')] == False]
             next_experiments = next_experiments.loc[next_experiments[('constraint', 'DATA')] != False]
             prev_res = prev_res
