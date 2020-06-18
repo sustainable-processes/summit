@@ -44,41 +44,6 @@ class DataSet(pd.core.frame.DataFrame):
     DataFrame.from_items : From sequence of (key, value) pairs
         pandas.read_csv, pandas.read_table, pandas.read_clipboard.
 
-    Examples
-    --------
-    Constructing DataFrame from a dictionary.
-
-    >>> d = {'col1': [1, 2], 'col2': [3, 4]}
-    >>> df = pd.DataFrame(data=d)
-    >>> df
-       col1  col2
-    0     1     3
-    1     2     4
-
-    Notice that the inferred dtype is int64.
-
-    >>> df.dtypes
-    col1    int64
-    col2    int64
-    dtype: object
-
-    To enforce a single dtype:
-
-    >>> df = pd.DataFrame(data=d, dtype=np.int8)
-    >>> df.dtypes
-    col1    int8
-    col2    int8
-    dtype: object
-
-    Constructing DataFrame from numpy ndarray:
-
-    >>> df2 = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]),
-    ...                    columns=['a', 'b', 'c'])
-    >>> df2
-       a  b  c
-    0  1  2  3
-    1  4  5  6
-    2  7  8  9
     Notes
     ----
     Based on https://notes.mikejarrett.ca/storing-metadata-in-pandas-dataframes/

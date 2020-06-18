@@ -60,7 +60,7 @@ class NelderMead(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
     >>> strategy = NelderMead(domain)
-    >>> next_experiments, xbest, fbest, param = strategy.suggest_experiments()
+    >>> next_experiments  = strategy.suggest_experiments()
     >>> print(next_experiments)
     NAME temperature flowrate_a             strategy
     TYPE        DATA       DATA             METADATA
