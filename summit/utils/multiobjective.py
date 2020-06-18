@@ -1,10 +1,10 @@
-
 from math import log, floor
 import random
 import warnings
 import numpy as np
 
 __all__ = ["pareto_efficient", "HvI"]
+
 
 def pareto_efficient(data, maximize=True):
     """
@@ -28,19 +28,20 @@ def pareto_efficient(data, maximize=True):
     indices = np.arange(data.shape[0])
     n_points = data.shape[0]
     next_point_index = 0  # Next index in the indices array to search for
-    while next_point_index<len(data):
+    while next_point_index < len(data):
         if maximize:
-            nondominated_point_mask = np.any(data>data[next_point_index], axis=1)
+            nondominated_point_mask = np.any(data > data[next_point_index], axis=1)
         else:
-            nondominated_point_mask = np.any(data<data[next_point_index], axis=1)
+            nondominated_point_mask = np.any(data < data[next_point_index], axis=1)
         nondominated_point_mask[next_point_index] = True
         indices = indices[nondominated_point_mask]  # Remove dominated points
         data = data[nondominated_point_mask]
-        next_point_index = np.sum(nondominated_point_mask[:next_point_index])+1
-    return  data, indices  
+        next_point_index = np.sum(nondominated_point_mask[:next_point_index]) + 1
+    return data, indices
+
 
 class HvI:
-    ''' Hypervolume Improvement Acquisition Function
+    """ Hypervolume Improvement Acquisition Function
 
     This acquisition functions selects points based on the hypervolume improvement.
     The hypervolume improvement function is a modified version of the one proposed
@@ -79,8 +80,9 @@ class HvI:
         year = {2018}
         }
     
-    ''' 
-    def __init__(self, reference, data = [], random_rate=0.0):
+    """
+
+    def __init__(self, reference, data=[], random_rate=0.0):
         self._reference = reference
         self._data = data
         self._random_rate = random_rate
@@ -94,7 +96,7 @@ class HvI:
         self._data = y
 
     def select_max(self, samples, num_evals=1):
-        '''  Returns the point(s) that maximimize hypervolume improvement 
+        """  Returns the point(s) that maximimize hypervolume improvement 
         
         Parameters
         ---------- 
@@ -109,63 +111,65 @@ class HvI:
             Returns a tuple with lists of the best hypervolume improvement
             and the indices of the corresponding points in samples       
         
-        ''' 
-        #Get the reference point, r
-        # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0)) 
+        """
+        # Get the reference point, r
+        # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0))
         r = self._reference
         index = []
         mask = np.ones(samples.shape[0], dtype=bool)
         n = samples.shape[1]
         Ynew = self._data
 
-        assert (self._random_rate <=1.) | (self._random_rate >=0.)
-        if self._random_rate>0:
-            num_random = round(self._random_rate*num_evals)
+        assert (self._random_rate <= 1.0) | (self._random_rate >= 0.0)
+        if self._random_rate > 0:
+            num_random = round(self._random_rate * num_evals)
             random_selects = np.random.randint(0, num_evals, size=num_random)
         else:
             random_selects = np.array([])
-        
+
         for i in range(num_evals):
             masked_samples = samples[mask, :]
             Yfront, _ = pareto_efficient(Ynew, maximize=True)
-            if len(Yfront) ==0:
-                raise ValueError('Pareto front length too short')
+            if len(Yfront) == 0:
+                raise ValueError("Pareto front length too short")
 
             hv_improvement = []
             hvY = HvI.hypervolume(-Yfront, [0, 0])
-            #Determine hypervolume improvement by including
-            #each point from samples (masking previously selected poonts)
+            # Determine hypervolume improvement by including
+            # each point from samples (masking previously selected poonts)
             for sample in masked_samples:
-                sample = sample.reshape(1,n)
+                sample = sample.reshape(1, n)
                 A = np.append(Ynew, sample, axis=0)
                 Afront, _ = pareto_efficient(A, maximize=True)
-                hv = HvI.hypervolume(-Afront, [0,0])
-                hv_improvement.append(hv-hvY)
-            
-            hvY0 = hvY if i==0 else hvY0
+                hv = HvI.hypervolume(-Afront, [0, 0])
+                hv_improvement.append(hv - hvY)
+
+            hvY0 = hvY if i == 0 else hvY0
 
             if i in random_selects:
                 masked_index = np.random.randint(0, masked_samples.shape[0])
             else:
-                #Choose the point that maximizes hypervolume improvement
+                # Choose the point that maximizes hypervolume improvement
                 masked_index = hv_improvement.index(max(hv_improvement))
 
-            samples_index = np.where((samples == masked_samples[masked_index, :]).all(axis=1))[0][0]
+            samples_index = np.where(
+                (samples == masked_samples[masked_index, :]).all(axis=1)
+            )[0][0]
             new_point = samples[samples_index, :].reshape(1, n)
             Ynew = np.append(Ynew, new_point, axis=0)
             mask[samples_index] = False
             index.append(samples_index)
 
-        if len(hv_improvement)==0:
+        if len(hv_improvement) == 0:
             hv_imp = 0
         elif len(index) == 0:
             index = []
             hv_imp = 0
         else:
-            #Total hypervolume improvement
-            #Includes all points added to batch (hvY + last hv_improvement)
-            #Subtracts hypervolume without any points added (hvY0)
-            hv_imp = hv_improvement[masked_index] + hvY-hvY0
+            # Total hypervolume improvement
+            # Includes all points added to batch (hvY + last hv_improvement)
+            # Subtracts hypervolume without any points added (hvY0)
+            hv_imp = hv_improvement[masked_index] + hvY - hvY0
         return hv_imp, index
 
     @staticmethod
@@ -191,7 +195,6 @@ class _HyperVolume:
         """Constructor."""
         self.referencePoint = referencePoint
         self.list = []
-
 
     def compute(self, front):
         """Returns the hypervolume that is dominated by a non-dominated front.
@@ -221,7 +224,7 @@ class _HyperVolume:
             # shift points so that referencePoint == [0, ..., 0]
             # this way the reference point doesn't have to be explicitly used
             # in the HV computation
-            
+
             #######
             # fmder: Assume relevantPoints are numpy array
             # for j in range(len(relevantPoints)):
@@ -234,7 +237,6 @@ class _HyperVolume:
         bounds = [-1.0e308] * dimensions
         hyperVolume = self.hvRecursive(dimensions - 1, len(relevantPoints), bounds)
         return hyperVolume
-
 
     def hvRecursive(self, dimIndex, length, bounds):
         """Recursive call to hypervolume calculation.
@@ -274,7 +276,10 @@ class _HyperVolume:
                     q.ignore = 0
                 q = q.prev[dimIndex]
             q = p.prev[dimIndex]
-            while length > 1 and (q.cargo[dimIndex] > bounds[dimIndex] or q.prev[dimIndex].cargo[dimIndex] >= bounds[dimIndex]):
+            while length > 1 and (
+                q.cargo[dimIndex] > bounds[dimIndex]
+                or q.prev[dimIndex].cargo[dimIndex] >= bounds[dimIndex]
+            ):
                 p = q
                 remove(p, dimIndex, bounds)
                 q = p.prev[dimIndex]
@@ -283,10 +288,14 @@ class _HyperVolume:
             qCargo = q.cargo
             qPrevDimIndex = q.prev[dimIndex]
             if length > 1:
-                hvol = qPrevDimIndex.volume[dimIndex] + qPrevDimIndex.area[dimIndex] * (qCargo[dimIndex] - qPrevDimIndex.cargo[dimIndex])
+                hvol = qPrevDimIndex.volume[dimIndex] + qPrevDimIndex.area[dimIndex] * (
+                    qCargo[dimIndex] - qPrevDimIndex.cargo[dimIndex]
+                )
             else:
                 qArea[0] = 1
-                qArea[1:dimIndex+1] = [qArea[i] * -qCargo[i] for i in range(dimIndex)]
+                qArea[1 : dimIndex + 1] = [
+                    qArea[i] * -qCargo[i] for i in range(dimIndex)
+                ]
             q.volume[dimIndex] = hvol
             if q.ignore >= dimIndex:
                 qArea[dimIndex] = qPrevDimIndex.area[dimIndex]
@@ -312,7 +321,6 @@ class _HyperVolume:
             hvol -= q.area[dimIndex] * q.cargo[dimIndex]
             return hvol
 
-
     def preProcess(self, front):
         """Sets up the list data structure needed for calculation."""
         dimensions = len(self.referencePoint)
@@ -323,7 +331,6 @@ class _HyperVolume:
             nodeList.extend(nodes, i)
         self.list = nodeList
 
-
     def sortByDimension(self, nodes, i):
         """Sorts the list of nodes by the i-th value of the contained points."""
         # build a list of tuples of (point[i], node)
@@ -333,30 +340,30 @@ class _HyperVolume:
         # write back to original list
         nodes[:] = [node for (_, node) in decorated]
 
-class _MultiList: 
+
+class _MultiList:
     """A special data structure needed by FonsecaHyperVolume. 
     
     It consists of several doubly linked lists that share common nodes. So, 
     every node has multiple predecessors and successors, one in every list.
     """
 
-    class Node: 
-        
-        def __init__(self, numberLists, cargo=None): 
-            self.cargo = cargo 
-            self.next  = [None] * numberLists
+    class Node:
+        def __init__(self, numberLists, cargo=None):
+            self.cargo = cargo
+            self.next = [None] * numberLists
             self.prev = [None] * numberLists
             self.ignore = 0
             self.area = [0.0] * numberLists
             self.volume = [0.0] * numberLists
-    
-        def __str__(self): 
+
+        def __str__(self):
             return str(self.cargo)
 
         def __lt__(self, other):
             return all(self.cargo < other.cargo)
-        
-    def __init__(self, numberLists):  
+
+    def __init__(self, numberLists):
         """Constructor. 
         
         Builds 'numberLists' doubly linked lists.
@@ -364,9 +371,8 @@ class _MultiList:
         self.numberLists = numberLists
         self.sentinel = _MultiList.Node(numberLists)
         self.sentinel.next = [self.sentinel] * numberLists
-        self.sentinel.prev = [self.sentinel] * numberLists  
-        
-        
+        self.sentinel.prev = [self.sentinel] * numberLists
+
     def __str__(self):
         strings = []
         for i in range(self.numberLists):
@@ -380,13 +386,11 @@ class _MultiList:
         for string in strings:
             stringRepr += string + "\n"
         return stringRepr
-    
-    
+
     def __len__(self):
         """Returns the number of lists that are included in this _MultiList."""
         return self.numberLists
-    
-    
+
     def getLength(self, i):
         """Returns the length of the i-th list."""
         length = 0
@@ -396,8 +400,7 @@ class _MultiList:
             length += 1
             node = node.next[i]
         return length
-            
-            
+
     def append(self, node, index):
         """Appends a node to the end of the list at the given index."""
         lastButOne = self.sentinel.prev[index]
@@ -406,8 +409,7 @@ class _MultiList:
         # set the last element as the new one
         self.sentinel.prev[index] = node
         lastButOne.next[index] = node
-        
-        
+
     def extend(self, nodes, index):
         """Extends the list at the given index with the nodes."""
         sentinel = self.sentinel
@@ -418,20 +420,18 @@ class _MultiList:
             # set the last element as the new one
             sentinel.prev[index] = node
             lastButOne.next[index] = node
-        
-        
-    def remove(self, node, index, bounds): 
+
+    def remove(self, node, index, bounds):
         """Removes and returns 'node' from all lists in [0, 'index'[."""
-        for i in range(index): 
+        for i in range(index):
             predecessor = node.prev[i]
             successor = node.next[i]
             predecessor.next[i] = successor
-            successor.prev[i] = predecessor  
+            successor.prev[i] = predecessor
             if bounds[i] > node.cargo[i]:
                 bounds[i] = node.cargo[i]
         return node
-    
-    
+
     def reinsert(self, node, index, bounds):
         """
         Inserts 'node' at the position it had in all lists in [0, 'index'[

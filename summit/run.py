@@ -6,6 +6,7 @@ from fastprogress.fastprogress import progress_bar
 import os
 import json
 
+
 class Runner:
     """"  Run a closed-loop strategy and experiment cycle
     
@@ -29,9 +30,14 @@ class Runner:
     --------    
     
     """
-    def __init__(self, strategy: Strategy, 
-                 experiment: Experiment, 
-                 max_iterations=100, batch_size=1):
+
+    def __init__(
+        self,
+        strategy: Strategy,
+        experiment: Experiment,
+        max_iterations=100,
+        batch_size=1,
+    ):
         self.strategy = strategy
         self.experiment = experiment
         self.max_iterations = max_iterations
@@ -41,42 +47,50 @@ class Runner:
         """  Run the closed loop experiment cycle
         """
         prev_res = None
-        i=0
+        i = 0
         for i in progress_bar(range(self.max_iterations)):
-            next_experiments = self.strategy.suggest_experiments(num_experiments=self.batch_size,
-                                                                prev_res=prev_res)                                      
+            next_experiments = self.strategy.suggest_experiments(
+                num_experiments=self.batch_size, prev_res=prev_res
+            )
             prev_res = self.experiment.run_experiments(next_experiments)
 
     def to_dict(self,):
-        runner_params = dict(max_iterations=self.max_iterations, 
-                             batch_size=self.batch_size)
+        runner_params = dict(
+            max_iterations=self.max_iterations, batch_size=self.batch_size
+        )
 
-        return dict(runner=runner_params,
-                    strategy=self.strategy.to_dict(),
-                    experiment=self.experiment.to_dict())
+        return dict(
+            runner=runner_params,
+            strategy=self.strategy.to_dict(),
+            experiment=self.experiment.to_dict(),
+        )
 
     @classmethod
     def from_dict(cls, d):
-        strategy = strategy_from_dict(d['strategy'])
-        experiment = experiment_from_dict(d['experiment'])
-        return cls(strategy=strategy, experiment=experiment,
-                   max_iterations=d['runner']['max_iterations'],
-                   batch_size=d['runner']['batch_size'])
+        strategy = strategy_from_dict(d["strategy"])
+        experiment = experiment_from_dict(d["experiment"])
+        return cls(
+            strategy=strategy,
+            experiment=experiment,
+            max_iterations=d["runner"]["max_iterations"],
+            batch_size=d["runner"]["batch_size"],
+        )
 
     def save(self, filename):
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             json.dump(self.to_dict(), f)
 
     @classmethod
     def load(cls, filename):
-        with open(filename, 'r') as f:
+        with open(filename, "r") as f:
             d = json.load(f)
         return cls.from_dict(d)
 
+
 def experiment_from_dict(d):
-    if d['name']== 'SnarBenchmark':
+    if d["name"] == "SnarBenchmark":
         return SnarBenchmark.from_dict(d)
-    elif d['name']== 'Hartmann3D':
+    elif d["name"] == "Hartmann3D":
         return Hartmann3D.from_dict(d)
-    elif d['name']== 'Himmelblau':
+    elif d["name"] == "Himmelblau":
         return Himmelblau.from_dict(d)

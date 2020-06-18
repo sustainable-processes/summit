@@ -1,11 +1,12 @@
 import numpy as np
 from copy import deepcopy
 
+
 def jsonify_dict(d, copy=True):
     """Make dictionary JSON serializable"""
     if copy:
         d = deepcopy(d)
-    for k,v in d.items():
+    for k, v in d.items():
         if type(v) == np.ndarray:
             d[k] = v.tolist()
         elif type(v) == list:
@@ -18,11 +19,12 @@ def jsonify_dict(d, copy=True):
             raise TypeError(f"Cannot jsonify type for {v}: {type(v)}.")
     return d
 
+
 def unjsonify_dict(d, copy=True):
     """Convert JSON back to proper types"""
     if copy:
         d = deepcopy(d)
-    for k,v in d.items():
+    for k, v in d.items():
         if type(v) == list:
             d[k] = listtonumpy(v)
         elif type(v) == dict:
@@ -33,10 +35,11 @@ def unjsonify_dict(d, copy=True):
             raise TypeError(f"Cannot unjsonify type for {l}: {type(l)}.")
     return d
 
+
 def jsonify_list(a, copy=True):
     if copy:
         a = deepcopy(a)
-    for i,l in enumerate(a):
+    for i, l in enumerate(a):
         if type(l) == list:
             a[i] = jsonify_list(l)
         elif type(l) == dict:
@@ -49,11 +52,12 @@ def jsonify_list(a, copy=True):
             raise TypeError(f"Cannot jsonify type for {l}: {type(l)}.")
     return a
 
+
 def listtonumpy(a, copy=True):
     if copy:
-        a  = deepcopy(a)
+        a = deepcopy(a)
     transform_all = True
-    for i,l in enumerate(a):
+    for i, l in enumerate(a):
         if type(l) == dict:
             a[i] = unjsonify_dict(l)
             transform_all = False
