@@ -283,17 +283,20 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
 
     param = None
     for i in range(num_iter):
-        next_experiments, xbest, fbest, param = strategy.suggest_experiments(
-            prev_res=next_experiments, prev_param=param
+        next_experiments = strategy.suggest_experiments(
+            prev_res=next_experiments
         )
         # This is the part where experiments take place
         next_experiments = himmelblau.run_experiments(next_experiments)
 
         # save polygon points for plotting
+        param = strategy.prev_param
         polygons_points.append(
-            np.asarray([param[0][0][i].tolist() for i in range(len(param[0][0]))])
+            np.asarray([param[0]['sim'][i].tolist() for i in range(len(param[0]['sim']))])
         )
 
+        fbest = strategy.fbest
+        xbest = strategy.xbest
         if fbest < fbestold:
             fbestold = fbest
             nstop = 0
@@ -303,15 +306,34 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
             print("No improvement in last " + str(max_stop) + " iterations.")
             break
 
-        print(next_experiments)  # show next experiments
-        print("\n")
-
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
     assert fbest <= 0.1
-    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraints: four identical local minima f = 0 at x1 = (3.000, 2.000),
     # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
+
+    # Test saving and loading
+    strategy.save('nm_2d.json')
+    strategy_2 = NelderMead.load('nm_2d.json')
+
+    assert strategy._x_start == strategy_2._x_start
+    assert strategy._dx == strategy_2._dx
+    assert strategy._df == strategy_2._df
+    assert strategy._adaptive == strategy_2._adaptive
+    p = strategy.prev_param[0]
+    p2 = strategy.prev_param[0]
+    for k,v in p.items():
+        if type(v) not in [list, np.ndarray]:
+            assert v == p2[k]
+        elif type(v) == list:
+            for i,l in enumerate(v):
+                if type(l) in [np.ndarray, DataSet]:
+                    assert l.all() == p2[k][i].all()
+                else:
+                    assert l == p2[k][i]
+    assert all(strategy.prev_param[1]) == all(strategy_2.prev_param[1])
+    os.remove('nm_2d.json')
 
     # plot
     if plot:
@@ -375,23 +397,20 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
 
     param = None
     for i in range(num_iter):
-        next_experiments, xbest, fbest, param = strategy.suggest_experiments(
-            prev_res=next_experiments, prev_param=param
+        next_experiments = strategy.suggest_experiments(
+            prev_res=next_experiments
         )
-
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
 
+        # save polygon points for plotting
+        param = strategy.prev_param
         polygons_points.append(
-            np.asarray(
-                [
-                    (param[0][0][i].tolist(), param[0][0][j].tolist())
-                    for i in range(len(param[0][0]))
-                    for j in range(len(param[0][0]))
-                ]
-            )
+            np.asarray([param[0]['sim'][i].tolist() for i in range(len(param[0]['sim']))])
         )
 
+        fbest = strategy.fbest
+        xbest = strategy.xbest
         if fbest < fbestold:
             fbestold = fbest
             nstop = 0
@@ -400,15 +419,35 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
         if nstop >= max_stop:
             print("No improvement in last " + str(max_stop) + " iterations.")
             break
-        print(next_experiments)  # show next experiments
-        print("\n")
 
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
-
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-    #   assert (xbest[0] >= 0.113 and xbest[0] <= 0.115) and (xbest[1] >= 0.555 and xbest[1] <= 0.557) and \
-    #          (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
+    # assert (xbest[0] >= 0.113 and xbest[0] <= 0.115) and (xbest[1] >= 0.555 and xbest[1] <= 0.557) and \
+    #        (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
+
+    # Test saving and loading
+    strategy.save('nm_3d.json')
+    strategy_2 = NelderMead.load('nm_3d.json')
+
+    assert strategy._x_start == strategy_2._x_start
+    assert strategy._dx == strategy_2._dx
+    assert strategy._df == strategy_2._df
+    assert strategy._adaptive == strategy_2._adaptive
+    p = strategy.prev_param[0]
+    p2 = strategy.prev_param[0]
+    for k,v in p.items():
+        if type(v) not in [list, np.ndarray]:
+            assert v == p2[k]
+        elif type(v) == list:
+            for i,l in enumerate(v):
+                if type(l) in [np.ndarray, DataSet]:
+                    assert l.all() == p2[k][i].all()
+                else:
+                    assert l == p2[k][i]
+    assert all(strategy.prev_param[1]) == all(strategy_2.prev_param[1])
+    os.remove('nm_3d.json')
+
     if plot:
         hartmann3D.plot(polygons=polygons_points)

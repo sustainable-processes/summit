@@ -94,7 +94,6 @@ class NelderMead(Strategy):
         next_experiments: DataSet
             A `Dataset` object with the suggested experiments by Nelder-Mead Simplex algorithm
         
-
         Notes
         ------
         After the initialisation, the number of suggested experiments depends on the internal state of Nelder Mead. 
@@ -179,6 +178,8 @@ class NelderMead(Strategy):
 
         # return only valid experiments (invalid experiments are stored in param[1])
         next_experiments = next_experiments.drop(("constraint", "DATA"), 1)
+        self.fbest = fbest
+        self.xbest = xbest
         self.prev_param = param
         return next_experiments
 
@@ -325,7 +326,7 @@ class NelderMead(Strategy):
             # if dimension was recovered in last iteration, N functions evaluations were requested
             # that need to be assigned to the respective points in the simplex
             if rec_dim:
-                prev_fsim = prev_param[1]
+                prev_fsim = prev_param['fsim']
                 for k in range(len(x0)):
                     for s in range(len(prev_sim)):
                         if np.array_equal(prev_sim[s], x0[k]):

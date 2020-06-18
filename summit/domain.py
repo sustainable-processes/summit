@@ -363,8 +363,7 @@ class DescriptorsVariable(Variable):
 
     @staticmethod
     def from_dict(variable_dict):
-        ds = DataSet(variable_dict["ds"])
-        ds.columns.names = ["NAME", "TYPE"]
+        ds = DataSet().from_dict(variable_dict["ds"])
         return DescriptorsVariable(
             name=variable_dict["name"],
             description=variable_dict["description"],
