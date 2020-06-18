@@ -85,33 +85,25 @@ class SNOBFIT(Strategy):
         self._dx_dim = kwargs.get('dx_dim', 1E-5)
         self.prev_param = None
 
-    def suggest_experiments(self, num_experiments, prev_res: DataSet=None):
+    def suggest_experiments(self,
+                            num_experiments=1, 
+                            prev_res: DataSet=None,
+                            **kwargs):
         """ Suggest experiments using the SNOBFIT method
 
         Parameters
         ----------
-        num_experiments: int
-            The number of experiments (i.e., samples) to generate
+        num_experiments: int, optional
+            The number of experiments (i.e., samples) to generate. Default is 1.
         prev_res: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, the SNOBFIT optimization algorithm
             will be initialized and suggest initial experiments.
-        prev_param: file.txt TODO: how to handle this?
-            File with parameters of SNOBFIT algorithm from previous
-            iterations of a optimization problem.
-            If no data is passed, the SNOBFIT optimization algorithm
-            will be initialized.
 
         Returns
         -------
         next_experiments: DataSet
             A `Dataset` object with the suggested experiments by SNOBFIT algorithm
-        xbest: list
-            List with variable settings of experiment with best outcome
-        fbest: float
-            Objective value at xbest
-        param: list
-            List with parameters and prev_param of SNOBFIT algorithm (required for next iteration)
             
         """
 
@@ -180,23 +172,20 @@ class SNOBFIT(Strategy):
 
     def to_dict(self):
         """Convert hyperparameters and internal state to a dictionary"""
-        d = super().to_dict()
         if self.prev_param is not None:
             params = deepcopy(self.prev_param)
             params[0] = (params[0][0].tolist(), params[0][1], params[0][2].tolist())
             params[1] = [p.to_dict() for p in params[1]]
         else: 
             params = None
-        d.update(dict(probability_p=self._p,
-                    dx_dim=self._dx_dim,
-                    prev_param=params))
-        return d
+        strategy_params = dict(probability_p=self._p,
+                               dx_dim=self._dx_dim,
+                               prev_param=params)
+        return super().to_dict(**strategy_params)
     
     @classmethod
     def from_dict(cls, d):
         snobfit = super().from_dict(d)
-        snobfit.probability_p = d['probability_p']
-        snobfit.dx_dim = d['dx_dim']
         params = d['prev_param']
         if params is not None:
             params[0] = (np.array(params[0][0]), params[0][1], np.array(params[0][2]))

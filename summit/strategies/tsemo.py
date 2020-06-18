@@ -128,17 +128,14 @@ class TSEMO2(Strategy):
             return None
 
     def to_dict(self):
-        d = super().to_dict()
-        d.update(dict(models=self.models.to_dict(),
-                      random_rate=self._random_rate))
-        return d
+        strategy_params = dict(models=self.models.to_dict(),
+                               random_rate=self._random_rate)
+        return super().to_dict(**strategy_params)
     
     @classmethod
     def from_dict(cls, d):
-        tsemo = super().from_dict(d)
-        tsemo._random_rate = d['random_rate']
-        tsemo.models = ModelGroup.from_dict(d['models'])
-        return tsemo
+        d.update({'models':ModelGroup.from_dict(d['models']) })
+        return super().from_dict(d)
 
     def select_max_hvi(self, y, samples, num_evals=1):
         '''  Returns the point(s) that maximimize hypervolume improvement 

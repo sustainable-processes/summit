@@ -7,7 +7,7 @@ from summit.utils.dataset import  DataSet
 import numpy as np
 import pandas as pd
 
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, abstractclassmethod
 from typing import Type, Tuple
 import json
 
@@ -264,24 +264,6 @@ class Strategy(ABC):
         no transformation will be done the input variables or
         objectives.
     
-    Returns
-    -------
-    result: `bool`
-        description
-    
-    Raises
-    ------
-    ValueError
-        description
-    
-    Examples
-    --------
-    
-    
-    Notes
-    -----
-    
-    
     ''' 
     def __init__(self, domain: Domain, transform: Transform=None, **kwargs):
         if transform is None:
@@ -296,22 +278,31 @@ class Strategy(ABC):
     def suggest_experiments(self):
         raise NotImplementedError("Strategies should inhereit this class and impelemnt suggest_experiments")
 
-    def to_dict(self):
-        super
+    def to_dict(self, **strategy_params):
+        """Convert strategy to jsonable format
+        
+        You can pass in as keyword arguments any custom parameters
+        for a strategy, which will be stored under the key strategy_params.
+        """
         return dict(name=self.__class__.__name__,
-                    transform=self.transform.to_dict())
+                    transform=self.transform.to_dict(),
+                    strategy_params=strategy_params)
 
     @classmethod
     def from_dict(cls, d):
+        """Create a strategy from a dictionary"""
         transform = transform_from_dict(d['transform'])
-        return cls(domain=transform.domain, transform=transform)
+        return cls(domain=transform.domain, transform=transform,
+                   **d['strategy_params'])
 
     def save(self, filename):
+        """Save a strategy to a JSON file"""
         with open(filename, 'w') as f:
             json.dump(self.to_dict(), f)
 
     @classmethod
     def load(cls, filename):
+        """Load a strategy from a JSON file"""
         with open(filename, 'r') as f:
             d = json.load(f)
         return cls.from_dict(d)
