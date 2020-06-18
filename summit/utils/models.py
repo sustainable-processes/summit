@@ -62,10 +62,12 @@ class ModelGroup:
         return cls(models)
 
 def model_from_dict(d):
-    if d['model_type'] == 'GPyModel':
+    if d['name'] == 'GPyModel':
         return GPyModel.from_dict(d)
-    elif d['model_type'] == 'AnalyticalModel':
+    elif d['name'] == 'AnalyticalModel':
         return AnalyticalModel.from_dict(d)
+    else:
+        raise TypeError(f"Model Type {d['name']} is not valid.")
  
 class GPyModel(BaseEstimator, RegressorMixin):
     ''' A Gaussian Process Regression model from GPy
@@ -203,7 +205,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
     
     def to_dict(self):
         _model = self._model.to_dict() if self._model is not None else self._model
-        return dict(model_type="GPyModel",
+        return dict(name="GPyModel",
                     _model=_model,
                     kernel = self._kernel.to_dict(),
                     noise_var = self._noise_var,
@@ -224,7 +226,6 @@ class GPyModel(BaseEstimator, RegressorMixin):
         m.output_std = np.array(d['output_std'])
         return m
 
-    
 class AnalyticalModel(Model):
     ''' An analytical model instead of statistical model
 

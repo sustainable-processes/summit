@@ -103,9 +103,9 @@ class TSEMO2(Strategy):
             lhs = LHS(self.domain)
             return lhs.suggest_experiments(num_experiments)
         elif prev_res is not None and self.all_experiments is None:
-            self.all_experiments = next_experiments
+            self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
-            self.all_experiments = self.all_experiments.concat(next_experiments)
+            self.all_experiments = self.all_experiments.concat(prev_res)
 
         # Get inputs and outputs
         inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
@@ -134,14 +134,20 @@ class TSEMO2(Strategy):
             return None
 
     def to_dict(self):
+        ae = self.all_experiments.to_dict() if self.all_experiments is not None else None 
         strategy_params = dict(models=self.models.to_dict(),
-                               random_rate=self._random_rate)
+                               random_rate=self._random_rate,
+                               all_experiments=ae)
         return super().to_dict(**strategy_params)
     
     @classmethod
     def from_dict(cls, d):
-        d.update({'models':ModelGroup.from_dict(d['models']) })
-        return super().from_dict(d)
+        d['strategy_params']['models'] = ModelGroup.from_dict(d['strategy_params']['models'])
+        tsemo =  super().from_dict(d)
+        ae = d['strategy_params']['all_experiments']
+        if ae is not None:
+            tsemo.all_experiments = DataSet.from_dict(ae)
+        return tsemo
 
     def select_max_hvi(self, y, samples, num_evals=1):
         '''  Returns the point(s) that maximimize hypervolume improvement 
