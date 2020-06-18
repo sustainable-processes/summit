@@ -19,7 +19,7 @@ import numpy
 from copy import deepcopy
 import numpy as np
 import pandas as pd
-
+import warnings
 
 class SNOBFIT(Strategy):
     """ SNOBFIT optimization algorithm from W. Huyer and A.Neumaier, University of Vienna.
@@ -156,7 +156,6 @@ class SNOBFIT(Strategy):
                 valid_next_experiments = True
                 # pass NaN if at least one constraint is violated
                 invalid_experiments[(obj_name, "DATA")] = np.nan
-            #
             elif len(invalid_experiments):
                 # pass NaN if at least one constraint is violated
                 invalid_experiments[(obj_name, "DATA")] = np.nan
@@ -168,13 +167,15 @@ class SNOBFIT(Strategy):
             c_iter += 1
 
         if c_iter >= inner_iter_tol:
-            raise ValueError(
+            warnings.warn(
                 "No new points found. Internal stopping criterion is reached."
             )
 
         # return only valid experiments (invalid experiments are stored in param[1])
         next_experiments = next_experiments.drop(("constraint", "DATA"), 1)
         self.prev_param = param
+        self.fbest = fbest
+        self.xbest = xbest
         return next_experiments
 
     def reset(self):
@@ -197,7 +198,7 @@ class SNOBFIT(Strategy):
     @classmethod
     def from_dict(cls, d):
         snobfit = super().from_dict(d)
-        params = d["prev_param"]
+        params = d["strategy_params"]["prev_param"]
         if params is not None:
             params[0] = (np.array(params[0][0]), params[0][1], np.array(params[0][2]))
             params[1] = [DataSet.from_dict(p) for p in params[1]]

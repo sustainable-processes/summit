@@ -7,6 +7,7 @@ from summit.benchmarks import test_functions
 
 import numpy as np
 import pandas as pd
+import os
 
 
 def test_random():
@@ -199,12 +200,14 @@ def test_snobfit(num_experiments, maximize, constraints):
     for i in range(num_iter):
         # Call of SNOBFIT
         next_experiments = strategy.suggest_experiments(
-            num_experiments, prev_res=next_experiments, prev_param=param
+            num_experiments, prev_res=next_experiments
         )
 
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
 
+        fbest = strategy.fbest
+        xbest = strategy.xbest
         if fbest < fbestold:
             fbestold = fbest
             nstop = 0
@@ -213,8 +216,6 @@ def test_snobfit(num_experiments, maximize, constraints):
         if nstop >= max_stop:
             print("No improvement in last " + str(max_stop) + " iterations.")
             break
-        print(next_experiments)  # show next experiments
-        print("\n")
 
     xbest = np.around(xbest, decimals=3)
     fbest = np.around(fbest, decimals=3)
@@ -223,6 +224,20 @@ def test_snobfit(num_experiments, maximize, constraints):
     assert fbest <= -3.85 and fbest >= -3.87
 
     # Test saving and loading
+    strategy.save('snobfit_test.json')
+    strategy_2 = SNOBFIT.load('snobfit_test.json')
+    
+    for a,b in zip(strategy.prev_param[0], strategy_2.prev_param[0]):
+        if type(a) == list:
+            assert all(a) == all(b)
+        elif type(a) == np.ndarray:
+            assert a.all() == b.all()
+        elif np.isnan(a):
+            assert np.isnan(b)
+        else:
+            assert a == b 
+    assert all(strategy.prev_param[1][0]) == all(strategy_2.prev_param[1][0])
+    os.remove('snobfit_test.json')
 
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 
