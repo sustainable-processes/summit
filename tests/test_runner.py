@@ -55,7 +55,6 @@ def test_runner_unit():
     r.save('test_runner.json')
     r_2 = Runner.load('test_runner.json')
 
-
 @pytest.mark.parametrize('strategy', [SNOBFIT, TSEMO2, NelderMead, Random, LHS])
 def test_runner_integration(strategy):
     class MockExperiment(Experiment):

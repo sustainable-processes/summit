@@ -11,58 +11,39 @@ except ImportError:
 
 import os.path
 
-readme = ""
+readme = ''
 here = os.path.abspath(os.path.dirname(__file__))
-readme_path = os.path.join(here, "README.rst")
+readme_path = os.path.join(here, 'README.rst')
 if os.path.exists(readme_path):
-    with open(readme_path, "rb") as stream:
-        readme = stream.read().decode("utf8")
+    with open(readme_path, 'rb') as stream:
+        readme = stream.read().decode('utf8')
 
 setup(
     long_description=readme,
-    name="summit",
-    version="0.3.0",
-    description="Tools for optimizing chemical processes",
-    python_requires="==3.*,>=3.6.0",
+    name='summit',
+    version='0.4.0',
+    description='Tools for optimizing chemical processes',
+    python_requires='==3.*,>=3.6.1',
     project_urls={
-        "homepage": "https://pypi.org/project/summit",
-        "repository": "https://github.com/sustainable-processes/summit",
+        'homepage': 'https://pypi.org/project/summit',
+        'repository': 'https://github.com/sustainable-processes/summit'
     },
-    author="Kobi Felton",
-    author_email="kobi.c.f@gmail.com",
-    packages=["summit", "summit.benchmarks", "summit.strategies", "summit.utils"],
+    author='Kobi Felton',
+    author_email='kobi.c.f@gmail.com',
+    packages=[
+        'summit', 'summit.benchmarks', 'summit.strategies', 'summit.utils'
+    ],
     package_data={},
     install_requires=[
-        "gpy==1.*,>=1.9.0",
-        "matplotlib==3.*,>=3.0.0",
-        "numpy==1.16.0",
-        "pandas==0.*,>=0.24.1",
-        "platypus-opt==1.*,>=1.0.0",
-        "sklearn==0.*,>=0.0.0",
+        'fastprogress==0.*,>=0.2.3', 'gpy==1.*,>=1.9.0', 'gpyopt==1.*,>=1.2.6',
+        'ipywidgets==7.*,>=7.5.1', 'numpy==1.16.0', 'pandas==1.0.3',
+        'platypus-opt==1.*,>=1.0.0', 'sklearn==0.*,>=0.0.0',
+        'sqsnobfit==0.*,>=0.4.3', 'tqdm==4.*,>=4.46.1'
     ],
     extras_require={
-        "dev": [
-            "anvil-uplink==0.*,>=0.3.22",
-            "black==18.*,>=18.3.0",
-            "cheminventory==0.*,>=0.2.1",
-            "inspyred==1.*,>=1.0.0",
-            "ipdb==0.*,>=0.12.0",
-            "ipywidgets==7.*,>=7.5.0",
-            "jupyter==1.*,>=1.0.0",
-            "jupyterlab==1.*,>=1.1.3",
-            "lxml==4.*,>=4.3.0",
-            "notify-run==0.*,>=0.0.11",
-            "panel==0.*,>=0.6.2",
-            "papermill==1.*,>=1.0.0",
-            "plotly==4.*,>=4.1.0",
-            "pubchempy==1.*,>=1.0.0",
-            "pytest==3.*,>=3.0.0",
-            "pytest-mock==1.*,>=1.10.0",
-            "python-dotenv==0.*,>=0.10.1",
-            "statsmodels==0.*,>=0.9.0",
-            "tqdm==4.*,>=4.31.0",
-            "voila==0.*,>=0.1.10",
-            "xlrd==1.*,>=1.2.0",
+        'dev': [
+            'black==19.*,>=19.10.0', 'ipdb==0.*,>=0.13.2',
+            'jupyterlab==2.*,>=2.1.4', 'pytest==3.*,>=3.0.0'
         ]
     },
 )

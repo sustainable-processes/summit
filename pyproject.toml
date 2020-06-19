@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "summit"
-version = "0.3.0"
+version = "0.4.0"
 description = "Tools for optimizing chemical processes"
 authors = ["Kobi Felton <kobi.c.f@gmail.com>"]
 license = ""
@@ -20,6 +20,7 @@ SQSnobFit = "^0.4.3"
 fastprogress = "^0.2.3"
 tqdm = "^4.46.1"
 ipywidgets = "^7.5.1"
+gpyopt = "^1.2.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
