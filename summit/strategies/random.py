@@ -58,7 +58,7 @@ class Random(Strategy):
         self.domain = domain
         self._rstate = random_state if random_state else np.random.RandomState()
 
-    def suggest_experiments(self, num_experiments: int) -> DataSet:
+    def suggest_experiments(self, num_experiments: int, **kwargs) -> DataSet:
         """ Suggest experiments for a random experimental design 
         
         Parameters
@@ -161,7 +161,7 @@ class LHS(Strategy):
         self._rstate = random_state if random_state else np.random.RandomState()
 
     def suggest_experiments(
-        self, num_experiments, criterion="center", unique=False, exclude=[]
+        self, num_experiments, criterion="center", unique=False, exclude=[], **kwargs
     ) -> DataSet:
         """ Generate latin hypercube intial design 
         
