@@ -39,13 +39,13 @@ def dtlz2_test():
             lab.run_experiments(experiments)
             
             # Get suggestions
-            # try:
-            experiments = tsemo.suggest_experiments(1, lab.data,
-                                                    **tsemo_options)
-            # except Exception as e:
-            #     print(e)
-            #     tsemo.save(f'data/python/{DATE}/tsemo_params_{errors}.json')
-            #     errors +=1
+            try:
+                experiments = tsemo.suggest_experiments(1, lab.data,
+                                                        **tsemo_options)
+            except Exception as e:
+                print(e)
+                tsemo.save(f'data/python/{DATE}/tsemo_params_{errors}.json')
+                errors +=1
     
         tsemo.save(f'data/python/{DATE}/tsemo_params_{j}.json')
         lab.data.to_csv(f'data/python/{DATE}/experiment_{j}.csv')
