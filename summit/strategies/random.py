@@ -1,4 +1,4 @@
-from .base import Strategy, Design, _closest_point_indices
+from .base import Strategy, Design, _closest_point_indices, Transform
 from summit.domain import (
     Domain,
     Variable,
@@ -54,8 +54,11 @@ class Random(Strategy):
     
     """
 
-    def __init__(self, domain: Domain, random_state: np.random.RandomState = None):
-        self.domain = domain
+    def __init__(self, domain: Domain, 
+                 transform: Transform = None,
+                 random_state: np.random.RandomState = None,
+                 ):
+        super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
 
     def suggest_experiments(self, num_experiments: int, **kwargs) -> DataSet:
@@ -156,8 +159,10 @@ class LHS(Strategy):
 
     """
 
-    def __init__(self, domain: Domain, random_state: np.random.RandomState = None):
-        self.domain = domain
+    def __init__(self, domain: Domain, 
+                transform: Transform = None,
+                random_state: np.random.RandomState = None):
+        super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
 
     def suggest_experiments(

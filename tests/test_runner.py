@@ -54,8 +54,9 @@ def test_runner_unit():
     # Check saving and loading functionality
     r.save('test_runner.json')
     r_2 = Runner.load('test_runner.json')
+    os.remove('test_runner.json')
 
-@pytest.mark.parametrize('strategy', [SNOBFIT, TSEMO2, NelderMead, Random, LHS])
+@pytest.mark.parametrize('strategy', [SOBO, SNOBFIT, TSEMO2, NelderMead, Random, LHS])
 def test_runner_integration(strategy):
     class MockExperiment(Experiment):
         def __init__(self):
@@ -88,4 +89,8 @@ def test_runner_integration(strategy):
                max_iterations=1,
                batch_size=1)
     r.run()
-    
+
+    #Try saving and loading
+    r.save('test_save.json')
+    r.load('test_save.json')
+    os.remove('test_save.json')    
