@@ -6,9 +6,11 @@ from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient, HvI
 from summit.strategies import *
 
+from fastprogress.fastprogress import progress_bar
 import numpy as np
 import pandas as pd
 import os
+import warnings
 
 
 def test_random():
@@ -172,13 +174,15 @@ def test_tsemo():
                num_objectives=num_objectives)
     strategy = TSEMO(lab.domain, random_rate=0.00)
     experiments = strategy.suggest_experiments(5*num_inputs)
+    warnings.filterwarnings('ignore',category=RuntimeWarning)
 
-    for i in range(100):
+    pb = progress_bar(range(100))
+    for i in pb:
         # Run experiments
         lab.run_experiments(experiments)
         
         # Get suggestions
-        options = dict(pop_size=100, iterations=100, use_spectral_sample=False)
+        options = dict(pop_size=100, iterations=100)
         experiments = strategy.suggest_experiments(1, lab.data,
                                                    **options)
     y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
