@@ -1,15 +1,21 @@
-from .base import Strategy, Design, _closest_point_indices
-from summit.domain import (Domain, Variable, ContinuousVariable, 
-                           DiscreteVariable, DescriptorsVariable,
-                           DomainError)
+from .base import Strategy, Design, _closest_point_indices, Transform
+from summit.domain import (
+    Domain,
+    Variable,
+    ContinuousVariable,
+    DiscreteVariable,
+    DescriptorsVariable,
+    DomainError,
+)
 from summit.utils.dataset import DataSet
 
 import numpy as np
 import pandas as pd
 from typing import Type, Tuple
 
+
 class Random(Strategy):
-    ''' Random strategy for experiment suggestion
+    """ Random strategy for experiment suggestion
 
     Parameters
     ---------- 
@@ -46,12 +52,16 @@ class Random(Strategy):
     -----
     Descriptors variables are selected randomly as if they were discrete variables instead of sampling evenly in the continuous space.
     
-    ''' 
-    def __init__(self, domain: Domain, random_state: np.random.RandomState=None):
-        self.domain = domain
+    """
+
+    def __init__(self, domain: Domain, 
+                 transform: Transform = None,
+                 random_state: np.random.RandomState = None,
+                 ):
+        super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
-    
-    def suggest_experiments(self, num_experiments: int) -> DataSet:
+
+    def suggest_experiments(self, num_experiments: int, **kwargs) -> DataSet:
         """ Suggest experiments for a random experimental design 
         
         Parameters
@@ -64,37 +74,41 @@ class Random(Strategy):
         ds
             A `Dataset` object with the random design
         """
-        design = Design(self.domain, num_experiments, 'random')
+        design = Design(self.domain, num_experiments, "random")
 
         for i, variable in enumerate(self.domain.variables):
             if variable.is_objective:
                 continue
-            if variable.variable_type == 'continuous':
+            if variable.variable_type == "continuous":
                 values = self._random_continuous(variable, num_experiments)
                 indices = None
-            elif variable.variable_type == 'discrete':
+            elif variable.variable_type == "discrete":
                 indices, values = self._random_discrete(variable, num_experiments)
-            elif variable.variable_type == 'descriptors':
+            elif variable.variable_type == "descriptors":
                 indices, values = self._random_descriptors(variable, num_experiments)
             else:
-                raise DomainError(f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors).")
+                raise DomainError(
+                    f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors)."
+                )
 
             design.add_variable(variable.name, values, indices=indices)
-        
+
         ds = design.to_dataset()
-        ds[('strategy', 'METADATA')] = "Random"
+        ds[("strategy", "METADATA")] = "Random"
         return ds
 
-    def _random_continuous(self, variable: ContinuousVariable,
-                           num_samples: int) -> np.ndarray:
+    def _random_continuous(
+        self, variable: ContinuousVariable, num_samples: int
+    ) -> np.ndarray:
         """Generate a random design for a given continuous variable"""
         sample = self._rstate.rand(num_samples, 1)
-        b = variable.lower_bound*np.ones([num_samples, 1])
-        values = b + sample*(variable.upper_bound-variable.lower_bound)
+        b = variable.lower_bound * np.ones([num_samples, 1])
+        values = b + sample * (variable.upper_bound - variable.lower_bound)
         return np.atleast_2d(values).T
 
-    def _random_discrete(self, variable: DiscreteVariable,
-                        num_samples: int) -> Tuple[np.ndarray, np.ndarray]:
+    def _random_discrete(
+        self, variable: DiscreteVariable, num_samples: int
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Generate a random design for a given discrete variable"""
         indices = self._rstate.randint(0, variable.num_levels, size=num_samples)
         values = variable.levels[indices, :]
@@ -102,17 +116,19 @@ class Random(Strategy):
         indices.shape = (num_samples, 1)
         return indices, values
 
-    def _random_descriptors(self, variable: DescriptorsVariable,
-                            num_samples: int) -> Tuple[np.ndarray, np.ndarray]:
+    def _random_descriptors(
+        self, variable: DescriptorsVariable, num_samples: int
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """Generate a design for a given descriptors variable"""
-        indices = self._rstate.randint(0, variable.num_examples-1, size=num_samples)
+        indices = self._rstate.randint(0, variable.num_examples - 1, size=num_samples)
         values = variable.ds.data_to_numpy()[indices, :]
         values.shape = (num_samples, variable.num_descriptors)
         indices.shape = (num_samples, 1)
         return indices, values
 
+
 class LHS(Strategy):
-    ''' Latin hypercube sampling (LHS) strategy for experiment suggestion
+    """ Latin hypercube sampling (LHS) strategy for experiment suggestion
 
     Parameters
     ---------- 
@@ -141,14 +157,17 @@ class LHS(Strategy):
     4           75.0       0.38       0.22      LHS
 
 
-    ''' 
-    def __init__(self, domain: Domain, random_state: np.random.RandomState=None):
-        self.domain = domain
+    """
+
+    def __init__(self, domain: Domain, 
+                transform: Transform = None,
+                random_state: np.random.RandomState = None):
+        super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
 
-    def suggest_experiments(self, num_experiments, 
-                            criterion='center', unique=False,
-                            exclude = []) -> DataSet:
+    def suggest_experiments(
+        self, num_experiments, criterion="center", unique=False, exclude=[], **kwargs
+    ) -> DataSet:
         """ Generate latin hypercube intial design 
         
         Parameters
@@ -169,62 +188,75 @@ class LHS(Strategy):
         ds
             A `Dataset` object with the random design
         """
-        design = Design(self.domain, num_experiments, 'Latin design', exclude=exclude)
-        
-        #Instantiate the random design class to be used with discrete variables
+        design = Design(self.domain, num_experiments, "Latin design", exclude=exclude)
+
+        # Instantiate the random design class to be used with discrete variables
         rdesigner = Random(self.domain, random_state=self._rstate)
 
         num_discrete = self.domain.num_discrete_variables()
         n = self.domain.num_continuous_dimensions()
         if num_discrete < n:
-            samples = lhs(n, samples=num_experiments, criterion=criterion, 
-                          random_state=self._rstate)
-        
+            samples = lhs(
+                n,
+                samples=num_experiments,
+                criterion=criterion,
+                random_state=self._rstate,
+            )
+
         design.lhs = samples
-        k=0
+        k = 0
         for variable in self.domain.variables:
             if variable.name in exclude:
                 continue
 
             if variable.is_objective:
                 continue
-                
-            #For continuous variable, use samples directly
-            if variable.variable_type == 'continuous':
-                b = variable.lower_bound*np.ones(num_experiments)
-                values = b + samples[:, k]*(variable.upper_bound-variable.lower_bound)
+
+            # For continuous variable, use samples directly
+            if variable.variable_type == "continuous":
+                b = variable.lower_bound * np.ones(num_experiments)
+                values = b + samples[:, k] * (
+                    variable.upper_bound - variable.lower_bound
+                )
                 values = np.atleast_2d(values)
                 indices = None
-                k+=1
+                k += 1
 
-            #For discrete variable, randomly choose
-            elif variable.variable_type == 'discrete':
+            # For discrete variable, randomly choose
+            elif variable.variable_type == "discrete":
                 indices, values = rdesigner._random_discrete(variable, num_experiments)
 
-            #For descriptors variable, choose closest point by euclidean distance
-            elif variable.variable_type == 'descriptors':
+            # For descriptors variable, choose closest point by euclidean distance
+            elif variable.variable_type == "descriptors":
                 num_descriptors = variable.num_descriptors
                 normal_arr = variable.ds.zero_to_one()
-                indices = _closest_point_indices(samples[:, k:k+num_descriptors],
-                                                 normal_arr, unique=unique)
-               
+                indices = _closest_point_indices(
+                    samples[:, k : k + num_descriptors], normal_arr, unique=unique
+                )
+
                 values = normal_arr[indices[:, 0], :]
-                var_min = variable.ds.loc[:, variable.ds.data_columns].min(axis=0).to_numpy()
+                var_min = (
+                    variable.ds.loc[:, variable.ds.data_columns].min(axis=0).to_numpy()
+                )
                 var_min = np.atleast_2d(var_min)
-                var_max = variable.ds.loc[:, variable.ds.data_columns].max(axis=0).to_numpy()
+                var_max = (
+                    variable.ds.loc[:, variable.ds.data_columns].max(axis=0).to_numpy()
+                )
                 var_max = np.atleast_2d(var_max)
-                var_range = var_max-var_min
-                values_scaled = var_min + values*var_range
-                values= values_scaled
+                var_range = var_max - var_min
+                values_scaled = var_min + values * var_range
+                values = values_scaled
                 values.shape = (num_experiments, num_descriptors)
-                k+=num_descriptors
+                k += num_descriptors
 
             else:
-                raise DomainError(f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors).")
+                raise DomainError(
+                    f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors)."
+                )
 
             design.add_variable(variable.name, values, indices=indices)
         ds = design.to_dataset()
-        ds[('strategy', 'METADATA')] = "LHS"
+        ds[("strategy", "METADATA")] = "LHS"
         return ds
 
 
@@ -242,6 +274,8 @@ Much thanks goes to these individuals. It has been converted to Python by
 Abraham Lee.
 
 """
+
+
 def lhs(n, samples=None, criterion=None, iterations=None, random_state=None):
     """
     Generate a latin-hypercube design
@@ -323,112 +357,127 @@ def lhs(n, samples=None, criterion=None, iterations=None, random_state=None):
 
     if samples is None:
         samples = n
-    
+
     if criterion is not None:
-        assert criterion.lower() in ('center', 'c', 'maximin', 'm', 
-            'centermaximin', 'cm', 'correlation', 
-            'corr'), 'Invalid value for "criterion": {}'.format(criterion)
+        assert criterion.lower() in (
+            "center",
+            "c",
+            "maximin",
+            "m",
+            "centermaximin",
+            "cm",
+            "correlation",
+            "corr",
+        ), 'Invalid value for "criterion": {}'.format(criterion)
     else:
         H = _lhsclassic(n, samples, random_state)
 
     if criterion is None:
-        criterion = 'center'
-    
+        criterion = "center"
+
     if iterations is None:
         iterations = 5
-        
+
     if H is None:
-        if criterion.lower() in ('center', 'c'):
+        if criterion.lower() in ("center", "c"):
             H = _lhscentered(n, samples, random_state)
-        elif criterion.lower() in ('maximin', 'm'):
-            H = _lhsmaximin(n, samples, iterations, 'maximin', random_state)
-        elif criterion.lower() in ('centermaximin', 'cm'):
-            H = _lhsmaximin(n, samples, iterations, 'centermaximin', random_state)
-        elif criterion.lower() in ('correlation', 'corr'):
+        elif criterion.lower() in ("maximin", "m"):
+            H = _lhsmaximin(n, samples, iterations, "maximin", random_state)
+        elif criterion.lower() in ("centermaximin", "cm"):
+            H = _lhsmaximin(n, samples, iterations, "centermaximin", random_state)
+        elif criterion.lower() in ("correlation", "corr"):
             H = _lhscorrelate(n, samples, iterations, random_state)
-    
+
     return H
+
 
 ################################################################################
 
+
 def _lhsclassic(n, samples, random_state):
     # Generate the intervals
-    cut = np.linspace(0, 1, samples + 1)    
-    
+    cut = np.linspace(0, 1, samples + 1)
+
     # Fill points uniformly in each interval
     u = random_state.rand(samples, n)
     a = cut[:samples]
-    b = cut[1:samples + 1]
+    b = cut[1 : samples + 1]
     rdpoints = np.zeros_like(u)
     for j in range(n):
-        rdpoints[:, j] = u[:, j]*(b-a) + a
-    
+        rdpoints[:, j] = u[:, j] * (b - a) + a
+
     # Make the random pairings
     H = np.zeros_like(rdpoints)
     for j in range(n):
         order = random_state.permutation(range(samples))
         H[:, j] = rdpoints[order, j]
-    
+
     return H
-    
+
+
 ################################################################################
+
 
 def _lhscentered(n, samples, random_state):
     # Generate the intervals
-    cut = np.linspace(0, 1, samples + 1)    
-    
+    cut = np.linspace(0, 1, samples + 1)
+
     # Fill points uniformly in each interval
     u = random_state.rand(samples, n)
     a = cut[:samples]
-    b = cut[1:samples + 1]
-    _center = (a + b)/2
-    
+    b = cut[1 : samples + 1]
+    _center = (a + b) / 2
+
     # Make the random pairings
     H = np.zeros_like(u)
     for j in range(n):
         H[:, j] = random_state.permutation(_center)
-    
+
     return H
-    
+
+
 ################################################################################
 
-def _lhsmaximin(n, samples, iterations, lhstype, 
-                random_state):
+
+def _lhsmaximin(n, samples, iterations, lhstype, random_state):
     maxdist = 0
-    
+
     # Maximize the minimum distance between points
     for i in range(iterations):
-        if lhstype=='maximin':
+        if lhstype == "maximin":
             Hcandidate = _lhsclassic(n, samples, random_state)
         else:
             Hcandidate = _lhscentered(n, samples, random_state)
-        
+
         d = _pdist(Hcandidate)
-        if maxdist<np.min(d):
+        if maxdist < np.min(d):
             maxdist = np.min(d)
             H = Hcandidate.copy()
-    
+
     return H
+
 
 ################################################################################
 
-def _lhscorrelate(n, samples, iterations,
-                  random_state):
+
+def _lhscorrelate(n, samples, iterations, random_state):
     mincorr = np.inf
-    
+
     # Minimize the components correlation coefficients
     for i in range(iterations):
         # Generate a random LHS
         Hcandidate = _lhsclassic(n, samples, random_state)
         R = np.corrcoef(Hcandidate)
-        if np.max(np.abs(R[R!=1]))<mincorr:
-            mincorr = np.max(np.abs(R-np.eye(R.shape[0])))
+        if np.max(np.abs(R[R != 1])) < mincorr:
+            mincorr = np.max(np.abs(R - np.eye(R.shape[0])))
             # print('new candidate solution found with max,abs corrcoef = {}'.format(mincorr))
             H = Hcandidate.copy()
-    
+
     return H
-    
+
+
 ################################################################################
+
 
 def _pdist(x):
     """
@@ -448,16 +497,16 @@ def _pdist(x):
     
               
     """
-    
+
     x = np.atleast_2d(x)
-    assert len(x.shape)==2, 'Input array must be 2d-dimensional'
-    
+    assert len(x.shape) == 2, "Input array must be 2d-dimensional"
+
     m, n = x.shape
-    if m<2:
+    if m < 2:
         return []
-    
+
     d = []
     for i in range(m - 1):
         for j in range(i + 1, m):
-            d.append((sum((x[j, :] - x[i, :])**2))**0.5)
+            d.append((sum((x[j, :] - x[i, :]) ** 2)) ** 0.5)
     return np.array(d)

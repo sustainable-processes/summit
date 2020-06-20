@@ -23,7 +23,7 @@ setup(
     name='summit',
     version='0.4.0',
     description='Tools for optimizing chemical processes',
-    python_requires='==3.*,>=3.6.0',
+    python_requires='==3.*,>=3.6.1',
     project_urls={
         'homepage': 'https://pypi.org/project/summit',
         'repository': 'https://github.com/sustainable-processes/summit'
@@ -35,14 +35,15 @@ setup(
     ],
     package_data={},
     install_requires=[
-        'gpy==1.*,>=1.9.0', 'gpyopt==1.*,>=1.2.6', 'numpy==1.16.0',
-        'pandas==0.25.3', 'platypus-opt==1.*,>=1.0.0', 'sklearn==0.*,>=0.0.0',
-        'sqsnobfit==0.*,>=0.4.3'
+        'fastprogress==0.*,>=0.2.3', 'gpy==1.*,>=1.9.0', 'gpyopt==1.*,>=1.2.6',
+        'ipywidgets==7.*,>=7.5.1', 'numpy==1.16.0', 'pandas==1.0.3',
+        'platypus-opt==1.*,>=1.0.0', 'sklearn==0.*,>=0.0.0',
+        'sqsnobfit==0.*,>=0.4.3', 'tqdm==4.*,>=4.46.1'
     ],
     extras_require={
         'dev': [
-            'ipdb==0.*,>=0.13.2', 'jupyterlab==2.*,>=2.1.1',
-            'pytest==3.*,>=3.0.0'
+            'black==19.*,>=19.10.0', 'ipdb==0.*,>=0.13.2',
+            'jupyterlab==2.*,>=2.1.4', 'pytest==3.*,>=3.0.0'
         ]
     },
 )

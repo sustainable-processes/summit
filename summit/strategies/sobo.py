@@ -64,8 +64,9 @@ class SOBO(Strategy):
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
     >>> domain += DiscreteVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
     >>> strategy = SOBO(domain)
-    >>> result, xbest, fbest, param = strategy.suggest_experiments(5)
+    >>> next_experiments = strategy.suggest_experiments(5)
 
     '''
 
@@ -167,10 +168,10 @@ class SOBO(Strategy):
         self.ARD = kwargs.get('ARD', True)
         # Standardization of outputs?
         self.standardize_outputs = kwargs.get('standardize_outputs', True)
+        self.prev_param = None
 
-
-    def suggest_experiments(self, num_experiments, 
-                            prev_res: DataSet=None, prev_param=None):
+    def suggest_experiments(self, num_experiments=1, 
+                            prev_res: DataSet=None, **kwargs):
         """ Suggest experiments using GPyOpt single-objective Bayesian Optimization
         
         Parameters
@@ -198,8 +199,10 @@ class SOBO(Strategy):
         """
 
         param = None
-        xbest = None
-        fbest = float("inf")
+        xbest = np.zeros(self.domain.num_continuous_dimensions())
+        obj = self.domain.output_variables[0]
+        objective_dir = -1.0 if obj.maximize else 1.0
+        fbest = objective_dir*float("inf")
 
         # Suggest random initial design
         if prev_res is None:
@@ -210,7 +213,6 @@ class SOBO(Strategy):
             '''
             feasible_region = GPyOpt.Design_space(space=self.input_domain, constraints=self.constraints)
             request = GPyOpt.experiment_design.initial_design('random', feasible_region, num_experiments)
-
         else:
             # Get inputs and outputs
             inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
@@ -223,9 +225,9 @@ class SOBO(Strategy):
             inputs = inputs.to_numpy()
             outputs = outputs.to_numpy()
 
-            if prev_param is not None:
-                X_step = prev_param[0]
-                Y_step = prev_param[1]
+            if self.prev_param is not None:
+                X_step = self.prev_param[0]
+                Y_step = self.prev_param[1]
 
                 X_step = np.vstack((X_step, inputs))
                 Y_step = np.vstack((Y_step, outputs))
@@ -270,9 +272,33 @@ class SOBO(Strategy):
                     i_inp += 1
             next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
             next_experiments[('strategy', 'METADATA')] = 'Single-objective BayOpt'
+        
+        self.fbest= fbest
+        self.xbest = xbest
+        self.prev_param = param
+        return next_experiments
 
-        return next_experiments, xbest, fbest, param
+    def reset(self):
+        """Reset the internal parameters"""
+        self.prev_param = None
 
+    def to_dict(self):
+        if self.prev_param is not None:
+            param = [self.prev_param[0].tolist(), 
+                    self.prev_param[1].tolist()]
+            strategy_params = dict(prev_param=param)
+        else:
+            strategy_params = dict(prev_param=None)
+        return super().to_dict(**strategy_params)
+
+    @classmethod
+    def from_dict(cls, d):
+        sobo = super().from_dict(d)
+        param = d['strategy_params']['prev_param']
+        if param is not None:
+            param = [np.array(param[0]), np.array(param[1])]
+            sobo.prev_param = param
+        return sobo
 
     def constr_wrapper(self, summit_domain):
         v_input_names = [v.name for v in summit_domain.variables if not v.is_objective]

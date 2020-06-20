@@ -19,4 +19,3 @@
 # ucb_list = pd.read_csv(UCB_PHARMA_APPROVED_LIST)
 # ucb_list = ucb_list.set_index('cas_number')
 # ucb_ds = DataSet.from_df(ucb_list, metadata_columns=['solvent_class', 'solvent_name'])
-

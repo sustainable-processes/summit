@@ -1,27 +1,28 @@
-from .base import Strategy
+from .base import Strategy, Transform
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 
 from SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
 from SQSnobFit._snobinput import snobinput
-from SQSnobFit._snoblocf  import snoblocf, snobround
-from SQSnobFit._snoblp    import snoblp
-from SQSnobFit._snobnan   import snobnan
-from SQSnobFit._snobnn   import snobnn
+from SQSnobFit._snoblocf import snoblocf, snobround
+from SQSnobFit._snoblp import snoblp
+from SQSnobFit._snobnan import snobnan
+from SQSnobFit._snobnn import snobnn
 from SQSnobFit._snobpoint import snobpoint
-from SQSnobFit._snobqfit  import snobqfit
+from SQSnobFit._snobqfit import snobqfit
 from SQSnobFit._snobsplit import snobsplit
-from SQSnobFit._snobupdt  import snobupdt
-from SQSnobFit._snob5     import snob5
+from SQSnobFit._snobupdt import snobupdt
+from SQSnobFit._snob5 import snob5
 
 import math
 import numpy
-
+from copy import deepcopy
 import numpy as np
 import pandas as pd
+import warnings
 
 class SNOBFIT(Strategy):
-    ''' SNOBFIT optimization algorithm from W. Huyer and A.Neumaier, University of Vienna.
+    """ SNOBFIT optimization algorithm from W. Huyer and A.Neumaier, University of Vienna.
 
     Parameters
     ----------
@@ -75,46 +76,36 @@ class SNOBFIT(Strategy):
     >>> df = pd.DataFrame(data=d)
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
-    >>> next_experiments, xbest, fbest, res = strategy.suggest_experiments(5, initial)
-
-
-
-    '''
+    >>> next_experiments = strategy.suggest_experiments(5, initial)
+    """
 
     def __init__(self, domain: Domain, **kwargs):
         Strategy.__init__(self, domain, **kwargs)
 
-        self._p = kwargs.get('probability_p', 0.5)
-        self._dx_dim = kwargs.get('dx_dim', 1E-5)
+        self._p = kwargs.get("probability_p", 0.5)
+        self._dx_dim = kwargs.get("dx_dim", 1e-5)
+        self.prev_param = None
 
-    def suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
+    def suggest_experiments(
+        self, num_experiments=1, prev_res: DataSet = None, **kwargs
+    ):
         """ Suggest experiments using the SNOBFIT method
 
-                Parameters
-                ----------
-                num_experiments: int
-                    The number of experiments (i.e., samples) to generate
-                prev_res: summit.utils.data.DataSet, optional
-                    Dataset with data from previous experiments.
-                    If no data is passed, the SNOBFIT optimization algorithm
-                    will be initialized and suggest initial experiments.
-                prev_param: file.txt TODO: how to handle this?
-                    File with parameters of SNOBFIT algorithm from previous
-                    iterations of a optimization problem.
-                    If no data is passed, the SNOBFIT optimization algorithm
-                    will be initialized.
+        Parameters
+        ----------
+        num_experiments: int, optional
+            The number of experiments (i.e., samples) to generate. Default is 1.
+        prev_res: summit.utils.data.DataSet, optional
+            Dataset with data from previous experiments.
+            If no data is passed, the SNOBFIT optimization algorithm
+            will be initialized and suggest initial experiments.
 
-                Returns
-                -------
-                next_experiments: DataSet
-                    A `Dataset` object with the suggested experiments by SNOBFIT algorithm
-                xbest: list
-                    List with variable settings of experiment with best outcome
-                fbest: float
-                    Objective value at xbest
-                param: list
-                    List with parameters and prev_param of SNOBFIT algorithm (required for next iteration)
-                """
+        Returns
+        -------
+        next_experiments: DataSet
+            A `Dataset` object with the suggested experiments by SNOBFIT algorithm
+            
+        """
 
         # get objective name and whether optimization is maximization problem
         obj_name = None
@@ -123,18 +114,20 @@ class SNOBFIT(Strategy):
             if v.is_objective:
                 i += 1
                 if i > 1:
-                    raise ValueError("Nelder-Mead is not able to optimize multiple objectives, please use transform.")
+                    raise ValueError(
+                        "SNOBFIT is not able to optimize multiple objectives, please use transform."
+                    )
                 obj_name = v.name
 
         # get parameters from previous iterations
         inner_prev_param = None
-        if prev_param is not None:
+        if self.prev_param is not None:
             # get parameters for Nelder-Mead from previous iterations
-            inner_prev_param = prev_param[0]
+            inner_prev_param = self.prev_param[0]
             # recover invalid experiments from previous iteration
-            if prev_param[1] is not None:
-                invalid_res = prev_param[1][0].drop(('constraint','DATA'),1)
-                prev_res = pd.concat([prev_res,invalid_res])
+            if self.prev_param[1] is not None:
+                invalid_res = self.prev_param[1][0].drop(("constraint", "DATA"), 1)
+                prev_res = pd.concat([prev_res, invalid_res])
 
         ## Generation of new suggested experiments.
         # An inner function is called loop-wise to get valid experiments and
@@ -146,35 +139,75 @@ class SNOBFIT(Strategy):
         next_experiments = None
         while not valid_next_experiments and c_iter < inner_iter_tol:
             valid_next_experiments = False
-            next_experiments, xbest, fbest, param = self.inner_suggest_experiments(num_experiments=num_experiments,
-                                                                                   prev_res=prev_res,
-                                                                                   prev_param=inner_prev_param)
-            invalid_experiments = next_experiments.loc[next_experiments[('constraint', 'DATA')] == False]
-            next_experiments = next_experiments.loc[next_experiments[('constraint', 'DATA')] != False]
+            next_experiments, xbest, fbest, param = self.inner_suggest_experiments(
+                num_experiments=num_experiments,
+                prev_res=prev_res,
+                prev_param=inner_prev_param,
+            )
+            # Invalid experiments hidden from data returned to user but stored internally elswehere
+            invalid_experiments = next_experiments.loc[
+                next_experiments[("constraint", "DATA")] == False
+            ]
+            next_experiments = next_experiments.loc[
+                next_experiments[("constraint", "DATA")] != False
+            ]
             prev_res = prev_res
             if len(next_experiments) and len(invalid_experiments):
                 valid_next_experiments = True
                 # pass NaN if at least one constraint is violated
-                invalid_experiments[(obj_name, 'DATA')] = np.nan
-            #
+                invalid_experiments[(obj_name, "DATA")] = np.nan
             elif len(invalid_experiments):
                 # pass NaN if at least one constraint is violated
-                invalid_experiments[(obj_name, 'DATA')] = np.nan
+                invalid_experiments[(obj_name, "DATA")] = np.nan
                 prev_res = invalid_experiments
             else:
                 valid_next_experiments = True
             inner_prev_param = param
             param = [param, [invalid_experiments]]
             c_iter += 1
-            
+
         if c_iter >= inner_iter_tol:
-            raise ValueError("No new points found. Internal stopping criterion is reached.")
+            warnings.warn(
+                "No new points found. Internal stopping criterion is reached."
+            )
 
         # return only valid experiments (invalid experiments are stored in param[1])
-        next_experiments = next_experiments.drop(('constraint', 'DATA'), 1)
-        return next_experiments, xbest, fbest, param
+        next_experiments = next_experiments.drop(("constraint", "DATA"), 1)
+        self.prev_param = param
+        self.fbest = fbest
+        self.xbest = xbest
+        return next_experiments
 
-    def inner_suggest_experiments(self, num_experiments, prev_res: DataSet=None, prev_param=None):
+    def reset(self):
+        """Reset internal parameters"""
+        self.prev_param = None
+
+    def to_dict(self):
+        """Convert hyperparameters and internal state to a dictionary"""
+        if self.prev_param is not None:
+            params = deepcopy(self.prev_param)
+            params[0] = (params[0][0].tolist(), params[0][1], params[0][2].tolist())
+            params[1] = [p.to_dict() for p in params[1]]
+        else:
+            params = None
+        strategy_params = dict(
+            probability_p=self._p, dx_dim=self._dx_dim, prev_param=params
+        )
+        return super().to_dict(**strategy_params)
+
+    @classmethod
+    def from_dict(cls, d):
+        snobfit = super().from_dict(d)
+        params = d["strategy_params"]["prev_param"]
+        if params is not None:
+            params[0] = (np.array(params[0][0]), params[0][1], np.array(params[0][2]))
+            params[1] = [DataSet.from_dict(p) for p in params[1]]
+        snobfit.prev_param = params
+        return snobfit
+
+    def inner_suggest_experiments(
+        self, num_experiments, prev_res: DataSet = None, prev_param=None
+    ):
         """ Inner loop for generation of suggested experiments using the SNOBFIT method
 
         Parameters
@@ -223,31 +256,33 @@ class SNOBFIT(Strategy):
         # Get previous results
         if prev_res is not None:
             inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
-            
+
             # Set up maximization and minimization
             for v in self.domain.variables:
                 if v.is_objective and v.maximize:
                     outputs[v.name] = -1 * outputs[v.name]
-                    
+
             x0 = inputs.data_to_numpy()
             y0 = outputs.data_to_numpy()
 
             # Add uncertainties to measurements TODO: include uncertainties in input
             y = []
             for i in range(y0.shape[0]):
-                y.append([y0[i].tolist()[0],math.sqrt(numpy.spacing(1))])
+                y.append([y0[i].tolist()[0], math.sqrt(numpy.spacing(1))])
             y0 = np.asarray(y, dtype=float)
         # If no prev_res are given but prev_param -> raise error
         elif prev_param is not None:
-            raise ValueError('Parameter from previous optimization iteration are given but previous results are '
-                             'missing!')
+            raise ValueError(
+                "Parameter from previous optimization iteration are given but previous results are "
+                "missing!"
+            )
 
         # if no previous results are given initialize with empty lists
         if not len(x0):
-            x0 = np.array(x0).reshape(0,len(bounds))
-            y0 = np.array(y0).reshape(0,2)
+            x0 = np.array(x0).reshape(0, len(bounds))
+            y0 = np.array(y0).reshape(0, 2)
 
-        ''' Determine SNOBFIT parameters
+        """ Determine SNOBFIT parameters
           config       structure variable defining the box [u,v] in which the
                        points are to be generated, the number nreq of
                        points to be generated and the probability p that a
@@ -260,9 +295,9 @@ class SNOBFIT(Strategy):
                        stnp.spacing(1), i.e., two points are considered to be different
                        if they differ by at least dx(i) in at least one
                        coordinate i
-        '''
-        config = {'bounds': bounds, 'p': self._p, 'nreq': num_experiments}
-        dx = (bounds[:,1]-bounds[:,0])*self._dx_dim
+        """
+        config = {"bounds": bounds, "p": self._p, "nreq": num_experiments}
+        dx = (bounds[:, 1] - bounds[:, 0]) * self._dx_dim
 
         # Run SNOBFIT for one iteration
         request, xbest, fbest, param = self.snobfit(x0, y0, config, dx, prev_param)
@@ -283,14 +318,13 @@ class SNOBFIT(Strategy):
 
         if stay_inner:
             # add infinity as
-            next_experiments[('constraint', 'DATA')] = False
+            next_experiments[("constraint", "DATA")] = False
         else:
             # add optimization strategy
-            next_experiments[('constraint', 'DATA')] = mask_valid_next_experiments
-            next_experiments[('strategy', 'METADATA')] = ['SNOBFIT'] * len(request)
+            next_experiments[("constraint", "DATA")] = mask_valid_next_experiments
+            next_experiments[("strategy", "METADATA")] = ["SNOBFIT"] * len(request)
 
         return next_experiments, xbest, fbest, param
-
 
     """
     The following snobfit code was copied and modified from the SQSnobFit package and was originally published by
@@ -361,18 +395,19 @@ class SNOBFIT(Strategy):
       fbest        current best function value (i.e. function value at xbest)
       res          current results (this iteration) including results from previous iterations
     """
+
     def snobfit(self, x, f, config, dx=None, prev_param=None):
         ind = find(f[:, 1] <= 0)
         if not (ind.size <= 0 or numpy.all(ind == 0)):
             f[ind, 1] = math.sqrt(numpy.spacing(1))  # may be wrong
 
         rho = 0.5 * (math.sqrt(5) - 1)  # golden section number
-        bounds = config['bounds']
+        bounds = config["bounds"]
         u1 = bounds[:, 0].reshape(1, len(bounds))  # lower
         v1 = bounds[:, 1].reshape(1, len(bounds))  # upper
 
-        nreq = config['nreq']
-        p = config['p']
+        nreq = config["nreq"]
+        p = config["p"]
         n = u1.shape[1]  # dimension of the problem
         nneigh = n + 5  # number of nearest neighbors
 
@@ -380,7 +415,7 @@ class SNOBFIT(Strategy):
         # points suggested in a single call to Snobfit
         if prev_param is None:  # a new job is started
             if numpy.any(dx <= 0):
-                raise ValueError('dx should contain only positive entries')
+                raise ValueError("dx should contain only positive entries")
 
             if dx.shape[0] > 1:
                 dx = dx.T
@@ -429,7 +464,9 @@ class SNOBFIT(Strategy):
                 sigma = numpy.zeros(jsize)
                 f = extend(f, 1)
                 for j in inew:
-                    y[j], f[j, 2], c, sigma[j] = snoblocf(j, x, f[:, 0:2], near, dx, u, v)
+                    y[j], f[j, 2], c, sigma[j] = snoblocf(
+                        j, x, f[:, 0:2], near, dx, u, v
+                    )
                     g[j] = c.reshape(1, len(c))
 
                 fbest, jbest = min_(f[:, 0])
@@ -440,7 +477,10 @@ class SNOBFIT(Strategy):
                 d = numpy.inf * numpy.ones((1, len(x)))
 
                 x5 = snob5(x, u1, v1, dx, nreq)
-                request = numpy.concatenate((x5, numpy.nan * numpy.ones((nreq, 1)), 5 * numpy.ones((nreq, 1))), 1)
+                request = numpy.concatenate(
+                    (x5, numpy.nan * numpy.ones((nreq, 1)), 5 * numpy.ones((nreq, 1))),
+                    1,
+                )
                 if x.size > 0 and f.size > 0:
                     fbest, jbest = min_(f[:, 0])
                     xbest = x[jbest]
@@ -452,17 +492,71 @@ class SNOBFIT(Strategy):
                     snobwarn()
 
                 y = None
-                im_storage = (xbest, fbest, x, f, xl, xu, y, nsplit, small, near, d, np, t, fnan, u, v, dx)
+                im_storage = (
+                    xbest,
+                    fbest,
+                    x,
+                    f,
+                    xl,
+                    xu,
+                    y,
+                    nsplit,
+                    small,
+                    near,
+                    d,
+                    np,
+                    t,
+                    fnan,
+                    u,
+                    v,
+                    dx,
+                )
                 return request, xbest, fbest, im_storage
         else:
             xnew = x.copy()
             fnew = f.copy()
-            xbest, fbest, x, f, xl, xu, y, nsplit, small, near, d, np, t, fnan, u, v, dx = prev_param
+            (
+                xbest,
+                fbest,
+                x,
+                f,
+                xl,
+                xu,
+                y,
+                nsplit,
+                small,
+                near,
+                d,
+                np,
+                t,
+                fnan,
+                u,
+                v,
+                dx,
+            ) = prev_param
 
             nx = len(xnew)
             oldxbest = xbest
-            xl, xu, x, f, nsplit, small, near, d, np, t, inew, fnan, u, v = \
-                snobupdt(xl, xu, x, f, nsplit, small, near, d, np, t, xnew, fnew, fnan, u, v, u1, v1, dx)
+            xl, xu, x, f, nsplit, small, near, d, np, t, inew, fnan, u, v = snobupdt(
+                xl,
+                xu,
+                x,
+                f,
+                nsplit,
+                small,
+                near,
+                d,
+                np,
+                t,
+                xnew,
+                fnew,
+                fnan,
+                u,
+                v,
+                u1,
+                v1,
+                dx,
+            )
 
             if near.size > 0:
                 ind = find(numpy.isnan(f[:, 0]))
@@ -477,17 +571,24 @@ class SNOBFIT(Strategy):
                 if y is None:
                     y = numpy.zeros((jsize, x.shape[1]))
                 else:
-                    y = numpy.append(y, numpy.zeros((jsize - len(y), x.shape[1])), axis=0)
+                    y = numpy.append(
+                        y, numpy.zeros((jsize - len(y), x.shape[1])), axis=0
+                    )
                 g = numpy.zeros((jsize, x.shape[1]))
                 sigma = numpy.zeros(jsize)
                 f = extend(f, x.shape[1] - 1)
                 for j in inew:
-                    y[j], f[j, 2], c, sigma[j] = snoblocf(j, x, f[:, 0:2], near, dx, u, v)
+                    y[j], f[j, 2], c, sigma[j] = snoblocf(
+                        j, x, f[:, 0:2], near, dx, u, v
+                    )
                     g[j] = c
 
             else:
                 x5 = snob5(x, u1, v1, dx, nreq)
-                request = numpy.concatenate((x5, numpy.NaN * numpy.ones((nreq, 1)), 5 * numpy.ones((nreq, 1))), 1)
+                request = numpy.concatenate(
+                    (x5, numpy.NaN * numpy.ones((nreq, 1)), 5 * numpy.ones((nreq, 1))),
+                    1,
+                )
                 if x.size > 0:
                     (fbest, ibest) = min_(f[:, 0])
                     xbest = x[ibest]
@@ -497,14 +598,39 @@ class SNOBFIT(Strategy):
                 if request.shape[0] < nreq:
                     snobwarn()
 
-                im_storage = xbest, fbest, x, f, xl, xu, y, nsplit, small, near, d, np, t, fnan, u, v, dx
+                im_storage = (
+                    xbest,
+                    fbest,
+                    x,
+                    f,
+                    xl,
+                    xu,
+                    y,
+                    nsplit,
+                    small,
+                    near,
+                    d,
+                    np,
+                    t,
+                    fnan,
+                    u,
+                    v,
+                    dx,
+                )
                 return request, xbest, fbest, im_storage
 
         sx = len(x)
         request = numpy.array([]).reshape(0, x.shape[1] + 2)
-        ind = find(numpy.sum(
-            numpy.logical_and(xl <= numpy.outer(numpy.ones(sx), v1), xu >= numpy.outer(numpy.ones(sx), u1)),
-            1) == n)
+        ind = find(
+            numpy.sum(
+                numpy.logical_and(
+                    xl <= numpy.outer(numpy.ones(sx), v1),
+                    xu >= numpy.outer(numpy.ones(sx), u1),
+                ),
+                1,
+            )
+            == n
+        )
         minsmall, k = min_(small[ind])
         maxsmall = small[ind].max(0)
         m1 = numpy.floor((maxsmall - minsmall) / 3)
@@ -529,15 +655,23 @@ class SNOBFIT(Strategy):
             msmall, j1 = min_(small[j])
             j = j[j1]
 
-        if numpy.min(numpy.max(
-                numpy.abs(x - numpy.outer(numpy.ones(sx), z)) - numpy.outer(numpy.ones(sx), dx))) >= -numpy.spacing(
-                1):
+        if numpy.min(
+            numpy.max(
+                numpy.abs(x - numpy.outer(numpy.ones(sx), z))
+                - numpy.outer(numpy.ones(sx), dx)
+            )
+        ) >= -numpy.spacing(1):
             dmax = numpy.max((xu[j] - xl[j]) / (v - u))
             dmin = numpy.min((xu[j] - xl[j]) / (v - u))
             if dmin <= 0.05 * dmax:
                 isplit = numpy.append(isplit, j)
             else:
-                request = numpy.vstack((request, numpy.concatenate((z, numpy.array((f1, 1), ndmin=2)), axis=1)))
+                request = numpy.vstack(
+                    (
+                        request,
+                        numpy.concatenate((z, numpy.array((f1, 1), ndmin=2)), axis=1),
+                    )
+                )
 
         if len(request) < nreq:
             globloc = nreq - len(request)
@@ -570,20 +704,42 @@ class SNOBFIT(Strategy):
                         j += 1
                         continue
 
-                    if numpy.max(abs(y1 - x[l]) - dx) >= -numpy.spacing(1) and \
-                            (not sreq or numpy.min( \
-                                    numpy.max(numpy.abs(request[:, 0:n] - \
-                                                        numpy.outer(numpy.ones(sreq), y1)) - numpy.outer(
-                                        numpy.ones(sreq), numpy.maximum(dy, dx)), axis=1)) >= -numpy.spacing(1)):
+                    if numpy.max(abs(y1 - x[l]) - dx) >= -numpy.spacing(1) and (
+                        not sreq
+                        or numpy.min(
+                            numpy.max(
+                                numpy.abs(
+                                    request[:, 0:n] - numpy.outer(numpy.ones(sreq), y1)
+                                )
+                                - numpy.outer(numpy.ones(sreq), numpy.maximum(dy, dx)),
+                                axis=1,
+                            )
+                        )
+                        >= -numpy.spacing(1)
+                    ):
                         if numpy.sum(y1 == y[l0]) < n:
                             D = f[l0, 1] / dx ** 2
                             # Possibly problem area!
-                            f1 = f[l0, 0] + g[l0].dot((y1 - x[l0]).T) + sigma[l0] * ( \
-                                (y1 - x[l0]).dot(diag(D).dot((y1 - x[l0]).T) + f[l0, 1]))
+                            f1 = (
+                                f[l0, 0]
+                                + g[l0].dot((y1 - x[l0]).T)
+                                + sigma[l0]
+                                * (
+                                    (y1 - x[l0]).dot(
+                                        diag(D).dot((y1 - x[l0]).T) + f[l0, 1]
+                                    )
+                                )
+                            )
                         else:
                             f1 = f[l0, 2]
                         request = numpy.vstack(
-                            (request, numpy.concatenate((y1, numpy.array((f1, 2), ndmin=2)), axis=1)))
+                            (
+                                request,
+                                numpy.concatenate(
+                                    (y1, numpy.array((f1, 2), ndmin=2)), axis=1
+                                ),
+                            )
+                        )
 
                     sreq = len(request)
                     j += 1
@@ -608,20 +764,41 @@ class SNOBFIT(Strategy):
                         j += 1
                         continue
 
-                    if numpy.max(numpy.abs(y1 - x[l]) - dx) >= -numpy.spacing(1) and \
-                            (not sreq or numpy.min( \
-                                    numpy.max(numpy.abs(request[:, :n] - numpy.outer(numpy.ones(sreq), y1)) - \
-                                              numpy.outer(numpy.ones(sreq), numpy.maximum(dy, dx)),
-                                              axis=1)) >= -numpy.spacing(1)):
+                    if numpy.max(numpy.abs(y1 - x[l]) - dx) >= -numpy.spacing(1) and (
+                        not sreq
+                        or numpy.min(
+                            numpy.max(
+                                numpy.abs(
+                                    request[:, :n] - numpy.outer(numpy.ones(sreq), y1)
+                                )
+                                - numpy.outer(numpy.ones(sreq), numpy.maximum(dy, dx)),
+                                axis=1,
+                            )
+                        )
+                        >= -numpy.spacing(1)
+                    ):
                         if numpy.sum(y1 == y[l0]) < n:
                             D = f[l0, 1] / (dx ** 2)
-                            f1 = f[l0, 0] + g[l0].dot((y1 - x[l0]).T) + \
-                                 sigma[l0] * (((y1 - x[l0]).dot(diag(D).dot((y1 - x[l0]).T))) + f[l0, 1])
+                            f1 = (
+                                f[l0, 0]
+                                + g[l0].dot((y1 - x[l0]).T)
+                                + sigma[l0]
+                                * (
+                                    ((y1 - x[l0]).dot(diag(D).dot((y1 - x[l0]).T)))
+                                    + f[l0, 1]
+                                )
+                            )
                         else:
                             f1 = f[l0, 2]
 
                         request = numpy.vstack(
-                            (request, numpy.concatenate((y1, numpy.array((f1, 3), ndmin=2)), axis=1)))
+                            (
+                                request,
+                                numpy.concatenate(
+                                    (y1, numpy.array((f1, 3), ndmin=2)), axis=1
+                                ),
+                            )
+                        )
 
                     sreq = len(request)
                     j += 1
@@ -630,20 +807,36 @@ class SNOBFIT(Strategy):
         for l in isplit.flatten():
             jj = find(ind == l)
             ind = numpy.delete(ind, jj)  # ind(jj) = []
-            y1, f1 = snobpoint(x[l], xl[l], xu[l], f[l, 0:2], g[l], sigma[l], u1, v1, dx)
+            y1, f1 = snobpoint(
+                x[l], xl[l], xu[l], f[l, 0:2], g[l], sigma[l], u1, v1, dx
+            )
 
-            if numpy.max(numpy.abs(y1 - x[l]) - dx) >= -numpy.spacing(1) and \
-                    (not sreq or numpy.min( \
-                            numpy.max(numpy.abs(request[:, :n] - numpy.outer(numpy.ones(sreq), y1)) - \
-                                      numpy.outer(numpy.ones(sreq), dx), axis=1)) >= -numpy.spacing(1)):
-                request = numpy.vstack((request, numpy.concatenate((y1, numpy.array((f1, 4), ndmin=2)), axis=1)))
+            if numpy.max(numpy.abs(y1 - x[l]) - dx) >= -numpy.spacing(1) and (
+                not sreq
+                or numpy.min(
+                    numpy.max(
+                        numpy.abs(request[:, :n] - numpy.outer(numpy.ones(sreq), y1))
+                        - numpy.outer(numpy.ones(sreq), dx),
+                        axis=1,
+                    )
+                )
+                >= -numpy.spacing(1)
+            ):
+                request = numpy.vstack(
+                    (
+                        request,
+                        numpy.concatenate((y1, numpy.array((f1, 4), ndmin=2)), axis=1),
+                    )
+                )
 
             sreq = len(request)
             if sreq == nreq:
                 break
 
         first = True
-        while (sreq < nreq) and ind.size > 0:  # and find(small[ind] <= (minsmall + m1)).any():
+        while (
+            sreq < nreq
+        ) and ind.size > 0:  # and find(small[ind] <= (minsmall + m1)).any():
             for m in range(int(m1 + 1)):
                 if first:
                     first = False
@@ -662,14 +855,30 @@ class SNOBFIT(Strategy):
                     l = int(k[0])
                     jj = find(ind == l)
                     ind = numpy.delete(ind, jj)
-                    y1, f1 = snobpoint(x[l], xl[l], xu[l], f[l, 0:2], g[l], sigma[l], u1, v1, dx)
-                    if numpy.max(numpy.abs(y1 - x[l]) - dx) >= -numpy.spacing(1) and \
-                            (not sreq or numpy.min( \
-                                    numpy.max(numpy.abs(request[:, :n] - numpy.outer(numpy.ones(sreq), y1)) - \
-                                              numpy.outer(numpy.ones(sreq), numpy.maximum(dy, dx)),
-                                              axis=1)) >= -numpy.spacing(1)):
+                    y1, f1 = snobpoint(
+                        x[l], xl[l], xu[l], f[l, 0:2], g[l], sigma[l], u1, v1, dx
+                    )
+                    if numpy.max(numpy.abs(y1 - x[l]) - dx) >= -numpy.spacing(1) and (
+                        not sreq
+                        or numpy.min(
+                            numpy.max(
+                                numpy.abs(
+                                    request[:, :n] - numpy.outer(numpy.ones(sreq), y1)
+                                )
+                                - numpy.outer(numpy.ones(sreq), numpy.maximum(dy, dx)),
+                                axis=1,
+                            )
+                        )
+                        >= -numpy.spacing(1)
+                    ):
                         request = numpy.vstack(
-                            (request, numpy.concatenate((y1, numpy.array((f1, 4), ndmin=2)), axis=1)))
+                            (
+                                request,
+                                numpy.concatenate(
+                                    (y1, numpy.array((f1, 4), ndmin=2)), axis=1
+                                ),
+                            )
+                        )
 
                     sreq = len(request)
                     if sreq == nreq:
@@ -677,34 +886,71 @@ class SNOBFIT(Strategy):
                 m = 0
 
         if len(request) < nreq:
-            x5 = snob5(numpy.concatenate((x, request[:, :n])), u1, v1, dx, nreq - len(request))
+            x5 = snob5(
+                numpy.concatenate((x, request[:, :n])), u1, v1, dx, nreq - len(request)
+            )
             nx = len(x)
             for j in range(len(x5)):
                 x5j = x5[j, :]
-                i = find((numpy.sum(xl <= numpy.outer(numpy.ones(nx), x5j)) and \
-                          (numpy.outer(numpy.ones((nx, 1)), x5j) <= xu), 1) == n)
+                i = find(
+                    (
+                        numpy.sum(xl <= numpy.outer(numpy.ones(nx), x5j))
+                        and (numpy.outer(numpy.ones((nx, 1)), x5j) <= xu),
+                        1,
+                    )
+                    == n
+                )
                 if len(i) > 1:
                     minv, i1 = min_(small[i])
                     i = i[i1]
 
                 D = f[i, 1] / (dx ** 2)
-                f1 = f[i, 0] + (x5j - x[i]).dot(g[i].T) + sigma[i] * (
-                    (x5j - x[i]).dot(diag(D).dot((x5j - x[i]).T))) + f[i, 1]
-                request = numpy.vstack((request, numpy.concatenate((x5j, numpy.array((f1, 5), ndmin=2)), axis=1)))
+                f1 = (
+                    f[i, 0]
+                    + (x5j - x[i]).dot(g[i].T)
+                    + sigma[i] * ((x5j - x[i]).dot(diag(D).dot((x5j - x[i]).T)))
+                    + f[i, 1]
+                )
+                request = numpy.vstack(
+                    (
+                        request,
+                        numpy.concatenate((x5j, numpy.array((f1, 5), ndmin=2)), axis=1),
+                    )
+                )
 
         if len(request) < nreq:
             snobwarn()
 
-        im_storage = xbest, fbest, x, f, xl, xu, y, nsplit, small, near, d, np, t, fnan, u, v, dx
+        im_storage = (
+            xbest,
+            fbest,
+            x,
+            f,
+            xl,
+            xu,
+            y,
+            nsplit,
+            small,
+            near,
+            d,
+            np,
+            t,
+            fnan,
+            u,
+            v,
+            dx,
+        )
         return request, xbest, fbest, im_storage
 
     # Function to check whether a point meets the constraints of the domain
     def check_constraints(self, tmp_next_experiments):
-        constr_mask = np.asarray([True]*len(tmp_next_experiments)).T
-        if len(self.domain.constraints)>0:
+        constr_mask = np.asarray([True] * len(tmp_next_experiments)).T
+        if len(self.domain.constraints) > 0:
             constr = [c.constraint_type + "0" for c in self.domain.constraints]
-            constr_mask = [pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments])
-                           for i, c in enumerate(self.domain.constraints)]
+            constr_mask = [
+                pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments])
+                for i, c in enumerate(self.domain.constraints)
+            ]
             constr_mask = np.asarray([c.tolist() for c in constr_mask]).T
             constr_mask = constr_mask.all(1)
         return constr_mask
