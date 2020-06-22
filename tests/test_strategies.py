@@ -167,7 +167,7 @@ def test_logspaceobjectives_transform():
     strategy.suggest_experiments(5, previous_results)
 
 
-def test_tsemo():
+def test_tsemo(save=False):
     num_inputs = 6
     num_objectives= 2
     lab = DTLZ2(num_inputs=num_inputs,
@@ -194,7 +194,8 @@ def test_tsemo():
     #If it identifies even some of the pareto points this will work
     #https://sop.tik.ee.ethz.ch/download/supplementary/testproblems/dtlz2/index.php
     assert hv > 120.0
-
+    if save:
+        experiments.data.to_csv("tsemo_dtlz_experiments.csv")
 
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])
 @pytest.mark.parametrize("maximize", [True, False])
