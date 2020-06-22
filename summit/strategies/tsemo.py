@@ -123,15 +123,18 @@ class TSEMO(Strategy):
             raise ValueError(f'The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS.')
         
         # Fit models to new data
+        print("Fitting models")
         self.models.fit(inputs, outputs, spectral_sample=False, **kwargs)
         n_spectral_points = kwargs.get('n_spectral_points', 1500)
-        for model in self.models.models.values():
+        for name, model in self.models.models.items():
+            print(f"Spectral sampling for model {name}.")
             model.spectral_sample(inputs, outputs,
                                   n_spectral_points=n_spectral_points)
 
         # Sample function to optimize
         use_spectral_sample = kwargs.get('use_spectral_sample', True)
         kwargs.update({'use_spectral_sample': use_spectral_sample})
+        print("Optimizing models")
         internal_res = self.optimizer.optimize(self.models, **kwargs)
         
         if internal_res is not None and len(internal_res.fun) != 0:
@@ -146,6 +149,9 @@ class TSEMO(Strategy):
 
             # Do any necessary transformations back
             result = self.transform.un_transform(result)
+
+            # Add model hyperparameters as metadata columns
+            
 
             # State the strategy used
             result[("strategy", "METADATA")] = "TSEMO"

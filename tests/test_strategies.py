@@ -167,7 +167,7 @@ def test_logspaceobjectives_transform():
     strategy.suggest_experiments(5, previous_results)
 
 
-def test_tsemo():
+def test_tsemo(save=False):
     num_inputs = 6
     num_objectives= 2
     lab = DTLZ2(num_inputs=num_inputs,
@@ -179,16 +179,18 @@ def test_tsemo():
     pb = progress_bar(range(100))
     for i in pb:
         # Run experiments
-        lab.run_experiments(experiments)
+        experiments = lab.run_experiments(experiments)
         
         # Get suggestions
-        options = dict(pop_size=100, iterations=100)
-        experiments = strategy.suggest_experiments(1, lab.data,
+        options = dict(pop_size=100, iterations=100, n_spectral_points=4000)
+        experiments = strategy.suggest_experiments(1, experiments,
                                                    **options)
     y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
                                    maximize=False)  
     hv = HvI.hypervolume(y_pareto, [11,11])
 
+    if save:
+        experiments.data.to_csv('tsemo_dtlz_experiment.csv')
     #This is a really loose bound. It's generally testing
     #to see if the optimization goes in the correct direction
     #If it identifies even some of the pareto points this will work
