@@ -115,11 +115,7 @@ class SNOBFIT(Strategy):
                 i += 1
                 if i > 1:
                     raise ValueError(
-<<<<<<< HEAD
-                        "Nelder-Mead is not able to optimize multiple objectives, please use transform."
-=======
                         "SNOBFIT is not able to optimize multiple objectives, please use transform."
->>>>>>> master
                     )
                 obj_name = v.name
 

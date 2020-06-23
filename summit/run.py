@@ -151,12 +151,10 @@ class NeptuneRunner(Runner):
         # Set up Neptune session
         self.session = Session(backend=HostedNeptuneBackend())
         self.proj = self.session.get_project(neptune_project)
-        params = self.to_dict()
-        params['runner']['hypervolume_ref'] = self.ref
         self.neptune_exp = self.proj.create_experiment(
             name=neptune_experiment_name,
             description=neptune_description,
-            params=params,
+            params=self.to_dict(),
         )
 
     def run(self, **kwargs):
@@ -209,6 +207,22 @@ class NeptuneRunner(Runner):
                     self.neptune_exp.send_artifact(file)
                 if not save_dir:
                     os.remove(file)
+
+    def to_dict(self,):
+        runner_params = dict(
+            max_iterations=self.max_iterations, batch_size=self.batch_size, hypervolume_ref=self.ref,
+        
+        )
+        
+        return dict(
+            runner=runner_params,
+            strategy=self.strategy.to_dict(),
+            experiment=self.experiment.to_dict(),
+        )
+
+    @classmethod
+    def from_dict(cls, d):
+        raise NotImplementedError("From dict does not work on NeptuneRunner becuase Neptune cannot be serialized.")
         
 def experiment_from_dict(d):
     if d["name"] == "SnarBenchmark":
