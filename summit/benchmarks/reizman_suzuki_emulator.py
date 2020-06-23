@@ -29,11 +29,12 @@ class ReizmanSuzukiEmulator(Experiment):
     --------
     >>> b = ReizmanSuzukiEmulator()
     >>> columns = [v.name for v in b.domain.variables]
-    >>> values = [v.bounds[0]+0.1*(v.bounds[1]-v.bounds[0]) for v in b.domain.variables if v.variable_type == 'continuous']
+    >>> values = [v.bounds[0]+0.6*(v.bounds[1]-v.bounds[0]) if v.variable_type == 'continuous' else v.levels[-1] for v in b.domain.variables]
     >>> values = np.array(values)
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
     >>> results = b.run_experiments(conditions)
+
     
     Notes
     -----
@@ -42,7 +43,7 @@ class ReizmanSuzukiEmulator(Experiment):
     
     """
 
-    def __init__(self, model_name="reizman_suzuki_1", **kwargs):
+    def __init__(self, model_name="reizman_suzuki_case1", **kwargs):
         domain = self._setup_domain()
         super().__init__(domain)
 
@@ -93,9 +94,6 @@ class ReizmanSuzukiEmulator(Experiment):
 
         return domain
 
-    def _setup_original_data(self):
-        self.X, self.y = experimental_datasets.load_reizman_suzuki(return_X_y=True, case=int(self.model_name[-1]))
-
     def _run(self, conditions, **kwargs):
         catalyst = str(conditions["catalyst"].iloc[0])
         t_res = float(conditions["t_res"])
@@ -105,20 +103,26 @@ class ReizmanSuzukiEmulator(Experiment):
         pred_ton, pred_yield = self._emulator_predict(X)
         conditions[("ton", "DATA")] = pred_ton
         conditions[("yield", "DATA")] = pred_yield
-        print(conditions)
         return conditions, None
 
-    def _convert_inputs(self, catalyst, t_res, temperature, catalyst_loading):
-        # convert categorical variables to one-hot tensors
-        print(catalyst)
-        print(t_res)
-        self._setup_original_data()
-        tmp_ligand_type = np.asarray([int(str(catalyst[1])+str(catalyst[4]))], dtype=np.int32)   # categorical input: convert string of ligand type into numerical identifier
-        tmp_ligand_type = torch.tensor(tmp_ligand_type).int()
-        tmp_ligand_type = torch.unique(tmp_ligand_type, True, True)[1]
+    def _get_original_data(self):
+        self.X, self.y = experimental_datasets.load_reizman_suzuki(return_X_y=True, case=int(self.model_name[-1]))
 
-        ## get ligand types of real experimental data in order to get number of classes the model is trained on
+    def _convert_inputs(self, catalyst, t_res, temperature, catalyst_loading):
+        self._get_original_data()
+
+        # convert categorical variables to one-hot tensors
+        tmp_ligand_type = np.asarray([int(str(catalyst[1])+str(catalyst[4]))], dtype=np.int32)   # categorical input: convert string of ligand type into numerical unique identifier (i.e. hash value)
+        tmp_ligand_type = torch.tensor(tmp_ligand_type).int()
+
+        ## get ligand types of real experimental data in order to get number of classes the model is trained on (make sure ligand type of new point was in original data, otherwise this will lead to false predictions)
         origin_data_ligand_type = torch.tensor(self.X[:,0]).int()
+        
+        ## unify ligand type of current point and ligand types of original data, in order to create one-hot tensor
+        _uni_ligand_types = torch.cat((tmp_ligand_type, origin_data_ligand_type), axis=0)
+        tmp_ligand_type = torch.unique(_uni_ligand_types, True, True)[1][0].view(-1)
+
+        ## get number of different ligand types and the corresponding unique values (the identifiers - hash values)
         origin_data_ligand_type = torch.unique(origin_data_ligand_type, True, True)[1]
         num_types = int(origin_data_ligand_type.max().item() + 1)
 
@@ -144,10 +148,11 @@ class ReizmanSuzukiEmulator(Experiment):
         # get mean of real experiment target property data the model is trained on
         original_data_y = torch.tensor(self.y).float()
         self.original_data_out_mean = original_data_y.mean(axis=0)
-
         return X
 
     def _setup_emulator_structure(self):
+        # make sure this structure corresponds to the structure of the trained model
+        @variational_estimator
         class BayesianRegressor(nn.Module):
             def __init__(self, input_dim, output_dim):
                 super().__init__()
@@ -155,37 +160,41 @@ class ReizmanSuzukiEmulator(Experiment):
                 self.blinear1 = BayesianLinear(input_dim, 24)
                 self.blinear2 = BayesianLinear(24, 24)
                 self.blinear3 = BayesianLinear(24, output_dim)
-                #self.linear = nn.Linear(24, output_dim)
         
             def forward(self, x):
                 x = F.leaky_relu(self.blinear1(x))
-                #x = F.dropout(x, p=0.1, training=self.training)
                 x = F.leaky_relu(self.blinear2(x))
                 x = F.dropout(x, p=0.1, training=self.training)
                 x = F.relu(self.blinear3(x))
-                #x = self.linear(x)
                 y = x
                 return y.view(-1)
+
         return BayesianRegressor
 
+
     def _emulator_predict(self, X):
+        # Initiliaze emulator
         Emulator = self._setup_emulator_structure()
-        print(Emulator)
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         emulator = Emulator(self.tmp_inp_dim, 1).to(device)
+        emulator.eval()   # set to evaluation mode (may be redundant)
+        emulator.freeze_()   # freeze the model, in order to predict using only their weight distribution means
         
         # TON prediction
-        ton_path = osp.join(osp.dirname(osp.realpath(__file__)), 'experiment_emulator/trained_models', self.emulator_type, self.model_name + "_TON_BNN_model.pt")
-        self.emulator_ton = emulator.load_state_dict(torch.load(ton_path, map_location=torch.device(device)))
+        ton_path = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/trained_models", self.emulator_type, self.model_name + "_TON_BNN_model.pt")
+        emulator.load_state_dict(torch.load(ton_path, map_location=torch.device(device)))
         data = X.to(device)
-        print(self.original_data_out_mean)
+        ## model predicts average data, so multiply with average
         pred_ton = float(emulator(data).item() * self.original_data_out_mean[0].item())
 
         # Yield prediction
-        yield_path = osp.join(osp.dirname(osp.realpath(__file__)), 'experiment_emulator/trained_models', self.emulator_type, self.model_name + "_yield_BNN_model.pt")
-        self.emulator_yield = emulator.load_state_dict(torch.load(yield_path, map_location=torch.device(device)))
+        yield_path = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/trained_models", self.emulator_type, self.model_name + "_yield_BNN_model.pt")
+        emulator.load_state_dict(torch.load(yield_path, map_location=torch.device(device)))
+        emulator.eval()
         data = X.to(device)
+        ## model predicts average data, so multiply with average
         pred_yield = float(emulator(data).item() * self.original_data_out_mean[1].item())
     
         return pred_ton, pred_yield
+
 

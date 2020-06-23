@@ -39,7 +39,7 @@ elif target == "yield":
 y = y[:,target_dim]
 
 # adapt model name
-model_name = str(dataset_name) + "_" + str(case) + "_" + str(target)
+model_name = str(dataset_name) + "_case" + str(case) + "_" + str(target)
 
 # adapt save directory
 save_path = osp.join(osp.dirname(osp.realpath(__file__)), "trained_models/BNN")
@@ -191,6 +191,8 @@ print("<---- Postprocessing ---->\n")
 
 # load final model from epoch with lowest prediction accuracy 
 regressor.load_state_dict(torch.load(osp.join(save_path, model_name + "_BNN_model.pt")))
+# freeze the model, in order to predict using only their weight distribution means
+regressor.freeze_()
 
 # get final model predictions for training and test data
 y_train_pred = regressor(X_train) * out_mean

@@ -10,8 +10,7 @@ from summit.benchmarks.experiment_emulator import experimental_datasets
 
 b = ReizmanSuzukiEmulator()
 columns = [v.name for v in b.domain.variables]
-#values = [v.bounds[0]+0.8*(v.bounds[1]-v.bounds[0]) if v.variable_type == 'continuous' else 'P1-L1' for v in b.domain.variables]
-values = ['P1-L1', 600, 110, 2.509, 0, 0]
+values = [v.bounds[0]+0.6*(v.bounds[1]-v.bounds[0]) if v.variable_type == 'continuous' else v.levels[-1] for v in b.domain.variables]
 values = np.array(values)
 values = np.atleast_2d(values)
 conditions = DataSet(values, columns=columns)
