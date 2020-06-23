@@ -10,7 +10,7 @@ import os
 import json
 import pkg_resources
 import logging
-logger = logging.getLogger(__name__)
+
 
 class Runner:
     """  Run a closed-loop strategy and experiment cycle
@@ -140,6 +140,7 @@ class NeptuneRunner(Runner):
         batch_size=1,
         f_tol = None,
         hypervolume_ref=None,
+        logger = None
     ):
 
         super().__init__(strategy, experiment, 
@@ -167,6 +168,9 @@ class NeptuneRunner(Runner):
         self.neptune_description = neptune_description
         self.files = files
 
+        #Set up logging
+        self.logger = logger or logging.getLogger(__name__)
+
     def run(self, **kwargs):
         """  Run the closed loop experiment cycle
 
@@ -181,7 +185,8 @@ class NeptuneRunner(Runner):
             name=self.neptune_experiment_name,
             description=self.neptune_description,
             params=self.to_dict(),
-            upload_source_files=self.files
+            upload_source_files=self.files,
+            logger=self.logger
         )
         prev_res = None
         n_objs = len(self.experiment.domain.output_variables)
@@ -206,7 +211,7 @@ class NeptuneRunner(Runner):
                 
                 neptune_exp.send_metric(v.name+"_best", fbest[j])
             
-            # Send hypervoluem for multiobjective experiments
+            # Send hypervolume for multiobjective experiments
             if n_objs >1:
                 output_names = [v.name for v in self.experiment.domain.output_variables]
                 data = self.experiment.data[output_names].to_numpy()
@@ -229,11 +234,10 @@ class NeptuneRunner(Runner):
                     os.remove(file)
             
             # Stop if no improvement
-            import pdb; pdb.set_trace()
             if self.f_tol is not None and i >0:
                 compare = np.abs(fbest-fbest_old) < self.f_tol
                 if all(compare):
-                    logger.info(f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objectives (less than f_tol={self.f_tol}).")
+                    self.logger.info(f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objective(s) (less than f_tol={self.f_tol}).")
                     break
         neptune_exp.stop()
 
