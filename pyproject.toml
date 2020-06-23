@@ -20,13 +20,16 @@ SQSnobFit = "^0.4.3"
 fastprogress = "^0.2.3"
 tqdm = "^4.46.1"
 ipywidgets = "^7.5.1"
+neptune-client = {version= "^0.4.115", optional = true}
+
+[tool.poetry.extras]
+extras = ["neptune-client"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
 ipdb = "^0.13.2"
 jupyterlab = "^2.1.4"
 black = "^19.10b0"
-
 
 [build-system]
 requires = ["poetry>=0.12"]
