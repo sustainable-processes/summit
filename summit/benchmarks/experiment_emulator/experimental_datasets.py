@@ -1,5 +1,5 @@
 """
-Base IO code for all datasets
+This code follows scikit-learn: https://github.com/scikit-learn/scikit-learn/blob/fd237278e/sklearn/datasets/_base.py#L948
 """
 
 # Copyright (c) 2007 David Cournapeau <cournape@gmail.com>
