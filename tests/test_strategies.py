@@ -179,11 +179,11 @@ def test_tsemo(save=False):
     pb = progress_bar(range(100))
     for i in pb:
         # Run experiments
-        lab.run_experiments(experiments)
+        experiments = lab.run_experiments(experiments)
         
         # Get suggestions
-        options = dict(pop_size=100, iterations=100)
-        experiments = strategy.suggest_experiments(1, lab.data,
+        options = dict(pop_size=100, iterations=100, n_spectral_points=4000)
+        experiments = strategy.suggest_experiments(1, experiments,
                                                    **options)
     y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
                                    maximize=False)  
