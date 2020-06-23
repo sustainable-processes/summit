@@ -64,7 +64,7 @@ def load_reizman_suzuki(*, return_X_y=False, case=1):
     Parameters
     ----------
     return_X_y : bool, default=False
-        If True, returns ``(data, target)`` instead of a Bunch object.
+        If True, returns ``(data, target)`` instead of a `data` dict object.
         See below for more information about the `data` and `target` object.
     Returns
     -------
