@@ -94,3 +94,7 @@ def experiment_from_dict(d):
         return Hartmann3D.from_dict(d)
     elif d["name"] == "Himmelblau":
         return Himmelblau.from_dict(d)
+    elif d["name"] == "DTLZ2":
+        return DTLZ2.from_dict(d)
+    elif d["name"] == "VLMOP2":
+        return VLMOP2.from_dict(d)

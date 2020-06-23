@@ -8,6 +8,9 @@ from summit.utils.dataset import DataSet
 
 import numpy as np
 from abc import ABC, abstractmethod
+import logging
+
+logger = logging.getLogger(__name__)
         
 class TSEMO(Strategy):
     """ Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
@@ -85,7 +88,7 @@ class TSEMO(Strategy):
         if self._random_rate < 0.0 or self._random_rate > 1.0:
             raise ValueError("Random rate must be between 0 and 1.")
 
-        self.all_experiments = None
+        self.reset()
 
     def suggest_experiments(self, num_experiments, 
                             prev_res: DataSet = None, **kwargs):
@@ -123,19 +126,20 @@ class TSEMO(Strategy):
             raise ValueError(f'The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS.')
         
         # Fit models to new data
-        print("Fitting models")
+        logger.info(f"Fitting {len(self.models._models)} models.")
         self.models.fit(inputs, outputs, spectral_sample=False, **kwargs)
         n_spectral_points = kwargs.get('n_spectral_points', 1500)
         for name, model in self.models.models.items():
-            print(f"Spectral sampling for model {name}.")
+            logger.info(f"Spectral sampling for model {name}.")
             model.spectral_sample(inputs, outputs,
                                   n_spectral_points=n_spectral_points)
 
         # Sample function to optimize
         use_spectral_sample = kwargs.get('use_spectral_sample', True)
         kwargs.update({'use_spectral_sample': use_spectral_sample})
-        print("Optimizing models")
+        logger.info("Optimizing models using NSGAII.")
         internal_res = self.optimizer.optimize(self.models, **kwargs)
+        
         
         if internal_res is not None and len(internal_res.fun) != 0:
             # Select points that give maximum hypervolume improvement
@@ -150,14 +154,26 @@ class TSEMO(Strategy):
             # Do any necessary transformations back
             result = self.transform.un_transform(result)
 
-            # Add model hyperparameters as metadata columns
-            
-
             # State the strategy used
             result[("strategy", "METADATA")] = "TSEMO"
+
+            # Add model hyperparameters as metadata columns
+            self.iterations += 1
+            for name,model in self.models.models.items():
+                lengthscales, var, noise = model.hyperparameters
+                result[(f'{name}_variance' ,'METADATA')] = var
+                result[(f'{name}_noise' ,'METADATA')] = noise
+                for var, l in zip(self.domain.input_variables, lengthscales):
+                    result[(f'{name}_{var.name}_lengthscale' ,'METADATA')] = l
+                result[('iterations', 'METADATA')] = self.iterations
             return result
         else:
+            self.iterations += 1
             return None
+
+    def reset(self):
+        self.all_experiments = None
+        self.iterations = 0
 
     def to_dict(self):
         ae = (

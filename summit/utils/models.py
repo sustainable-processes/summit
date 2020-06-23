@@ -310,7 +310,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         return f
     
     @property
-    def hyperameters(self):
+    def hyperparameters(self):
         """Returns a tuple for the form legnthscales, variance, noise"""
         lengthscales = self._model.kern.lengthscale.values
         variance = self._model.kern.variance.values[0]
