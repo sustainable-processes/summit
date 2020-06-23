@@ -1,5 +1,5 @@
 import pytest
-from summit.benchmarks import SnarBenchmark
+from summit.benchmarks import SnarBenchmark, ReizmanSuzukiEmulator
 from summit.utils.dataset import DataSet
 import numpy as np
 
@@ -26,3 +26,28 @@ def test_snar_benchmark():
     assert np.isclose(float(results["e_factor"]), 191.260294)
 
     return results
+
+
+def test_reizman_suzuki_emulator():
+    """ Test the Reizman Suzuki emulator"""
+    b = ReizmanSuzukiEmulator()
+    columns = [v.name for v in b.domain.variables]
+    values = {
+        ("catalyst", "DATA"): "P1-L2", 
+        ("t_res", "DATA"): 60,
+        ("temperature", "DATA"): 110,
+        ("catalyst_loading", "DATA"): 0.508,
+    }
+
+    conditions = DataSet([values], columns=columns)
+    results = b.run_experiments(conditions)
+    assert str(results["catalyst", "DATA"].iloc[0]) == values["catalyst", "DATA"]
+    assert float(results["t_res"]) == values["t_res", "DATA"]
+    assert float(results["temperature"]) == values["temperature", "DATA"]
+    assert float(results["catalyst_loading"]) == values["catalyst_loading", "DATA"]
+    assert np.isclose(float(results["ton"]), 15.4886455)
+    assert np.isclose(float(results["yield"]), 3.2669168)
+
+    return results
+
+
