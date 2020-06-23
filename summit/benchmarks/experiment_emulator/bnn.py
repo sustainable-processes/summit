@@ -38,7 +38,7 @@ elif target == "yield":
 y = y[:,target_dim]
 
 # adapt model name
-model_name = str(dataset_name) + "_case" + str(case) + "_ttt" + str(target)
+model_name = str(dataset_name) + "_case" + str(case) + "_" + str(target)
 
 # adapt save directory
 save_path = osp.join(osp.dirname(osp.realpath(__file__)), "trained_models/BNN")
