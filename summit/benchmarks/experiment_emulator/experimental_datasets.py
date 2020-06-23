@@ -83,7 +83,7 @@ def load_reizman_suzuki(*, return_X_y=False, case=1):
     Examples
     --------
     >>> from experimental_datasets import load_reizman_suzuki
-    >>> X, y = load_reizman_suziki(return_X_y=True, case=1)
+    >>> X, y = load_reizman_suzuki(return_X_y=True, case=1)
     >>> print(X.shape)
     (96, 4)
     """
