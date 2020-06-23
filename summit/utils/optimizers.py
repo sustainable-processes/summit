@@ -74,7 +74,9 @@ class NSGAII(Optimizer):
         j = 0
         for i, v in enumerate(self.domain.variables):
             if v.is_objective:
-                direction = self.problem.MAXIMIZE if v.maximize else self.problem.MINIMIZE
+                direction = (
+                    self.problem.MAXIMIZE if v.maximize else self.problem.MINIMIZE
+                )
                 self.problem.directions[j] = direction
                 j+=1
             elif v.variable_type == "continuous":
