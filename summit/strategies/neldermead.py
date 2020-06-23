@@ -72,7 +72,6 @@ class NelderMead(Strategy):
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
         Strategy.__init__(self, domain, transform)
 
-        self.domain = domain
         self._x_start = kwargs.get("x_start", [])
         self._dx = kwargs.get("dx", 1e-5)
         self._df = kwargs.get("df", 1e-5)
@@ -190,7 +189,10 @@ class NelderMead(Strategy):
     def to_dict(self):
         # Previous param first element is a dictionary of internal parameters
         # Second element is a dataset with invalid experiments
-        prev_param = [jsonify_dict(self.prev_param[0]), self.prev_param[1].to_dict()]
+        if self.prev_param is not None:
+            prev_param = [jsonify_dict(self.prev_param[0]), self.prev_param[1].to_dict()]
+        else:
+            prev_param = None
         strategy_params = dict(
             x_start=self._x_start,
             dx=self._dx,
@@ -201,7 +203,7 @@ class NelderMead(Strategy):
         return super().to_dict(**strategy_params)
 
     @classmethod
-    def from_dict(self, d):
+    def from_dict(cls, d):
         nm = super().from_dict(d)
         prev_param = d["strategy_params"]["prev_param"]
         nm.prev_param = [
@@ -476,9 +478,9 @@ class NelderMead(Strategy):
             sim=sim,
             fsim=fsim,
             x_iter=x_iter,
+            red_dim=red_dim,            
             red_sim=red_sim,
             red_fsim=red_fsim,
-            red_dim=red_dim,
             rec_dim=rec_dim,
             memory=memory,
         )
