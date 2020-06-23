@@ -36,11 +36,11 @@ def dtlz2_test():
         for i in progress_bar(range(100), parent=mb):
             mb.child.comment = f'Iteration'
             # Run experiments
-            lab.run_experiments(experiments)
+            experiments = lab.run_experiments(experiments)
             
             # Get suggestions
             try:
-                experiments = tsemo.suggest_experiments(1, lab.data,
+                experiments = tsemo.suggest_experiments(1, experiments,
                                                         **tsemo_options)
             except Exception as e:
                 print(e)

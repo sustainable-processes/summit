@@ -309,6 +309,13 @@ class GPyModel(BaseEstimator, RegressorMixin):
         self.sampled_f = f
         return f
     
+    @property
+    def hyperameters(self):
+        """Returns a tuple for the form legnthscales, variance, noise"""
+        lengthscales = self._model.kern.lengthscale.values
+        variance = self._model.kern.variance.values[0]
+        noise = self._model.Gaussian_noise.variance.values[0]
+        return lengthscales, variance, noise
 
     def to_dict(self):
         _model = self._model.to_dict() if self._model is not None else self._model
