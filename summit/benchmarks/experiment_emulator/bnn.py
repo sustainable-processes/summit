@@ -14,15 +14,14 @@ from blitz.utils import variational_estimator
 
 from sklearn.model_selection import train_test_split
 
-import experimental_datasets
-
+from experimental_datasets import load_reizman_suzuki
 #=======================================================================
 
 # set dataset
 dataset_name = "reizman_suzuki"
-case = 4
+case = 2
 target = "TON"
-X, y = experimental_datasets.load_reizman_suzuki(return_X_y=True, case=case)
+X, y = load_reizman_suzuki(return_X_y=True, case=case)
 
 # set hyperparameters
 epochs = 300
@@ -39,7 +38,7 @@ elif target == "yield":
 y = y[:,target_dim]
 
 # adapt model name
-model_name = str(dataset_name) + "_case" + str(case) + "_" + str(target)
+model_name = str(dataset_name) + "_case" + str(case) + "_ttt" + str(target)
 
 # adapt save directory
 save_path = osp.join(osp.dirname(osp.realpath(__file__)), "trained_models/BNN")
