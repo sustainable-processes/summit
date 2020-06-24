@@ -9,6 +9,7 @@ NUM_REPEATS=20
 MAX_ITERATIONS=100
 NEPTUNE_PROJECT="sustainable-processes/summit"
 
+
 # strategies = [NelderMead, SNOBFIT, Random, SOBO]
 strategies  = [SOBO]
 experiment = SnarBenchmark()
@@ -34,4 +35,4 @@ for strategy in strategies:
                           max_iterations=MAX_ITERATIONS,
                           batch_size=1,
                           f_tol=f_tol)
-        r.run()
+        r.run(save_freq=SAVE_FREQ)

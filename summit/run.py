@@ -178,6 +178,9 @@ class NeptuneRunner(Runner):
         ----------
         save_freq : int, optional
             The frequency with which to checkpoint the state of the optimization. Defaults to None.
+        save_at_end : bool, optional
+            Save the state of the optimization at the end of a run, even if it is stopped early.
+            Default is True.
         save_dir : str, optional
             The directory to save checkpoints locally. Defaults to not saving locally.
         """
@@ -188,19 +191,27 @@ class NeptuneRunner(Runner):
             upload_source_files=self.files,
             logger=self.logger
         )
+
+        # Set parameters
         prev_res = None
         n_objs = len(self.experiment.domain.output_variables)
         fbest_old = np.zeros(n_objs)
         fbest = np.zeros(n_objs)
         save_freq = kwargs.get('save_freq')
         save_dir = kwargs.get('save_dir')
+        save_at_end = kwargs.get('save_at_end', True)
+
+        # Run optimization loop
         for i in progress_bar(range(self.max_iterations)):
+            # Get experiment suggestions
             next_experiments = self.strategy.suggest_experiments(
                 num_experiments=self.batch_size, prev_res=prev_res
             )
+
+            #Run experiment suggestions
             prev_res = self.experiment.run_experiments(next_experiments)
             
-            #Send best objective values
+            #Send best objective values to Neptune
             for j, v in enumerate(self.experiment.domain.output_variables):
                 if i > 0:
                     fbest_old[j] = fbest[j]
@@ -239,12 +250,23 @@ class NeptuneRunner(Runner):
                 if all(compare):
                     self.logger.info(f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objective(s) (less than f_tol={self.f_tol}).")
                     break
+        
+        # Save at end
+        if save_at_end:
+            file = f'iteration_{i}.json'
+            if save_dir is not None:
+                file = save_dir + "/" + file
+            self.save(file)
+            neptune_exp.send_artifact(file)
+            if not save_dir:
+                os.remove(file)
+        
+        # Stop the neptune experiment
         neptune_exp.stop()
 
     def to_dict(self,):
         runner_params = dict(
             max_iterations=self.max_iterations, batch_size=self.batch_size, hypervolume_ref=self.ref,
-        
         )
         
         return dict(
