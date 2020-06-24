@@ -9,7 +9,8 @@ NUM_REPEATS=20
 MAX_ITERATIONS=100
 NEPTUNE_PROJECT="sustainable-processes/summit"
 
-strategies = [NelderMead, SNOBFIT, Random, SOBO]
+# strategies = [NelderMead, SNOBFIT, Random, SOBO]
+strategies  = [SOBO]
 experiment = SnarBenchmark()
 
 for strategy in strategies:
