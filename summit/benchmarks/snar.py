@@ -132,7 +132,7 @@ class SnarBenchmark(Experiment):
         if e_factor > 1e3:
             e_factor = 1e3
 
-        return sty, e_factor, res
+        return sty, e_factor, {}
 
     def _integrand(self, t, C, T):
         # Kinetic Constants

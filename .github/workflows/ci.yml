@@ -31,4 +31,4 @@ jobs:
       with:
         python_version: 3.7.7
         poetry_version: 1.0.3
-        args: run python -m pytest --doctest-modules --ignore=case_studies
+        args: run python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
