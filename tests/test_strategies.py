@@ -540,16 +540,8 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
 @pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint, check_convergence",
     [
-        #[1, 1, True, True, False],
-        [1, 10, True, False, False],
-        '''[2, 30, True, True, True],
-        [4, 60, True, True, True],
-        [1, 15, False, True, True],
-        [2, 30, False, True, True],
-        [4, 60, False, True, True],
-        [1, 15, True, False, True],
-        [2, 30, True, False, True],
-        [4, 60, True, False, True],'''
+        [1, 1, True, True, False],
+        [1, 10, True, False, True],
     ]
 )
 def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergence, plot=False, ):
