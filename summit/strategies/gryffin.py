@@ -112,6 +112,7 @@ class GRYFFIN(Strategy):
         self.boosted = kwargs.get("boosted", False)
         self.sampling_strategies = kwargs.get("sampling_strategies", 4)
         self.batches = kwargs.get("batches", 1)
+        self.logging = kwargs.get("logging", -1)
         self.prev_param = None
 
         # create a temporary config.json file to initialize GRYFFIN
@@ -122,6 +123,11 @@ class GRYFFIN(Strategy):
                 "boosted": self.boosted,
                 "sampling_strategies": self.sampling_strategies,
                 "batches": self.batches,
+                'verbosity': {
+                    'default': self.logging,
+                    'bayesian_network': self.logging,
+                    'random_sampler': self.logging,
+                }
             },
             "parameters": self.domain_inputs,
             "objectives": self.domain_objectives,
@@ -198,7 +204,7 @@ class GRYFFIN(Strategy):
             observations.extend(prev_samples)
             param = observations
 
-            print(observations)
+            #print(observations)
             request = self.gryffin.recommend(observations=observations)
             #print(request)
 

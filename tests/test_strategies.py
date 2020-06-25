@@ -614,7 +614,4 @@ def test_gryffin_simple():
     domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
     strategy = GRYFFIN(domain)
     next_experiments = strategy.suggest_experiments(5)
-    next_experiments["yield", "DATA"] = 1
-    next_experiments = strategy.suggest_experiments(5, next_experiments)
 
-#test_gryffin_simple()
