@@ -552,7 +552,7 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
         [4, 60, True, False, True],
     ]
 )
-def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergence, plot=True, ):
+def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergence, plot=False, ):
     himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
     strategy = GRYFFIN(domain=himmelblau.domain)
 
@@ -610,18 +610,5 @@ def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergenc
     if plot:
         himmelblau.plot()
 
-test_gryffin(1, 10, True, False, True)
 
-        
-def test_gryffin_simple():
-    from summit.domain import Domain, ContinuousVariable, DiscreteVariable
-    from summit.strategies import GRYFFIN
-    import numpy as np
-    domain = Domain()
-    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
-    domain += DiscreteVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
-    domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
-    domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
-    strategy = GRYFFIN(domain)
-    next_experiments = strategy.suggest_experiments(5)
 
