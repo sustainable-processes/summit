@@ -209,7 +209,7 @@ class Experiment(ABC):
             ax.plot(
                 self.pareto_data[objectives[0]],
                 self.pareto_data[objectives[1]],
-                c="r",
+                c="g",
                 label="Pareto Front",
                 linewidth=3
             )
