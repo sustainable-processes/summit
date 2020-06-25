@@ -1,4 +1,4 @@
-from .base import Strategy, Transform, MultitoSingleObjective, LogSpaceObjectives
+from .base import *
 from .random import Random, LHS
 from .tsemo import TSEMO2
 from .neldermead import NelderMead

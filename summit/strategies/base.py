@@ -16,6 +16,15 @@ from abc import ABC, abstractmethod, abstractclassmethod
 from typing import Type, Tuple
 import json
 
+__all__ = [
+    "Transform",
+    "Strategy",
+    "Design",
+    "MultitoSingleObjective",
+    "LogSpaceObjectives",
+    "Chimera",
+]
+
 
 class Transform:
     """  Pre/post-processing of data for strategies
@@ -227,6 +236,8 @@ class LogSpaceObjectives(Transform):
             for i, v in enumerate(self.transform_domain.variables)
             if v.is_objective
         ]
+
+        # Check that the domain has objectives
         num_objectives = len(objectives)
         if num_objectives == 0:
             raise ValueError(
@@ -280,6 +291,7 @@ class LogSpaceObjectives(Transform):
                 ds[v.name] = np.exp(ds["log_" + v.name])
         return ds
 
+
 class Chimera(Transform):
     """ Scalarize a multiobjective problem using Chimera.
 
@@ -291,17 +303,21 @@ class Chimera(Transform):
     ---------- 
     domain : `sumit.domain.Domain``
         A domain for that is being used in the strategy
-    loss_tolerances : array-like
+    hierarchy : dict
         Tolerances defining the hiearchy of objectives.
-    smoothness : float, optional
-        Smoothing parameter. Defaults to 0.0
+    softness : float, optional
+        Smoothing parameter. Defaults to 1e-3 as recommended by Häse et al [1]_. 
+        Larger values result in a more smooth objective while smaller values
+        will give a disjointed objective.
+    absolutes : array-like, optional
+        Default is zeros.s
     
     Examples
     --------
 
     Notes
     ------
-    This code is based on the for Griffyn[2]_.
+    This code is based on the code for Griffyn[2]_, which can be found on `Github <https://github.com/aspuru-guzik-group/gryffin/blob/d7443bf374e5d1fee2424cb49f5008ce4248d432/src/gryffin/observation_processor/chimera.py://www.example.com>`_
     
     References
     ----------
@@ -311,50 +327,112 @@ class Chimera(Transform):
            optimization for categorical variables informed by physical intuition with applications to chemistry. 
            arXiv preprint arXiv:2003.12127.
     
-    """ 
-    def __init__(self, tolerances, softness = 0.0, absolutes = None):
-        self.tolerances = tolerances
-        self.absolutes  = absolutes
-        if absolutes is None:
-            self.absolutes = np.zeros(len(tolerances)) + np.nan
-        self.softness   = softness
+    """
 
-    def soft_step(self, value):
-        arg = - value / self.softness
-        return 1. / (1. + np.exp(arg))
+    def __init__(self, domain: Domain, hierarchy: dict, softness=1e-3, absolutes=None):
+        super().__init__(domain)
 
-    def hard_step(self, value):
+        # Sort objectives
+        # {'y_0': {'hiearchy': 0, 'tolerance': 0.2}}
+        objectives = self.transform_domain.output_variables
+        self.tolerances = np.zeros_like(objectives)
+        self.ordered_objective_names = len(objectives) * [""]
+        for name, v in hierarchy.items():
+            h = v["hierarchy"]
+            self.ordered_objective_names[h] = name
+            self.tolerances[h] = v["tolerance"]
+
+        # Pop objectives from transform domain
+        for v in objectives:
+            i = self.transform_domain.variables.index(v)
+            self.transform_domain.variables.pop(i)
+
+        # Add chimera objective to transform domain
+        self.transform_domain += ContinuousVariable(
+            "chimera",
+            "chimeras scalarized objectived",
+            bounds=[0, 1],
+            is_objective=True,
+            maximize=False,
+        )
+
+        # Set chimera parameters
+        self.absolutes = absolutes
+        if self.absolutes is None:
+            self.absolutes = np.zeros(len(self.tolerances)) + np.nan
+        self.softness = softness
+
+    def transform_inputs_outputs(self, ds, copy=True):
+        # Get inputs and outputs
+        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy)
+
+        # Scalarize using Chimera
+        outputs_arr = outputs[self.ordered_objective_names].to_numpy()
+        scalarized_array = self._scalarize(outputs_arr)
+
+        # Write scalarized objective back to DataSEt
+        outputs = DataSet(scalarized_array, columns=["chimera"])
+        return inputs, outputs
+
+    def _scalarize(self, raw_objs):
+        res_objs, res_abs = self._rescale(raw_objs)
+        shifted_objs, abs_tols = self._shift_objectives(res_objs, res_abs)
+        scalarized_obj = self._scalarize_objs(shifted_objs, abs_tols)
+        return scalarized_obj
+
+    def _scalarize_objs(self, shifted_objs, abs_tols):
+        scalar_obj = shifted_objs[-1].copy()
+        for index in range(0, len(shifted_objs) - 1)[::-1]:
+            scalar_obj *= self._step(-shifted_objs[index] + abs_tols[index])
+            scalar_obj += (
+                self._step(shifted_objs[index] - abs_tols[index]) * shifted_objs[index]
+            )
+        return scalar_obj.transpose()
+
+    def _soft_step(self, value):
+        arg = -value / self.softness
+        return 1.0 / (1.0 + np.exp(arg))
+
+    def _hard_step(self, value):
         result = np.empty(len(value))
-        result = np.where(value > 0., 1., 0.)
+        result = np.where(value > 0.0, 1.0, 0.0)
         return result
 
-    def step(self, value):
+    def _step(self, value):
         if self.softness < 1e-5:
-            return self.hard_step(value)
+            return self._hard_step(value)
         else:
-            return self.soft_step(value)
+            return self._soft_step(value)
 
-    def rescale(self, raw_objs):
+    def _rescale(self, raw_objs):
+        """Min-Max scale objectives and absolutes by objective range"""
         res_objs = np.empty(raw_objs.shape)
-        res_abs  = np.empty(self.absolutes.shape)
+        res_abs = np.empty(self.absolutes.shape)
         for index in range(raw_objs.shape[1]):
-            min_objs, max_objs = np.amin(raw_objs[:, index]), np.amax(raw_objs[:, index])
+            min_objs, max_objs = (
+                np.amin(raw_objs[:, index]),
+                np.amax(raw_objs[:, index]),
+            )
             if min_objs < max_objs:
-                res_abs[index]     = (self.absolutes[index] - min_objs) / (max_objs - min_objs)
-                res_objs[:, index] = (raw_objs[:, index] - min_objs) / (max_objs - min_objs)
+                res_abs[index] = (self.absolutes[index] - min_objs) / (
+                    max_objs - min_objs
+                )
+                res_objs[:, index] = (raw_objs[:, index] - min_objs) / (
+                    max_objs - min_objs
+                )
             else:
-                res_abs[index]     = self.absolutes[index] - min_objs
+                res_abs[index] = self.absolutes[index] - min_objs
                 res_objs[:, index] = raw_objs[:, index] - min_objs
-        return res_objs, res_abs				
+        return res_objs, res_abs
 
-    def shift_objectives(self, objs, res_abs):
-        transposed_objs  = objs.transpose()
-        shapes           = transposed_objs.shape
-        shifted_objs     = np.empty((shapes[0] + 1, shapes[1]))
-        
+    def _shift_objectives(self, objs, res_abs):
+        transposed_objs = objs.transpose()
+        shapes = transposed_objs.shape
+        shifted_objs = np.empty((shapes[0] + 1, shapes[1]))
+
         mins, maxs, tols = [], [], []
-        domain           = np.arange(shapes[1])
-        shift            = 0
+        domain = np.arange(shapes[1])
+        shift = 0
         for obj_index, obj in enumerate(transposed_objs):
 
             # get absolute tolerances
@@ -364,14 +442,14 @@ class Chimera(Transform):
             maxs.append(maximum)
             tolerance = minimum + self.tolerances[obj_index] * (maximum - minimum)
             if np.isnan(tolerance):
-                tolerance = res_abs[obj_index]			
+                tolerance = res_abs[obj_index]
 
             # adjust region of interest
             interest = np.where(obj[domain] < tolerance)[0]
             if len(interest) > 0:
                 domain = domain[interest]
 
-            # apply shift	
+            # apply shift
             tols.append(tolerance + shift)
             shifted_objs[obj_index] = transposed_objs[obj_index] + shift
 
@@ -383,18 +461,6 @@ class Chimera(Transform):
                 shifted_objs[obj_index + 1] = transposed_objs[0] + shift
         return shifted_objs, tols
 
-    def scalarize_objs(self, shifted_objs, abs_tols):
-        scalar_obj = shifted_objs[-1].copy()
-        for index in range(0, len(shifted_objs) - 1)[::-1]:
-            scalar_obj *= self.step( - shifted_objs[index] + abs_tols[index])
-            scalar_obj += self.step(   shifted_objs[index] - abs_tols[index]) * shifted_objs[index]
-        return scalar_obj.transpose()
-
-    def scalarize(self, raw_objs):
-        res_objs, res_abs      = self.rescale(raw_objs)
-        shifted_objs, abs_tols = self.shift_objectives(res_objs, res_abs) 
-        scalarized_obj         = self.scalarize_objs(shifted_objs, abs_tols)
-        return scalarized_obj
 
 class Strategy(ABC):
     """ Base class for strategies 
