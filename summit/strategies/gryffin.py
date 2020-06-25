@@ -95,7 +95,6 @@ class GRYFFIN(Strategy):
                     }
                 )
 
-
         # TODO: how does GRYFFIN handle constraints?
         if self.domain.constraints is not None:
             constraints = self.constr_wrapper(self.domain)
@@ -107,9 +106,9 @@ class GRYFFIN(Strategy):
 
         self.input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
 
-        self.auto_desc_gen = kwargs.get("auto_desc_gen", False)
-        self.parallel = kwargs.get("parallel", True)
-        self.boosted = kwargs.get("boosted", False)
+        self.auto_desc_gen = kwargs.get("auto_desc_gen", "False")
+        self.parallel = kwargs.get("parallel", "True")
+        self.boosted = kwargs.get("boosted", "True")
         self.sampling_strategies = kwargs.get("sampling_strategies", 4)
         self.batches = kwargs.get("batches", 1)
         self.logging = kwargs.get("logging", -1)
@@ -251,6 +250,7 @@ class GRYFFIN(Strategy):
             gryffin.prev_param = param
         return gryffin
 
+    # TODO: update constraint wrapper
     def constr_wrapper(self, summit_domain):
         v_input_names = [v.name for v in summit_domain.variables if not v.is_objective]
         gpyopt_constraints = []
@@ -262,7 +262,6 @@ class GRYFFIN(Strategy):
             gpyopt_constraints.append([tmp_c, c.constraint_type])
         return gpyopt_constraints
 
-    # =========================================================================
 
 class CategoryWriter(object):
 
