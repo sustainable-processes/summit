@@ -535,3 +535,94 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
 
     if plot:
         hartmann3D.plot()
+
+
+@pytest.mark.parametrize(
+    "batch_size, max_num_exp, maximize, constraint, check_convergence",
+    [
+        #[1, 1, True, True, False],
+        [1, 10, True, False, False],
+        '''[2, 30, True, True, True],
+        [4, 60, True, True, True],
+        [1, 15, False, True, True],
+        [2, 30, False, True, True],
+        [4, 60, False, True, True],
+        [1, 15, True, False, True],
+        [2, 30, True, False, True],
+        [4, 60, True, False, True],'''
+    ]
+)
+def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergence, plot=False, ):
+    himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
+    strategy = GRYFFIN(domain=himmelblau.domain)
+
+    # Uncomment to start algorithm with pre-defined initial experiments
+    initial_exp = None
+
+    # run SOBO loop for fixed <num_iter> number of iteration
+    num_iter = max_num_exp // batch_size  # maximum number of iterations
+    max_stop = 80 // batch_size  # allowed number of consecutive iterations w/o improvement
+    nstop = 0
+    fbestold = float("inf")
+
+    if initial_exp is not None:
+        next_experiments = initial_exp
+    else:
+        next_experiments = None
+
+    pb = progress_bar(range(num_iter))
+    for i in pb:
+        next_experiments = \
+            strategy.suggest_experiments(num_experiments=batch_size, prev_res=next_experiments)
+
+        # This is the part where experiments take place
+        next_experiments = himmelblau.run_experiments(next_experiments)
+
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
+        xbest = strategy.xbest
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+
+        pb.comment = f"Best f value: {fbest}"
+        print("\n")
+
+    xbest = np.around(xbest, decimals=3)
+    fbest = np.around(fbest, decimals=3)
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
+    if check_convergence:
+        assert (fbest >= -1)
+
+    # Test saving and loading
+    strategy.save('gryffin_test.json')
+    strategy_2 = GRYFFIN.load('gryffin_test.json')
+    os.remove('gryffin_test.json')
+
+    if strategy.prev_param is not None:
+        assert strategy.prev_param == strategy_2.prev_param
+
+    if plot:
+        himmelblau.plot()
+
+        
+def test_gryffin_simple():
+    from summit.domain import Domain, ContinuousVariable, DiscreteVariable
+    from summit.strategies import GRYFFIN
+    import numpy as np
+    domain = Domain()
+    domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
+    domain += DiscreteVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
+    domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
+    strategy = GRYFFIN(domain)
+    next_experiments = strategy.suggest_experiments(5)
+    next_experiments["yield", "DATA"] = 1
+    next_experiments = strategy.suggest_experiments(5, next_experiments)
+
+#test_gryffin_simple()

@@ -149,8 +149,8 @@ class Himmelblau(Experiment):
             p = PatchCollection(patches, facecolors="None", edgecolors="grey", alpha=1)
             ax.add_collection(p)
 
-            plt.show()
-            plt.close()
+        plt.show()
+        plt.close()
 
 
 class Hartmann3D(Experiment):
