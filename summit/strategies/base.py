@@ -304,7 +304,8 @@ class Chimera(Transform):
     domain : `sumit.domain.Domain``
         A domain for that is being used in the strategy
     hierarchy : dict
-        Tolerances defining the hiearchy of objectives.
+        Dictionary with keys as the names of the objectives and values as dictionaries
+        with the keys hierarchy and tolerance for the ranking and tolerance on each objective.
     softness : float, optional
         Smoothing parameter. Defaults to 1e-3 as recommended by Häse et al [1]_. 
         Larger values result in a more smooth objective while smaller values
@@ -318,6 +319,9 @@ class Chimera(Transform):
     Notes
     ------
     This code is based on the code for Griffyn[2]_, which can be found on `Github <https://github.com/aspuru-guzik-group/gryffin/blob/d7443bf374e5d1fee2424cb49f5008ce4248d432/src/gryffin/observation_processor/chimera.py://www.example.com>`_
+    
+    Chimera turns problems into minimization problems. This is done automatically by reading the type 
+    of objective from the domain.
     
     References
     ----------
@@ -336,11 +340,13 @@ class Chimera(Transform):
         # {'y_0': {'hiearchy': 0, 'tolerance': 0.2}}
         objectives = self.transform_domain.output_variables
         self.tolerances = np.zeros_like(objectives)
+        self.directions = np.zeros_like(objectives)
         self.ordered_objective_names = len(objectives) * [""]
         for name, v in hierarchy.items():
             h = v["hierarchy"]
             self.ordered_objective_names[h] = name
             self.tolerances[h] = v["tolerance"]
+            self.directions[h] = -1 if self.domain[name].maximize else 1
 
         # Pop objectives from transform domain
         for v in objectives:
@@ -368,6 +374,7 @@ class Chimera(Transform):
 
         # Scalarize using Chimera
         outputs_arr = outputs[self.ordered_objective_names].to_numpy()
+        outputs_arr = outputs_arr*self.directions #Change maximization to minimization
         scalarized_array = self._scalarize(outputs_arr)
 
         # Write scalarized objective back to DataSEt
@@ -405,7 +412,7 @@ class Chimera(Transform):
             return self._soft_step(value)
 
     def _rescale(self, raw_objs):
-        """Min-Max scale objectives and absolutes by objective range"""
+        """Min-Max scale objectives and absolutes by between 0 and 1"""
         res_objs = np.empty(raw_objs.shape)
         res_abs = np.empty(self.absolutes.shape)
         for index in range(raw_objs.shape[1]):
@@ -434,7 +441,6 @@ class Chimera(Transform):
         domain = np.arange(shapes[1])
         shift = 0
         for obj_index, obj in enumerate(transposed_objs):
-
             # get absolute tolerances
             minimum = np.amin(obj[domain])
             maximum = np.amax(obj[domain])
