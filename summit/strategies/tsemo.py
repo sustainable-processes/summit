@@ -128,6 +128,8 @@ class TSEMO(Strategy):
         # Fit models to new data
         logger.info(f"Fitting {len(self.models._models)} models.")
         self.models.fit(inputs, outputs, spectral_sample=False, **kwargs)
+
+        # Spectral sampling
         n_spectral_points = kwargs.get('n_spectral_points', 1500)
         for name, model in self.models.models.items():
             logger.info(f"Spectral sampling for model {name}.")
@@ -135,10 +137,8 @@ class TSEMO(Strategy):
                                   n_spectral_points=n_spectral_points)
 
         # Sample function to optimize
-        use_spectral_sample = kwargs.get('use_spectral_sample', True)
-        kwargs.update({'use_spectral_sample': use_spectral_sample})
         logger.info("Optimizing models using NSGAII.")
-        internal_res = self.optimizer.optimize(self.models, **kwargs)
+        internal_res = self.optimizer.optimize(self.models, use_spectral_sample=True, **kwargs)
         
         
         if internal_res is not None and len(internal_res.fun) != 0:

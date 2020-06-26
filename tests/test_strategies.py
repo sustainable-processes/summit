@@ -175,6 +175,11 @@ def test_tsemo(save=False):
     strategy = TSEMO(lab.domain, random_rate=0.00)
     experiments = strategy.suggest_experiments(5*num_inputs)
     warnings.filterwarnings('ignore',category=RuntimeWarning)
+    tsemo_options = dict(pop_size=100,                          #population size for NSGAII
+                        iterations=100,                        #iterations for NSGAII
+                        n_spectral_points=4000,                 #number of spectral points for spectral sampling
+                        num_restarts=200,                      #number of restarts for GP optimizer (LBSG)
+                        parallel=True)                         #operate GP optimizer in parallel
 
     pb = progress_bar(range(100))
     for i in pb:
@@ -182,9 +187,8 @@ def test_tsemo(save=False):
         experiments = lab.run_experiments(experiments)
         
         # Get suggestions
-        options = dict(pop_size=100, iterations=100, n_spectral_points=4000)
         experiments = strategy.suggest_experiments(1, experiments,
-                                                   **options)
+                                                   **tsemo_options)
     y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
                                    maximize=False)  
     hv = HvI.hypervolume(y_pareto, [11,11])

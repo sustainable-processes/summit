@@ -11,9 +11,11 @@ from fastprogress.fastprogress import master_bar, progress_bar
 #Two tests were run; one with 1500 and one with 4000
 N_SPECTRAL_POINTS = 1500
 DATE="20200618"
-tsemo_options = dict(pop_size=100, iterations=100,
-                     n_spectral_points=N_SPECTRAL_POINTS,
-                     num_restarts=200, parallel=True)
+tsemo_options = dict(pop_size=100,                          #population size for NSGAII
+                     iterations=100,                        #iterations for NSGAII
+                     n_spectral_points=N_SPECTRAL_POINTS,   #number of spectral points for spectral sampling
+                     num_restarts=200,                      #number of restarts for GP optimizer (LBSG)
+                     parallel=True)                         #operate GP optimizer in parallel
 description="Description: Used exponential kernel instead of matern and increase num restarts. Also, catch and save errors."
 
 def dtlz2_test():

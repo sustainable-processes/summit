@@ -277,9 +277,13 @@ class GPyModel(BaseEstimator, RegressorMixin):
             y_std = (y-self.output_mean)/self.output_std
             y_std[abs(y_std) < 1e-5] = 0.0
         
-        # Spectral sampling. Make sure if noise is really small just exclude it
+        # Spectral sampling. Clip values to match Matlab implementation
         noise = self._model.Gaussian_noise.variance.values[0]
-        noise = noise if noise > 1e-5 else 1e-5
+        noise = np.clip(noise, 1e-6, 1)
+        variance = self._model.kern.variance.values[0]
+        variance = np.clip(variance, np.sqrt(1e-3), np.sqrt(1e3))
+        lengthscales = self._model.kern.lengthscale.values
+        lengthscales = np.clip(lengthscales, np.sqrt(1e-3), np.sqrt(1e3))
         for i in range(n_retries):
             try:
                 sampled_f = pyrff.sample_rff(
