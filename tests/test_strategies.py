@@ -189,19 +189,17 @@ def test_tsemo(save=False):
         # Get suggestions
         experiments = strategy.suggest_experiments(1, experiments,
                                                    **tsemo_options)
+        if save:
+            strategy.save('tsemo_settings.json')
     y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
                                    maximize=False)  
     hv = HvI.hypervolume(y_pareto, [11,11])
-
-    if save:
-        experiments.data.to_csv('tsemo_dtlz_experiment.csv')
+    print("Hypervolume:", hv)
     #This is a really loose bound. It's generally testing
     #to see if the optimization goes in the correct direction
     #If it identifies even some of the pareto points this will work
     #https://sop.tik.ee.ethz.ch/download/supplementary/testproblems/dtlz2/index.php
     assert hv > 120.0
-    if save:
-        experiments.data.to_csv("tsemo_dtlz_experiments.csv")
 
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])
 @pytest.mark.parametrize("maximize", [True, False])
