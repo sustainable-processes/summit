@@ -191,7 +191,6 @@ class GRYFFIN(Strategy):
             for v in self.domain.variables:
                 if v.is_objective and v.maximize:
                     outputs[v.name] = -1 * outputs[v.name]
-                    obj_name = v.name
 
             inputs_dict = inputs.to_dict(orient='records')
             outputs_dict = outputs.to_dict(orient='records')
@@ -208,9 +207,9 @@ class GRYFFIN(Strategy):
             #print(request)
 
             for obs in observations:
-                if obs[obj_name] < fbest:
-                    fbest = obs[obj_name]
-                    xbest = np.asarray([v[0] for k, v in obs.items() if k!=obj_name])
+                if obs[obj.name] < fbest:
+                    fbest = obs[obj.name]
+                    xbest = np.asarray([v[0] for k, v in obs.items() if k!=obj.name])
 
 
         # Generate DataSet object with variable values of next
