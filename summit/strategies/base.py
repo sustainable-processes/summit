@@ -123,17 +123,18 @@ class Transform:
         """
         return ds
 
-    def to_dict(self):
+    def to_dict(self, **kwargs):
         """ Output a dictionary representation of the transform"""
         return dict(
             transform_domain=self.transform_domain.to_dict(),
             name=self.__class__.__name__,
             domain=self.domain.to_dict(),
+            transform_params=kwargs
         )
 
     @classmethod
     def from_dict(cls, d):
-        t = cls(Domain.from_dict(d["domain"]))
+        t = cls(Domain.from_dict(d["domain"]), **d["transform_params"])
         t.transform_domain = Domain.from_dict(d["transform_domain"])
         return t
 
@@ -339,6 +340,7 @@ class Chimera(Transform):
         # Sort objectives
         # {'y_0': {'hiearchy': 0, 'tolerance': 0.2}}
         objectives = self.transform_domain.output_variables
+        self.hiearchy = hierarchy
         self.tolerances = np.zeros_like(objectives)
         self.directions = np.zeros_like(objectives)
         self.ordered_objective_names = len(objectives) * [""]
@@ -466,6 +468,12 @@ class Chimera(Transform):
                 shift -= np.amax(transposed_objs[0][domain]) - tolerance
                 shifted_objs[obj_index + 1] = transposed_objs[0] + shift
         return shifted_objs, tols
+    
+    def to_dict(self):
+        transform_params = dict(hierarchy=self.hierarchy,
+                                softness=self.softness,
+                                absolutes=self.absolutes)
+        return super().to_dict(**transform_params)
 
 
 class Strategy(ABC):

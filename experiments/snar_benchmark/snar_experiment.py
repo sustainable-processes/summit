@@ -5,7 +5,11 @@ from summit.benchmarks import SnarBenchmark
 from summit.strategies import *
 
 import logging
+import os
 logging.basicConfig(level=logging.INFO)
+token = os.environ.get('NEPTUNE_API_TOKEN')
+if token is None:
+    raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
 NUM_REPEATS=20
 MAX_ITERATIONS=100
@@ -53,7 +57,7 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
 
         r = NeptuneRunner(experiment=experiment, strategy=s, 
                           neptune_project=NEPTUNE_PROJECT,
-                          neptune_experiment_name=f"snar_experiment_{s.__class__.__name__}_repeat_{i}",
+                          neptune_experiment_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}",
                           files=["snar_experiment.py"],
                           max_iterations=MAX_ITERATIONS,
                           batch_size=batch_size,
