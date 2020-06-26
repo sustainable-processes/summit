@@ -144,14 +144,12 @@ class GRYFFIN(Strategy):
         self.gryffin = Gryffin(config_file)
 
 
-    def suggest_experiments(self, num_experiments=1, 
+    def suggest_experiments(self,
                             prev_res: DataSet=None, **kwargs):
         """ Suggest experiments using GPyOpt single-objective Bayesian Optimization
         
         Parameters
         ----------  
-        num_experiments: int
-            The number of experiments (i.e., samples) to generate
         prev_res: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments of previous iteration.
             If no data is passed, then random sampling will
@@ -182,7 +180,6 @@ class GRYFFIN(Strategy):
         # Suggest random initial design
         if prev_res is None:
             request = self.gryffin.recommend(observations = [])
-            #print(request)
         else:
             # Get inputs and outputs
             inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
@@ -203,9 +200,7 @@ class GRYFFIN(Strategy):
             observations.extend(prev_samples)
             param = observations
 
-            #print(observations)
             request = self.gryffin.recommend(observations=observations)
-            #print(request)
 
             for obs in observations:
                 if obs[obj_name] < fbest:

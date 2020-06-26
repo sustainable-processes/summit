@@ -536,32 +536,28 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
     if plot:
         hartmann3D.plot()
 
-
 @pytest.mark.parametrize(
-    "batch_size, max_num_exp, maximize, constraint, check_convergence",
+    "batch_size, max_num_exp, maximize, constraint, check_convergence, test_id",
     [
-        [1, 1, True, True, False],
-        [1, 15, True, True, True],
-        [2, 30, True, True, True],
-        [4, 60, True, True, True],
-        [1, 15, False, True, True],
-        [2, 30, False, True, True],
-        [4, 60, False, True, True],
-        [1, 15, True, False, True],
-        [2, 30, True, False, True],
-        [4, 60, True, False, True],
+        [1, 1, True, False, False, 0],
+        [1, 200, True, False, True, 1],
+        [2, 200, True, False, True, 2],
+        [4, 200, True, False, True, 3],
+        [1, 200, False, False, True, 4],
+        [2, 200, False, False, True, 5],
+        [4, 200, False, False, True, 6]
     ]
 )
-def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergence, plot=False, ):
+def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, check_convergence, test_id, plot=False):
     himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
-    strategy = GRYFFIN(domain=himmelblau.domain)
+    strategy = GRYFFIN(domain=himmelblau.domain, sampling_strategies=batch_size)
 
     # Uncomment to start algorithm with pre-defined initial experiments
     initial_exp = None
 
-    # run SOBO loop for fixed <num_iter> number of iteration
+    # run Gryffin loop for fixed <num_iter> number of iteration
     num_iter = max_num_exp // batch_size  # maximum number of iterations
-    max_stop = 80 // batch_size  # allowed number of consecutive iterations w/o improvement
+    max_stop = 60 // batch_size  # allowed number of consecutive iterations w/o improvement
     nstop = 0
     fbestold = float("inf")
 
@@ -573,7 +569,7 @@ def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergenc
     pb = progress_bar(range(num_iter))
     for i in pb:
         next_experiments = \
-            strategy.suggest_experiments(num_experiments=batch_size, prev_res=next_experiments)
+            strategy.suggest_experiments(prev_res=next_experiments)
 
         # This is the part where experiments take place
         next_experiments = himmelblau.run_experiments(next_experiments)
@@ -588,7 +584,87 @@ def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergenc
         if nstop >= max_stop:
             print("No improvement in last " + str(max_stop) + " iterations.")
             break
+        if fbest < 0.5:
+            print("Stopping criterion reached. Function value below 0.5.")
+            break
 
+        pb.comment = f"Best f value: {fbest}"
+        print("\n")
+
+    xbest = np.around(xbest, decimals=3)
+    fbest = np.around(fbest, decimals=3)
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # Extrema of test function without constraints: four identical local minima f = 0 at x1 = (3.000, 2.000),
+    # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
+    if check_convergence:
+        assert (fbest <= 0.5)
+
+    # Test saving and loading
+    save_name = 'gryffin_test_himmelblau_' + str(test_id) + '.json'
+    strategy.save(save_name)
+    strategy_2 = GRYFFIN.load(save_name)
+    #os.remove(save_name)
+
+    if strategy.prev_param is not None:
+        assert strategy.prev_param == strategy_2.prev_param
+
+    if plot:
+        himmelblau.plot()
+
+
+@pytest.mark.parametrize(
+    "batch_size, max_num_exp, maximize, constraint, check_convergence, test_id",
+    [
+        [1, 1, True, False, False, 0],
+        [1, 200, True, False, True, 1],
+        [2, 200, True, False, True, 2],
+        [4, 200, True, False, True, 3],
+        [1, 200, False, False, True, 4],
+        [2, 200, False, False, True, 5],
+        [4, 200, False, False, True, 6]
+    ]
+)
+def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint,check_convergence, test_id, plot=False, ):
+    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
+    strategy = GRYFFIN(domain=hartmann3D.domain, sampling_strategies=batch_size)
+
+    # Uncomment to start algorithm with pre-defined initial experiments
+    initial_exp = None
+
+    # run GRYFFIN loop for fixed <num_iter> number of iteration
+    num_iter = max_num_exp//batch_size   # maximum number of iterations
+    max_stop = 60//batch_size   # allowed number of consecutive iterations w/o improvement
+    nstop = 0
+    fbestold = float("inf")
+
+    if initial_exp is not None:
+        next_experiments = initial_exp
+    else:
+        next_experiments = None
+
+    param = None
+    pb = progress_bar(range(num_iter))
+    for i in pb:
+        next_experiments = \
+            strategy.suggest_experiments(num_experiments=num_experiments, prev_res=next_experiments)
+
+        # This is the part where experiments take place
+        next_experiments = hartmann3D.run_experiments(next_experiments)
+
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
+        xbest = strategy.xbest
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+        if fbest < -3.8:
+            print("Stopping criterion reached. Function value below -3.85.")
+            break
+    
         pb.comment = f"Best f value: {fbest}"
         print("\n")
 
@@ -597,18 +673,20 @@ def test_gryffin(batch_size, max_num_exp, maximize, constraint, check_convergenc
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
     if check_convergence:
-        assert (fbest <= 1)
+        assert (fbest <= -3.8 and fbest >= -3.87)
 
     # Test saving and loading
-    strategy.save('gryffin_test.json')
-    strategy_2 = GRYFFIN.load('gryffin_test.json')
-    os.remove('gryffin_test.json')
+    save_name = 'gryffin_test_hartmann3D_' + str(test_id) + '.json'
+    strategy.save(save_name)
+    strategy_2 = GRYFFIN.load(save_name)
+    #os.remove(save_name)
 
-    if strategy.prev_param is not None:
-        assert strategy.prev_param == strategy_2.prev_param
+    if strategy.prev_param is not None: 
+        assert strategy.prev_param[0].all() == strategy_2.prev_param[0].all()
+        assert strategy.prev_param[1].all() == strategy_2.prev_param[1].all()
 
     if plot:
-        himmelblau.plot()
+        hartmann3D.plot()
 
 
 
