@@ -45,7 +45,7 @@ class GRYFFIN(Strategy):
     >>> domain += ContinuousVariable(name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name="yield", description="yield of reaction", bounds=[0,100], is_objective=True)
     >>> strategy = GRYFFIN(domain)
-    >>> next_experiments = strategy.suggest_experiments(5)
+    >>> next_experiments = strategy.suggest_experiments()
 
     """
 
