@@ -196,7 +196,8 @@ def test_tsemo(save=False):
     #If it identifies even some of the pareto points this will work
     #https://sop.tik.ee.ethz.ch/download/supplementary/testproblems/dtlz2/index.php
     assert hv > 120.0
-
+    if save:
+        experiments.data.to_csv("tsemo_dtlz_experiments.csv")
 
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])
 @pytest.mark.parametrize("maximize", [True, False])
