@@ -195,6 +195,7 @@ class MultitoSingleObjective(Transform):
             is_objective=True,
             maximize=maximize,
         )
+        self.maximize = maximize
 
     def transform_inputs_outputs(self, ds, copy=True):
         inputs, outputs = super().transform_inputs_outputs(ds, copy=copy)
@@ -204,17 +205,9 @@ class MultitoSingleObjective(Transform):
 
     def to_dict(self):
         """ Output a dictionary representation of the transform"""
-        transform_params = dict(expression=self.expression)
+        transform_params = dict(expression=self.expression, maximize=self.maximize)
         d = super().to_dict(**transform_params)
-        d.update(dict(expression=self.expression))
         return d
-
-    @classmethod
-    def from_dict(cls, d):
-        t = cls(Domain.from_dict(d["domain"]), d['expression'],
-                **d["transform_params"])
-        t.transform_domain = Domain.from_dict(d["transform_domain"])
-        return t
 
 
 class LogSpaceObjectives(Transform):
@@ -342,7 +335,7 @@ class Chimera(Transform):
         # Sort objectives
         # {'y_0': {'hiearchy': 0, 'tolerance': 0.2}}
         objectives = self.transform_domain.output_variables
-        self.hiearchy = hierarchy
+        self.hierarchy = hierarchy
         self.tolerances = np.zeros_like(objectives)
         self.directions = np.zeros_like(objectives)
         self.ordered_objective_names = len(objectives) * [""]

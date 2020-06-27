@@ -4,6 +4,7 @@ from summit import *
 from summit.benchmarks import SnarBenchmark
 from summit.strategies import *
 
+import warnings
 import logging
 import os
 logging.basicConfig(level=logging.INFO)
@@ -46,6 +47,7 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 @pytest.mark.parametrize('transform', transforms)
 @pytest.mark.parametrize('batch_size', [1,24])
 def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
+    warnings.filterwarnings('ignore', category=RuntimeWarning)
     for i in range(NUM_REPEATS):
         experiment.reset()
         s = strategy(experiment.domain, transform=transform)
