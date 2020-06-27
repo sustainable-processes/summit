@@ -210,8 +210,9 @@ class MultitoSingleObjective(Transform):
 
     @classmethod
     def from_dict(cls, d):
-        t = super().from_dict(d)
-        t.expression = d["expression"]
+        t = cls(Domain.from_dict(d["domain"]), d['expression'],
+                **d["transform_params"])
+        t.transform_domain = Domain.from_dict(d["transform_domain"])
         return t
 
 
