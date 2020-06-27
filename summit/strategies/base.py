@@ -204,7 +204,8 @@ class MultitoSingleObjective(Transform):
 
     def to_dict(self):
         """ Output a dictionary representation of the transform"""
-        d = super().to_dict()
+        transform_params = dict(expression=self.expression)
+        d = super().to_dict(**transform_params)
         d.update(dict(expression=self.expression))
         return d
 

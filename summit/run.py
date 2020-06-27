@@ -134,6 +134,7 @@ class NeptuneRunner(Runner):
         experiment: Experiment,
         neptune_project: str,
         neptune_experiment_name: str,
+        tags: list = None,
         neptune_description: str = None,
         files: list = None,
         max_iterations=100,
@@ -167,6 +168,7 @@ class NeptuneRunner(Runner):
         self.neptune_experiment_name = neptune_experiment_name
         self.neptune_description = neptune_description
         self.files = files
+        self.tags = tags
 
         #Set up logging
         self.logger = logger or logging.getLogger(__name__)
@@ -189,7 +191,8 @@ class NeptuneRunner(Runner):
             description=self.neptune_description,
             params=self.to_dict(),
             upload_source_files=self.files,
-            logger=self.logger
+            logger=self.logger,
+            tags=self.tags
         )
 
         # Set parameters
