@@ -467,8 +467,14 @@ class Chimera(Transform):
     def to_dict(self):
         transform_params = dict(hierarchy=self.hierarchy,
                                 softness=self.softness,
-                                absolutes=self.absolutes)
+                                absolutes=self.absolutes.tolist())
         return super().to_dict(**transform_params)
+    
+    @classmethod
+    def from_dict(cls, d):
+        absolutes = d["transform_params"]["absolutes"]
+        d["transform_params"]["absolutes"] = np.array(absolutes)
+        return super().from_dict(d)
 
 
 class Strategy(ABC):
