@@ -248,7 +248,7 @@ class NeptuneRunner(Runner):
                     os.remove(file)
             
             # Stop if no improvement
-            if self.f_tol is not None and i >0:
+            if self.f_tol is not None and i >1:
                 compare = np.abs(fbest-fbest_old) < self.f_tol
                 if all(compare):
                     self.logger.info(f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objective(s) (less than f_tol={self.f_tol}).")
