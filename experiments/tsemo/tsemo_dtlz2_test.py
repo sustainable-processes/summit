@@ -9,7 +9,7 @@ from fastprogress.fastprogress import master_bar, progress_bar
 
 
 #Two tests were run; one with 1500 and one with 4000
-N_SPECTRAL_POINTS = 1500
+N_SPECTRAL_POINTS = 4000
 DATE="20200618"
 tsemo_options = dict(pop_size=100,                          #population size for NSGAII
                      iterations=100,                        #iterations for NSGAII
@@ -32,7 +32,7 @@ def dtlz2_test():
     tsemo = TSEMO(lab.domain, models=models, random_rate=0.00)
     experiments = tsemo.suggest_experiments(5*num_inputs)
 
-    mb = master_bar(range(20))
+    mb = master_bar(range(1))
     for j in mb:
         mb.main_bar.comment = f'Repeats'
         for i in progress_bar(range(100), parent=mb):
@@ -46,15 +46,13 @@ def dtlz2_test():
                                                         **tsemo_options)
             except Exception as e:
                 print(e)
-                tsemo.save(f'data/python/{DATE}/tsemo_params_{errors}.json')
                 errors +=1
-    
-        tsemo.save(f'data/python/{DATE}/tsemo_params_{j}.json')
-        lab.data.to_csv(f'data/python/{DATE}/experiment_{j}.csv')
+
+        tsemo.save(f'new_tsemo_params_{j}.json')
 
 
 if __name__ == '__main__':
     tsemo_options.update({'description': description})
-    with open(f'data/python/{DATE}/params.json', 'w') as f:
+    with open(f'new_params.json', 'w') as f:
         json.dump(tsemo_options,f)
     dtlz2_test()

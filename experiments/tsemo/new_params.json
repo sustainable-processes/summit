@@ -1,0 +1,1 @@
+{"pop_size": 100, "iterations": 100, "n_spectral_points": 4000, "num_restarts": 200, "parallel": true, "description": "Description: Used exponential kernel instead of matern and increase num restarts. Also, catch and save errors."}
