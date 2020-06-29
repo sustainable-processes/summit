@@ -10,7 +10,17 @@ import  zipfile
 import shutil
 import warnings
 
+import collections
 
+def flatten(d, parent_key='', sep='_'):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
 
 class PlotExperiments:
     def __init__(self, project: str, experiment_ids: list):
@@ -23,8 +33,14 @@ class PlotExperiments:
 
     def _restore_runners(self):
         """Restore runners from Neptune Artifacts"""
-        # Download artifacts    
-        experiments = self.proj.get_experiments(id=self.experiment_ids)
+        # Download artifacts
+        n_experiments =  len(self.experiment_ids)
+        experiments = []
+        if n_experiments > 100:
+            for i in range(n_experiments//100):
+                experiments += self.proj.get_experiments(id=self.experiment_ids[i*100:(i+1)*100])
+            remainder = n_experiments % 100
+            experiments += self.proj.get_experiments(id=self.experiment_ids[(i+1)*100:(i+1)*100+remainder])
         for experiment in experiments:
             path = f'data/{experiment.id}'
             try:
@@ -65,7 +81,14 @@ class PlotExperiments:
             transform_name = r.strategy.transform.__class__.__name__
             transform_params = r.strategy.transform.to_dict()['transform_params']
             record['transform_name'] = transform_name
-            record.update(transform_params)
+            if transform_name == 'Chimera':
+                hierarchy = transform_params['hierarchy']
+                for objective_name,v in hierarchy.items():
+                    key = f"{objective_name}_tolerance"
+                    record[key] = v["tolerance"]
+                # record.update(transform_params[''])
+            elif transform_name == "MultitoSingleObjective":
+                record.update(transform_params)
 
             # Strategy
             record['strategy_name'] = r.strategy.__class__.__name__
@@ -81,15 +104,17 @@ class PlotExperiments:
 
     def iterations_to_threshold(self, sty_threshold = 1e4, 
         e_factor_threshold = 10.0):
-        #Separate experiments
+        #Group experiment repeats
         df = self.df.copy()
         df = df.set_index('experiment_id')
-        uniques = df.drop_duplicates(keep='last')
+        uniques = df.drop_duplicates(keep='last') #This actually groups them
         df_new = self.df.copy()
         experiments = {}
         for i, unique in uniques.iterrows():
             temp_df = df_new.merge(unique.to_frame().transpose(), how='inner')
             name = f"{unique['strategy_name']}, {unique['transform_name']}, batch size={unique['batch_size']}"
+            if unique['transform_name'] == "Chimera":
+                name += f", sty_tolerance={unique['sty_tolerance']}, e_factor_tolerance={unique['e_factor_tolerance']}"
             #Create dictionary with experiment names as keys and array of repeats of experiment_id as values
             experiments[name] = temp_df['experiment_id'].values
 
@@ -108,13 +133,12 @@ class PlotExperiments:
             if something_happens:
                 mean = np.mean(num_iterations)
                 std = np.std(num_iterations)
-                results.append(dict(name=name, mean_iterations=mean, std_iterations=std))
+                results.append(dict(name=name, mean_iterations=mean, std_iterations=std, num_repeats=len(num_iterations)))
             else:
+                results.append(dict(name=name, mean_iterations="None", std_iterations="None"))
                 warnings.warn("Cannot find any iterations that achieve threshold")
         
         return pd.DataFrame(results)
-
-
 
         # data_to_plot = []
         # j = 0
