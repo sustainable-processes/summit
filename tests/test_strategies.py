@@ -338,7 +338,7 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
 
     # plot
     if plot:
-        himmelblau.plot(polygons=polygons_points)
+        fig, ax = himmelblau.plot(polygons=polygons_points)
 
 
 @pytest.mark.parametrize(
@@ -450,7 +450,7 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
     os.remove('nm_3d.json')
 
     if plot:
-        hartmann3D.plot(polygons=polygons_points)
+        fig, ax = hartmann3D.plot(polygons=polygons_points)
 
 
 
@@ -538,4 +538,4 @@ def test_sobo(batch_size, max_num_exp, maximize, constraint,check_convergence, p
         assert strategy.prev_param[1].all() == strategy_2.prev_param[1].all()
 
     if plot:
-        hartmann3D.plot()
+        fig, ax = hartmann3D.plot()
