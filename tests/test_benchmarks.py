@@ -1,7 +1,8 @@
 import pytest
-from summit.benchmarks import SnarBenchmark
+from summit.benchmarks import SnarBenchmark, Hartmann3D, Himmelblau, ThreeHumpCamel
 from summit.utils.dataset import DataSet
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def test_snar_benchmark():
@@ -26,3 +27,16 @@ def test_snar_benchmark():
     assert np.isclose(float(results["e_factor"]), 191.260294)
 
     return results
+
+def test_test_functions():
+    b = ThreeHumpCamel()
+    columns = [v.name for v in b.domain.variables]
+    values = [v.bounds[0]+0.1*(v.bounds[1]-v.bounds[0]) for v in b.domain.variables]
+    values = np.array(values)
+    values = np.atleast_2d(values)
+    conditions = DataSet(values, columns=columns)
+    results = b.run_experiments(conditions)
+    fig, ax = b.plot()
+    plt.show(fig)
+
+test_test_functions()
