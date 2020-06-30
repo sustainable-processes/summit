@@ -4,6 +4,7 @@ from summit.utils.dataset import DataSet
 import numpy as np
 
 import matplotlib.pyplot as plt
+import matplotlib.colors as Colors
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -80,7 +81,27 @@ class Himmelblau(Experiment):
 
         return conditions, None
 
-    def plot(self, **kwargs):
+    def plot(self, ax=None, **kwargs):
+        """  Make a plot of the experiments evaluated thus far
+        
+        Parameters
+        ---------- 
+        ax: `matplotlib.pyplot.axes`, optional
+            An existing axis to apply the plot to
+
+        Returns
+        -------
+        if ax is None returns a tuple with the first component
+        as the a new figure and the second component the axis
+
+        if ax is a matplotlib axis, returns only the axis
+        
+        Raises
+        ------
+        ValueError
+            If there are no points to plot
+        """
+
         # evaluated points in <run_experiments> and optional points added by the user
         extra_points = kwargs.get("extra_points", None)
 
@@ -90,11 +111,24 @@ class Himmelblau(Experiment):
         points = self.evaluated_points
         if extra_points is not None:
             points.append(extra_points)
+        if extra_points is None:
+            if points is None:
+                raise ValueError("No points to plot.")
+        else:
+            if points is None:
+                points = extra_points
+            else:
+                points.append(extra_points)
+
+        if ax is None:
+            fig, ax = plt.subplots(1)
+            return_fig = True
+        else:
+            return_fig = False
 
         # get domain bounds and plot frame/axes
         bounds_x_1 = self.domain.__getitem__("x_1").bounds
         bounds_x_2 = self.domain.__getitem__("x_2").bounds
-        fig, ax = plt.subplots()
         expand_bounds = 1
         plt.axis(
             [
@@ -149,9 +183,10 @@ class Himmelblau(Experiment):
             p = PatchCollection(patches, facecolors="None", edgecolors="grey", alpha=1)
             ax.add_collection(p)
 
-        plt.show()
-        plt.close()
-
+        if return_fig:
+            return fig, ax
+        else:
+            return ax
 
 class Hartmann3D(Experiment):
     """ Hartmann test function (3D) for testing optimization algorithms
@@ -246,7 +281,26 @@ class Hartmann3D(Experiment):
 
         return conditions, None
 
-    def plot(self, **kwargs):
+    def plot(self, ax=None, **kwargs):
+        """  Make a plot of the experiments evaluated thus far
+        
+        Parameters
+        ---------- 
+        ax: `matplotlib.pyplot.axes`, optional
+            An existing axis to apply the plot to
+
+        Returns
+        -------
+        if ax is None returns a tuple with the first component
+        as the a new figure and the second component the axis
+
+        if ax is a matplotlib axis, returns only the axis
+        
+        Raises
+        ------
+        ValueError
+            If there are no points to plot
+        """
 
         # evaluated points in <run_experiments> and optional points added by the user
         extra_points = kwargs.get("extra_points", None)
@@ -255,16 +309,27 @@ class Hartmann3D(Experiment):
         polygons = kwargs.get("polygons", None)
 
         points = self.evaluated_points
-        if extra_points is not None:
-            points.append(extra_points)
+        if extra_points is None:
+            if points is None:
+                raise ValueError("No points to plot.")
+        else:
+            if points is None:
+                points = extra_points
+            else:
+                points.append(extra_points)
+
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection="3d")
+            return_fig = True
+        else:
+            return_fig = False
 
         # get domain bounds and plot frame/axes
         bounds_x_1 = self.domain.__getitem__("x_1").bounds
         bounds_x_2 = self.domain.__getitem__("x_2").bounds
         bounds_x_3 = self.domain.__getitem__("x_3").bounds
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection="3d")
         expand_bounds = 0
         ax.axes.set_xlim3d(
             left=bounds_x_1[0] - expand_bounds, right=bounds_x_1[1] + expand_bounds
@@ -321,8 +386,10 @@ class Hartmann3D(Experiment):
                 polygon.set_edgecolor("b")
                 ax.add_collection3d(polygon)
 
-        plt.show()
-        plt.close()
+        if return_fig:
+            return fig, ax
+        else:
+            return ax
 
 
 class ThreeHumpCamel(Experiment):
@@ -398,7 +465,27 @@ class ThreeHumpCamel(Experiment):
 
         return conditions, None
 
-    def plot(self, **kwargs):
+    def plot(self, ax=None, **kwargs):
+        """  Make a plot of the experiments evaluated thus far
+        
+        Parameters
+        ---------- 
+        ax: `matplotlib.pyplot.axes`, optional
+            An existing axis to apply the plot to
+
+        Returns
+        -------
+        if ax is None returns a tuple with the first component
+        as the a new figure and the second component the axis
+
+        if ax is a matplotlib axis, returns only the axis
+        
+        Raises
+        ------
+        ValueError
+            If there are no points to plot
+        """
+
         # evaluated points in <run_experiments> and optional points added by the user
         extra_points = kwargs.get("extra_points", None)
 
@@ -408,11 +495,24 @@ class ThreeHumpCamel(Experiment):
         points = self.evaluated_points
         if extra_points is not None:
             points.append(extra_points)
+        if extra_points is None:
+            if points is None:
+                raise ValueError("No points to plot.")
+        else:
+            if points is None:
+                points = extra_points
+            else:
+                points.append(extra_points)
+
+        if ax is None:
+            fig, ax = plt.subplots(1)
+            return_fig = True
+        else:
+            return_fig = False
 
         # get domain bounds and plot frame/axes
         bounds_x_1 = self.domain.__getitem__("x_1").bounds
         bounds_x_2 = self.domain.__getitem__("x_2").bounds
-        fig, ax = plt.subplots()
         expand_bounds = 1
         plt.axis([bounds_x_1[0] - expand_bounds, bounds_x_1[1] + expand_bounds,
                   bounds_x_2[0] - expand_bounds, bounds_x_2[1] + expand_bounds])
@@ -457,5 +557,7 @@ class ThreeHumpCamel(Experiment):
             p = PatchCollection(patches, facecolors="None", edgecolors='grey', alpha=1)
             ax.add_collection(p)
 
-        plt.show()
-        plt.close()
+        if return_fig:
+            return fig, ax
+        else:
+            return ax
