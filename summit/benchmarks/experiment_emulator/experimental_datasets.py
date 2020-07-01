@@ -63,9 +63,13 @@ def load_reizman_suzuki(*, return_X_y=False, case=1):
     ==============   ===============
     Parameters
     ----------
-    return_X_y : bool, default=False
+    return_X_y : bool, optional, default=False
         If True, returns ``(data, target)`` instead of a `data` dict object.
         See below for more information about the `data` and `target` object.
+    case: int, optional, default=1
+        Reizman et al. (2016) reported experimental data for 4 different
+        cases. The case number refers to the cases they reported.
+        Please see their paper for more information on the cases.
     Returns
     -------
     data : Dictionary-like object, with the following attributes.
@@ -79,6 +83,8 @@ def load_reizman_suzuki(*, return_X_y=False, case=1):
             The physical location of reizman_suzuki csv dataset.
         DESCR : str
             The full description of the dataset.
+    Dataset: Summit Dataset
+    Domain: Summit Domain
     (data, target) : tuple if ``return_X_y`` is True
     Examples
     --------
@@ -89,7 +95,6 @@ def load_reizman_suzuki(*, return_X_y=False, case=1):
     """
     module_path = osp.dirname(osp.realpath(__file__))
 
-    data_file_name = osp.join(module_path, "data", "reizman_suzuki_case1_split.csv")
     def get_case_file(case):
         return {
            1: "reizman_suzuki_case1_train_test.csv",
@@ -110,7 +115,10 @@ def load_reizman_suzuki(*, return_X_y=False, case=1):
         data = np.empty((n_samples, n_features))
         target = np.empty((n_samples,2))
         temp = next(data_file)
-        feature_names = np.array(temp)
+        # only return first word as variable name to avoid units or similar in variable names
+        #for t in range(len(temp)):
+        #    tmp[t] = tmp[t].strip.split(" ", 1)[0]
+        #feature_names = np.array(temp)
 
         for i, d in enumerate(data_file):
             ligand_type = np.asarray([int(str(d[0])[1]+str(d[0])[4])], dtype=np.int32)   # categorical input: convert string of ligand type into numerical identifier
@@ -128,6 +136,8 @@ def load_reizman_suzuki(*, return_X_y=False, case=1):
             "filename": data_file_name,
             "DESCR": descr
             }
+
+    # TODO: returns a Summit dataset and a Domain
 
     return data_dict
 
