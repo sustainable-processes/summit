@@ -69,8 +69,6 @@ class ModelGroup:
             models[k] = model_from_dict(v)
         return cls(models)
 
-
-
 def model_from_dict(d):
     if d["name"] == "GPyModel":
         return GPyModel.from_dict(d)
@@ -153,30 +151,24 @@ class GPyModel(BaseEstimator, RegressorMixin):
         spectral_sample=kwargs.get('spectral_sample',False)
         verbose = kwargs.get('verbose', False)
 
-        # Standardize inputs and outputs
+        # Read in dataset or numpy array
         if isinstance(X, DataSet):
-            X_std, self.input_mean, self.input_std = X.standardize(
-                return_mean=True, return_std=True
-            )
+            X = X.to_numpy()
         elif isinstance(X, np.ndarray):
-            self.input_mean = np.mean(X, axis=0)
-            self.input_std = np.std(X, axis=0)
-            X_std = (X - self.input_mean) / self.input_std
-            X_std[abs(X_std) < 1e-5] = 0.0
+            pass
+        else:
+            raise TypeError("X must be a dataset or numpy array")
 
         if isinstance(y, DataSet):
-            y_std, self.output_mean, self.output_std = y.standardize(
-                return_mean=True, return_std=True
-            )
+            y = y.to_numpy()
         elif isinstance(y, np.ndarray):
-            self.output_mean = np.mean(y, axis=0)
-            self.output_std = np.std(y, axis=0)
-            y_std = (y - self.output_mean) / self.output_std
-            y_std[abs(y_std) < 1e-5] = 0.0
+            pass
+        else:
+            raise TypeError("Y must be a DataSet or numpy array")
 
         # Initialize model
         self._model = GPRegression(
-            X_std, y_std, self._kernel, noise_var=self._noise_var
+            X, y, self._kernel, noise_var=self._noise_var
         )
 
         # Set priors to constrain hyperparameters
@@ -219,25 +211,22 @@ class GPyModel(BaseEstimator, RegressorMixin):
         if not self._model:
             raise ValueError("Fit must be called on the model prior to prediction")
 
+        if isinstance(X, DataSet):
+            X = X.to_numpy()
+        elif isinstance(X, np.ndarray):
+            pass
+        else:
+            raise TypeError("X must be a dataset or numpy array")
+
+        # Use spectral sample when called. Otherwise use model directly
         use_spectral_sample = kwargs.get('use_spectral_sample', False)
         if use_spectral_sample and self.sampled_f is not None:
             return self.sampled_f(X)
         elif use_spectral_sample:
             raise ValueError("Spectral Sample must be called during fitting prior to prediction.")
-
-
-        if isinstance(X, np.ndarray):
-            X_std = (X - self.input_mean) / self.input_std
-            X_std[abs(X_std) < 1e-5] = 0.0
-        elif isinstance(X, DataSet):
-            X_std = X.standardize(mean=self.input_mean, std=self.input_std)
         else:
-            raise TypeError("X must be a numpy array or summit DataSet.")
-
-        m_std, v_std = self._model.predict(X_std)
-        m = m_std * self.output_std + self.output_mean
-
-        return m
+            m, v = self._model.predict(X)
+            return m
 
     def spectral_sample(self, X, y, n_spectral_points=1500,
                         n_retries=10):
@@ -267,22 +256,6 @@ class GPyModel(BaseEstimator, RegressorMixin):
             matern_nu = np.inf
         else:
             raise TypeError("Spectral sample currently only works with Matern type kernels, including RBF.")
-
-        # Normalize data
-        if isinstance(X, np.ndarray):
-            X_std =  (X-self.input_mean)/self.input_std
-            X_std[abs(X_std) < 1e-5] = 0.0
-        elif isinstance(X, DataSet):
-            X_std = X.standardize(mean=self.input_mean, 
-                                  std=self.input_std)
-
-        if isinstance(y, DataSet):
-            y_std, self.output_mean, self.output_std = y.standardize(return_mean=True, return_std=True)
-        elif isinstance(y, np.ndarray):
-            self.output_mean = np.mean(y,axis=0)
-            self.output_std = np.std(y, axis=0)
-            y_std = (y-self.output_mean)/self.output_std
-            y_std[abs(y_std) < 1e-5] = 0.0
         
         # Spectral sampling. Clip values to match Matlab implementation
         noise = self._model.Gaussian_noise.variance.values[0]
@@ -298,8 +271,8 @@ class GPyModel(BaseEstimator, RegressorMixin):
                     scaling=self._model.kern.variance.values[0],
                     noise=noise,
                     kernel_nu=matern_nu,
-                    X=X_std,
-                    Y=y_std[:,0],
+                    X=X,
+                    Y=y[:,0],
                     M=n_spectral_points,
                     )
                 break
@@ -307,16 +280,9 @@ class GPyModel(BaseEstimator, RegressorMixin):
                 pass
 
         # Define function wrapper
-        def f(x):
-            if isinstance(x, np.ndarray):
-                x =  (x-self.input_mean)/self.input_std
-                x[abs(x) < 1e-5] = 0.0
-            elif isinstance(X, DataSet):
-                x = x.standardize(mean=self.input_mean, 
-                                  std=self.input_std)
-            y_s = sampled_f(x)
-            y_o = self.output_mean+y_s*self.output_std
-            return np.atleast_2d(y).T   
+        def f(x_new):
+            y_s = sampled_f(x_new)
+            return np.atleast_2d(y_s).T   
         self.sampled_f = f
         return f
     

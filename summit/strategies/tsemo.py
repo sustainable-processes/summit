@@ -132,7 +132,7 @@ class TSEMO(Strategy):
         # Standardize objectives
         outputs_scaled, output_mean, output_std = outputs.standardize(return_mean=True, return_std=True)
 
-        # Fit models to new data
+        # Fit models to data
         logger.info(f"Fitting {len(self.models._models)} models.")
         self.models.fit(inputs_scaled, outputs_scaled, spectral_sample=False, **kwargs)
 
