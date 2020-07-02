@@ -172,9 +172,9 @@ class GPyModel(BaseEstimator, RegressorMixin):
         )
 
         # Set priors to constrain hyperparameters
-        self._model.kern.lengthscale.set_prior(GPy.priors.Gamma(1, 0.1))
-        self._model.kern.variance.set_prior(GPy.priors.Gamma(1, 0.1))
-        self._model.Gaussian_noise.variance.set_prior(GPy.priors.Gamma(0.5,0.1))
+        self._model.kern.lengthscale.set_prior(GPy.priors.Gamma(1, 0.1), warning=False)
+        self._model.kern.variance.set_prior(GPy.priors.Gamma(1, 0.1), warning=False)
+        self._model.Gaussian_noise.variance.set_prior(GPy.priors.Gamma(0.5,0.1), warning=False)
 
         # Fit model
         if self._optimizer:
@@ -225,8 +225,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         elif use_spectral_sample:
             raise ValueError("Spectral Sample must be called during fitting prior to prediction.")
         else:
-            m, v = self._model.predict(X)
-            return m
+            return self._model.predict(X)
 
     def spectral_sample(self, X, y, n_spectral_points=1500,
                         n_retries=10):
