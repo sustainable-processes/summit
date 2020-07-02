@@ -1,11 +1,7 @@
 import os
 import os.path as osp
 
-from summit.strategies.base import Transform
 from summit.experiment import Experiment
-from summit.domain import *
-from summit.utils.dataset import DataSet
-from summit.benchmarks.experiment_emulator import experimental_datasets
 
 import numpy as np
 from scipy.integrate import solve_ivp
@@ -50,24 +46,41 @@ class ExperimentalEmulator(Experiment):
     
     """
 
-    def __init__(self, domain, dataset=None, train=False, validate=False, regressor_type="BNN", **kwargs):
+    def __init__(self, domain, dataset=None, csv_dataset=None, model_name="dataset_name_emulator_bnn", regressor_type="BNN", **kwargs):
         super().__init__(domain)
 
+        dataset = self._check_datasets(dataset, csv_dataset)
+
         if regressor_type == "BNN":
-            self.emulator = BNNEmulator(domain=domain, dataset=dataset, model_name="TEST", train=train, validate=validate, kwargs=kwargs)
+            self.emulator = BNNEmulator(domain=domain, dataset=dataset, model_name=model_name, kwargs=kwargs)
+        elif regressor_type == "ANN":
+            pass
         else:
             raise NotImplementedError("Regressor type <{}> not implemented yet".format(str(regressor_type)))
 
 
     def _run(self, conditions, **kwargs):
         condition = DataSet.from_df(conditions.to_frame().T)
-        infer_dict = self.emulator.infer_model(condition)
+        infer_dict = self.emulator.infer_model(dataset=condition)
         for k, v in infer_dict.items():
             conditions[(k, "DATA")] = v
         return conditions, None
 
-    def train_model(self, dataset, **kwargs):
-        self.emulator.set_training_hyperparameters(kwargs)
-        self.emulator.train_model(dataset=dataset)
+    def train(self, dataset=None, csv_dataset=None, **kwargs):
+        print(kwargs)
+        dataset = self._check_datasets(dataset, csv_dataset)
+        self.emulator.set_training_hyperparameters(kwargs=kwargs)
+        self.emulator.train_model(dataset=dataset, kwargs=kwargs)
+
+    def validate(self, dataset=None, csv_dataset=None, **kwargs):
+        dataset = self._check_datasets(dataset, csv_dataset)
+        self.emulator.validate_model(dataset=dataset, kwargs=kwargs)
+
+    def _check_datasets(self, dataset, csv_dataset):
+        if csv_dataset:
+            if dataset:
+                print("Dataset and csv.dataset are given, hence dataset will be overwritten by csv.data.")
+            dataset=DataSet.read_csv(csv_dataset, index_col=None)
+        return dataset
 
 

@@ -7,9 +7,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import numpy as np
-import csv
-import matplotlib.pyplot as plt
+
+import json
 
 from blitz.modules import BayesianLinear
 from blitz.utils import variational_estimator
@@ -18,7 +17,9 @@ from sklearn.model_selection import train_test_split as sklearn_train_test_split
 import sklearn.preprocessing
 
 from experimental_datasets import load_reizman_suzuki
-#=======================================================================
+
+
+# =======================================================================
 
 class BNNEmulator(Emulator):
     """ BNN Trainer
@@ -35,19 +36,14 @@ class BNNEmulator(Emulator):
 
     """
 
-    def __init__(self, domain, dataset, train, validate, model_name="tmp", kwargs=None):
+    def __init__(self, domain, dataset, model_name, kwargs={}):
         self._domain = domain
         self._domain_preprocess()
 
         if dataset is not None:
             self._dataset = dataset
-            # Set up preprocessing
-            self.standardize_inp = kwargs.get("standardize_inp", True)
-            self.standardize_out = kwargs.get("standardize_out", True)
             # Preprocess dataset
-            train_dataset, test_dataset = self._data_preprocess()
-        elif train:
-            raise ValueError("No dataset for training given. Please provide a dataset.")
+            train_dataset, test_dataset = self._data_preprocess(kwargs=kwargs)
         else:
             train_dataset, test_dataset = None, None
 
@@ -55,18 +51,8 @@ class BNNEmulator(Emulator):
         super().__init__(train_dataset, test_dataset, regression_model)
 
         # Set model name for saving
-        self.model_name = str(model_name) + "_"
-
-        # Set hyperparameters for trainer
-        self.set_training_hyperparameters(kwargs)
-
-        # Train model
-        if train:
-            self.train_model()
-
-        # Evaluate model
-        if validate:
-            self.validate_model()
+        self.save_path = kwargs.get("save_path", osp.join(osp.dirname(osp.realpath(__file__)), "trained_models/BNN"))
+        self.model_name = str(model_name)
 
     def _setup_model(self, **kwargs):
         """ Setup the BNN model """
@@ -103,14 +89,14 @@ class BNNEmulator(Emulator):
                     optimizer.step()
 
             # Evaluate model for given dataloader
-            def _evaluate_regression(self, regressor, device, out_mean, loader):
+            def _evaluate_regression(self, regressor, device, loader, fun_untransform_data, out_transform,):
                 regressor.eval()
 
                 mae = 0
                 for i, (datapoints, labels) in enumerate(loader):
                     data = datapoints.to(device)
-                    tmp_pred_data = regressor(data) * out_mean
-                    tmp_real_data = labels * out_mean
+                    tmp_pred_data = fun_untransform_data(data=regressor(data), reduce=out_transform[0], divide=out_transform[1])
+                    tmp_real_data = fun_untransform_data(data=labels, reduce=out_transform[0], divide=out_transform[1])
                     mae += (tmp_pred_data - tmp_real_data).abs().mean()
 
                 return mae
@@ -118,54 +104,52 @@ class BNNEmulator(Emulator):
         regression_model = BayesianRegressor(self.input_dim)
         return regression_model
 
-    def set_training_hyperparameters(self, kwargs=None):
+    def set_training_hyperparameters(self, kwargs={}):
         # Setter method for hyperparameters of training
-        self.epochs = kwargs.get("epochs", 3)   # number of max epochs the model is trained
-        self.initial_lr = kwargs.get("initial_lr", 0.001)   # initial learning rate
+        self.epochs = kwargs.get("epochs", 300)  # number of max epochs the model is trained
+        self.initial_lr = kwargs.get("initial_lr", 0.001)  # initial learning rate
         self.min_lr = kwargs.get("min_lr", 0.00001)
-        self.lr_decay = kwargs.get("lr_decay", 0.7)   # learning rate decay
-        self.lr_decay_patience = kwargs.get("lr_decay_epochs", 3)   # number of epochs before learning rate is reduced by lr_decay
-        self.early_stopping_epochs = kwargs.get("early_stopping_epochs", 20)   # number of epochs before early stopping
+        self.lr_decay = kwargs.get("lr_decay", 0.7)  # learning rate decay
+        self.lr_decay_patience = kwargs.get("lr_decay_epochs",
+                                            3)  # number of epochs before learning rate is reduced by lr_decay
+        self.early_stopping_epochs = kwargs.get("early_stopping_epochs", 20)  # number of epochs before early stopping
         self.batch_size_train = kwargs.get("batch_size_train", 4)
-        self.save_path = kwargs.get("save_path", osp.join(osp.dirname(osp.realpath(__file__)), "trained_models/BNN"))
 
-
-    def train_model(self, dataset=None, verbose=True, **kwargs):
-        print(dataset)
+    def train_model(self, dataset=None, verbose=True, kwargs={}):
         # Manual call of training -> overwrite dataset with new dataset for training
         if dataset is not None:
             self._dataset = dataset
-            # Set preprocessing
+            # Preprocessing
             self.standardize_inp = kwargs.get("standardize_inp", True)
             self.standardize_out = kwargs.get("standardize_out", True)
             self._train_dataset, self._test_dataset = self._data_preprocess()
 
-        # Set training details
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        regressor = self._model.to(device)
-        optimizer = optim.Adam(regressor.parameters(), lr=self.initial_lr)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, factor=self.lr_decay, patience=self.lr_decay_patience, min_lr=self.min_lr)
-        criterion = torch.nn.MSELoss()
-
         X_train, y_train = torch.tensor(self._train_dataset[0]).float(), torch.tensor(self._train_dataset[1]).float()
         X_test, y_test = torch.tensor(self._test_dataset[0]).float(), torch.tensor(self._test_dataset[1]).float()
-        print(X_train)
-        print(y_train)
 
         if verbose:
-            print("<---- Length of train dataset: {} ---->".format(X_train.shape[0]))
-            print("<---- Length of test dataset: {} ---->".format(X_test.shape[0]))
-            print("\n<---- Start training of BNN model ---->\n")
-
+            print("\n<---- Start training of BNN model ---->")
+            print("  --- Length of train dataset: {} ---".format(X_train.shape[0]))
+            print("  --- Length of test dataset: {} ---".format(X_test.shape[0]))
         for i, k in enumerate(self.output_models):
             if verbose:
-                print("\n<---- Start training of BNN regressor on objective: {} ---->\n".format(k))
+                print("\n  <-- Start training of BNN regressor on objective: {} -->\n".format(k))
 
-            model_save_dir = osp.join(self.save_path, self.model_name + str(k) + "_BNN_model.pt")
+            # Set training details
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            regressor = self._setup_model().to(device)
+            optimizer = optim.Adam(regressor.parameters(), lr=self.initial_lr)
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer, factor=self.lr_decay, patience=self.lr_decay_patience, min_lr=self.min_lr)
+            criterion = torch.nn.MSELoss()
+            model_save_dir = osp.join(self.save_path, self.model_name + "_" + str(k) + "_BNN_model.pt")
+            storable = self._check_file_path(model_save_dir)
+            if not storable:
+                self.output_models[k] = self._load_model(self.model_name)[k]
+                continue
 
+            out_transform = self.data_transformation_dict[k]
             y_train_obj, y_test_obj = y_train[:, i], y_test[:, i]
-            out_mean = self.out_mean[i]
             ds_train = torch.utils.data.TensorDataset(X_train, y_train_obj)
             dataloader_train = torch.utils.data.DataLoader(ds_train, batch_size=self.batch_size_train, shuffle=True)
             ds_test = torch.utils.data.TensorDataset(X_test, y_test_obj)
@@ -182,14 +166,13 @@ class BNNEmulator(Emulator):
                 self._model._train(regressor, device, optimizer, criterion, X_train, dataloader_train)
 
                 # TODO: define stopping criterion! To use training mae is not the best way to do this (-> overfitting, usually we have an extra validation set, problem: small dataset size, cross-validation is exhaustive at this point)
-                train_mae = self._model._evaluate_regression(regressor, device, out_mean, dataloader_train)
+                train_mae = self._model._evaluate_regression(regressor, device, dataloader_train, self._untransform_data, out_transform)
                 scheduler.step(train_mae)
 
                 # if prediction accuracy was improved in current epoch, reset <tmp_iter_stop> and save model
                 if best_train_mae > train_mae:
                     best_train_mae = train_mae
                     tmp_iter_stop = 0
-                    print(regressor.state_dict())
                     torch.save(regressor.state_dict(), model_save_dir)
                 # if prediction accuracy was not imporved in current epoch, increase <tmp_iter_stop> and stop training if <max_iter_stop> is reached
                 else:
@@ -201,47 +184,43 @@ class BNNEmulator(Emulator):
                 if verbose:
                     print("   -- Epoch: {:03d}, LR: {:7f}, Train MAE: {:4f}".format(epoch, lr, train_mae))
                     if epoch % 100 == 0:
-                        test_mae = self._model._evaluate_regression(regressor, device, out_mean, dataloader_test)
+                        test_mae = self._model._evaluate_regression(regressor, device, dataloader_test, self._untransform_data, out_transform)
                         print("   -> Epoch: {:03d}, Test MAE: {:4f}".format(epoch, test_mae))
 
-
-            self.output_models[k] = model_save_dir
+            self.output_models[k] = {"model_save_dir": model_save_dir, "data_transformation_dict": self.data_transformation_dict}
             if verbose:
-                print("\n<---- Finished training of BNN model on objective: {} ---->\n"
-                      "<---- Model saved at: {} ---->\n".format(k, model_save_dir))
+                print("\n  <-- Finished training of BNN model on objective: {} -->\n"
+                      "   -- Model saved at: {} --\n".format(k, model_save_dir))
 
+        self._save_model()
         if verbose:
-            print("\n<---- End training of BNN regressor ---->\n")
+            print("<---- End training of BNN regressor ---->\n")
 
     def validate_model(self):
         pass
 
-    def infer_model(self, infer_dataset):
-        ds_infer = self._data_preprocess(inference=True, infer_dataset=infer_dataset)
+    def infer_model(self, dataset):
+        ds_infer = self._data_preprocess(inference=True, infer_dataset=dataset)
         ds_infer = torch.tensor(ds_infer).float()
 
-        self._model.eval()   # set to evaluation mode (may be redundant)
-        self._model.freeze_()   # freeze the model, in order to predict using only their weight distribution means
+        self._model.eval()  # set to evaluation mode (may be redundant)
+        self._model.freeze_()  # freeze the model, in order to predict using only their weight distribution means
+
+        self.output_models = self._load_model(self.model_name)
 
         infer_dict = {}
-        for i, (k,v) in enumerate(self.output_models.items()):
-            model_load_dir = v
-            print(v)
+        for i, (k, v) in enumerate(self.output_models.items()):
+            model_load_dir = v["model_save_dir"]
+            out_transform = v["data_transformation_dict"][k]
+
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self._model.load_state_dict(torch.load(model_load_dir, map_location=torch.device(device)))
             data = ds_infer.to(device)
-            infer_dict[k] = self._model(data).item()
+            predictions = self._model(data).item()
+            predictions = self._untransform_data(data=predictions, reduce=out_transform[0], divide=out_transform[1])
+            infer_dict[k] = predictions
 
         return infer_dict
-
-
-
-
-
-
-
-
-
 
 
 

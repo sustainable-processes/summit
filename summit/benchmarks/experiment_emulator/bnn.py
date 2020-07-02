@@ -19,7 +19,7 @@ from experimental_datasets import load_reizman_suzuki
 
 # set dataset
 dataset_name = "reizman_suzuki"
-case = 2
+case = 3
 target = "TON"
 X, y = load_reizman_suzuki(return_X_y=True, case=case)
 
@@ -74,6 +74,9 @@ y = y / out_mean
 ## predefined split (takes the #<test_size> last points of the dataset csv file)
 test_size = 8
 X_train, X_test, y_train, y_test = X[:-test_size], X[-test_size:], y[:-test_size], y[-test_size:]
+
+print(X_train)
+print(y_train)
 
 ds_train = torch.utils.data.TensorDataset(X_train, y_train)
 dataloader_train = torch.utils.data.DataLoader(ds_train, batch_size=4, shuffle=True)
