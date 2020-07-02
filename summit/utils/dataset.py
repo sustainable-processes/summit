@@ -132,7 +132,7 @@ class DataSet(pd.core.frame.DataFrame):
         columns = [c[0] for c in d["columns"]]
         return DataSet(d["data"], columns=columns, metadata_columns=metadata_columns)
 
-    def zero_to_one(self, small_tol=1.0e-5) -> np.ndarray:
+    def zero_to_one(self, small_tol=1.0e-5, return_min_max=False) -> np.ndarray:
         """ Scale the data columns between zero and one 
 
         Each of the data columns is scaled between zero and one 
@@ -150,6 +150,8 @@ class DataSet(pd.core.frame.DataFrame):
         scaled: numpy.ndarray
             A numpy array with the scaled data columns
 
+        if return_min_max true returns a tuple of scaled, mins, maxes
+
         Notes
         ----- 
         This method does not change the internal values of the data columns in place.
@@ -162,7 +164,10 @@ class DataSet(pd.core.frame.DataFrame):
         ranges = maxes - mins
         scaled = (values - mins) / ranges
         scaled[abs(scaled) < small_tol] = 0.0
-        return scaled
+        if return_min_max:
+            return scaled, mins, maxes
+        else:
+            return scaled
 
     def standardize(
         self, small_tol=1.0e-5, return_mean=False, return_std=False, **kwargs

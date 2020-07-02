@@ -6,6 +6,7 @@ from summit.utils.optimizers import NSGAII
 from summit.utils.models import ModelGroup, GPyModel
 from summit.utils.dataset import DataSet
 
+import platypus as pp
 import numpy as np
 from abc import ABC, abstractmethod
 import logging
@@ -120,35 +121,46 @@ class TSEMO(Strategy):
         elif prev_res is not None and self.all_experiments is not None:
             self.all_experiments = self.all_experiments.append(prev_res)
 
-        #Get inputs and outputs
+        #Get inputs (decision variables) and outputs (objectives)
         inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
         if inputs.shape[0] < self.domain.num_continuous_dimensions():
             raise ValueError(f'The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS.')
         
+        # Scale decision variables [0,1]
+        inputs_scaled, input_min, input_max = inputs.zero_to_one(return_min_max=True)
+
+        # Standardize objectives
+        outputs_scaled, output_mean, output_std = outputs.standardize(return_mean=True, return_std=True)
+
         # Fit models to new data
         logger.info(f"Fitting {len(self.models._models)} models.")
-        self.models.fit(inputs, outputs, spectral_sample=False, **kwargs)
+        self.models.fit(inputs_scaled, outputs_scaled, spectral_sample=False, **kwargs)
 
         # Spectral sampling
         n_spectral_points = kwargs.get('n_spectral_points', 1500)
         for name, model in self.models.models.items():
             logger.info(f"Spectral sampling for model {name}.")
-            model.spectral_sample(inputs, outputs,
+            model.spectral_sample(inputs_scaled, outputs_scaled,
                                   n_spectral_points=n_spectral_points)
 
-        # Sample function to optimize
+        # Make optimizer scale to internal transformation instead of domain
+        for i in range(self.domain.num_continuous_dimensions()):
+            self.optimizer.problem.types[i] = pp.Real(0,1)
         logger.info("Optimizing models using NSGAII.")
         internal_res = self.optimizer.optimize(self.models, use_spectral_sample=True, **kwargs)
-        
         
         if internal_res is not None and len(internal_res.fun) != 0:
             # Select points that give maximum hypervolume improvement
             hv_imp, indices = self.select_max_hvi(
-                outputs, internal_res.fun, num_experiments
+                outputs_scaled, internal_res.fun, num_experiments
             )
+            
+            # Unscale data
+            X = internal_res.x*(input_max-input_min) + input_min
+            y = internal_res.fun*output_std+output_mean
 
             # Join to get single dataset with inputs and outputs
-            result = internal_res.x.join(internal_res.fun)
+            result = X.join(y)
             result = result.iloc[indices, :]
 
             # Do any necessary transformations back
