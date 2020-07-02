@@ -4,24 +4,19 @@ import os.path as osp
 from summit.experiment import Experiment
 
 import numpy as np
-from scipy.integrate import solve_ivp
 
 from summit.benchmarks.experiment_emulator.bnn_regressor import BNNEmulator
-from summit.benchmarks import ReizmanSuzukiEmulator
 from summit.utils.dataset import DataSet
 from summit.domain import *
 
 
 class ExperimentalEmulator(Experiment):
-    """ Reizman Suzuki Emulator
-
-    Virtual experiments representing the Suzuki-Miyaura Cross-Coupling reaction
-    similar to Reizman et al. (2016). Experimental outcomes are based on an
-    emulator that is trained on the experimental data published by Reizman et al. 
+    """ Experimental Emulator
     
     Examples
     --------
-    >>> b = ReizmanSuzukiEmulator()
+    >>> test_domain = ExperimentalEmulator()
+    >>> e = ExperimentalEmulator(test_domain)
     >>> columns = [v.name for v in b.domain.variables]
     >>> values = {
     >>>     ("catalyst", "DATA"): ["P1-L2", "P1-L7", "P1-L3"],
@@ -31,19 +26,18 @@ class ExperimentalEmulator(Experiment):
     >>>     ("yield", "DATA"): [20, 40, 60],
     >>>     ("ton", "DATA"): [33, 34, 21]
     >>> }
-    >>> b = Emulator(domain, dataset)
+    >>> e.train()
     >>> columns = [v.name for v in b.domain.variables]
     >>> values = [v.bounds[0]+0.6*(v.bounds[1]-v.bounds[0]) if v.variable_type == 'continuous' else v.levels[-1] for v in b.domain.variables]
     >>> values = np.array(values)
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
-    >>> results = b.run_experiments(conditions)
+    >>> results = e.run_experiments(conditions)
 
-    
+
     Notes
     -----
-    This benchmark is based on Reizman et al. React. Chem. Eng. 2016. 
-    https://doi.org/10.1039/C6RE00153J
+
     
     """
 
@@ -88,6 +82,30 @@ class ExperimentalEmulator(Experiment):
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
+    """ Reizman Suzuki Emulator
+
+    Virtual experiments representing the Suzuki-Miyaura Cross-Coupling reaction
+    similar to Reizman et al. (2016). Experimental outcomes are based on an
+    emulator that is trained on the experimental data published by Reizman et al.
+
+    Parameters
+    ----------
+    case: int, optional, default=1
+        Reizman et al. (2016) reported experimental data for 4 different
+        cases. The case number refers to the cases they reported.
+        Please see their paper for more information on the cases.
+
+    Examples
+    --------
+    >>> reizman_emulator = ReizmanSuzukiEmulator(case=1)
+
+    Notes
+    -----
+    This benchmark is based on Reizman et al. React. Chem. Eng. 2016.
+    https://doi.org/10.1039/C6RE00153J
+
+    """
+
     def __init__(self, case=1, **kwargs):
         domain = self.setup_domain()
         dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/reizman_suzuki_case" + str(case)+ "_train_test.csv")
