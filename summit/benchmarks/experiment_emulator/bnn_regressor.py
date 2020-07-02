@@ -200,18 +200,21 @@ class BNNEmulator(Emulator):
         pass
 
     def infer_model(self, dataset):
-        ds_infer = self._data_preprocess(inference=True, infer_dataset=dataset)
-        ds_infer = torch.tensor(ds_infer).float()
+
+        self.output_models = self._load_model(self.model_name)
 
         self._model.eval()  # set to evaluation mode (may be redundant)
         self._model.freeze_()  # freeze the model, in order to predict using only their weight distribution means
 
-        self.output_models = self._load_model(self.model_name)
 
         infer_dict = {}
         for i, (k, v) in enumerate(self.output_models.items()):
             model_load_dir = v["model_save_dir"]
-            out_transform = v["data_transformation_dict"][k]
+            self.data_transformation_dict = v["data_transformation_dict"]
+            out_transform = self.data_transformation_dict[k]
+
+            ds_infer = self._data_preprocess(inference=True, infer_dataset=dataset)
+            ds_infer = torch.tensor(ds_infer).float()
 
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self._model.load_state_dict(torch.load(model_load_dir, map_location=torch.device(device)))
