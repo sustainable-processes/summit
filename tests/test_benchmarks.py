@@ -1,7 +1,8 @@
 import pytest
-from summit.benchmarks import SnarBenchmark
+from summit.benchmarks import SnarBenchmark, Hartmann3D, Himmelblau, ThreeHumpCamel
 from summit.utils.dataset import DataSet
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 def test_snar_benchmark():
@@ -26,3 +27,4 @@ def test_snar_benchmark():
     assert np.isclose(float(results["e_factor"]), 191.260294)
 
     return results
+
