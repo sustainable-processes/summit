@@ -1,0 +1,827 @@
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform0-NelderMead]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform0-SNOBFIT]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform0-Random]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform0-SOBO]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform1-NelderMead]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform1-SNOBFIT]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform1-Random]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform1-SOBO]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform2-NelderMead]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform2-SNOBFIT]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform2-Random]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform2-SOBO]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform3-NelderMead]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform3-SNOBFIT]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform3-Random]
+. experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform3-SOBO]
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform4-NelderMead]
+ sock = <socket.socket fd=1023, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('172.24.144.187', 36236), raddr=('35.186.223.74', 443)>
+ keyfile = None, certfile = None, cert_reqs = None
+ ca_certs = '/home/kcmf2/.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/certifi/cacert.pem'
+ server_hostname = 'ui.neptune.ai', ssl_version = None, ciphers = None
+ ssl_context = <ssl.SSLContext object at 0x7f7a5cf048d0>, ca_cert_dir = None, key_password = None, ca_cert_data = None
+ 
+ >   ???
+ E   OSError: [Errno 24] Too many open files
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/urllib3/util/ssl_.py:343: OSError
+ 
+ During handling of the above exception, another exception occurred:
+ 
+ self = <urllib3.connectionpool.HTTPSConnectionPool object at 0x7f7a5cdaeb10>, method = 'GET'
+ url = '/api/backend/swagger.json', body = None
+ headers = {'User-Agent': 'python-requests/2.24.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
+ retries = Retry(total=0, connect=None, read=False, redirect=None, status=None), redirect = False
+ assert_same_host = False, timeout = Timeout(connect=None, read=None, total=None), pool_timeout = None
+ release_conn = False, chunked = False, body_pos = None
+ response_kw = {'decode_content': False, 'preload_content': False}, conn = None, release_this_conn = True, err = None
+ clean_exit = False, timeout_obj = Timeout(connect=None, read=None, total=None), is_new_proxy_conn = False
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/urllib3/connectionpool.py:677: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <urllib3.connectionpool.HTTPSConnectionPool object at 0x7f7a5cdaeb10>
+ conn = <urllib3.connection.HTTPSConnection object at 0x7f7a5cdae510>, method = 'GET', url = '/api/backend/swagger.json'
+ timeout = Timeout(connect=None, read=None, total=None), chunked = False
+ httplib_request_kw = {'body': None, 'headers': {'User-Agent': 'python-requests/2.24.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}}
+ timeout_obj = Timeout(connect=None, read=None, total=None)
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/urllib3/connectionpool.py:381: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <urllib3.connectionpool.HTTPSConnectionPool object at 0x7f7a5cdaeb10>
+ conn = <urllib3.connection.HTTPSConnection object at 0x7f7a5cdae510>
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/urllib3/connectionpool.py:976: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <urllib3.connection.HTTPSConnection object at 0x7f7a5cdae510>
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/urllib3/connection.py:370: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ sock = <socket.socket fd=1023, family=AddressFamily.AF_INET, type=SocketKind.SOCK_STREAM, proto=6, laddr=('172.24.144.187', 36236), raddr=('35.186.223.74', 443)>
+ keyfile = None, certfile = None, cert_reqs = None
+ ca_certs = '/home/kcmf2/.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/certifi/cacert.pem'
+ server_hostname = 'ui.neptune.ai', ssl_version = None, ciphers = None
+ ssl_context = <ssl.SSLContext object at 0x7f7a5cf048d0>, ca_cert_dir = None, key_password = None, ca_cert_data = None
+ 
+ >   ???
+ E   urllib3.exceptions.SSLError: [Errno 24] Too many open files
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/urllib3/util/ssl_.py:345: SSLError
+ 
+ During handling of the above exception, another exception occurred:
+ 
+ self = <requests.adapters.HTTPAdapter object at 0x7f7a5cda9a50>, request = <PreparedRequest [GET]>, stream = False
+ timeout = Timeout(connect=None, read=None, total=None), verify = True, cert = None, proxies = OrderedDict()
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/requests/adapters.py:449: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <urllib3.connectionpool.HTTPSConnectionPool object at 0x7f7a5cdaeb10>, method = 'GET'
+ url = '/api/backend/swagger.json', body = None
+ headers = {'User-Agent': 'python-requests/2.24.0', 'Accept-Encoding': 'gzip, deflate', 'Accept': '*/*', 'Connection': 'keep-alive'}
+ retries = Retry(total=0, connect=None, read=False, redirect=None, status=None), redirect = False
+ assert_same_host = False, timeout = Timeout(connect=None, read=None, total=None), pool_timeout = None
+ release_conn = False, chunked = False, body_pos = None
+ response_kw = {'decode_content': False, 'preload_content': False}, conn = None, release_this_conn = True, err = None
+ clean_exit = False, timeout_obj = Timeout(connect=None, read=None, total=None), is_new_proxy_conn = False
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/urllib3/connectionpool.py:725: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = Retry(total=0, connect=None, read=False, redirect=None, status=None), method = 'GET'
+ url = '/api/backend/swagger.json', response = None, error = SSLError(OSError(24, 'Too many open files'))
+ _pool = <urllib3.connectionpool.HTTPSConnectionPool object at 0x7f7a5cdaeb10>
+ _stacktrace = <traceback object at 0x7f7a5cd41230>
+ 
+ >   ???
+ E   urllib3.exceptions.MaxRetryError: HTTPSConnectionPool(host='ui.neptune.ai', port=443): Max retries exceeded with url: /api/backend/swagger.json (Caused by SSLError(OSError(24, 'Too many open files')))
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/urllib3/util/retry.py:439: MaxRetryError
+ 
+ During handling of the above exception, another exception occurred:
+ 
+ self = <bravado.http_future.HttpFuture object at 0x7f7a5cdae690>, args = (None,), kwargs = {}
+ timeout_errors = (<class 'requests.exceptions.ReadTimeout'>,)
+ connection_errors = (<class 'requests.exceptions.ConnectionError'>,)
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/http_future.py:124: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.http_future.HttpFuture object at 0x7f7a5cdae690>, timeout = None
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/http_future.py:291: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.requests_client.RequestsFutureAdapter object at 0x7f7a5cdae6d0>, timeout = None
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/requests_client.py:270: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <requests.sessions.Session object at 0x7f7a5cd9fcd0>, request = <PreparedRequest [GET]>
+ kwargs = {'cert': None, 'proxies': OrderedDict(), 'stream': False, 'timeout': None, ...}, allow_redirects = False
+ stream = False, hooks = {'response': []}, adapter = <requests.adapters.HTTPAdapter object at 0x7f7a5cda9a50>
+ start = 1593311332.126434
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/requests/sessions.py:643: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <requests.adapters.HTTPAdapter object at 0x7f7a5cda9a50>, request = <PreparedRequest [GET]>, stream = False
+ timeout = Timeout(connect=None, read=None, total=None), verify = True, cert = None, proxies = OrderedDict()
+ 
+ >   ???
+ E   requests.exceptions.SSLError: HTTPSConnectionPool(host='ui.neptune.ai', port=443): Max retries exceeded with url: /api/backend/swagger.json (Caused by SSLError(OSError(24, 'Too many open files')))
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/requests/adapters.py:514: SSLError
+ 
+ During handling of the above exception, another exception occurred:
+ 
+ args = (<neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5d1aa090>, 'https://ui.neptune.ai/api/backend/swagger.json')
+ kwargs = {}, retry = 0
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5d1aa090>
+ url = 'https://ui.neptune.ai/api/backend/swagger.json'
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:911: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ cls = <class 'bravado.client.SwaggerClient'>, spec_url = 'https://ui.neptune.ai/api/backend/swagger.json'
+ http_client = <class 'bravado.requests_client.RequestsClient'>(), request_headers = None
+ config = {'formats': [SwaggerFormat(format='uuid', to_python=<function <lambda> at 0x7f7b6dd93680>, to_wire=<function <lambda> ...7b690224d0>, description='')], 'validate_requests': False, 'validate_responses': False, 'validate_swagger_spec': False}
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/client.py:98: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.swagger_model.Loader object at 0x7f7a5cdae9d0>
+ spec_url = 'https://ui.neptune.ai/api/backend/swagger.json', base_url = None
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/swagger_model.py:104: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.http_future.HttpFuture object at 0x7f7a5cdae690>, timeout = None
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/http_future.py:270: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.http_future.HttpFuture object at 0x7f7a5cdae690>, args = (None,), kwargs = {}
+ timeout_errors = (<class 'requests.exceptions.ReadTimeout'>,)
+ connection_errors = (<class 'requests.exceptions.ConnectionError'>,)
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/http_future.py:128: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.requests_client.RequestsFutureAdapter object at 0x7f7a5cdae6d0>
+ exception = SSLError(MaxRetryError("HTTPSConnectionPool(host='ui.neptune.ai', port=443): Max retries exceeded with url: /api/backend/swagger.json (Caused by SSLError(OSError(24, 'Too many open files')))"))
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/http_future.py:91: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.requests_client.RequestsFutureAdapter object at 0x7f7a5cdae6d0>
+ base_exception_class = <class 'bravado.exception.BravadoConnectionError'>, class_name_suffix = 'ConnectionError'
+ exception = SSLError(MaxRetryError("HTTPSConnectionPool(host='ui.neptune.ai', port=443): Max retries exceeded with url: /api/backend/swagger.json (Caused by SSLError(OSError(24, 'Too many open files')))"))
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/http_future.py:82: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ tp = <class 'bravado.http_future.RequestsFutureAdapterConnectionError'>, value = None, tb = None
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/six.py:702: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.http_future.HttpFuture object at 0x7f7a5cdae690>, args = (None,), kwargs = {}
+ timeout_errors = (<class 'requests.exceptions.ReadTimeout'>,)
+ connection_errors = (<class 'requests.exceptions.ConnectionError'>,)
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/http_future.py:124: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.http_future.HttpFuture object at 0x7f7a5cdae690>, timeout = None
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/http_future.py:291: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <bravado.requests_client.RequestsFutureAdapter object at 0x7f7a5cdae6d0>, timeout = None
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/bravado/requests_client.py:270: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <requests.sessions.Session object at 0x7f7a5cd9fcd0>, request = <PreparedRequest [GET]>
+ kwargs = {'cert': None, 'proxies': OrderedDict(), 'stream': False, 'timeout': None, ...}, allow_redirects = False
+ stream = False, hooks = {'response': []}, adapter = <requests.adapters.HTTPAdapter object at 0x7f7a5cda9a50>
+ start = 1593311332.126434
+ 
+ >   ???
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/requests/sessions.py:643: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <requests.adapters.HTTPAdapter object at 0x7f7a5cda9a50>, request = <PreparedRequest [GET]>, stream = False
+ timeout = Timeout(connect=None, read=None, total=None), verify = True, cert = None, proxies = OrderedDict()
+ 
+ >   ???
+ E   bravado.http_future.RequestsFutureAdapterConnectionError
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/requests/adapters.py:514: RequestsFutureAdapterConnectionError
+ 
+ During handling of the above exception, another exception occurred:
+ 
+ strategy = <class 'summit.strategies.neldermead.NelderMead'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de39510>, batch_size = 1, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:86: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ args = (<neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5d1aa090>, 'https://ui.neptune.ai/api/backend/swagger.json')
+ kwargs = {}, retry = 0
+ 
+ >   ???
+ E   neptune.api_exceptions.SSLError: SSL certificate validation failed. Set NEPTUNE_ALLOW_SELF_SIGNED_CERTIFICATE environment variable to accept self-signed certificates.
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:213: SSLError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform4-SNOBFIT]
+ strategy = <class 'summit.strategies.snobfit.SNOBFIT'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de39510>, batch_size = 1, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ee3f390>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform4-Random]
+ strategy = <class 'summit.strategies.random.Random'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de39510>, batch_size = 1, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5e3d9490>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[1-transform4-SOBO]
+ strategy = <class 'summit.strategies.sobo.SOBO'>, transform = <summit.strategies.base.Chimera object at 0x7f7b6de39510>
+ batch_size = 1, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccbedd0>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform0-NelderMead]
+ strategy = <class 'summit.strategies.neldermead.NelderMead'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de01390>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccbecd0>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform0-SNOBFIT]
+ strategy = <class 'summit.strategies.snobfit.SNOBFIT'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de01390>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccba850>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform0-Random]
+ strategy = <class 'summit.strategies.random.Random'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de01390>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5cd3dc10>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform0-SOBO]
+ strategy = <class 'summit.strategies.sobo.SOBO'>, transform = <summit.strategies.base.Chimera object at 0x7f7b6de01390>
+ batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5cce0790>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform1-NelderMead]
+ strategy = <class 'summit.strategies.neldermead.NelderMead'>
+ transform = <summit.strategies.base.MultitoSingleObjective object at 0x7f7b2f1ff790>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccba1d0>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform1-SNOBFIT]
+ strategy = <class 'summit.strategies.snobfit.SNOBFIT'>
+ transform = <summit.strategies.base.MultitoSingleObjective object at 0x7f7b2f1ff790>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5cce0790>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform1-Random]
+ strategy = <class 'summit.strategies.random.Random'>
+ transform = <summit.strategies.base.MultitoSingleObjective object at 0x7f7b2f1ff790>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccdb610>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform1-SOBO]
+ strategy = <class 'summit.strategies.sobo.SOBO'>
+ transform = <summit.strategies.base.MultitoSingleObjective object at 0x7f7b2f1ff790>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccec590>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform2-NelderMead]
+ strategy = <class 'summit.strategies.neldermead.NelderMead'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de71d90>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccecf10>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform2-SNOBFIT]
+ strategy = <class 'summit.strategies.snobfit.SNOBFIT'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de71d90>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5cccdf90>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform2-Random]
+ strategy = <class 'summit.strategies.random.Random'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de71d90>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5fb72a90>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform2-SOBO]
+ strategy = <class 'summit.strategies.sobo.SOBO'>, transform = <summit.strategies.base.Chimera object at 0x7f7b6de71d90>
+ batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccf2f50>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform3-NelderMead]
+ strategy = <class 'summit.strategies.neldermead.NelderMead'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de0dd90>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccf2a50>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform3-SNOBFIT]
+ strategy = <class 'summit.strategies.snobfit.SNOBFIT'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de0dd90>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccd48d0>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform3-Random]
+ strategy = <class 'summit.strategies.random.Random'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de0dd90>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccd4250>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform3-SOBO]
+ strategy = <class 'summit.strategies.sobo.SOBO'>, transform = <summit.strategies.base.Chimera object at 0x7f7b6de0dd90>
+ batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5cc88a90>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform4-NelderMead]
+ strategy = <class 'summit.strategies.neldermead.NelderMead'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de39510>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccf2e50>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform4-SNOBFIT]
+ strategy = <class 'summit.strategies.snobfit.SNOBFIT'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de39510>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5ccf2ed0>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform4-Random]
+ strategy = <class 'summit.strategies.random.Random'>
+ transform = <summit.strategies.base.Chimera object at 0x7f7b6de39510>, batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5cc954d0>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
+F experiments/snar_benchmark/snar_experiment.py::test_snar_experiment[24-transform4-SOBO]
+ strategy = <class 'summit.strategies.sobo.SOBO'>, transform = <summit.strategies.base.Chimera object at 0x7f7b6de39510>
+ batch_size = 24, num_repeats = 20
+ 
+ >   ???
+ 
+ snar_experiment.py:67: 
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ ../../summit/run.py:166: in __init__
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/utils.py:211: in wrapper
+     ???
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:85: in __init__
+     ???
+ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+ 
+ self = <neptune.internal.backends.hosted_neptune_backend.HostedNeptuneBackend object at 0x7f7a5cc88150>
+ api_url = 'https://ui.neptune.ai', app_url = 'https://ui.neptune.ai'
+ 
+ >   ???
+ E   TimeoutError: [Errno 110] Connection timed out
+ 
+ ../../../.cache/pypoetry/virtualenvs/summit-1tLAIyOp-py3.7/lib/python3.7/site-packages/neptune/internal/backends/hosted_neptune_backend.py:983: TimeoutError
