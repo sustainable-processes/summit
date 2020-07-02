@@ -174,10 +174,17 @@ class GPyModel(BaseEstimator, RegressorMixin):
             y_std = (y - self.output_mean) / self.output_std
             y_std[abs(y_std) < 1e-5] = 0.0
 
-        # Initialize and fit model
+        # Initialize model
         self._model = GPRegression(
             X_std, y_std, self._kernel, noise_var=self._noise_var
         )
+
+        # Set priors to constrain hyperparameters
+        self._model.kern.lengthscale.set_prior(GPy.priors.Gamma(1, 0.1))
+        self._model.kern.variance.set_prior(GPy.priors.Gamma(1, 0.1))
+        self._model.Gaussian_noise.variance.set_prior(GPy.priors.Gamma(0.5,0.1))
+
+        # Fit model
         if self._optimizer:
             self._model.optimize_restarts(num_restarts = num_restarts, 
                                           verbose=verbose,
