@@ -22,6 +22,7 @@ SQSnobFit = "^0.4.3"
 fastprogress = "^0.2.3"
 tqdm = "^4.46.1"
 ipywidgets = "^7.5.1"
+matplotlib = "^3.2.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
