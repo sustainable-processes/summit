@@ -9,6 +9,7 @@ from scipy.integrate import solve_ivp
 from summit.benchmarks.experiment_emulator.bnn_regressor import BNNEmulator
 from summit.benchmarks import ReizmanSuzukiEmulator
 from summit.utils.dataset import DataSet
+from summit.domain import *
 
 
 class ExperimentalEmulator(Experiment):
@@ -53,8 +54,10 @@ class ExperimentalEmulator(Experiment):
 
         if regressor_type == "BNN":
             self.emulator = BNNEmulator(domain=domain, dataset=dataset, model_name=model_name, kwargs=kwargs)
-        elif regressor_type == "ANN":
-            pass
+            try:
+                self.extras = [self.emulator._load_model(model_name)]
+            except:
+                print("No trained model for {}. Please train this model with ExperimentalEmulator.train().".format(self.emulator.model_name))
         else:
             raise NotImplementedError("Regressor type <{}> not implemented yet".format(str(regressor_type)))
 
@@ -67,20 +70,70 @@ class ExperimentalEmulator(Experiment):
         return conditions, None
 
     def train(self, dataset=None, csv_dataset=None, **kwargs):
-        print(kwargs)
         dataset = self._check_datasets(dataset, csv_dataset)
         self.emulator.set_training_hyperparameters(kwargs=kwargs)
         self.emulator.train_model(dataset=dataset, kwargs=kwargs)
+        self.extras = [self.emulator.output_models]
 
     def validate(self, dataset=None, csv_dataset=None, **kwargs):
         dataset = self._check_datasets(dataset, csv_dataset)
-        self.emulator.validate_model(dataset=dataset, kwargs=kwargs)
+        return self.emulator.validate_model(dataset=dataset, kwargs=kwargs)
 
-    def _check_datasets(self, dataset, csv_dataset):
+    def _check_datasets(self, dataset=None, csv_dataset=None):
         if csv_dataset:
             if dataset:
                 print("Dataset and csv.dataset are given, hence dataset will be overwritten by csv.data.")
             dataset=DataSet.read_csv(csv_dataset, index_col=None)
         return dataset
 
+
+class ReizmanSuzukiEmulator(ExperimentalEmulator):
+    def __init__(self, case=1, **kwargs):
+        domain = self.setup_domain()
+        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/reizman_suzuki_case" + str(case)+ "_train_test.csv")
+        super().__init__(domain=domain, csv_dataset=dataset_file, model_name="reizman_suzuki")
+
+    def setup_domain(self):
+        domain = Domain()
+
+        # Decision variables
+        des_1 = "Catalyst type - different ligands"
+        domain += DiscreteVariable(
+            name="catalyst", description=des_1, levels=["P1-L1", "P2-L1", "P1-L2", "P1-L3", "P1-L4", "P1-L5", "P1-L6", "P1-L7"])
+
+        des_2 = "Residence time in seconds (s)"
+        domain += ContinuousVariable(
+            name="t_res", description=des_2, bounds=[60, 600]
+        )
+
+        des_3 = "Reactor temperature in degrees Celsius (ºC)"
+        domain += ContinuousVariable(
+            name="temperature", description=des_3, bounds=[30, 110]
+        )
+
+        des_4 = "Catalyst loading in mol%"
+        domain += ContinuousVariable(
+            name="catalyst_loading", description=des_4, bounds=[0.5, 2.5]
+        )
+
+        # Objectives
+        des_5 = "Turnover number - moles product generated divided by moles catalyst used"
+        domain += ContinuousVariable(
+            name="ton",
+            description=des_5,
+            bounds=[0, 200],   # TODO: not sure about bounds, maybe redefine
+            is_objective=True,
+            maximize=True,
+        )
+
+        des_6 = "Yield"
+        domain += ContinuousVariable(
+            name="yield",
+            description=des_6,
+            bounds=[0, 100],
+            is_objective=True,
+            maximize=True,
+        )
+
+        return domain
 

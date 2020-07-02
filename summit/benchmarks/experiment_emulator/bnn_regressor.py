@@ -8,6 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+import numpy as np
+
 import json
 
 from blitz.modules import BayesianLinear
@@ -43,16 +45,16 @@ class BNNEmulator(Emulator):
         if dataset is not None:
             self._dataset = dataset
             # Preprocess dataset
-            train_dataset, test_dataset = self._data_preprocess(kwargs=kwargs)
-        else:
-            train_dataset, test_dataset = None, None
 
         regression_model = self._setup_model()
-        super().__init__(train_dataset, test_dataset, regression_model)
+        super().__init__(regression_model)
 
         # Set model name for saving
         self.save_path = kwargs.get("save_path", osp.join(osp.dirname(osp.realpath(__file__)), "trained_models/BNN"))
         self.model_name = str(model_name)
+
+        # Set up training hyperparameters
+        self.set_training_hyperparameters()
 
     def _setup_model(self, **kwargs):
         """ Setup the BNN model """
@@ -106,23 +108,28 @@ class BNNEmulator(Emulator):
 
     def set_training_hyperparameters(self, kwargs={}):
         # Setter method for hyperparameters of training
-        self.epochs = kwargs.get("epochs", 300)  # number of max epochs the model is trained
+        self.epochs = kwargs.get("epochs", 300) # number of max epochs the model is trained
         self.initial_lr = kwargs.get("initial_lr", 0.001)  # initial learning rate
         self.min_lr = kwargs.get("min_lr", 0.00001)
         self.lr_decay = kwargs.get("lr_decay", 0.7)  # learning rate decay
-        self.lr_decay_patience = kwargs.get("lr_decay_epochs",
-                                            3)  # number of epochs before learning rate is reduced by lr_decay
+        self.lr_decay_patience = kwargs.get("lr_decay_patience", 3) # number of epochs before learning rate is reduced by lr_decay
         self.early_stopping_epochs = kwargs.get("early_stopping_epochs", 20)  # number of epochs before early stopping
         self.batch_size_train = kwargs.get("batch_size_train", 4)
+        self.transform_input = kwargs.get("transform_input", "standardize")
+        self.transform_output = kwargs.get("transform_output", "standardize")
 
-    def train_model(self, dataset=None, verbose=True, kwargs={}):
+
+    def train_model(
+            self, dataset=None, verbose=True, kwargs={}
+    ):
+
         # Manual call of training -> overwrite dataset with new dataset for training
         if dataset is not None:
             self._dataset = dataset
-            # Preprocessing
-            self.standardize_inp = kwargs.get("standardize_inp", True)
-            self.standardize_out = kwargs.get("standardize_out", True)
-            self._train_dataset, self._test_dataset = self._data_preprocess()
+
+        # Data preprocess
+        self._train_dataset, self._test_dataset = \
+            self._data_preprocess(transform_input=self.transform_input, transform_output=self.transform_output)
 
         X_train, y_train = torch.tensor(self._train_dataset[0]).float(), torch.tensor(self._train_dataset[1]).float()
         X_test, y_test = torch.tensor(self._test_dataset[0]).float(), torch.tensor(self._test_dataset[1]).float()
@@ -196,8 +203,32 @@ class BNNEmulator(Emulator):
         if verbose:
             print("<---- End training of BNN regressor ---->\n")
 
-    def validate_model(self):
-        pass
+    def validate_model(self, dataset, kwargs={}):
+        self.output_models = self._load_model(self.model_name)
+
+        self._model.freeze_()  # freeze the model, in order to predict using only their weight distribution means
+        self._model.eval()  # set to evaluation mode (may be redundant)
+
+        val_dict = {}
+        for i, (k, v) in enumerate(self.output_models.items()):
+            model_load_dir = v["model_save_dir"]
+            self.data_transformation_dict = v["data_transformation_dict"]
+            out_transform = self.data_transformation_dict[k]
+
+            X_val = self._data_preprocess(inference=True, infer_dataset=dataset, validate=True)
+            X_val = torch.tensor(X_val).float()
+            y_val = dataset[(k, "DATA")]
+            y_val = torch.tensor(dataset[(k, "DATA")].to_numpy()).float()
+
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self._model.load_state_dict(torch.load(model_load_dir, map_location=torch.device(device)))
+            data = X_val.to(device)
+            predictions = self._model(data).detach()
+            predictions = self._untransform_data(data=predictions, reduce=out_transform[0], divide=out_transform[1])
+            val_dict[k] = {"MAE": (predictions - y_val).abs().mean().item(),
+                           "RMSE": ((((predictions - y_val)**2).mean())**(1/2)).item()}
+
+        return val_dict
 
     def infer_model(self, dataset):
 
@@ -206,19 +237,18 @@ class BNNEmulator(Emulator):
         self._model.eval()  # set to evaluation mode (may be redundant)
         self._model.freeze_()  # freeze the model, in order to predict using only their weight distribution means
 
-
         infer_dict = {}
         for i, (k, v) in enumerate(self.output_models.items()):
             model_load_dir = v["model_save_dir"]
             self.data_transformation_dict = v["data_transformation_dict"]
             out_transform = self.data_transformation_dict[k]
 
-            ds_infer = self._data_preprocess(inference=True, infer_dataset=dataset)
-            ds_infer = torch.tensor(ds_infer).float()
+            X_infer = self._data_preprocess(inference=True, infer_dataset=dataset)
+            X_infer = torch.tensor(X_infer).float()
 
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             self._model.load_state_dict(torch.load(model_load_dir, map_location=torch.device(device)))
-            data = ds_infer.to(device)
+            data = X_infer.to(device)
             predictions = self._model(data).item()
             predictions = self._untransform_data(data=predictions, reduce=out_transform[0], divide=out_transform[1])
             infer_dict[k] = predictions

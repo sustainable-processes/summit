@@ -27,9 +27,7 @@ class Emulator(ABC):
 
     """
 
-    def __init__(self, train_dataset, test_dataset, model, **kwargs):
-        self._train_dataset = train_dataset
-        self._test_dataset = test_dataset
+    def __init__(self, model, **kwargs):
         self._model = model
 
     @property
@@ -138,19 +136,19 @@ class Emulator(ABC):
                 else:
                     raise TypeError("Unknown variable type: {}.".format(v.variable_type))
 
-    def _data_preprocess(self, inference=False, infer_dataset=None, kwargs={}):
+    def _data_preprocess(self, inference=False, infer_dataset=None, validate=False, transform_input="standardize", transform_output="standardize", kwargs={}):
         if not inference:
             test_size = kwargs.get("test_size", 0.1)
             shuffle = kwargs.get("shuffle", False)
-
-            self.standardize_inp = kwargs.get("transform_inp", "standardize")
-            self.standardize_out = kwargs.get("transform_out", "normalize")
 
             np_dataset = self._dataset.data_to_numpy()
             data_column_names = self._dataset.data_columns
         else:
             np_dataset = infer_dataset.data_to_numpy()
-            data_column_names = [c[0] for c in infer_dataset.data_columns]
+            if not validate:
+                data_column_names = [c[0] for c in infer_dataset.data_columns]
+            else:
+                data_column_names = infer_dataset.data_columns
 
         self.input_data_continuous = []
         self.input_data_discrete = []
@@ -170,7 +168,7 @@ class Emulator(ABC):
                             # Standardize continuous inputs
                             tmp_cont_inp = np_dataset[:, i]
                             if not inference:
-                                tmp_cont_inp, _reduce, _divide = self._transform_data(data=tmp_cont_inp, transformation_type=self.standardize_inp)
+                                tmp_cont_inp, _reduce, _divide = self._transform_data(data=tmp_cont_inp, transformation_type=transform_input)
                                 self.data_transformation_dict[v.name] = [_reduce, _divide]
                             else:
                                 tmp_cont_inp, _, _ = self._transform_data(data=tmp_cont_inp, reduce=self.data_transformation_dict[v.name][0], divide=self.data_transformation_dict[v.name][1])
@@ -190,7 +188,7 @@ class Emulator(ABC):
                         if v.variable_type == "continuous":
                             tmp_cont_out = np_dataset[:, i]
                             if not inference:
-                                tmp_cont_out, _reduce, _divide = self._transform_data(data=tmp_cont_out, transformation_type=self.standardize_out)
+                                tmp_cont_out, _reduce, _divide = self._transform_data(data=tmp_cont_out, transformation_type=transform_output)
                                 self.data_transformation_dict[v.name] = [_reduce, _divide]
                             self.output_data.append(tmp_cont_out)
                         elif v.variable_type == "discrete":
@@ -277,4 +275,4 @@ class Emulator(ABC):
                     valid_input = True
             if not overwrite:
                 return False
-            return True
+        return True
