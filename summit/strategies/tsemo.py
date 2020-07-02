@@ -11,7 +11,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 import logging
 
-logger = logging.getLogger(__name__)
+
         
 class TSEMO(Strategy):
     """ Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
@@ -89,6 +89,8 @@ class TSEMO(Strategy):
         if self._random_rate < 0.0 or self._random_rate > 1.0:
             raise ValueError("Random rate must be between 0 and 1.")
 
+        self.logger = kwargs.get('logger', logging.getLogger(__name__))
+
         self.reset()
 
     def suggest_experiments(self, num_experiments, 
@@ -135,20 +137,20 @@ class TSEMO(Strategy):
         outputs_scaled = DataSet(outputs_scaled, columns=output_names)
 
         # Fit models to data
-        logger.info(f"Fitting {len(self.models._models)} models.")
+        self.logger.info(f"Fitting {len(self.models._models)} models.")
         self.models.fit(inputs_scaled, outputs_scaled, spectral_sample=False, **kwargs)
 
         # Spectral sampling
         n_spectral_points = kwargs.get('n_spectral_points', 1500)
         for name, model in self.models.models.items():
-            logger.info(f"Spectral sampling for model {name}.")
+            self.logger.info(f"Spectral sampling for model {name}.")
             model.spectral_sample(inputs_scaled, outputs_scaled,
                                   n_spectral_points=n_spectral_points)
 
         # Make optimizer scale to internal transformation instead of domain
         for i in range(self.domain.num_continuous_dimensions()):
             self.optimizer.problem.types[i] = pp.Real(0,1)
-        logger.info("Optimizing models using NSGAII.")
+        self.logger.info("Optimizing models using NSGAII.")
         internal_res = self.optimizer.optimize(self.models, use_spectral_sample=True, **kwargs)
         
         if internal_res is not None and len(internal_res.fun) != 0:

@@ -103,7 +103,7 @@ class NSGAII(Optimizer):
 
         def problem_wrapper(X):
             X = DataSet(np.atleast_2d(X), columns=input_columns)
-            result = models.predict(X)
+            result = models.predict(X, **kwargs)
             if self.domain.constraints:
                 constraint_res = [
                     X.eval(c.lhs, resolvers=[X]) for c in self.domain.constraints

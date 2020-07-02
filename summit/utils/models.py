@@ -207,6 +207,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
             Query points where the GP is evaluated
         use_spectral_sample: bool, optional
             Use a spectral sample of the GP instead of the posterior prediction.
+            Default is True.
         """
         if not self._model:
             raise ValueError("Fit must be called on the model prior to prediction")
@@ -219,7 +220,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
             raise TypeError("X must be a dataset or numpy array")
 
         # Use spectral sample when called. Otherwise use model directly
-        use_spectral_sample = kwargs.get('use_spectral_sample', False)
+        use_spectral_sample = kwargs.get('use_spectral_sample', True)
         if use_spectral_sample and self.sampled_f is not None:
             return self.sampled_f(X)
         elif use_spectral_sample:
@@ -255,6 +256,20 @@ class GPyModel(BaseEstimator, RegressorMixin):
             matern_nu = np.inf
         else:
             raise TypeError("Spectral sample currently only works with Matern type kernels, including RBF.")
+
+        if isinstance(X, DataSet):
+            X = X.to_numpy()
+        elif isinstance(X, np.ndarray):
+            pass
+        else:
+            raise TypeError("X must be a dataset or numpy array")
+        
+        if isinstance(y, DataSet):
+            y = y.to_numpy()
+        elif isinstance(y, np.ndarray):
+            pass
+        else:
+            raise TypeError("Y must be a DataSet or numpy array")
         
         # Spectral sampling. Clip values to match Matlab implementation
         noise = self._model.Gaussian_noise.variance.values[0]
