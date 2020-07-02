@@ -131,6 +131,8 @@ class TSEMO(Strategy):
 
         # Standardize objectives
         outputs_scaled, output_mean, output_std = outputs.standardize(return_mean=True, return_std=True)
+        output_names = [v.name for v in self.domain.output_variables]
+        outputs_scaled = DataSet(outputs_scaled, columns=output_names)
 
         # Fit models to data
         logger.info(f"Fitting {len(self.models._models)} models.")
