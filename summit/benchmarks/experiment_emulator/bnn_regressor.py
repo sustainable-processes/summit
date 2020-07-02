@@ -8,17 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-import numpy as np
-
-import json
-
 from blitz.modules import BayesianLinear
 from blitz.utils import variational_estimator
-
-from sklearn.model_selection import train_test_split as sklearn_train_test_split
-import sklearn.preprocessing
-
-from experimental_datasets import load_reizman_suzuki
 
 
 # =======================================================================
@@ -117,6 +108,8 @@ class BNNEmulator(Emulator):
         self.batch_size_train = kwargs.get("batch_size_train", 4)
         self.transform_input = kwargs.get("transform_input", "standardize")
         self.transform_output = kwargs.get("transform_output", "standardize")
+        self.test_size = kwargs.get("test_size", 0.1)
+        self.shuffle = kwargs.get("shuffle", False)
 
 
     def train_model(
@@ -129,7 +122,7 @@ class BNNEmulator(Emulator):
 
         # Data preprocess
         self._train_dataset, self._test_dataset = \
-            self._data_preprocess(transform_input=self.transform_input, transform_output=self.transform_output)
+            self._data_preprocess(transform_input=self.transform_input, transform_output=self.transform_output, test_size=self.test_size, shuffle=self.shuffle)
 
         X_train, y_train = torch.tensor(self._train_dataset[0]).float(), torch.tensor(self._train_dataset[1]).float()
         X_test, y_test = torch.tensor(self._test_dataset[0]).float(), torch.tensor(self._test_dataset[1]).float()

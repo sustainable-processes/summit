@@ -136,11 +136,11 @@ class Emulator(ABC):
                 else:
                     raise TypeError("Unknown variable type: {}.".format(v.variable_type))
 
-    def _data_preprocess(self, inference=False, infer_dataset=None, validate=False, transform_input="standardize", transform_output="standardize", kwargs={}):
+    def _data_preprocess(
+            self, inference=False, infer_dataset=None, validate=False, transform_input="standardize",
+            transform_output="standardize", test_size=0.1, shuffle=False, kwargs={}
+    ):
         if not inference:
-            test_size = kwargs.get("test_size", 0.1)
-            shuffle = kwargs.get("shuffle", False)
-
             np_dataset = self._dataset.data_to_numpy()
             data_column_names = self._dataset.data_columns
         else:
@@ -166,7 +166,7 @@ class Emulator(ABC):
                     if not v.is_objective:
                         if v.variable_type == "continuous":
                             # Standardize continuous inputs
-                            tmp_cont_inp = np_dataset[:, i]
+                            tmp_cont_inp = np.asarray(np_dataset[:, i], dtype=float)
                             if not inference:
                                 tmp_cont_inp, _reduce, _divide = self._transform_data(data=tmp_cont_inp, transformation_type=transform_input)
                                 self.data_transformation_dict[v.name] = [_reduce, _divide]
@@ -186,7 +186,7 @@ class Emulator(ABC):
                             raise TypeError("Unknown variable type: {}.".format(v.variable_type))
                     elif not inference:
                         if v.variable_type == "continuous":
-                            tmp_cont_out = np_dataset[:, i]
+                            tmp_cont_out = np.asarray(np_dataset[:, i], dtype=float)
                             if not inference:
                                 tmp_cont_out, _reduce, _divide = self._transform_data(data=tmp_cont_out, transformation_type=transform_output)
                                 self.data_transformation_dict[v.name] = [_reduce, _divide]

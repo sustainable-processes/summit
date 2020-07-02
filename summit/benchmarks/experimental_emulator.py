@@ -15,20 +15,20 @@ class ExperimentalEmulator(Experiment):
     
     Examples
     --------
-    >>> test_domain = ExperimentalEmulator()
-    >>> e = ExperimentalEmulator(test_domain)
-    >>> columns = [v.name for v in b.domain.variables]
-    >>> values = {
+    >>> test_domain = ReizmanSuzukiEmulator().domain
+    >>> e = ExperimentalEmulator(domain=test_domain, model_name="Pytest")
+    >>> columns = [v.name for v in e.domain.variables]
+    >>> train_values = {
     >>>     ("catalyst", "DATA"): ["P1-L2", "P1-L7", "P1-L3"],
     >>>     ("t_res", "DATA"): [60, 120, 110],
     >>>     ("temperature", "DATA"): [110, 170, 250],
     >>>     ("catalyst_loading", "DATA"): [0.508, 0.6, 1.4],
     >>>     ("yield", "DATA"): [20, 40, 60],
-    >>>     ("ton", "DATA"): [33, 34, 21]
-    >>> }
-    >>> e.train()
-    >>> columns = [v.name for v in b.domain.variables]
-    >>> values = [v.bounds[0]+0.6*(v.bounds[1]-v.bounds[0]) if v.variable_type == 'continuous' else v.levels[-1] for v in b.domain.variables]
+    >>>     ("ton", "DATA"): [33, 34, 21]}
+    >>> train_dataset = DataSet(train_values, columns=columns)
+    >>> e.train(train_dataset, test_size=0.001)
+    >>> columns = [v.name for v in e.domain.variables]
+    >>> values = [float(v.bounds[0] + 0.6 * (v.bounds[1] - v.bounds[0])) if v.variable_type == 'continuous' else v.levels[-1] for v in e.domain.variables]
     >>> values = np.array(values)
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
