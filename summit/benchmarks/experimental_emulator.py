@@ -9,6 +9,8 @@ from summit.benchmarks.experiment_emulator.bnn_regressor import BNNEmulator
 from summit.utils.dataset import DataSet
 from summit.domain import *
 
+import matplotlib.pyplot as plt
+
 
 class ExperimentalEmulator(Experiment):
     """ Experimental Emulator
@@ -37,9 +39,9 @@ class ExperimentalEmulator(Experiment):
 
     Notes
     -----
-
-    
     """
+
+# =======================================================================
 
     def __init__(self, domain, dataset=None, csv_dataset=None, model_name="dataset_name_emulator_bnn", regressor_type="BNN", **kwargs):
         super().__init__(domain)
@@ -51,10 +53,11 @@ class ExperimentalEmulator(Experiment):
             try:
                 self.extras = [self.emulator._load_model(model_name)]
             except:
-                print("No trained model for {}. Please train this model with ExperimentalEmulator.train().".format(self.emulator.model_name))
+                print("No trained model for {}. Please train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.".format(self.emulator.model_name))
         else:
             raise NotImplementedError("Regressor type <{}> not implemented yet".format(str(regressor_type)))
 
+# =======================================================================
 
     def _run(self, conditions, **kwargs):
         condition = DataSet.from_df(conditions.to_frame().T)
@@ -63,15 +66,28 @@ class ExperimentalEmulator(Experiment):
             conditions[(k, "DATA")] = v
         return conditions, None
 
-    def train(self, dataset=None, csv_dataset=None, **kwargs):
+# =======================================================================
+
+    def train(self, dataset=None, csv_dataset=None, verbose=True, **kwargs):
         dataset = self._check_datasets(dataset, csv_dataset)
         self.emulator.set_training_hyperparameters(kwargs=kwargs)
-        self.emulator.train_model(dataset=dataset, kwargs=kwargs)
+        self.emulator.train_model(dataset=dataset, verbose=verbose, kwargs=kwargs)
         self.extras = [self.emulator.output_models]
 
-    def validate(self, dataset=None, csv_dataset=None, **kwargs):
+# =======================================================================
+
+    def validate(self, dataset=None, csv_dataset=None, parity_plots=False, **kwargs):
         dataset = self._check_datasets(dataset, csv_dataset)
-        return self.emulator.validate_model(dataset=dataset, kwargs=kwargs)
+        if dataset is not None:
+            return self.emulator.validate_model(dataset=dataset, parity_plots=parity_plots, kwargs=kwargs)
+        else:
+            #try:
+            print("Evaluation based on training and test set.")
+            return self.emulator.validate_model(parity_plots=parity_plots)
+            #except:
+            #    raise ValueError("No dataset to evaluate.")
+
+# =======================================================================
 
     def _check_datasets(self, dataset=None, csv_dataset=None):
         if csv_dataset:
@@ -79,6 +95,7 @@ class ExperimentalEmulator(Experiment):
                 print("Dataset and csv.dataset are given, hence dataset will be overwritten by csv.data.")
             dataset=DataSet.read_csv(csv_dataset, index_col=None)
         return dataset
+
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
@@ -106,10 +123,15 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
     """
 
+# =======================================================================
+
     def __init__(self, case=1, **kwargs):
+        model_name = "reizman_suzuki_case" + str(case)
         domain = self.setup_domain()
-        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/reizman_suzuki_case" + str(case)+ "_train_test.csv")
-        super().__init__(domain=domain, csv_dataset=dataset_file, model_name="reizman_suzuki")
+        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + model_name + "_train_test.csv")
+        super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
+
+# =======================================================================
 
     def setup_domain(self):
         domain = Domain()

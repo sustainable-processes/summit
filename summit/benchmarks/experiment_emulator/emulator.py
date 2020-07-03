@@ -8,6 +8,7 @@ import json
 from sklearn.model_selection import train_test_split as sklearn_train_test_split
 import sklearn.preprocessing
 
+import matplotlib.pyplot as plt
 
 class Emulator(ABC):
     """Base class for emulator training
@@ -61,7 +62,7 @@ class Emulator(ABC):
         raise NotImplementedError("_steup_model be implemented by subclasses of Emulator")
 
     @abstractmethod
-    def train_model(self):
+    def train_model(self, verbose=True, parity_plot=False):
         """ Train model on a given Summit Dataset.
 
         Arguments
@@ -276,3 +277,58 @@ class Emulator(ABC):
             if not overwrite:
                 return False
         return True
+
+
+    def create_parity_plot(self, datasets_real=None, datasets_pred=None, **kwargs):
+        """  Make a parity plot of the training and test dataset
+
+        Parameters
+        ----------
+        ax: `matplotlib.pyplot.axes`, optional
+            An existing axis to apply the plot to
+        y_pred: np-array, optional
+            Prediction values for y.
+        y_real: np-array, optional (required if y_pred != None)
+            Real values for y.
+
+        Returns
+        -------
+        if ax is None returns a tuple with the first component
+        as the a new figure and the second component the axis
+
+        if ax is a matplotlib axis, returns only the axis
+
+        Raises
+        ------
+        ValueError
+            If there are no points to plot
+        """
+        if datasets_pred == None or datasets_real == None:
+            raise ValueError("No points to plot.")
+        if (len(datasets_pred) != len(datasets_real)):
+            raise ValueError("Number of datasets with real points does not correspond to number of datasets with prediction points.")
+
+
+        ax = kwargs.get("ax", None)
+
+        if ax is None:
+            fig, ax = plt.subplots(1)
+            return_fig = True
+        else:
+            return_fig = False
+
+        marker_symbols = ["o", "x", "s", "p", "h", "+", "8"]
+        for i in range(len(datasets_pred)):
+            y_pred, y_real = datasets_pred[i], datasets_real[i]
+            if len(y_pred) != len(y_real):
+                raise ValueError("Number of real data points does not correspond to number of prediction data points.")
+            marker_symbol = marker_symbols[i] if i < len(marker_symbols) else marker_symbols[0]
+            ax.scatter(np.asarray(y_real), np.asarray(y_pred), marker=marker_symbol)
+
+        ax.set_xlabel("Experimental y", fontsize=16)
+        ax.set_ylabel("Predicted y", fontsize=16)
+
+        if return_fig:
+            return fig, ax
+        else:
+            return ax
