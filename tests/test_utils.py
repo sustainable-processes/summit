@@ -55,5 +55,3 @@ def test_gpy_model(n_dim, n_points=100, n_repeats=5, plot=False):
             ax.scatter(X_valid[:,0], Y_valid, label="True")
             ax.legend()
             plt.show()
-
-
