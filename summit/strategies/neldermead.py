@@ -178,7 +178,8 @@ class NelderMead(Strategy):
 
         # return only valid experiments (invalid experiments are stored in param[1])
         next_experiments = next_experiments.drop(("constraint", "DATA"), 1)
-        self.fbest = fbest
+        objective_dir = -1.0 if obj_maximize else 1.0
+        self.fbest = objective_dir * fbest
         self.xbest = xbest
         self.prev_param = param
         return next_experiments

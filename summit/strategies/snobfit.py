@@ -109,6 +109,7 @@ class SNOBFIT(Strategy):
 
         # get objective name and whether optimization is maximization problem
         obj_name = None
+        obj_maximize = False
         for v in self.domain.variables:
             i = 0
             if v.is_objective:
@@ -118,6 +119,8 @@ class SNOBFIT(Strategy):
                         "SNOBFIT is not able to optimize multiple objectives, please use transform."
                     )
                 obj_name = v.name
+                if v.maximize:
+                    obj_maximize = True
 
         # get parameters from previous iterations
         inner_prev_param = None
@@ -173,8 +176,9 @@ class SNOBFIT(Strategy):
 
         # return only valid experiments (invalid experiments are stored in param[1])
         next_experiments = next_experiments.drop(("constraint", "DATA"), 1)
+        objective_dir = -1.0 if obj_maximize else 1.0
+        self.fbest = objective_dir * fbest
         self.prev_param = param
-        self.fbest = fbest
         self.xbest = xbest
         return next_experiments
 

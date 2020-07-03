@@ -207,7 +207,7 @@ def test_snobfit(num_experiments, maximize, constraints):
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
 
-        fbest = strategy.fbest
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
         xbest = strategy.xbest
         if fbest < fbestold:
             fbestold = fbest
@@ -296,7 +296,7 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
             np.asarray([param[0]['sim'][i].tolist() for i in range(len(param[0]['sim']))])
         )
 
-        fbest = strategy.fbest
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
         xbest = strategy.xbest
         if fbest < fbestold:
             fbestold = fbest
@@ -338,7 +338,7 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
 
     # plot
     if plot:
-        himmelblau.plot(polygons=polygons_points)
+        fig, ax = himmelblau.plot(polygons=polygons_points)
 
 
 @pytest.mark.parametrize(
@@ -409,7 +409,7 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
         polygons_points.append(
             np.asarray([param[0]['sim'][i].tolist() for i in range(len(param[0]['sim']))])
         )
-        fbest = strategy.fbest
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
         xbest = strategy.xbest
         if fbest < fbestold:
             fbestold = fbest
@@ -450,29 +450,26 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
     os.remove('nm_3d.json')
 
     if plot:
-        hartmann3D.plot(polygons=polygons_points)
+        fig, ax = hartmann3D.plot(polygons=polygons_points)
 
 
-# @pytest.mark.parametrize('batch_size', [1, 2, 4])
-# @pytest.mark.parametrize('num_experiments', [1, 200])
-# @pytest.mark.parametrize('maximize', [True, False])
-# @pytest.mark.parametrize('constraint', [True, False])
+
 @pytest.mark.parametrize(
-    "batch_size, num_experiments, maximize, constraint, check_convergence",
+    "batch_size, max_num_exp, maximize, constraint, check_convergence",
     [
         [1, 1, True, True, False],
-        [1, 15, True, True, True],
-        [2, 30, True, True, True],
-        [4, 60, True, True, True],
-        [1, 15, False, True, True],
-        [2, 30, False, True, True],
-        [4, 60, False, True, True],
-        [1, 15, True, False, True],
-        [2, 30, True, False, True],
-        [4, 60, True, False, True],     
+        [1, 200, True, True, True],
+        [2, 200, True, True, True],
+        [4, 200, True, True, True],
+        [1, 200, False, True, True],
+        [2, 200, False, True, True],
+        [4, 200, False, True, True],
+        [1, 200, True, False, True],
+        [2, 200, True, False, True],
+        [4, 200, True, False, True],     
     ]
 )
-def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergence, plot=False, ):
+def test_sobo(batch_size, max_num_exp, maximize, constraint,check_convergence, plot=False):
     hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = SOBO(domain=hartmann3D.domain)
 
@@ -484,8 +481,9 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
     #initial_exp = hartmann3D.run_experiments(initial_exp)
 
     # run SOBO loop for fixed <num_iter> number of iteration
-    num_iter = num_experiments//batch_size   # maximum number of iterations
-    max_stop = 80//batch_size   # allowed number of consecutive iterations w/o improvement
+    num_iter = max_num_exp//batch_size   # maximum number of iterations
+    max_stop = 60//batch_size   # allowed number of consecutive iterations w/o improvement
+    min_stop = 20//batch_size   # minimum number of iterations before algorithm is stopped
     nstop = 0
     fbestold = float("inf")
 
@@ -498,22 +496,28 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
     pb = progress_bar(range(num_iter))
     for i in pb:
         next_experiments = \
-            strategy.suggest_experiments(num_experiments=num_experiments, prev_res=next_experiments)
+            strategy.suggest_experiments(num_experiments=batch_size, prev_res=next_experiments)
 
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
 
-        fbest = strategy.fbest
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
         xbest = strategy.xbest
         if fbest < fbestold:
+            if fbest < 0.99*fbestold or i < min_stop:
+                nstop = 0
+            else:
+                nstop += 1
             fbestold = fbest
-            nstop = 0
         else:
             nstop += 1
         if nstop >= max_stop:
-            print("No improvement in last " + str(max_stop) + " iterations.")
+            print("Stopping criterion reached. No improvement in last " + str(max_stop) + " iterations.")
             break
-    
+        if fbest < -3.85:
+            print("Stopping criterion reached. Function value below -3.85.")
+            break
+
         pb.comment = f"Best f value: {fbest}"
         print("\n")
 
@@ -534,4 +538,4 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
         assert strategy.prev_param[1].all() == strategy_2.prev_param[1].all()
 
     if plot:
-        hartmann3D.plot()
+        fig, ax = hartmann3D.plot()
