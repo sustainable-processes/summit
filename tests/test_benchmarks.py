@@ -1,5 +1,5 @@
 import pytest
-from summit.benchmarks import SnarBenchmark, ReizmanSuzukiEmulator
+from summit.benchmarks import SnarBenchmark, Hartmann3D, Himmelblau, ThreeHumpCamel
 from summit.utils.dataset import DataSet
 import numpy as np
 
