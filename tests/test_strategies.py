@@ -177,7 +177,7 @@ def test_tsemo(save=False):
     warnings.filterwarnings('ignore',category=RuntimeWarning)
     tsemo_options = dict(pop_size=100,                          #population size for NSGAII
                          iterations=100,                        #iterations for NSGAII
-                         n_spectral_points=4000,                 #number of spectral points for spectral sampling
+                         n_spectral_points=1500,                 #number of spectral points for spectral sampling
                          num_restarts=200,                      #number of restarts for GP optimizer (LBSG)
                          parallel=True)                         #operate GP optimizer in parallel
 

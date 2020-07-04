@@ -158,7 +158,7 @@ class TSEMO(Strategy):
 
         # NSGAII internal optimisation
         generations = kwargs.get("generations", 100)
-        pop_size = kwargs("pop_size", 100)
+        pop_size = kwargs.get("pop_size", 100)
         self.logger.info("Optimizing models using NSGAII.")
         optimizer = NSGA2(pop_size=pop_size)
         problem = TSEMOInternalWrapper(self.models, self.domain)
@@ -166,16 +166,18 @@ class TSEMO(Strategy):
         self.internal_res = minimize(
             problem, optimizer, termination, seed=1, verbose=False
         )
+        X = DataSet(self.internal_res.X, columns=[v.name for v in self.domain.input_variables])
+        y = DataSet(self.internal_res.F, columns=[v.name for v in self.domain.output_variables])
 
-        if internal_res is not None and len(internal_res.fun) != 0:
+        if X.shape[0] != 0 and y.shape[0] != 0:
             # Select points that give maximum hypervolume improvement
             hv_imp, indices = self.select_max_hvi(
-                outputs_scaled, self.internal_res.F, num_experiments
+                outputs_scaled, y, num_experiments
             )
 
             # Unscale data
-            X = self.internal_res.X * (input_max - input_min) + input_min
-            y = self.internal_res.F * output_std + output_mean
+            X = X * (input_max - input_min) + input_min
+            y = y * output_std + output_mean
 
             # Join to get single dataset with inputs and outputs
             result = X.join(y)
@@ -357,7 +359,7 @@ class TSEMOInternalWrapper(Problem):
         F = self.models.predict(X, **kwargs)
 
         # Negate objectives that are need to be maximized
-        for i, v in enumerate(self.domain.outputs_variables):
+        for i, v in enumerate(self.domain.output_variables):
             if v.maximize:
                 F[:,i] *= -1
         out["F"] = F
