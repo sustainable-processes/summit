@@ -14,8 +14,8 @@ import numpy as np
 import platypus as pp
 from scipy.optimize import OptimizeResult
 import warnings
-
-__all__ = ["Optimizer", "NSGAII", "MCOptimizer", "CandidateOptimizer"]
+import numpy as np
+from pymoo.model.problem import Problem
 
 
 class Optimizer(ABC):
@@ -59,6 +59,12 @@ class Optimizer(ABC):
     def is_multiobjective(self):
         """Return true if the algorithm does multiobjective optimization"""
         return self._multiobjective
+
+
+
+class NSGAII_pymoo(Optimizer):
+    def __init__(self, domain):
+        Optimizer.__init__(domain)
 
 
 class NSGAII(Optimizer):
@@ -134,69 +140,3 @@ class NSGAII(Optimizer):
         ]
         y = DataSet(y, columns=output_columns)
         return OptimizeResult(x=x, fun=y, success=True)
-
-
-# class MCOptimizer(Optimizer):
-#     """
-#     Optimization of an objective function by evaluating a set of random points.
-#     Note: each call to optimize, a different set of random points is evaluated.
-#     """
-
-#     def __init__(self, domain, nsamples):
-#         """
-#         :param domain: Optimization :class:`~.domain.Domain`.
-#         :param nsamples: number of random points to use
-#         """
-#         Optimizer.__init__(domain)
-#         self._nsamples = nsamples
-#         # Clear the initial data points
-#         self.set_initial(np.empty((0, self.domain.size)))
-
-#     def domain(self, dom):
-#         self._domain = dom
-
-#     def _get_eval_points(self):
-#         r =  Random(self.domain)
-#         return r.generate_experiments(self._nsamples)
-
-#     def _optimize(self, objective):
-#         points = self._get_eval_points()
-#         evaluations = objective(points)
-#         idx_best = np.argmin(evaluations, axis=0)
-
-#         return OptimizeResult(x=points[idx_best, :],
-#                               success=True,
-#                               fun=evaluations[idx_best, :],
-#                               nfev=points.shape[0],
-#                               message="OK")
-
-#     def set_initial(self, initial):
-#         initial = np.atleast_2d(initial)
-#         if initial.size > 0:
-#             warnings.warn("Initial points set in {0} are ignored.".format(self.__class__.__name__), UserWarning)
-#             return
-
-#         super(MCOptimizer, self).set_initial(initial)
-
-# class CandidateOptimizer(MCOptimizer):
-#     """
-#     Optimization of an objective function by evaluating a set of pre-defined candidate points.
-#     Returns the point with minimal objective value.
-#     """
-
-#     def __init__(self, domain, candidates):
-#         """
-#         :param domain: Optimization :class:`~.domain.Domain`.
-#         :param candidates: candidate points, should be within the optimization domain.
-#         """
-#         MCOptimizer.__init__(self, domain, candidates.shape[0])
-#         assert (candidates in domain)
-#         self.candidates = candidates
-
-#     def _get_eval_points(self):
-#         return self.candidates
-
-#     def domain(self, dom):
-#         t = self.domain >> dom
-#         super(CandidateOptimizer, self.__class__).domain.fset(self, dom)
-#         self.candidates = t.forward(self.candidates)

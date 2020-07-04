@@ -6,13 +6,16 @@ from summit.utils.optimizers import NSGAII
 from summit.utils.models import ModelGroup, GPyModel
 from summit.utils.dataset import DataSet
 
-import platypus as pp
+from pymoo.model.problem import Problem
+from pymoo.algorithms.nsga2 import NSGA2
+from pymoo.factory import get_sampling, get_crossover, get_mutation
+from pymoo.optimize import minimize
+from pymoo.factory import get_termination
 import numpy as np
 from abc import ABC, abstractmethod
 import logging
 
 
-        
 class TSEMO(Strategy):
     """ Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
     
@@ -79,9 +82,6 @@ class TSEMO(Strategy):
         else:
             raise TypeError("models must be a ModelGroup or a dictionary of models.")
 
-        # NSGAII internal optimizer
-        self.optimizer = NSGAII(self.domain)
-
         self._reference = kwargs.get(
             "reference", [0 for v in self.domain.variables if v.is_objective]
         )
@@ -89,26 +89,30 @@ class TSEMO(Strategy):
         if self._random_rate < 0.0 or self._random_rate > 1.0:
             raise ValueError("Random rate must be between 0 and 1.")
 
-        self.logger = kwargs.get('logger', logging.getLogger(__name__))
+        self.logger = kwargs.get("logger", logging.getLogger(__name__))
 
         self.reset()
 
-    def suggest_experiments(self, num_experiments, 
-                            prev_res: DataSet = None, **kwargs):
+    def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
         """ Suggest experiments using TSEMO
         
         Parameters
         ----------  
-        num_experiments: int
+        num_experiments : int
             The number of experiments (i.e., samples) to generate
-        prev_res: summit.utils.data.DataSet, optional
+        prev_res : summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, then latin hypercube sampling will
             be used to suggest an initial design. 
-        n_spectral_points: int
+        n_spectral_points : int, optional
             Number of spectral points used in spectral sampling.
             Default is 1500.
-            
+        generations : int, optional
+            Number of generations used in the internal optimisation with NSGAII.
+            Default is 100.
+        pop_size : int, optional
+            Population size used in the internal optimisation with NSGAII.
+            Default is 100.
         Returns
         -------
         ds
@@ -123,16 +127,20 @@ class TSEMO(Strategy):
         elif prev_res is not None and self.all_experiments is not None:
             self.all_experiments = self.all_experiments.append(prev_res)
 
-        #Get inputs (decision variables) and outputs (objectives)
+        # Get inputs (decision variables) and outputs (objectives)
         inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
         if inputs.shape[0] < self.domain.num_continuous_dimensions():
-            raise ValueError(f'The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS.')
-        
+            raise ValueError(
+                f"The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS."
+            )
+
         # Scale decision variables [0,1]
         inputs_scaled, input_min, input_max = inputs.zero_to_one(return_min_max=True)
 
         # Standardize objectives
-        outputs_scaled, output_mean, output_std = outputs.standardize(return_mean=True, return_std=True)
+        outputs_scaled, output_mean, output_std = outputs.standardize(
+            return_mean=True, return_std=True
+        )
         output_names = [v.name for v in self.domain.output_variables]
         outputs_scaled = DataSet(outputs_scaled, columns=output_names)
 
@@ -141,27 +149,33 @@ class TSEMO(Strategy):
         self.models.fit(inputs_scaled, outputs_scaled, spectral_sample=False, **kwargs)
 
         # Spectral sampling
-        n_spectral_points = kwargs.get('n_spectral_points', 1500)
+        n_spectral_points = kwargs.get("n_spectral_points", 1500)
         for name, model in self.models.models.items():
             self.logger.info(f"Spectral sampling for model {name}.")
-            model.spectral_sample(inputs_scaled, outputs_scaled,
-                                  n_spectral_points=n_spectral_points)
+            model.spectral_sample(
+                inputs_scaled, outputs_scaled, n_spectral_points=n_spectral_points
+            )
 
-        # Make optimizer scale to internal transformation instead of domain
-        for i in range(self.domain.num_continuous_dimensions()):
-            self.optimizer.problem.types[i] = pp.Real(0,1)
+        # NSGAII internal optimisation
+        generations = kwargs.get("generations", 100)
+        pop_size = kwargs("pop_size", 100)
         self.logger.info("Optimizing models using NSGAII.")
-        internal_res = self.optimizer.optimize(self.models, use_spectral_sample=True, **kwargs)
-        
+        self.optimizer = NSGA2(pop_size=pop_size)
+        problem = TSEMOInternalWrapper(self.models, self.domain)
+        termination = get_termination("n_gen", generations)
+        internal_res = minimize(
+            problem, self.optimizer, termination, seed=1, verbose=False
+        )
+
         if internal_res is not None and len(internal_res.fun) != 0:
             # Select points that give maximum hypervolume improvement
             hv_imp, indices = self.select_max_hvi(
-                outputs_scaled, internal_res.fun, num_experiments
+                outputs_scaled, internal_res.F, num_experiments
             )
-            
+
             # Unscale data
-            X = internal_res.x*(input_max-input_min) + input_min
-            y = internal_res.fun*output_std+output_mean
+            X = internal_res.x * (input_max - input_min) + input_min
+            y = internal_res.F * output_std + output_mean
 
             # Join to get single dataset with inputs and outputs
             result = X.join(y)
@@ -175,13 +189,13 @@ class TSEMO(Strategy):
 
             # Add model hyperparameters as metadata columns
             self.iterations += 1
-            for name,model in self.models.models.items():
+            for name, model in self.models.models.items():
                 lengthscales, var, noise = model.hyperparameters
-                result[(f'{name}_variance' ,'METADATA')] = var
-                result[(f'{name}_noise' ,'METADATA')] = noise
+                result[(f"{name}_variance", "METADATA")] = var
+                result[(f"{name}_noise", "METADATA")] = noise
                 for var, l in zip(self.domain.input_variables, lengthscales):
-                    result[(f'{name}_{var.name}_lengthscale' ,'METADATA')] = l
-                result[('iterations', 'METADATA')] = self.iterations
+                    result[(f"{name}_{var.name}_lengthscale", "METADATA")] = l
+                result[("iterations", "METADATA")] = self.iterations
             return result
         else:
             self.iterations += 1
@@ -244,10 +258,12 @@ class TSEMO(Strategy):
         Ynew = y.data_to_numpy()
         # Ynew = (Ynew - mean)/std
 
-        #Reference
+        # Reference
         Yfront, _ = pareto_efficient(Ynew, maximize=False)
-        r = np.max(Yfront, axis=0)+0.01*(np.max(Yfront, axis=0)-np.min(Yfront,axis=0))
-        
+        r = np.max(Yfront, axis=0) + 0.01 * (
+            np.max(Yfront, axis=0) - np.min(Yfront, axis=0)
+        )
+
         index = []
         n = samples.shape[1]
         mask = np.ones(samples.shape[0], dtype=bool)
@@ -261,7 +277,7 @@ class TSEMO(Strategy):
             random_selects = np.random.randint(0, num_evals, size=num_random)
         else:
             random_selects = np.array([])
-        
+
         for i in range(num_evals):
             masked_samples = samples[mask, :]
             Yfront, _ = pareto_efficient(Ynew, maximize=False)
@@ -270,16 +286,16 @@ class TSEMO(Strategy):
 
             hv_improvement = []
             hvY = HvI.hypervolume(Yfront, r)
-            #Determine hypervolume improvement by including
-            #each point from samples (masking previously selected poonts)
+            # Determine hypervolume improvement by including
+            # each point from samples (masking previously selected poonts)
             for sample in masked_samples:
                 sample = sample.reshape(1, n)
                 A = np.append(Ynew, sample, axis=0)
                 Afront, _ = pareto_efficient(A, maximize=False)
                 hv = HvI.hypervolume(Afront, r)
-                hv_improvement.append(hv-hvY)
-            
-            hvY0 = hvY if i==0 else hvY0
+                hv_improvement.append(hv - hvY)
+
+            hvY0 = hvY if i == 0 else hvY0
 
             if i in random_selects:
                 masked_index = np.random.randint(0, masked_samples.shape[0])
@@ -306,3 +322,31 @@ class TSEMO(Strategy):
             # Subtracts hypervolume without any points added (hvY0)
             hv_imp = hv_improvement[masked_index] + hvY - hvY0
         return hv_imp, index
+
+
+class TSEMOInternalWrapper(Problem):
+    def __init__(self, models, domain):
+        self.models = models
+        # Number of decision variables
+        n_var = domain.num_continuous_dimensions()
+        # Number of objectives
+        n_obj = len(domain.output_variables)
+        # Number of constraints
+        n_constr = len(domain.constraints)
+        # # Lower bounds
+        # xl = [v.bounds[0] for v in domain.input_variables]
+        # # Upper bounds
+        # xu = [v.bounds[1] for v in domain.internal]
+
+        super().__init__(n_var=n_var, n_obj=n_obj, n_constr=n_constr, xl=0, xu=1)
+
+    def _evaluate(self, X, out, *args, **kwargs):
+        input_columns = [v.name for v in self.domain.variables if not v.is_objective]
+        output_columns = [v.name for v in self.domain.variables if v.is_objective]
+        X = DataSet(np.atleast_2d(X), columns=input_columns)
+        out["F"] = self.models.predict(X, **kwargs)
+        if self.domain.constraints:
+            constraint_res = [
+                X.eval(c.lhs, resolvers=[X]) for c in self.domain.constraints
+            ]
+            out["G"] = [c.tolist()[0] for c in constraint_res]

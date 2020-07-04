@@ -23,6 +23,7 @@ fastprogress = "^0.2.3"
 tqdm = "^4.46.1"
 ipywidgets = "^7.5.1"
 matplotlib = "^3.2.2"
+pymoo = "^0.4.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
