@@ -135,10 +135,10 @@ class TSEMO(Strategy):
             )
 
         # Scale decision variables [0,1]
-        inputs_scaled, input_min, input_max = inputs.zero_to_one(return_min_max=True)
+        inputs_scaled, self.input_min, self.input_max = inputs.zero_to_one(return_min_max=True)
 
         # Standardize objectives
-        outputs_scaled, output_mean, output_std = outputs.standardize(
+        outputs_scaled, self.output_mean, self.output_std = outputs.standardize(
             return_mean=True, return_std=True
         )
         output_names = [v.name for v in self.domain.output_variables]
@@ -176,8 +176,8 @@ class TSEMO(Strategy):
             )
 
             # Unscale data
-            X = X * (input_max - input_min) + input_min
-            y = y * output_std + output_mean
+            X = X * (self.input_max - self.input_min) + self.input_min
+            y = y * self.output_std + self.output_mean
 
             # Join to get single dataset with inputs and outputs
             result = X.join(y)
