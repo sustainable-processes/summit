@@ -15,7 +15,6 @@ import platypus as pp
 from scipy.optimize import OptimizeResult
 import warnings
 import numpy as np
-from pymoo.model.problem import Problem
 
 
 class Optimizer(ABC):
@@ -59,12 +58,6 @@ class Optimizer(ABC):
     def is_multiobjective(self):
         """Return true if the algorithm does multiobjective optimization"""
         return self._multiobjective
-
-
-
-class NSGAII_pymoo(Optimizer):
-    def __init__(self, domain):
-        Optimizer.__init__(domain)
 
 
 class NSGAII(Optimizer):

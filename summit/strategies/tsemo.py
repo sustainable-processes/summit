@@ -160,22 +160,22 @@ class TSEMO(Strategy):
         generations = kwargs.get("generations", 100)
         pop_size = kwargs("pop_size", 100)
         self.logger.info("Optimizing models using NSGAII.")
-        self.optimizer = NSGA2(pop_size=pop_size)
+        optimizer = NSGA2(pop_size=pop_size)
         problem = TSEMOInternalWrapper(self.models, self.domain)
         termination = get_termination("n_gen", generations)
-        internal_res = minimize(
-            problem, self.optimizer, termination, seed=1, verbose=False
+        self.internal_res = minimize(
+            problem, optimizer, termination, seed=1, verbose=False
         )
 
         if internal_res is not None and len(internal_res.fun) != 0:
             # Select points that give maximum hypervolume improvement
             hv_imp, indices = self.select_max_hvi(
-                outputs_scaled, internal_res.F, num_experiments
+                outputs_scaled, self.internal_res.F, num_experiments
             )
 
             # Unscale data
-            X = internal_res.x * (input_max - input_min) + input_min
-            y = internal_res.F * output_std + output_mean
+            X = self.internal_res.X * (input_max - input_min) + input_min
+            y = self.internal_res.F * output_std + output_mean
 
             # Join to get single dataset with inputs and outputs
             result = X.join(y)
@@ -325,18 +325,28 @@ class TSEMO(Strategy):
 
 
 class TSEMOInternalWrapper(Problem):
+    """ Wrapper for NSGAII internal optimisation 
+    
+    Parameters
+    ---------- 
+    models : :class:`~summit.utils.models.ModelGroup`
+        Model group used for optimisation
+    domain : :class:`~summit.domain.Domain`
+        Domain used for optimisation.
+    Notes
+    -----
+    It is assumed that the inputs are scaled between 0 and 1.
+    
+    """
     def __init__(self, models, domain):
         self.models = models
+        self.domain = domain
         # Number of decision variables
         n_var = domain.num_continuous_dimensions()
         # Number of objectives
         n_obj = len(domain.output_variables)
         # Number of constraints
         n_constr = len(domain.constraints)
-        # # Lower bounds
-        # xl = [v.bounds[0] for v in domain.input_variables]
-        # # Upper bounds
-        # xu = [v.bounds[1] for v in domain.internal]
 
         super().__init__(n_var=n_var, n_obj=n_obj, n_constr=n_constr, xl=0, xu=1)
 
@@ -344,7 +354,15 @@ class TSEMOInternalWrapper(Problem):
         input_columns = [v.name for v in self.domain.variables if not v.is_objective]
         output_columns = [v.name for v in self.domain.variables if v.is_objective]
         X = DataSet(np.atleast_2d(X), columns=input_columns)
-        out["F"] = self.models.predict(X, **kwargs)
+        F = self.models.predict(X, **kwargs)
+
+        # Negate objectives that are need to be maximized
+        for i, v in enumerate(self.domain.outputs_variables):
+            if v.maximize:
+                F[:,i] *= -1
+        out["F"] = F
+
+        # Add constraints if necessary
         if self.domain.constraints:
             constraint_res = [
                 X.eval(c.lhs, resolvers=[X]) for c in self.domain.constraints
