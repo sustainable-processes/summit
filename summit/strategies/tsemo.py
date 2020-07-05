@@ -353,8 +353,7 @@ class TSEMOInternalWrapper(Problem):
         super().__init__(n_var=n_var, n_obj=n_obj, n_constr=n_constr, xl=0, xu=1)
 
     def _evaluate(self, X, out, *args, **kwargs):
-        input_columns = [v.name for v in self.domain.variables if not v.is_objective]
-        output_columns = [v.name for v in self.domain.variables if v.is_objective]
+        input_columns = [v.name for v in self.domain.input_variables]
         X = DataSet(np.atleast_2d(X), columns=input_columns)
         F = self.models.predict(X, **kwargs)
 

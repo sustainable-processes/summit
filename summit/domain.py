@@ -87,6 +87,7 @@ class Variable(ABC):
         variable_dict = {
             "type": self._variable_type,
             "is_objective": self._is_objective,
+            "maximize": self.maximize,
             "name": self.name,
             "description": self.description,
             "units": self.units,
@@ -200,6 +201,7 @@ class ContinuousVariable(Variable):
             description=variable_dict["description"],
             bounds=variable_dict["bounds"],
             is_objective=variable_dict["is_objective"],
+            maximize=variable_dict.get("maximize"),
         )
 
 
