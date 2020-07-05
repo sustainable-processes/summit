@@ -21,14 +21,7 @@ class ExperimentalEmulator(Experiment):
     >>> e = ExperimentalEmulator(domain=test_domain, model_name="Pytest")
     No trained model for Pytest. Train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.
     >>> columns = [v.name for v in e.domain.variables]
-    >>> train_values = {
-    >>>     ("catalyst", "DATA"): ["P1-L2", "P1-L7", "P1-L3"],
-    >>>     ("t_res", "DATA"): [60, 120, 110],
-    >>>     ("temperature", "DATA"): [110, 170, 250],
-    >>>     ("catalyst_loading", "DATA"): [0.508, 0.6, 1.4],
-    >>>     ("yield", "DATA"): [20, 40, 60],
-    >>>     ("ton", "DATA"): [33, 34, 21]
-    >>> }
+    >>> train_values = {("catalyst", "DATA"): ["P1-L2", "P1-L7", "P1-L3"], ("t_res", "DATA"): [60, 120, 110], ("temperature", "DATA"): [110, 170, 250], ("catalyst_loading", "DATA"): [0.508, 0.6, 1.4], ("yield", "DATA"): [20, 40, 60], ("ton", "DATA"): [33, 34, 21]}
     >>> train_dataset = DataSet(train_values, columns=columns)
     >>> e.train(train_dataset, test_size=0.001)
     >>> columns = [v.name for v in e.domain.variables]
