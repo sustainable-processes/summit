@@ -26,7 +26,8 @@ class ExperimentalEmulator(Experiment):
     >>>     ("temperature", "DATA"): [110, 170, 250],
     >>>     ("catalyst_loading", "DATA"): [0.508, 0.6, 1.4],
     >>>     ("yield", "DATA"): [20, 40, 60],
-    >>>     ("ton", "DATA"): [33, 34, 21]}
+    >>>     ("ton", "DATA"): [33, 34, 21]
+    >>> }
     >>> train_dataset = DataSet(train_values, columns=columns)
     >>> e.train(train_dataset, test_size=0.001)
     >>> columns = [v.name for v in e.domain.variables]
@@ -35,7 +36,7 @@ class ExperimentalEmulator(Experiment):
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
     >>> results = e.run_experiments(conditions)
-
+    No trained model for Pytest. Please train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.
 
     Notes
     -----
@@ -53,7 +54,7 @@ class ExperimentalEmulator(Experiment):
             try:
                 self.extras = [self.emulator._load_model(model_name)]
             except:
-                print("No trained model for {}. Please train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.".format(self.emulator.model_name))
+                print("No trained model for {}. Train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.".format(self.emulator.model_name))
         else:
             raise NotImplementedError("Regressor type <{}> not implemented yet".format(str(regressor_type)))
 

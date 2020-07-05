@@ -22,13 +22,6 @@ class BNNEmulator(Emulator):
 
     A Bayesian Neural Network (BNN) emulator.
 
-    Examples
-    --------
-    >>> emulator = BNNEmulator(domain, dataset)
-
-    Notes
-    -----
-    This benchmark is based on Hone et al. Reac Engr. & Chem. 2016.
 
     """
 
@@ -64,13 +57,16 @@ class BNNEmulator(Emulator):
 
                 self.blinear1 = BayesianLinear(input_dim, 24)
                 self.blinear2 = BayesianLinear(24, 24)
-                self.blinear3 = BayesianLinear(24, 1)
+                self.blinear3 = BayesianLinear(24, 24)
+                self.blinear4 = BayesianLinear(24, 1)
 
             def forward(self, x):
                 x = F.leaky_relu(self.blinear1(x))
                 x = F.leaky_relu(self.blinear2(x))
                 x = F.dropout(x, p=0.1, training=self.training)
-                x = F.relu(self.blinear3(x))
+                x = F.leaky_relu(self.blinear3(x))
+                x = F.dropout(x, p=0.1, training=self.training)
+                x = F.relu(self.blinear4(x))
                 y = x
                 return y.view(-1)
 
@@ -91,15 +87,17 @@ class BNNEmulator(Emulator):
             # Evaluate model for given dataloader
             def _evaluate_regression(self, regressor, device, loader, fun_untransform_data, out_transform, get_predictions=False):
                 regressor.eval()
+                regressor.freeze_()
 
                 mae = 0
                 pred_data = []
                 real_data = []
                 for i, (datapoints, labels) in enumerate(loader):
                     data = datapoints.to(device)
-                    tmp_pred_data = fun_untransform_data(data=regressor(data), reduce=out_transform[0], divide=out_transform[1])
+                    pred = regressor(data)
+                    tmp_pred_data = fun_untransform_data(data=pred, reduce=out_transform[0], divide=out_transform[1])
                     tmp_real_data = fun_untransform_data(data=labels, reduce=out_transform[0], divide=out_transform[1])
-                    mae += (tmp_pred_data - tmp_real_data).abs().mean()
+                    mae += (tmp_pred_data - tmp_real_data).abs().sum(0).item()
 
                     if get_predictions:
                         pred_data.extend(tmp_pred_data.tolist())
@@ -108,7 +106,9 @@ class BNNEmulator(Emulator):
                 if get_predictions:
                     return pred_data, real_data
 
-                return mae
+                regressor.unfreeze_()
+
+                return mae / len(loader.dataset)
 
         regression_model = BayesianRegressor(self.input_dim)
         return regression_model
@@ -122,7 +122,7 @@ class BNNEmulator(Emulator):
         self.min_lr = kwargs.get("min_lr", 0.00001)
         self.lr_decay = kwargs.get("lr_decay", 0.7)  # learning rate decay
         self.lr_decay_patience = kwargs.get("lr_decay_patience", 3) # number of epochs before learning rate is reduced by lr_decay
-        self.early_stopping_epochs = kwargs.get("early_stopping_epochs", 20)  # number of epochs before early stopping
+        self.early_stopping_epochs = kwargs.get("early_stopping_epochs", 30)  # number of epochs before early stopping
         self.batch_size_train = kwargs.get("batch_size_train", 4)
         self.transform_input = kwargs.get("transform_input", "standardize")
         self.transform_output = kwargs.get("transform_output", "standardize")
@@ -134,7 +134,7 @@ class BNNEmulator(Emulator):
     def train_model(
             self, dataset=None, verbose=True, kwargs={}
     ):
-
+        torch.set_printoptions(precision=10)
         # Manual call of training -> overwrite dataset with new dataset for training
         if dataset is not None:
             self._dataset = dataset
@@ -188,31 +188,35 @@ class BNNEmulator(Emulator):
                 train_mae = self._model._evaluate_regression(regressor, device, dataloader_train, self._untransform_data, out_transform)
                 scheduler.step(train_mae)
 
+                if verbose:
+                    print("   -- Epoch: {:03d}, LR: {:7f}, Train MAE: {:4f}".format(epoch, lr, train_mae))
+
                 # if prediction accuracy was improved in current epoch, reset <tmp_iter_stop> and save model
                 if best_train_mae > train_mae:
                     best_train_mae = train_mae
                     tmp_iter_stop = 0
                     torch.save(regressor.state_dict(), model_save_dir)
+                    if verbose:
+                        test_mae = self._model._evaluate_regression(regressor, device, dataloader_test, self._untransform_data, out_transform)
+                        print("      -> Train MAE improved, current Test MAE: {:4f}".format(test_mae))
                 # if prediction accuracy was not imporved in current epoch, increase <tmp_iter_stop> and stop training if <max_iter_stop> is reached
                 else:
                     tmp_iter_stop += 1
                     if tmp_iter_stop >= max_iter_stop:
                         break
 
-                # print mean absolute error (MAE) on training set for current epoch (same for test set every 100th epoch)
-                if verbose:
-                    print("   -- Epoch: {:03d}, LR: {:7f}, Train MAE: {:4f}".format(epoch, lr, train_mae))
-                    if epoch % 100 == 0:
-                        test_mae = self._model._evaluate_regression(regressor, device, dataloader_test, self._untransform_data, out_transform)
-                        print("   -> Epoch: {:03d}, Test MAE: {:4f}".format(epoch, test_mae))
-
-            final_train_mae = self._model._evaluate_regression(regressor, device, dataloader_train, self._untransform_data,
-                                                        out_transform)
-            final_test_mae = self._model._evaluate_regression(regressor, device, dataloader_test, self._untransform_data,
-                                                        out_transform)
-            y_train_pred, y_train_real = self._model._evaluate_regression(regressor=regressor, device=device, loader=dataloader_train, fun_untransform_data=self._untransform_data,
+            # load final model from epoch with lowest prediction accuracy
+            regressor.load_state_dict(torch.load(model_save_dir))
+            # freeze the model, in order to predict using only their weight distribution means
+            regressor.freeze_()
+            # get final model predictions for training and test data
+            final_train_mae = self._model._evaluate_regression(regressor=regressor, device=device, loader=dataloader_train, fun_untransform_data=self._untransform_data,
+                                                        out_transform=out_transform)
+            final_test_mae = self._model._evaluate_regression(regressor=regressor, device=device, loader=dataloader_test, fun_untransform_data=self._untransform_data,
+                                                        out_transform=out_transform)
+            y_train_pred, y_train_real = self._model._evaluate_regression(regressor=regressor, device=device, loader=torch.utils.data.DataLoader(ds_train, shuffle=False), fun_untransform_data=self._untransform_data,
                                                         out_transform=out_transform, get_predictions=True)
-            y_test_pred, y_test_real = self._model._evaluate_regression(regressor=regressor, device=device, loader=dataloader_test, fun_untransform_data=self._untransform_data,
+            y_test_pred, y_test_real = self._model._evaluate_regression(regressor=regressor, device=device, loader=torch.utils.data.DataLoader(ds_test, shuffle=False), fun_untransform_data=self._untransform_data,
                                                         out_transform=out_transform, get_predictions=True)
             self.output_models[k] = {"model_save_dir": model_save_dir,
                                      "data_transformation_dict": self.data_transformation_dict,
@@ -220,9 +224,8 @@ class BNNEmulator(Emulator):
                                      "X_test": X_test.tolist(), "y_test_real": y_test_real, "y_test_pred": y_test_pred}
 
             if verbose:
-                print("   -> Epoch: {:03d}, Test MAE: {:4f}".format(epoch, test_mae))
                 print("\n  <-- Finished training of BNN model on objective: {} -->\n"
-                      "   -- Final Train MAE: {}, Tinal Test MAE: {} --\n"
+                      "   -- Final Train MAE: {:4f}, Final Test MAE: {:4f} --\n"
                       "   -- Model saved at: {} --\n".format(k, final_train_mae, final_test_mae, model_save_dir))
 
         self._save_model()
