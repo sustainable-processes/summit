@@ -31,9 +31,7 @@ class BNNEmulator(Emulator):
         self._domain = domain
         self._domain_preprocess()
 
-        if dataset is not None:
-            self._dataset = dataset
-            # Preprocess dataset
+        self._dataset = dataset
 
         regression_model = self._setup_model()
         super().__init__(regression_model)

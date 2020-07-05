@@ -8,6 +8,7 @@ import numpy as np
 from summit.benchmarks.experiment_emulator.bnn_regressor import BNNEmulator
 from summit.utils.dataset import DataSet
 from summit.domain import *
+from summit.utils import jsonify_dict, unjsonify_dict
 
 import matplotlib.pyplot as plt
 
@@ -39,7 +40,6 @@ class ExperimentalEmulator(Experiment):
 
     def __init__(self, domain, dataset=None, csv_dataset=None, model_name="dataset_name_emulator_bnn", regressor_type="BNN", **kwargs):
         super().__init__(domain)
-
         dataset = self._check_datasets(dataset, csv_dataset)
 
         if regressor_type == "BNN":
@@ -75,11 +75,11 @@ class ExperimentalEmulator(Experiment):
         if dataset is not None:
             return self.emulator.validate_model(dataset=dataset, parity_plots=parity_plots, kwargs=kwargs)
         else:
-            #try:
-            print("Evaluation based on training and test set.")
-            return self.emulator.validate_model(parity_plots=parity_plots)
-            #except:
-            #    raise ValueError("No dataset to evaluate.")
+            try:
+                print("Evaluation based on training and test set.")
+                return self.emulator.validate_model(parity_plots=parity_plots)
+            except:
+                raise ValueError("No dataset to evaluate.")
 
 # =======================================================================
 
@@ -90,6 +90,48 @@ class ExperimentalEmulator(Experiment):
             dataset=DataSet.read_csv(csv_dataset, index_col=None)
         return dataset
 
+# =======================================================================
+
+    def to_dict(self):
+        """Serialize the class to a dictionary
+
+                Subclasses can add a experiment_params dictionary
+                key with custom parameters for the experiment
+                """
+        extras = []
+        for e in self.extras:
+            if type(e) == dict:
+                extras.append(jsonify_dict(e))
+            if type(e) == np.ndarray:
+                extras.append(e.tolist())
+            else:
+                extras.append(e)
+
+        return dict(
+            domain=self.emulator.domain.to_dict(),
+            model_name=self.emulator.model_name,
+            dataset=self.emulator._dataset.to_dict() if self.emulator._dataset else None,
+            output_models=self.emulator.output_models,
+            extras=extras
+        )
+
+# =======================================================================
+
+    @classmethod
+    def from_dict(cls, d, **kwargs):
+        domain = Domain.from_dict(d["domain"])
+        dataset = DataSet.from_dict(d["dataset"]) if d["dataset"] else None
+        model_name = str(d["model_name"])
+        exp = cls(domain=domain, dataset=dataset, model_name=model_name, **kwargs)
+        exp.output_models = d["output_models"]
+        for e in d["extras"]:
+            if type(e) == dict:
+                exp.extras.append(unjsonify_dict(e))
+            elif type(e) == list:
+                exp.extras.append(np.array(e))
+            else:
+                exp.extras.append(e)
+        return exp
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
@@ -171,3 +213,43 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
         return domain
 
+# =======================================================================
+
+    def to_dict(self):
+        """Serialize the class to a dictionary
+
+                Subclasses can add a experiment_params dictionary
+                key with custom parameters for the experiment
+                """
+        extras = []
+        for e in self.extras:
+            if type(e) == dict:
+                extras.append(jsonify_dict(e))
+            if type(e) == np.ndarray:
+                extras.append(e.tolist())
+            else:
+                extras.append(e)
+
+        return dict(
+            case=self.emulator.model_name[-1],
+            dataset=self.emulator._dataset.to_dict(),
+            output_models=self.emulator.output_models,
+            extras=extras
+        )
+
+# =======================================================================
+
+    @classmethod
+    def from_dict(cls, d, **kwargs):
+        case = d["case"]
+        exp = cls(case=case, **kwargs)
+        exp._dataset = DataSet.from_dict(d["dataset"])
+        exp.output_models = d["output_models"]
+        for e in d["extras"]:
+            if type(e) == dict:
+                exp.extras.append(unjsonify_dict(e))
+            elif type(e) == list:
+                exp.extras.append(np.array(e))
+            else:
+                exp.extras.append(e)
+        return exp
