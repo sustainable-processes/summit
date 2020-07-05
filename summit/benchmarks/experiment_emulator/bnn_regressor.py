@@ -161,7 +161,8 @@ class BNNEmulator(Emulator):
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer, factor=self.lr_decay, patience=self.lr_decay_patience, min_lr=self.min_lr)
             criterion = torch.nn.MSELoss()
-            model_save_dir = osp.join(self.save_path, self.model_name + "_" + str(k) + "_BNN_model.pt")
+            model_save_name = self.model_name + "_" + str(k) + "_BNN_model.pt"
+            model_save_dir = osp.join(self.save_path, model_save_name)
             storable = self._check_file_path(model_save_dir)
             if not storable:
                 self.output_models[k] = self._load_model(self.model_name)[k]
@@ -218,7 +219,7 @@ class BNNEmulator(Emulator):
                                                         out_transform=out_transform, get_predictions=True)
             y_test_pred, y_test_real = self._model._evaluate_regression(regressor=regressor, device=device, loader=torch.utils.data.DataLoader(ds_test, shuffle=False), fun_untransform_data=self._untransform_data,
                                                         out_transform=out_transform, get_predictions=True)
-            self.output_models[k] = {"model_save_dir": model_save_dir,
+            self.output_models[k] = {"model_save_dir": model_save_name,
                                      "data_transformation_dict": self.data_transformation_dict,
                                      "X_train": X_train.tolist(), "y_train_real": y_train_real, "y_train_pred": y_train_pred,
                                      "X_test": X_test.tolist(), "y_test_real": y_test_real, "y_test_pred": y_test_pred}
@@ -248,7 +249,7 @@ class BNNEmulator(Emulator):
 
         if dataset is not None:
             for i, (k, v) in enumerate(self.output_models.items()):
-                model_load_dir = v["model_save_dir"]
+                model_load_dir = osp.join(self.save_path, v["model_save_dir"])
                 self.data_transformation_dict = v["data_transformation_dict"]
                 out_transform = self.data_transformation_dict[k]
 
@@ -299,7 +300,7 @@ class BNNEmulator(Emulator):
 
         infer_dict = {}
         for i, (k, v) in enumerate(self.output_models.items()):
-            model_load_dir = v["model_save_dir"]
+            model_load_dir = osp.join(self.save_path, v["model_save_dir"])
             self.data_transformation_dict = v["data_transformation_dict"]
             out_transform = self.data_transformation_dict[k]
 

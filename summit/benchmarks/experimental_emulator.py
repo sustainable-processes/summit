@@ -19,6 +19,7 @@ class ExperimentalEmulator(Experiment):
     --------
     >>> test_domain = ReizmanSuzukiEmulator().domain
     >>> e = ExperimentalEmulator(domain=test_domain, model_name="Pytest")
+    No trained model for Pytest. Train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.
     >>> columns = [v.name for v in e.domain.variables]
     >>> train_values = {
     >>>     ("catalyst", "DATA"): ["P1-L2", "P1-L7", "P1-L3"],
@@ -36,7 +37,6 @@ class ExperimentalEmulator(Experiment):
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
     >>> results = e.run_experiments(conditions)
-    No trained model for Pytest. Please train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.
 
     Notes
     -----
