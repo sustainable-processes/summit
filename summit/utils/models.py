@@ -11,6 +11,7 @@ from scipy.stats import norm, invgamma
 from scipy.stats.distributions import chi2
 from .lhs import lhs
 from sklearn.base import BaseEstimator, RegressorMixin
+import logging
 
 
 __all__ = ["Model", "ModelGroup", "GPyModel", "AnalyticalModel"]
@@ -104,7 +105,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
     
     """
 
-    def __init__(self, kernel=None, input_dim=None, noise_var=1.0, optimizer=None):
+    def __init__(self, kernel=None, input_dim=None, noise_var=1.0, optimizer=None, **kwargs):
         if kernel:
             self._kernel = kernel
         else:
@@ -121,6 +122,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         self.input_std = []
         self.output_mean = []
         self.output_std = []
+        self.logger = kwargs.get('logger', logging.getLogger(__name__))
 
     def fit(self, X, y, **kwargs):
         """Fit Gaussian process regression model.
@@ -290,8 +292,10 @@ class GPyModel(BaseEstimator, RegressorMixin):
                     M=n_spectral_points,
                     )
                 break
-            except np.linalg.LinAlgError or ValueError:
-                pass
+            except np.linalg.LinAlgError as e:
+                self.logger.error(e)
+            except ValueError as e:
+                self.logger.error(e)
 
         # Define function wrapper
         def f(x_new):
