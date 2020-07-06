@@ -114,6 +114,14 @@ class GRYFFIN(Strategy):
         self.logging = kwargs.get("logging", -1)
         self.prev_param = None
 
+        # Create tmp_files
+        tmp_files = os.path.join(os.path.dirname(os.path.realpath(__file__)),"tmp_files")
+        tmp_dir = os.path.join(tmp_files, "gryffin")
+        if not os.path.isdir(tmp_files):
+            os.mkdir(tmp_files)
+        if not os.path.isdir(tmp_dir):
+            os.mkdir(tmp_dir)
+
         # create a temporary config.json file to initialize GRYFFIN
         config_dict = {
             "general": {
@@ -122,7 +130,7 @@ class GRYFFIN(Strategy):
                 "boosted": self.boosted,
                 "sampling_strategies": self.sampling_strategies,
                 "batches": self.batches,
-                "scratch_dir": os.path.join(os.path.dirname(os.path.realpath(__file__)),"tmp_files/gryffin/scratch"),
+                "scratch_dir": os.path.join(tmp_dir, "scratch"),
                 'verbosity': {
                     'default': self.logging,
                     'bayesian_network': self.logging,
@@ -131,7 +139,7 @@ class GRYFFIN(Strategy):
             },
             "database": {
                 'format': 'pickle',
-                "path": os.path.join(os.path.dirname(os.path.realpath(__file__)),"tmp_files/gryffin/SearchProgress"),
+                "path": os.path.join(tmp_dir, "SearchProgress"),
             },
             "parameters": self.domain_inputs,
             "objectives": self.domain_objectives,
