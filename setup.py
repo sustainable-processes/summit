@@ -36,9 +36,14 @@ setup(
     package_data={},
     install_requires=[
         'fastprogress==0.*,>=0.2.3', 'gpy==1.*,>=1.9.0', 'gpyopt==1.*,>=1.2.6',
-        'ipywidgets==7.*,>=7.5.1', 'numpy==1.16.0', 'pandas==1.0.3',
-        'platypus-opt==1.*,>=1.0.0', 'sklearn==0.*,>=0.0.0',
-        'sqsnobfit==0.*,>=0.4.3', 'tqdm==4.*,>=4.46.1'
+        'gryffin', 'ipywidgets==7.*,>=7.5.1', 'matplotlib==3.*,>=3.2.2',
+        'numpy==1.18.0', 'pandas==1.0.3', 'platypus-opt==1.*,>=1.0.0',
+        'sklearn==0.*,>=0.0.0', 'sqsnobfit==0.*,>=0.4.3',
+        'tensorflow==2.*,>=2.2.0', 'tensorflow-probability==0.*,>=0.10.0',
+        'tqdm==4.*,>=4.46.1'
+    ],
+    dependency_links=[
+        'git+https://github.com/sustainable-processes/gryffin.git#egg=gryffin'
     ],
     extras_require={
         'dev': [
