@@ -9,7 +9,7 @@ from fastprogress.fastprogress import progress_bar
 import numpy as np
 import pandas as pd
 import os
-'''
+
 
 def test_random():
     domain = Domain()
@@ -535,7 +535,7 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
 
     if plot:
         hartmann3D.plot()
-'''
+
 @pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint, check_convergence, test_id",
     [
@@ -681,9 +681,8 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint,check_co
     strategy_2 = GRYFFIN.load(save_name)
     #os.remove(save_name)
 
-    if strategy.prev_param is not None: 
-        assert strategy.prev_param[0].all() == strategy_2.prev_param[0].all()
-        assert strategy.prev_param[1].all() == strategy_2.prev_param[1].all()
+    if strategy.prev_param is not None:
+        assert strategy.prev_param == strategy_2.prev_param
 
     if plot:
         hartmann3D.plot()
