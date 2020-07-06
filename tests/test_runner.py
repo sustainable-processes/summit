@@ -1,5 +1,6 @@
 import pytest
 from summit import Runner, Strategy, Experiment
+from summit.benchmarks import SnarBenchmark
 from summit.strategies import *
 from summit.domain import *
 from summit.utils.dataset import DataSet
@@ -51,37 +52,10 @@ def test_runner_unit():
     assert r.strategy.iterations == max_iterations
     assert r.experiment.data.shape[0] == int(batch_size*max_iterations)
     
-    # Check saving and loading functionality
-    r.save('test_runner.json')
-    r_2 = Runner.load('test_runner.json')
-    os.remove('test_runner.json')
 
 @pytest.mark.parametrize('strategy', [SOBO, SNOBFIT, TSEMO2, NelderMead, Random, LHS])
 def test_runner_integration(strategy):
-    class MockExperiment(Experiment):
-        def __init__(self):
-            super().__init__(self.create_domain())
-
-        def create_domain(self):
-            domain = Domain()
-            domain += ContinuousVariable('x_1',
-                                         description='',
-                                         bounds=[0,1])
-            domain += ContinuousVariable('x_2',
-                                         description='',
-                                         bounds=[0,1])
-            domain += ContinuousVariable('y_1',
-                                         description='',
-                                         bounds=[0,1],
-                                         is_objective=True,
-                                         maximize=True)
-            return domain
-
-        def _run(self, conditions, **kwargs):
-            conditions[('y_1', 'DATA')] = 0.5
-            return conditions, {}
-
-    exp = MockExperiment()
+    exp = SnarBenchmark()
     strategy = strategy(exp.domain)
 
     r = Runner(strategy=strategy,

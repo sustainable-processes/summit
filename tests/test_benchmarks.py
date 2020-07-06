@@ -4,7 +4,6 @@ from summit.utils.dataset import DataSet
 import numpy as np
 import matplotlib.pyplot as plt
 
-
 def test_snar_benchmark():
     """Test the SnAr benchmark"""
     b = SnarBenchmark()
@@ -25,6 +24,9 @@ def test_snar_benchmark():
     assert float(results["temperature"]) == values[("temperature", "DATA")]
     assert np.isclose(float(results["sty"]), 168.958672)
     assert np.isclose(float(results["e_factor"]), 191.260294)
+
+    d = b.to_dict()
+    SnarBenchmark.from_dict(d)
 
     return results
 

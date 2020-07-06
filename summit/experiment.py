@@ -130,7 +130,7 @@ class Experiment(ABC):
     @classmethod
     def from_dict(cls, d, **kwargs):
         domain = Domain.from_dict(d["domain"])
-        exp = cls(domain, **kwargs)
+        exp = cls(domain=domain, **kwargs)
         exp._data = DataSet.from_dict(d["data"])
         for e in d["extras"]:
             if type(e) == dict:
