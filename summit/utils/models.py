@@ -174,10 +174,12 @@ class GPyModel(BaseEstimator, RegressorMixin):
         )
 
         # Set priors to constrain hyperparameters
-        self._model.kern.lengthscale.set_prior(GPy.priors.Gamma(1, 0.1), warning=False)
-        self._model.kern.variance.set_prior(GPy.priors.Gamma(1, 0.1), warning=False)
-        self._model.Gaussian_noise.variance.set_prior(GPy.priors.Gamma(0.5,0.1), warning=False)
-
+        self._model.kern.lengthscale.constrain_bounded(np.sqrt(1e-3), np.sqrt(1e3),warning=False)
+        self._model.kern.lengthscale.set_prior(GPy.priors.LogGaussian(0, 10), warning=False)
+        self._model.kern.variance.constrain_bounded(np.sqrt(1e-3), np.sqrt(1e3), warning=False)
+        self._model.kern.variance.set_prior(GPy.priors.LogGaussian(-6, 10), warning=False)
+        self._model.Gaussian_noise.constrain_bounded(np.exp(-6), 1, warning=False)
+        
         # Fit model
         if self._optimizer:
             self._model.optimize_restarts(num_restarts = num_restarts, 
