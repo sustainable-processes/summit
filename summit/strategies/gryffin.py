@@ -122,11 +122,16 @@ class GRYFFIN(Strategy):
                 "boosted": self.boosted,
                 "sampling_strategies": self.sampling_strategies,
                 "batches": self.batches,
+                "scratch_dir": os.path.join(os.path.dirname(os.path.realpath(__file__)),"tmp_files/gryffin/scratch"),
                 'verbosity': {
                     'default': self.logging,
                     'bayesian_network': self.logging,
                     'random_sampler': self.logging,
                 }
+            },
+            "database": {
+                'format': 'pickle',
+                "path": os.path.join(os.path.dirname(os.path.realpath(__file__)),"tmp_files/gryffin/SearchProgress"),
             },
             "parameters": self.domain_inputs,
             "objectives": self.domain_objectives,

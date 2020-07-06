@@ -9,7 +9,7 @@ from fastprogress.fastprogress import progress_bar
 import numpy as np
 import pandas as pd
 import os
-
+'''
 
 def test_random():
     domain = Domain()
@@ -535,7 +535,7 @@ def test_sobo(batch_size, num_experiments, maximize, constraint,check_convergenc
 
     if plot:
         hartmann3D.plot()
-
+'''
 @pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint, check_convergence, test_id",
     [
