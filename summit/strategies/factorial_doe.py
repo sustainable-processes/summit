@@ -4,6 +4,7 @@ from summit.utils.dataset import DataSet
 
 import numpy as np
 
+
 class FullFactorial(Strategy):
     """ Full factorial DoE
     Strategy for full factorial design of experiments in all decision variables.
@@ -41,9 +42,9 @@ class FullFactorial(Strategy):
     7          100.0        0.5        0.5  FullFactorial
     """
 
-    def __init__(self, domain: Domain, 
-                 transform: Transform = None,
-                 ):
+    def __init__(
+        self, domain: Domain, transform: Transform = None,
+    ):
         super().__init__(domain, transform)
 
     def suggest_experiments(self, levels_dict, **kwargs) -> DataSet:
@@ -77,10 +78,11 @@ class FullFactorial(Strategy):
             values = np.array([levels_dict[v.name][i] for i in indices])
             values = np.atleast_2d(values)
             design.add_variable(v.name, values)
-            
+
         ds = design.to_dataset()
         ds[("strategy", "METADATA")] = "FullFactorial"
         return ds
+
 
 def fullfact(levels):
     """
@@ -106,16 +108,16 @@ def fullfact(levels):
     n = len(levels)  # number of factors
     nb_lines = np.prod(levels)  # number of trial conditions
     H = np.zeros((nb_lines, n))
-    
+
     level_repeat = 1
     range_repeat = np.prod(levels)
     for i in range(n):
         range_repeat //= levels[i]
         lvl = []
         for j in range(levels[i]):
-            lvl += [j]*level_repeat
-        rng = lvl*range_repeat
+            lvl += [j] * level_repeat
+        rng = lvl * range_repeat
         level_repeat *= levels[i]
         H[:, i] = rng
-     
+
     return H
