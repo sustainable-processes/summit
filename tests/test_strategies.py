@@ -510,7 +510,7 @@ def test_sobo(batch_size, max_num_exp, maximize, constraint,check_convergence, p
 
     # run SOBO loop for fixed <num_iter> number of iteration
     num_iter = max_num_exp//batch_size   # maximum number of iterations
-    max_stop = 60//batch_size   # allowed number of consecutive iterations w/o improvement
+    max_stop = 80//batch_size   # allowed number of consecutive iterations w/o improvement
     min_stop = 20//batch_size   # minimum number of iterations before algorithm is stopped
     nstop = 0
     fbestold = float("inf")
