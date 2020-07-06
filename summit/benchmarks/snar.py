@@ -28,7 +28,7 @@ class SnarBenchmark(Experiment):
     
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         domain = self._setup_domain()
         super().__init__(domain)
 
@@ -83,7 +83,7 @@ class SnarBenchmark(Experiment):
         y, e_factor, res = self._integrate_equations(tau, equiv_pldn, conc_dfnb, T)
         conditions[("sty", "DATA")] = y
         conditions[("e_factor", "DATA")] = e_factor
-        return conditions, {"integration_result": res}
+        return conditions, {}
 
     def _integrate_equations(self, tau, equiv_pldn, conc_dfnb, temperature):
         # Initial Concentrations in mM

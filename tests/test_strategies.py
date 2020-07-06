@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import os
 
-
 def test_random():
     domain = Domain()
     domain += ContinuousVariable(
@@ -41,7 +40,6 @@ def test_random():
     assert np.isclose(results_arr.all(), arr.all())
     return results
 
-
 def test_lhs():
     domain = Domain()
     domain += ContinuousVariable(
@@ -69,6 +67,36 @@ def test_lhs():
     results_arr = results.data_to_numpy().astype(np.float32)
     assert np.isclose(results_arr.all(), arr.all())
     return results
+
+def test_doe():
+    domain = Domain()
+    domain += ContinuousVariable(
+        name="temperature",
+        description="reaction temperature in celsius",
+        bounds=[50, 100],
+    )
+    domain += ContinuousVariable(
+        name="flowrate_a", description="flow of reactant a in mL/min", bounds=[0.1, 0.5]
+    )
+    domain += ContinuousVariable(
+        name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5]
+    )
+    domain += ContinuousVariable(
+        name="yield_", description="", bounds=[0, 100], is_objective=True, maximize=True
+    )
+    domain += ContinuousVariable(
+        name="de",
+        description="diastereomeric excess",
+        bounds=[0, 100],
+        is_objective=True,
+        maximize=True,
+    )
+
+    strategy = FullFactorial(domain)
+    levels = dict(temperature=[50,100], flowrate_a=[0.1,0.5],
+                  flowrate_b=[0.1,0.5])
+    experiments = strategy.suggest_experiments(levels)
+    return experiments
 
 
 def test_multitosingleobjective_transform():
@@ -482,7 +510,7 @@ def test_sobo(batch_size, max_num_exp, maximize, constraint,check_convergence, p
 
     # run SOBO loop for fixed <num_iter> number of iteration
     num_iter = max_num_exp//batch_size   # maximum number of iterations
-    max_stop = 60//batch_size   # allowed number of consecutive iterations w/o improvement
+    max_stop = 80//batch_size   # allowed number of consecutive iterations w/o improvement
     min_stop = 20//batch_size   # minimum number of iterations before algorithm is stopped
     nstop = 0
     fbestold = float("inf")
