@@ -4,8 +4,10 @@ from summit.domain import Domain, ContinuousVariable, Constraint
 from summit.benchmarks import DTLZ2, test_functions
 from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient, HvI
+from summit.utils.models import GPyModel
 from summit.strategies import *
 
+import GPy
 from fastprogress.fastprogress import progress_bar
 import numpy as np
 import pandas as pd
@@ -172,7 +174,9 @@ def test_tsemo(save=False):
     num_objectives= 2
     lab = DTLZ2(num_inputs=num_inputs,
                num_objectives=num_objectives)
-    strategy = TSEMO(lab.domain, random_rate=0.00)
+    models = {f'y_{i}': GPyModel(GPy.kern.Exponential(input_dim=num_inputs,ARD=True))
+              for i in range(num_objectives)}
+    strategy = TSEMO(lab.domain, models=models, random_rate=0.00)
     experiments = strategy.suggest_experiments(5*num_inputs)
     warnings.filterwarnings('ignore',category=RuntimeWarning)
     tsemo_options = dict(pop_size=100,                          #population size for NSGAII
