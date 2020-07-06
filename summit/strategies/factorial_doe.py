@@ -48,7 +48,7 @@ class FullFactorial(Strategy):
         super().__init__(domain, transform)
 
     def suggest_experiments(self, levels_dict, **kwargs) -> DataSet:
-        """ Suggest experiments for a random experimental design 
+        """ Suggest experiments for a full factorial experimental design 
         
         Parameters
         ---------- 
