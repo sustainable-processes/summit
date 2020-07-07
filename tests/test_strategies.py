@@ -122,7 +122,6 @@ def test_multitosingleobjective_transform():
     strategy = MockStrategy(domain, transform=transform)
     strategy.suggest_experiments(5, previous_results)
 
-
 def test_logspaceobjectives_transform():
     class MockStrategy(Strategy):
         def suggest_experiments(self, num_experiments, previous_results):
