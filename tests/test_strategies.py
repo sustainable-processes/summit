@@ -180,7 +180,7 @@ def test_tsemo(save=False):
     warnings.filterwarnings('ignore',category=RuntimeWarning)
     tsemo_options = dict(pop_size=100,                          #population size for NSGAII
                          iterations=100,                        #iterations for NSGAII
-                         n_spectral_points=1500,                 #number of spectral points for spectral sampling
+                         n_spectral_points=4000,                 #number of spectral points for spectral sampling
                          num_restarts=10,                      #number of restarts for GP optimizer (LBSG)
                          parallel=True)                         #operate GP optimizer in parallel
 
@@ -192,6 +192,9 @@ def test_tsemo(save=False):
         # Get suggestions
         experiments = strategy.suggest_experiments(1, experiments,
                                                    **tsemo_options)
+
+        print("Model 1 Hyperparameters:", strategy.models['y_0'].hyperparameters)
+        print("Model 2 Hyperparameters:", strategy.models['y_1'].hyperparameters)
         if save:
             strategy.save('tsemo_settings.json')
         y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
