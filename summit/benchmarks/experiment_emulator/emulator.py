@@ -106,21 +106,20 @@ class Emulator(ABC):
         self.output_dim = 0
         self.out_mean = np.asarray([])
         self.output_models = {}
-        self.input_names = []
+        input_names_continuous, input_names_discrete, input_names_descriptors = [], [], []
 
         for i, v in enumerate(self._domain.variables):
             if not v.is_objective:
                 if v.variable_type == "continuous":
                     self.input_dim += 1
-                    self.input_names.append(v.name)
+                    input_names_continuous.append(v.name)
                 elif v.variable_type == "discrete":
                     self.input_dim += len(v.levels)
-                    self.input_names.append(v.name)
+                    input_names_discrete.append(v.name)
                     # create one-hot tensor for discrete inputs
                 elif v.variable_type == "descriptors":
-                    raise TypeError(
-                        "Regressor not trainable on descriptor variables. Please redefine {} as continuous or discrete variable".format(
-                            v.name))
+                    self.input_dim += v.num_descriptors
+                    input_names_descriptors.extend(v.ds.data_columns)
                 else:
                     raise TypeError("Unknown variable type: {}.".format(v.variable_type))
             else:
@@ -136,6 +135,9 @@ class Emulator(ABC):
                             v.name))
                 else:
                     raise TypeError("Unknown variable type: {}.".format(v.variable_type))
+        self.input_names = []
+        self.input_names = input_names_continuous + input_names_discrete + input_names_descriptors
+        print(self.input_names)
 
     def _data_preprocess(
             self, inference=False, infer_dataset=None, validate=False, transform_input="standardize",
@@ -153,6 +155,7 @@ class Emulator(ABC):
 
         self.input_data_continuous = []
         self.input_data_discrete = []
+        self.input_data_descriptors = []
         self.output_data = []
         if not inference:
             self.data_transformation_dict = {}
@@ -180,9 +183,18 @@ class Emulator(ABC):
                             tmp_disc_inp_one_hot = one_hot_enc.fit_transform(np_dataset[:, i].reshape(-1, 1)).toarray()
                             self.input_data_discrete.append(np.asarray(tmp_disc_inp_one_hot))
                         elif v.variable_type == "descriptors":
-                            raise TypeError(
-                                "Regressor not trainable on descriptor variables. Please redefine {} as continuous or discrete variable".format(
-                                    v.name))
+                            tmp_descr_inp = []
+                            for ent in np_dataset[:, i]:
+                                tmp_descr_inp.append(v.ds.loc[[ent], :].values[0].tolist())
+                            tmp_descr_inp = np.asarray(tmp_descr_inp)
+                            for i in range(len(tmp_descr_inp[0])):
+                                tmp_descr_inp[:, i], _reduce, _divide = self._transform_data(data=tmp_descr_inp[:, i], transformation_type=transform_input)
+                                self.data_transformation_dict[v.ds.data_columns[i]] = [_reduce, _divide]
+                            self.input_data_descriptors.append(np.asarray(tmp_descr_inp))
+                            #raise TypeError(
+                            #    "Regressor not explicitely trainable on descriptor variables. Please redefine {} "
+                            #    "as continuous or discrete variable.".format(v.name)
+                            #)
                         else:
                             raise TypeError("Unknown variable type: {}.".format(v.variable_type))
                     elif not inference:
@@ -206,13 +218,16 @@ class Emulator(ABC):
                 raise ValueError("Variable {} defined in the domain is missing in the given dataset.".format(v.name))
 
         self.input_data_continuous = np.asarray(self.input_data_continuous).transpose()
-        self.input_data_discrete = np.asarray(self.input_data_discrete[0])
+        if len(self.input_data_discrete) != 0:
+            self.input_data_discrete = np.concatenate([one_hot for one_hot in self.input_data_discrete], axis=1)
+        if len(self.input_data_descriptors) != 0:
+            self.input_data_descriptors = np.concatenate([d for d in self.input_data_descriptors], axis=1)
         self.output_data = np.asarray(self.output_data).transpose()
 
         # Set up training and test data
         if not inference:
-            final_np_dataset = np.concatenate([self.input_data_continuous, self.input_data_discrete, self.output_data],
-                                              axis=1)
+            final_np_dataset = np.concatenate([inp for inp in [self.input_data_continuous, self.input_data_discrete,
+                                               self.input_data_descriptors, self.output_data] if len(inp) != 0], axis=1)
             X, y = final_np_dataset[:, :-self.output_dim], final_np_dataset[:, -self.output_dim:]
             X_train, X_test, y_train, y_test = sklearn_train_test_split(X, y, test_size=test_size, shuffle=shuffle)
             return [X_train.astype(dtype=float), y_train.astype(dtype=float)], [X_test.astype(dtype=float),
@@ -239,6 +254,9 @@ class Emulator(ABC):
                 tmp_divide = divide if divide else np.float64(1)
         else:
             tmp_reduce, tmp_divide = reduce, divide
+        if tmp_divide == 0:
+            tmp_divide = 1
+            print("Warning: denumerator in data transformation is 0, hence it is ignored and set to 1.")
         transf_data = (data - tmp_reduce) / tmp_divide
         return transf_data, tmp_reduce, tmp_divide
 
@@ -327,6 +345,8 @@ class Emulator(ABC):
 
         ax.set_xlabel("Experimental y", fontsize=16)
         ax.set_ylabel("Predicted y", fontsize=16)
+        x = np.linspace(*ax.get_xlim())
+        ax.plot(x,x, c="black", linestyle="--", label="_nolegend_", zorder=0)
 
         if return_fig:
             return fig, ax

@@ -155,7 +155,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     Notes
     -----
     This benchmark is based on Reizman et al. React. Chem. Eng. 2016.
-    https://doi.org/10.1039/C6RE00153J
+    https://doi.org.1039/C6RE00153J
 
     """
 
@@ -243,6 +243,248 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     def from_dict(cls, d, **kwargs):
         case = d["case"]
         exp = cls(case=case, **kwargs)
+        exp._dataset = DataSet.from_dict(d["dataset"])
+        exp.output_models = d["output_models"]
+        for e in d["extras"]:
+            if type(e) == dict:
+                exp.extras.append(unjsonify_dict(e))
+            elif type(e) == list:
+                exp.extras.append(np.array(e))
+            else:
+                exp.extras.append(e)
+        return exp
+
+
+
+class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
+    """ Baumgartner Cross Coupling Emulator
+
+    Virtual experiments representing the Aniline Cross-Coupling reaction
+    similar to Baumgartner et al. (2019). Experimental outcomes are based on an
+    emulator that is trained on the experimental data published by Baumgartner et al.
+
+    Parameters
+    ----------
+
+    Examples
+    --------
+    >>> bemul = BaumgartnerCrossCouplingEmulator()
+
+    Notes
+    -----
+    This benchmark is based on Baumgartner et al. Org. Process Res. Dev. 2019, 23, 8, 1594–1601.
+    https://doi.org.1021/acs.oprd.9b00236
+
+    """
+
+# =======================================================================
+
+    def __init__(self, **kwargs):
+        model_name = "baumgartner_aniline_cn_crosscoupling"
+        domain = self.setup_domain()
+        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + model_name + ".csv")
+        super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
+
+# =======================================================================
+
+    def setup_domain(self):
+        domain = Domain()
+
+        # Decision variables
+        des_1 = "Solvent type"
+        domain += DiscreteVariable(
+            name="solvent", description=des_1, levels=["tBuXPhos", "tBuBrettPhos", "AlPhos"]
+        )
+
+        des_2 = "Base"
+        domain += DiscreteVariable(
+            name="base", description=des_2, levels=["DBU", "BTMG", "TMG", "TEA"]
+        )
+
+        des_3 = "Base equivalents"
+        domain += ContinuousVariable(
+            name="base_equivalents", description=des_3, bounds=[1.0, 2.5]
+        )
+
+        des_4 = "Temperature in degrees Celsius (ºC)"
+        domain += ContinuousVariable(
+            name="temperature", description=des_4, bounds=[30, 100]
+        )
+
+        des_5 = "residence time in seconds (s)"
+        domain += ContinuousVariable(
+            name="t_res", description=des_5, bounds=[60, 1500]
+        )
+
+        des_6 = "Yield"
+        domain += ContinuousVariable(
+            name="yield",
+            description=des_6,
+            bounds=[0.0, 1.0],
+            is_objective=True,
+            maximize=True,
+        )
+
+        return domain
+
+# =======================================================================
+
+    def to_dict(self):
+        """Serialize the class to a dictionary
+
+                Subclasses can add a experiment_params dictionary
+                key with custom parameters for the experiment
+                """
+        extras = []
+        for e in self.extras:
+            if type(e) == dict:
+                extras.append(jsonify_dict(e))
+            if type(e) == np.ndarray:
+                extras.append(e.tolist())
+            else:
+                extras.append(e)
+
+        return dict(
+            dataset=self.emulator._dataset.to_dict(),
+            output_models=self.emulator.output_models,
+            extras=extras
+        )
+
+# =======================================================================
+
+    @classmethod
+    def from_dict(cls, d, **kwargs):
+        exp = cls(**kwargs)
+        exp._dataset = DataSet.from_dict(d["dataset"])
+        exp.output_models = d["output_models"]
+        for e in d["extras"]:
+            if type(e) == dict:
+                exp.extras.append(unjsonify_dict(e))
+            elif type(e) == list:
+                exp.extras.append(np.array(e))
+            else:
+                exp.extras.append(e)
+        return exp
+
+
+class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
+    """ Baumgartner Cross Coupling Emulator
+
+    Virtual experiments representing the Aniline Cross-Coupling reaction
+    similar to Baumgartner et al. (2019). Experimental outcomes are based on an
+    emulator that is trained on the experimental data published by Baumgartner et al.
+
+    Parameters
+    ----------
+
+    Examples
+    --------
+    >>> bemul = BaumgartnerCrossCouplingDescriptorEmulator()
+
+    Notes
+    -----
+    This benchmark is based on Baumgartner et al. Org. Process Res. Dev. 2019, 23, 8, 1594–1601.
+    https://doi.org.1021/acs.oprd.9b00236
+
+    """
+
+# =======================================================================
+
+    def __init__(self, **kwargs):
+        model_name = "baumgartner_aniline_cn_crosscoupling_descriptors"
+        domain = self.setup_domain()
+        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + model_name + ".csv")
+        super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
+
+# =======================================================================
+
+    def setup_domain(self):
+        domain = Domain()
+
+        # Decision variables
+        des_1 = "Catalyst type with descriptors"
+        catalyst_df = DataSet(
+            [
+                [460.7543, 67.2057, 30.8413, 2.3043, 0], #, 424.64, 421.25040226],
+                [518.8408, 89.8738, 39.4424, 2.5548, 0], #, 487.7, 781.11247064],
+                [819.933, 129.0808, 83.2017, 4.2959, 0], #, 815.06, 880.74916884],
+            ],
+            index = ['tBuXPhos', 'tBuBrettPhos', 'AlPhos'],
+            columns = ['area_cat', 'M2_cat', 'M3_cat', 'Macc3_cat', 'Mdon3_cat'] #,'mol_weight', 'sol']
+        )
+        domain += DescriptorsVariable(
+            name="catalyst", description=des_1, ds = catalyst_df
+        )
+
+        des_2 = "Base type with descriptors"
+        base_df = DataSet(
+            [
+                [162.2992, 25.8165, 40.9469, 3.0278, 0], #101.19, 642.2973283],
+                [165.5447, 81.4847, 107.0287, 10.215, 0.0169], # 115.18, 534.01544123],
+                [227.3523, 30.554, 14.3676, 1.1196, 0.0127], # 171.28, 839.81215],
+                [192.4693, 59.8367, 82.0661, 7.42, 0], # 152.24, 1055.82799],
+            ],
+            index = ["TEA", "TMG", "BTMG", "DBU"],
+            columns = ['area', 'M2', 'M3', 'Macc3', 'Mdon3'], # 'mol_weight', 'sol']
+        )
+        domain += DescriptorsVariable(
+            name="base", description=des_2, ds = base_df
+        )
+
+        des_3 = "Base equivalents"
+        domain += ContinuousVariable(
+            name="base_equivalents", description=des_3, bounds=[1.0, 2.5]
+        )
+
+        des_4 = "Temperature in degrees Celsius (ºC)"
+        domain += ContinuousVariable(
+            name="temperature", description=des_4, bounds=[30, 100]
+        )
+
+        des_5 = "residence time in seconds (s)"
+        domain += ContinuousVariable(
+            name="t_res", description=des_5, bounds=[60, 1500]
+        )
+
+        des_6 = "Yield"
+        domain += ContinuousVariable(
+            name="yield",
+            description=des_6,
+            bounds=[0.0, 1.0],
+            is_objective=True,
+            maximize=True,
+        )
+
+        return domain
+
+# =======================================================================
+
+    def to_dict(self):
+        """Serialize the class to a dictionary
+
+                Subclasses can add a experiment_params dictionary
+                key with custom parameters for the experiment
+                """
+        extras = []
+        for e in self.extras:
+            if type(e) == dict:
+                extras.append(jsonify_dict(e))
+            if type(e) == np.ndarray:
+                extras.append(e.tolist())
+            else:
+                extras.append(e)
+
+        return dict(
+            dataset=self.emulator._dataset.to_dict(),
+            output_models=self.emulator.output_models,
+            extras=extras
+        )
+
+# =======================================================================
+
+    @classmethod
+    def from_dict(cls, d, **kwargs):
+        exp = cls(**kwargs)
         exp._dataset = DataSet.from_dict(d["dataset"])
         exp.output_models = d["output_models"]
         for e in d["extras"]:
