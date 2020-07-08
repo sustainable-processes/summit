@@ -1,7 +1,7 @@
 from .base import Strategy, Transform
 from .random import LHS
 from summit.domain import Domain, DomainError
-from summit.utils.multiobjective import pareto_efficient, HvI
+from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.optimizers import NSGAII
 from summit.utils.models import ModelGroup, GPyModel
 from summit.utils.dataset import DataSet
@@ -287,14 +287,14 @@ class TSEMO(Strategy):
                 raise ValueError("Pareto front length too short")
 
             hv_improvement = []
-            hvY = HvI.hypervolume(Yfront, r)
+            hvY = hypervolume(Yfront, r)
             # Determine hypervolume improvement by including
             # each point from samples (masking previously selected poonts)
             for sample in masked_samples:
                 sample = sample.reshape(1, n)
                 A = np.append(Ynew, sample, axis=0)
                 Afront, _ = pareto_efficient(A, maximize=False)
-                hv = HvI.hypervolume(Afront, r)
+                hv = hypervolume(Afront, r)
                 hv_improvement.append(hv - hvY)
 
             hvY0 = hvY if i == 0 else hvY0

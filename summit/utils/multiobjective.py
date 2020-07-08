@@ -40,146 +40,22 @@ def pareto_efficient(data, maximize=True):
     return data, indices
 
 
-class HvI:
-    """ Hypervolume Improvement Acquisition Function
-
-    This acquisition functions selects points based on the hypervolume improvement.
-    The hypervolume improvement function is a modified version of the one proposed
-    in Bradford et al.
-    
-    Parameters
-    ---------- 
-    reference: array
-        The reference point used in the calculation of the hypervolume. 
-    data: np.ndarray, optional
-        A numpy array with the initial data used for comparison of hypervolume
-    random_rate: `float`, optional
-        The rate at which points will be selected at random instead of using 
-        hypervolume. Defaults to 0.0s
-    
-    Attributes
-    ----------
-    data    
-    
-    Notes
-    -----
-
-    References:
-    @article{Bradford2018,
-        author = {Bradford, Eric and Schweidtmann, Artur M. and Lapkin, Alexei},
-        doi = {10.1007/s10898-018-0609-2},
-        issn = {0925-5001},
-        journal = {Journal of Global Optimization},
-        month = {jun},
-        number = {2},
-        pages = {407--438},
-        publisher = {Springer US},
-        title = {{Efficient multiobjective optimization employing Gaussian processes, spectral sampling and a genetic algorithm}},
-        url = {http://link.springer.com/10.1007/s10898-018-0609-2},
-        volume = {71},
-        year = {2018}
-        }
-    
+def hypervolume(pointset, ref):
+    """Compute the absolute hypervolume of a *pointset* according to the
+    reference point *ref*.
     """
-
-    def __init__(self, reference, data=[], random_rate=0.0):
-        self._reference = reference
-        self._data = data
-        self._random_rate = random_rate
-
-    @property
-    def data(self):
-        return self._data
-
-    @data.setter
-    def data(self, y):
-        self._data = y
-
-    def select_max(self, samples, num_evals=1):
-        """  Returns the point(s) that maximimize hypervolume improvement 
-        
-        Parameters
-        ---------- 
-        samples: np.ndarray
-             The samples on which hypervolume improvement is calculated
-        num_evals: `int`
-            The number of points to return (with top hypervolume improvement)
-        
-        Returns
-        -------
-        hv_imp, index
-            Returns a tuple with lists of the best hypervolume improvement
-            and the indices of the corresponding points in samples       
-        
-        """
-        # Get the reference point, r
-        # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0))
-        r = self._reference
-        index = []
-        mask = np.ones(samples.shape[0], dtype=bool)
-        n = samples.shape[1]
-        Ynew = self._data
-
-        assert (self._random_rate <= 1.0) | (self._random_rate >= 0.0)
-        if self._random_rate > 0:
-            num_random = round(self._random_rate * num_evals)
-            random_selects = np.random.randint(0, num_evals, size=num_random)
-        else:
-            random_selects = np.array([])
-
-        for i in range(num_evals):
-            masked_samples = samples[mask, :]
-            Yfront, _ = pareto_efficient(Ynew, maximize=True)
-            if len(Yfront) == 0:
-                raise ValueError("Pareto front length too short")
-
-            hv_improvement = []
-            hvY = HvI.hypervolume(-Yfront, [0, 0])
-            # Determine hypervolume improvement by including
-            # each point from samples (masking previously selected poonts)
-            for sample in masked_samples:
-                sample = sample.reshape(1, n)
-                A = np.append(Ynew, sample, axis=0)
-                Afront, _ = pareto_efficient(A, maximize=True)
-                hv = HvI.hypervolume(-Afront, [0, 0])
-                hv_improvement.append(hv - hvY)
-
-            hvY0 = hvY if i == 0 else hvY0
-
-            if i in random_selects:
-                masked_index = np.random.randint(0, masked_samples.shape[0])
-            else:
-                # Choose the point that maximizes hypervolume improvement
-                masked_index = hv_improvement.index(max(hv_improvement))
-
-            samples_index = np.where(
-                (samples == masked_samples[masked_index, :]).all(axis=1)
-            )[0][0]
-            new_point = samples[samples_index, :].reshape(1, n)
-            Ynew = np.append(Ynew, new_point, axis=0)
-            mask[samples_index] = False
-            index.append(samples_index)
-
-        if len(hv_improvement) == 0:
-            hv_imp = 0
-        elif len(index) == 0:
-            index = []
-            hv_imp = 0
-        else:
-            # Total hypervolume improvement
-            # Includes all points added to batch (hvY + last hv_improvement)
-            # Subtracts hypervolume without any points added (hvY0)
-            hv_imp = hv_improvement[masked_index] + hvY - hvY0
-        return hv_imp, index
-
-    @staticmethod
-    def hypervolume(pointset, ref):
-        """Compute the absolute hypervolume of a *pointset* according to the
-        reference point *ref*.
-        """
-        hv = _HyperVolume(ref)
-        return hv.compute(pointset)
-
+    ref = np.array(ref)
+    # Remove points above reference
+    for i in range(pointset.shape[1]):
+        indices = np.where(pointset[:,i]<ref[i])[0]
+        pointset = pointset[indices, :]
+    
+    if len(pointset) == 0:
+        hv = 0;
+    else:
+        hyper = _HyperVolume(ref)
+        hv = hyper.compute(pointset)
+    return hv
 
 class _HyperVolume:
     """
