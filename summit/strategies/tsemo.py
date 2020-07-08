@@ -121,7 +121,7 @@ class TSEMO(Strategy):
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
-            return lhs.suggest_experiments(num_experiments)
+            return lhs.suggest_experiments(num_experiments, criterion='maximin')
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
@@ -298,7 +298,6 @@ class TSEMO(Strategy):
                 hv_improvement.append(hv - hvY)
 
             hvY0 = hvY if i == 0 else hvY0
-
             if i in random_selects:
                 masked_index = np.random.randint(0, masked_samples.shape[0])
             else:
