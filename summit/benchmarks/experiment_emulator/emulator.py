@@ -136,8 +136,8 @@ class Emulator(ABC):
                 else:
                     raise TypeError("Unknown variable type: {}.".format(v.variable_type))
         self.input_names = []
-        self.input_names = input_names_continuous + input_names_discrete + input_names_descriptors
-        print(self.input_names)
+        self.input_names_transformable = input_names_continuous + input_names_descriptors
+        self.input_names = self.input_names_transformable + input_names_discrete
 
     def _data_preprocess(
             self, inference=False, infer_dataset=None, validate=False, transform_input="standardize",
@@ -188,8 +188,11 @@ class Emulator(ABC):
                                 tmp_descr_inp.append(v.ds.loc[[ent], :].values[0].tolist())
                             tmp_descr_inp = np.asarray(tmp_descr_inp)
                             for i in range(len(tmp_descr_inp[0])):
-                                tmp_descr_inp[:, i], _reduce, _divide = self._transform_data(data=tmp_descr_inp[:, i], transformation_type=transform_input)
-                                self.data_transformation_dict[v.ds.data_columns[i]] = [_reduce, _divide]
+                                if not inference:
+                                    tmp_descr_inp[:, i], _reduce, _divide = self._transform_data(data=tmp_descr_inp[:, i], transformation_type=transform_input)
+                                    self.data_transformation_dict[v.ds.data_columns[i]] = [_reduce, _divide]
+                                else:
+                                    tmp_descr_inp[:, i], _, _ = self._transform_data(data=tmp_descr_inp[:, i], reduce=self.data_transformation_dict[v.ds.data_columns[i]][0], divide=self.data_transformation_dict[v.ds.data_columns[i]][1])
                             self.input_data_descriptors.append(np.asarray(tmp_descr_inp))
                             #raise TypeError(
                             #    "Regressor not explicitely trainable on descriptor variables. Please redefine {} "
@@ -226,14 +229,14 @@ class Emulator(ABC):
 
         # Set up training and test data
         if not inference:
-            final_np_dataset = np.concatenate([inp for inp in [self.input_data_continuous, self.input_data_discrete,
-                                               self.input_data_descriptors, self.output_data] if len(inp) != 0], axis=1)
+            final_np_dataset = np.concatenate([inp for inp in [self.input_data_continuous, self.input_data_descriptors,
+                                                               self.input_data_discrete, self.output_data] if len(inp) != 0], axis=1)
             X, y = final_np_dataset[:, :-self.output_dim], final_np_dataset[:, -self.output_dim:]
             X_train, X_test, y_train, y_test = sklearn_train_test_split(X, y, test_size=test_size, shuffle=shuffle)
             return [X_train.astype(dtype=float), y_train.astype(dtype=float)], [X_test.astype(dtype=float),
                                                                                 y_test.astype(dtype=float)]
         else:
-            X = np.concatenate([self.input_data_continuous, self.input_data_discrete], axis=1)
+            X = np.concatenate([inp for inp in [self.input_data_continuous, self.input_data_descriptors, self.input_data_discrete] if len(inp) != 0], axis=1)
             return X.astype(dtype=float)
 
     def _transform_data(self, data, transformation_type=None, reduce=None, divide=None, infer=False, kwargs={}):

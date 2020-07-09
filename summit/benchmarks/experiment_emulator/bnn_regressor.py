@@ -260,13 +260,16 @@ class BNNEmulator(Emulator):
 
             X_train = np.asarray(X_train_init.tolist())
             X_test = np.asarray(X_test.tolist())
-            for ind, inp_var in enumerate(self.input_names):
+            for ind, inp_var in enumerate(self.input_names_transformable):
                 tmp_inp_transform = self.data_transformation_dict[inp_var]
                 X_train[:,ind] = self._untransform_data(data=X_train[:,ind], reduce=tmp_inp_transform[0], divide=tmp_inp_transform[1])
                 X_test[:,ind] = self._untransform_data(data=X_test[:,ind], reduce=tmp_inp_transform[0], divide=tmp_inp_transform[1])
 
             self.output_models[k] = {
                 "model_save_dirs": [self.model_name + "_" + str(k) + "_" + str(j+1) for j in range(cv_fold)],
+                "Final train MAE": train_acc.mean().tolist(),
+                "Final validation MAE": val_acc.mean().tolist(),
+                "Final test MAE": test_acc.mean().tolist(),
                 "data_transformation_dict": self.data_transformation_dict,
                 "X variable names": self.input_names,
                 "X_train": X_train.tolist(),
@@ -302,7 +305,7 @@ class BNNEmulator(Emulator):
 
         if dataset is not None:
             for i, (k, v) in enumerate(self.output_models.items()):
-                model_load_dirs = v["model_save_dir"]
+                model_load_dirs = v["model_save_dirs"]
                 self.data_transformation_dict = v["data_transformation_dict"]
                 out_transform = self.data_transformation_dict[k]
 
@@ -313,7 +316,7 @@ class BNNEmulator(Emulator):
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 prediction_l = []
                 for m in model_load_dirs:
-                    model_load_dir = osp.join(self.save_path, m)
+                    model_load_dir = osp.join(self.save_path, m + '_BNN_model.pt')
                     self._model.load_state_dict(torch.load(model_load_dir, map_location=torch.device(device)))
                     data = X_val.to(device)
                     predictions = self._model(data).detach()
@@ -360,7 +363,7 @@ class BNNEmulator(Emulator):
 
         infer_dict = {}
         for i, (k, v) in enumerate(self.output_models.items()):
-            model_load_dirs = osp.join(self.save_path, v["model_save_dir"])
+            model_load_dirs = v["model_save_dirs"]
             self.data_transformation_dict = v["data_transformation_dict"]
             out_transform = self.data_transformation_dict[k]
 
@@ -370,14 +373,14 @@ class BNNEmulator(Emulator):
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             prediction_l = []
             for m in model_load_dirs:
-                model_load_dir = osp.join(self.save_path, m)
+                model_load_dir = osp.join(self.save_path, m + '_BNN_model.pt')
                 self._model.load_state_dict(torch.load(model_load_dir, map_location=torch.device(device)))
                 data = X_infer.to(device)
                 predictions = self._model(data).item()
                 predictions = self._untransform_data(data=predictions, reduce=out_transform[0], divide=out_transform[1])
                 prediction_l.append(predictions)
             prediction_l = torch.tensor(prediction_l)
-            predictions = prediction_l.mean(axis=0)
+            predictions = prediction_l.mean(axis=0).item()
             infer_dict[k] = predictions
 
         return infer_dict

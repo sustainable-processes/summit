@@ -291,9 +291,9 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         domain = Domain()
 
         # Decision variables
-        des_1 = "Solvent type"
+        des_1 = "Catalyst type"
         domain += DiscreteVariable(
-            name="solvent", description=des_1, levels=["tBuXPhos", "tBuBrettPhos", "AlPhos"]
+            name="catalyst", description=des_1, levels=["tBuXPhos", "tBuBrettPhos", "AlPhos"]
         )
 
         des_2 = "Base"
