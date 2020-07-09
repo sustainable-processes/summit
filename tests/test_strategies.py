@@ -3,7 +3,7 @@ import pytest
 from summit.domain import Domain, ContinuousVariable, Constraint
 from summit.benchmarks import DTLZ2, test_functions
 from summit.utils.dataset import DataSet
-from summit.utils.multiobjective import pareto_efficient, HvI
+from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.models import GPyModel
 from summit.strategies import *
 
@@ -199,7 +199,7 @@ def test_tsemo(save=False):
             strategy.save('tsemo_settings.json')
         y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
                                    maximize=False)  
-        hv = HvI.hypervolume(y_pareto, [11,11])
+        hv = hypervolume(y_pareto, [11,11])
         pb.comment = f"Hypervolume: {hv}" 
     #This is a really loose bound. It's generally testing
     #to see if the optimization goes in the correct direction
