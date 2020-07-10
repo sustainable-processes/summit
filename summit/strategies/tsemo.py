@@ -354,7 +354,7 @@ class TSEMOInternalWrapper(Problem):
     def _evaluate(self, X, out, *args, **kwargs):
         input_columns = [v.name for v in self.domain.input_variables]
         X = DataSet(np.atleast_2d(X), columns=input_columns)
-        F = self.models.predict(X, use_spectral_sample=True,**kwargs)
+        F = self.models.predict(X, use_spectral_sample=False,**kwargs)
 
         # Negate objectives that are need to be maximized
         for i, v in enumerate(self.domain.output_variables):
