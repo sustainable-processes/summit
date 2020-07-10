@@ -1,7 +1,7 @@
 from summit.domain import (
     Variable,
     ContinuousVariable,
-    DiscreteVariable,
+    CategoricalVariable,
     DescriptorsVariable,
     Constraint,
     Domain,
@@ -55,7 +55,7 @@ def test_continuous_variable():
 
 def test_discrete_variable():
     levels = ["benzene", "toluene", 1]
-    var = DiscreteVariable(
+    var = CategoricalVariable(
         name="reactant", description="aromatic reactant", levels=levels
     )
     assert isinstance(var, Variable)
@@ -69,16 +69,16 @@ def test_discrete_variable():
     # Make sure exception raised on non unique levels
     levels = ["benzene", "benzene"]
     with pytest.raises(ValueError):
-        var = DiscreteVariable(name="nu", description="not_unique", levels=levels)
+        var = CategoricalVariable(name="nu", description="not_unique", levels=levels)
 
     # Make sure exception raise if a list is not passed
     levels = ("benzene", "toluene")
     with pytest.raises(TypeError):
-        var = DiscreteVariable(name="nl", description="not_list", levels=levels)
+        var = CategoricalVariable(name="nl", description="not_list", levels=levels)
 
     # Test serialization
     ser = var.to_dict()
-    new_var = DiscreteVariable.from_dict(ser)
+    new_var = CategoricalVariable.from_dict(ser)
     assert isinstance(new_var, Variable)
     assert var.name == new_var.name
     assert var.description == new_var.description
@@ -137,7 +137,7 @@ def test_domain():
     var3 = ContinuousVariable(
         name="flowrate_b", description="flowrate of reactant b", bounds=[1, 100]
     )
-    var4 = DiscreteVariable(
+    var4 = CategoricalVariable(
         name="base",
         description="base additive",
         levels=["potassium_hydroxide", "sodium_hydroxide"],

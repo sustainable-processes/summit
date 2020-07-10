@@ -3,7 +3,7 @@ from summit.domain import (
     Domain,
     Variable,
     ContinuousVariable,
-    DiscreteVariable,
+    CategoricalVariable,
     DescriptorsVariable,
     DomainError,
 )
@@ -106,7 +106,7 @@ class Random(Strategy):
         return np.atleast_2d(values).T
 
     def _random_discrete(
-        self, variable: DiscreteVariable, num_samples: int
+        self, variable: CategoricalVariable, num_samples: int
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Generate a random design for a given discrete variable"""
         indices = self._rstate.randint(0, variable.num_levels, size=num_samples)

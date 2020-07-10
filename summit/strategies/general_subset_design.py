@@ -6,7 +6,7 @@ from summit.domain import (
     Domain,
     Variable,
     ContinuousVariable,
-    DiscreteVariable,
+    CategoricalVariable,
     DescriptorsVariable,
     DomainError,
 )

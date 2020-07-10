@@ -203,7 +203,7 @@ class ContinuousVariable(Variable):
         )
 
 
-class DiscreteVariable(Variable):
+class CategoricalVariable(Variable):
     """Representation of a discrete variable
     
     Parameters
@@ -300,7 +300,7 @@ class DiscreteVariable(Variable):
 
     @staticmethod
     def from_dict(variable_dict):
-        return DiscreteVariable(
+        return CategoricalVariable(
             name=variable_dict["name"],
             description=variable_dict["description"],
             levels=variable_dict["levels"],
@@ -613,7 +613,7 @@ class Domain:
             if variable["type"] == "continuous":
                 new_variable = ContinuousVariable.from_dict(variable)
             elif variable["type"] == "discrete":
-                new_variable = DiscreteVariable.from_dict(variable)
+                new_variable = CategoricalVariable.from_dict(variable)
             elif variable["type"] == "descriptors":
                 new_variable = DescriptorsVariable.from_dict(variable)
             else:
