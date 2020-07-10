@@ -146,9 +146,8 @@ class TSEMO(Strategy):
 
         # Fit models to data
         self.logger.info(f"Fitting {len(self.models._models)} models.")
-        num_restarts = 100 if self.iterations<=10 else 10
         self.models.fit(inputs_scaled, outputs_scaled, spectral_sample=False, 
-                        num_restarts=num_restarts,parallel=True)
+                        num_restarts=100,parallel=True)
 
         # Spectral sampling
         # n_spectral_points = kwargs.get("n_spectral_points", 1500)

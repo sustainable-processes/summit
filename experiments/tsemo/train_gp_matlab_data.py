@@ -9,11 +9,6 @@ import warnings
 import pickle
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
-# arameters
-n_training_matlab = 30
-num_restarts=100
-n_spectral_points=1500
-use_spectral_sample = False
 
 def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral_points=4000, 
                 use_spectral_sample=True, plot=True):
@@ -51,32 +46,51 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
             num_restarts=num_restarts,
             max_iters=max_iters,
             n_spectral_points=n_spectral_points, 
-            spectral_sample=False)
+            spectral_sample=False)  # spectral sampling done below
     for name, model in models.models.items():
         hyp = model.hyperparameters
         print(f"Model {name} lengthscales: {hyp[0]}")
         print(f"Model {name} variance: {hyp[1]}")
         print(f"Model {name} noise: {hyp[2]}")
+
+    # Spectral sampling
     if use_spectral_sample:
         print(f"Spectral sampling with {n_spectral_points} spectral points.")
         for model in models.models.values():
             model.spectral_sample(X_train_scaled, y_train_scaled, 
-                                n_spectral_points=n_spectral_points)
+                                  n_spectral_points=n_spectral_points)
 
     # Model validation
     rmse = lambda pred, actual: np.sqrt(np.mean((pred-actual)**2, axis=0))
 
     y_pred_train_scaled = models.predict(X_train_scaled, 
-                            use_spectral_sample=use_spectral_sample)
+                            use_spectral_sample=False)
     y_pred_train_scaled = DataSet(y_pred_train_scaled, columns=['y_0', 'y_1'])
     y_pred_train = y_pred_train_scaled*y_std+y_mean
     rmse_train = rmse(y_pred_train.to_numpy(), y_train.to_numpy())
+    print(f"RMSE train y0 ={rmse_train[0].round(2)}, RMSE train y1={rmse_train[1].round(2)}")
 
     y_pred_test_scaled = models.predict(X_test_scaled, 
-                                        use_spectral_sample=use_spectral_sample)
+                                        use_spectral_sample=False)
     y_pred_test_scaled = DataSet(y_pred_test_scaled, columns=['y_0', 'y_1'])
     y_pred_test = y_pred_test_scaled*y_std+y_mean
-    rmse_test = rmse(y_pred_test.to_numpy(), y_test.to_numpy())
+    rmse_test= rmse(y_pred_test.to_numpy(), y_test.to_numpy())
+    print(f"RMSE test y0 ={rmse_test[0].round(2)}, RMSE test y1={rmse_test[1].round(2)}")
+
+    if  use_spectral_sample:
+        y_pred_train_scaled = models.predict(X_train_scaled, 
+                                use_spectral_sample=True)
+        y_pred_train_scaled = DataSet(y_pred_train_scaled, columns=['y_0', 'y_1'])
+        y_pred_train = y_pred_train_scaled*y_std+y_mean
+        rmse_train_spectral = rmse(y_pred_train.to_numpy(), y_train.to_numpy())
+        print(f"RMSE train spectral y0 ={rmse_train_spectral[0].round(2)}, RMSE train spectral y1={rmse_train_spectral[1].round(2)}")
+
+        y_pred_test_scaled = models.predict(X_test_scaled, 
+                                            use_spectral_sample=True)
+        y_pred_test_scaled = DataSet(y_pred_test_scaled, columns=['y_0', 'y_1'])
+        y_pred_test = y_pred_test_scaled*y_std+y_mean
+        rmse_test_spectral = rmse(y_pred_test.to_numpy(), y_test.to_numpy())
+        print(f"RMSE test spectral y0 ={rmse_test_spectral[0].round(2)}, RMSE test spectral y1={rmse_test_spectral[1].round(2)}")
 
     # Plots
     if plot:
@@ -96,29 +110,36 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
         plt.show()
     
     objectives = [m._model.objective_function() for m in models.models.values()]
+    print("---------------------------------------------------------------")
     return dict(rmse_train_y0=rmse_train[0],
                 rmse_train_y1=rmse_train[1],
                 rmse_test_y0=rmse_test[0],
                 rmse_test_y1=rmse_test[1],
+                rmse_train_spectral_y0=rmse_train_spectral[0],
+                rmse_train_spectral_y1=rmse_train_spectral[1],
+                rmse_test_spectral_y0=rmse_test_spectral[0],
+                rmse_test_spectral_y1=rmse_test_spectral[1],
                 objective_y0=objectives[0],
                 objective_y1=objectives[1])
 
 if __name__=='__main__':
     results = []
-    for i in range(20):
+    for i in range(5):
         res = fit_and_test(
                     n_training_matlab=30,
                     max_iters=int(1e4),
-                    num_restarts=100,
-                    use_spectral_sample=False,
+                    num_restarts=20,
+                    n_spectral_points=1500,
+                    use_spectral_sample=True,
                     plot=False)
         results.append(res) 
     df = pd.DataFrame(results)
-    df.to_csv('20200710_train_gp_matlab_data_comparison_data_100_restarts.csv')
+    df.to_csv('20200710_train_gp_matlab_data_comparison_data_100_restarts_sampling.csv')
 
     # Make plot
     fig,ax = plt.subplots()
-    columns =['rmse_train_y0', 'rmse_train_y0', 'rmse_test_y0', 'rmse_test_y1']
+    columns =['rmse_train_y0', 'rmse_train_y0', 'rmse_test_y0', 'rmse_test_y1',
+              'rmse_train_spectral_y0', 'rmse_train_spectral_y0', 'rmse_test_spectral_y0', 'rmse_test_spectral_y1',]
     df.boxplot(ax=ax, column=columns)
     plt.show()
-    fig.savefig('20200710_train_gp_matlab_data_boxplot_100_restarts.png', dpi=300)
+    fig.savefig('20200710_train_gp_matlab_data_boxplot_100_restarts_sampling.png', dpi=300)
