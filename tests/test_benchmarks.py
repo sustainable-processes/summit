@@ -1,8 +1,8 @@
 import pytest
-from summit.benchmarks import SnarBenchmark
+from summit.benchmarks import SnarBenchmark, Hartmann3D, Himmelblau, ThreeHumpCamel
 from summit.utils.dataset import DataSet
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 def test_snar_benchmark():
     """Test the SnAr benchmark"""
@@ -25,4 +25,8 @@ def test_snar_benchmark():
     assert np.isclose(float(results["sty"]), 168.958672)
     assert np.isclose(float(results["e_factor"]), 191.260294)
 
+    d = b.to_dict()
+    SnarBenchmark.from_dict(d)
+
     return results
+

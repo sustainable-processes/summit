@@ -202,7 +202,7 @@ class SOBO(Strategy):
         xbest = np.zeros(self.domain.num_continuous_dimensions())
         obj = self.domain.output_variables[0]
         objective_dir = -1.0 if obj.maximize else 1.0
-        fbest = objective_dir*float("inf")
+        fbest = float("inf")
 
         # Suggest random initial design
         if prev_res is None:
@@ -273,7 +273,7 @@ class SOBO(Strategy):
             next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
             next_experiments[('strategy', 'METADATA')] = 'Single-objective BayOpt'
         
-        self.fbest= fbest
+        self.fbest= objective_dir * fbest
         self.xbest = xbest
         self.prev_param = param
         return next_experiments

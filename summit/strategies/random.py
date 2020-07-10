@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 from typing import Type, Tuple
 
-
 class Random(Strategy):
     """ Random strategy for experiment suggestion
 
