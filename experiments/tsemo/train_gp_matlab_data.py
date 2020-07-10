@@ -11,12 +11,12 @@ warnings.filterwarnings('ignore', category=RuntimeWarning)
 # arameters
 n_training_matlab = 30
 num_restarts=100
-n_spectral_points=4000
+n_spectral_points=1500
 use_spectral_sample = False
 
 # Read in data from one Matlab experiment
-X = pd.read_csv('data/matlab/experiment_20/X.csv', names=[f"x_{i}" for i in range(6)])
-y = pd.read_csv('data/matlab/experiment_20/Y.csv', names=['y_0', 'y_1'])
+X = pd.read_csv('data/matlab/experiment_1/X.csv', names=[f"x_{i}" for i in range(6)])
+y = pd.read_csv('data/matlab/experiment_1/Y.csv', names=['y_0', 'y_1'])
 X = DataSet.from_df(X)
 y = DataSet.from_df(y)
 
@@ -38,16 +38,24 @@ y_std = y_train.std()
 y_train_scaled = (y_train-y_mean)/y_std
 
 # Train model
-print("Fitting models")
-if use_spectral_sample:
-    print("Number of spectral points:", n_spectral_points)
+print(f"Fitting models (number of optimization restarts={num_restarts})")
 kerns = [GPy.kern.Exponential(input_dim=6,ARD=True) for _ in range(2)]
 models = ModelGroup({'y_0': GPyModel(kernel=kerns[0]),
                      'y_1': GPyModel(kernel=kerns[1])})
 models.fit(X_train, y_train_scaled, 
            num_restarts=num_restarts,
            n_spectral_points=n_spectral_points, 
-           spectral_sample=use_spectral_sample)
+           spectral_sample=False)
+for name, model in models.models.items():
+    hyp = model.hyperparameters
+    print(f"Model {name} lengthscales: {hyp[0]}")
+    print(f"Model {name} variance: {hyp[1]}")
+    print(f"Model {name} noise: {hyp[2]}")
+if use_spectral_sample:
+    print(f"Spectral sampling with {n_spectral_points} spectral points.")
+    for model in models.models.values():
+        model.spectral_sample(X_train, y_train_scaled, 
+                              n_spectral_points=n_spectral_points)
 
 # Model validation
 rmse = lambda pred, actual: np.sqrt(np.mean((pred-actual)**2, axis=0))
@@ -77,6 +85,6 @@ for i, name in enumerate(models.models.keys()):
     axes[i].set_xlabel('Actual')
     axes[i].set_ylabel('Predicted')
     axes[i].set_title(name)
-plt.savefig('20200709_train_gp_matlab_data.png',dpi=300)
+plt.savefig('20200710_train_gp_matlab_data.png',dpi=300)
 plt.show()
 

@@ -234,7 +234,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
 
     def spectral_sample(self, X, y, n_spectral_points=1500,
                         n_retries=10, **kwargs):
-        '''Sample GP using spectral sampling
+        """Sample GP using spectral sampling
 
         Parameters
         ----------
@@ -247,7 +247,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         n_retries: int, optional
             The number of retries for the spectral sampling code in the case
             the singular value decomposition fails.
-        '''
+        """
 
         # Determine the degrees of freedom
         if type(self._model.kern) == GPy.kern.Exponential:
@@ -277,14 +277,10 @@ class GPyModel(BaseEstimator, RegressorMixin):
         
         # Spectral sampling. Clip values to match Matlab implementation
         noise = self._model.Gaussian_noise.variance.values[0]
-        noise = np.clip(noise, 1e-6, 1)
-        variance = self._model.kern.variance.values[0]
-        variance = np.clip(variance, np.sqrt(1e-3), np.sqrt(1e3))
-        lengthscales = self._model.kern.lengthscale.values
-        lengthscales = np.clip(lengthscales, np.sqrt(1e-3), np.sqrt(1e3))
+        self.sampled_f = None
         for i in range(n_retries):
             try:
-                sampled_f = pyrff.sample_rff(
+                self.sampled_f = spectral_sample(
                     lengthscales=self._model.kern.lengthscale.values,
                     scaling=self._model.kern.variance.values[0],
                     noise=noise,
@@ -299,12 +295,15 @@ class GPyModel(BaseEstimator, RegressorMixin):
             except ValueError as e:
                 self.logger.error(e)
 
-        # Define function wrapper
-        def f(x_new):
-            y_s = sampled_f(x_new)
-            return np.atleast_2d(y_s).T   
-        self.sampled_f = f
-        return f
+        if self.sampled_f is None:
+            raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
+
+        # # Define function wrapper
+        # def f(x_new):
+        #     y_s = sampled_f(x_new)
+        #     return np.atleast_2d(y_s).T   
+        # self.sampled_f = f
+        return self.sampled_f
     
     @property
     def hyperparameters(self):
@@ -338,6 +337,60 @@ class GPyModel(BaseEstimator, RegressorMixin):
         m.output_mean = np.array(d["output_mean"])
         m.output_std = np.array(d["output_std"])
         return m
+
+def spectral_sample(lengthscales, scaling, noise, kernel_nu, X, Y, M):
+        # Get variables from problem structure
+        n, D = np.shape(X)
+        ell = np.array(lengthscales) 
+        sf2 = scaling
+        sn2 = noise
+
+        # Monte carlo samples of W and b
+        sW = lhs(D, M, criterion='maximin')
+        p = matlib.repmat(np.divide(1, ell), M, 1)
+        if kernel_nu != np.inf:            
+            inv = chi2.ppf(sW, kernel_nu)
+            q = np.sqrt(np.divide(kernel_nu, inv)+1e-7)
+            W = np.multiply(p, norm.ppf(sW))
+            W = np.multiply(W, q)
+        else:
+            raise NotImplementedError("RBF not implemented yet!")
+
+        b = 2*np.pi*lhs(1, M)
+
+        # Calculate phi
+        phi = np.sqrt(2*sf2/M)*np.cos(W@X.T +  matlib.repmat(b, 1, n))
+
+        #Sampling of theta according to phi
+        #For the matrix inverses, I defualt to Cholesky when possible
+        A = phi@phi.T + sn2*np.identity(M)
+        try:
+            c = np.linalg.inv(np.linalg.cholesky(A))
+            invA = np.dot(c.T,c)
+        except np.linalg.LinAlgError:
+            u,s, vh = np.linalg.svd(A)
+            invA = vh.T@np.diag(1/s)@u.T
+        if isinstance(Y, DataSet):
+            Y = Y.data_to_numpy()
+        mu_theta = invA@phi@Y
+        cov_theta = sn2*invA
+        #Add some noise to covariance to prevent issues
+        cov_theta = 0.5*(cov_theta+cov_theta.T)+1e-4*np.identity(M)
+        rng = default_rng()
+        try:
+            theta = rng.multivariate_normal(mu_theta, cov_theta,
+                                           method='cholesky')
+        except np.linalg.LinAlgError:
+            theta = rng.multivariate_normal(mu_theta, cov_theta,
+                                           method='svd')
+
+        #Posterior sample according to theta
+        def f(x):
+            inputs, _ = np.shape(x)
+            bprime = matlib.repmat(b, 1, inputs)
+            output =  (theta.T*np.sqrt(2*sf2/M))@np.cos(W@x.T+bprime)
+            return np.atleast_2d(output).T
+        return f
 
 class AnalyticalModel(Model):
     """ An analytical model instead of statistical model

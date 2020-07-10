@@ -149,12 +149,12 @@ class TSEMO(Strategy):
         self.models.fit(inputs_scaled, outputs_scaled, spectral_sample=False, **kwargs)
 
         # Spectral sampling
-        n_spectral_points = kwargs.get("n_spectral_points", 1500)
-        for name, model in self.models.models.items():
-            self.logger.info(f"Spectral sampling for model {name}.")
-            model.spectral_sample(
-                inputs_scaled, outputs_scaled, n_spectral_points=n_spectral_points
-            )
+        # n_spectral_points = kwargs.get("n_spectral_points", 1500)
+        # for name, model in self.models.models.items():
+        #     self.logger.info(f"Spectral sampling for model {name}.")
+        #     model.spectral_sample(
+        #         inputs_scaled, outputs_scaled, n_spectral_points=n_spectral_points
+        #     )
 
         # NSGAII internal optimisation
         generations = kwargs.get("generations", 100)
