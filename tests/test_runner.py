@@ -49,7 +49,6 @@ def test_runner_unit():
     assert r.strategy.iterations == max_iterations
     assert r.experiment.data.shape[0] == int(batch_size * max_iterations)
 
-
 @pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, TSEMO2, NelderMead, Random, LHS])
 def test_runner_integration(strategy):
     class MockExperiment(Experiment):
@@ -81,33 +80,33 @@ def test_runner_integration(strategy):
     os.remove("test_save.json")
 
 
-def test_neptune_runner_integration():
-    class MockExperiment(Experiment):
-        def __init__(self):
-            super().__init__(self.create_domain())
+# def test_neptune_runner_integration():
+#     class MockExperiment(Experiment):
+#         def __init__(self):
+#             super().__init__(self.create_domain())
 
-        def create_domain(self):
-            domain = Domain()
-            domain += ContinuousVariable("x_1", description="", bounds=[0, 1])
-            domain += ContinuousVariable("x_2", description="", bounds=[0, 1])
-            domain += ContinuousVariable(
-                "y_1", description="", bounds=[0, 1], is_objective=True, maximize=True
-            )
-            return domain
+#         def create_domain(self):
+#             domain = Domain()
+#             domain += ContinuousVariable("x_1", description="", bounds=[0, 1])
+#             domain += ContinuousVariable("x_2", description="", bounds=[0, 1])
+#             domain += ContinuousVariable(
+#                 "y_1", description="", bounds=[0, 1], is_objective=True, maximize=True
+#             )
+#             return domain
 
-        def _run(self, conditions, **kwargs):
-            conditions[("y_1", "DATA")] = 0.5
-            return conditions, {}
+#         def _run(self, conditions, **kwargs):
+#             conditions[("y_1", "DATA")] = 0.5
+#             return conditions, {}
 
-    exp = MockExperiment()
-    strategy = Random(exp.domain)
+#     exp = MockExperiment()
+#     strategy = Random(exp.domain)
 
-    r = NeptuneRunner(
-        neptune_project="sustainable-processes/summit",
-        neptune_experiment_name="test_experiment",
-        strategy=strategy,
-        experiment=exp,
-        max_iterations=1,
-        batch_size=1,
-    )
-    r.run()
+#     r = NeptuneRunner(
+#         neptune_project="sustainable-processes/summit",
+#         neptune_experiment_name="test_experiment",
+#         strategy=strategy,
+#         experiment=exp,
+#         max_iterations=1,
+#         batch_size=1,
+#     )
+#     r.run()
