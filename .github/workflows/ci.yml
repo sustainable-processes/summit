@@ -25,7 +25,7 @@ jobs:
       with:
         python_version: 3.7.7
         poetry_version: 1.0.3
-        args: install
+        args: install -E neptune
     - name: Run pytest
       uses: abatilo/actions-poetry@v1.5.0
       with:
