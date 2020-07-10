@@ -193,7 +193,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
                                           max_iters=max_iters,
                                           parallel=parallel)
         if spectral_sample:
-            self.spectral_sample(X, y)
+            self.spectral_sample(X, y, **kwargs)
 
         return self
 
@@ -230,10 +230,10 @@ class GPyModel(BaseEstimator, RegressorMixin):
         elif use_spectral_sample:
             raise ValueError("Spectral Sample must be called during fitting prior to prediction.")
         else:
-            return self._model.predict(X)
+            return self._model.predict(X)[0]
 
     def spectral_sample(self, X, y, n_spectral_points=1500,
-                        n_retries=10):
+                        n_retries=10, **kwargs):
         '''Sample GP using spectral sampling
 
         Parameters
