@@ -455,14 +455,13 @@ class Design:
         for variable in self._domain.variables:
             if variable.is_objective or variable.name in self.exclude:
                 continue
-            if variable.variable_type == "descriptors":
-                descriptors = variable.ds.iloc[self.get_indices(variable.name)[:, 0], :]
-                descriptors = descriptors.rename_axis(variable.name)
-                df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
-                i += variable.num_descriptors
-            else:
-                df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
-                i += 1
+            elif isinstance(variable,ContinuousVariable):
+                values = self.get_values(variable.name)[:, 0]
+            elif isinstance(variable, CategoricalVariable):
+                import pdb; pdb.set_trace()
+                values = [variable.levels[i] for i in self.get_indices(variable.name)[:,0]]
+            df.insert(i, variable.name, values)
+            i += 1
 
         return DataSet.from_df(df)
 

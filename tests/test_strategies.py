@@ -77,6 +77,16 @@ def test_lhs():
     )
     results_arr = results.data_to_numpy().astype(np.float32)
     assert np.isclose(results_arr.all(), arr.all())
+
+    solvent_ds = DataSet(
+        [[5, 81], [-93, 111]],
+        index=["benzene", "toluene"],
+        columns=["melting_point", "boiling_point"],
+    )
+    domain += CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
+    strategy = LHS(domain, random_state=np.random.RandomState(3))
+    results = strategy.suggest_experiments(5)
+
     return results
 
 def test_doe():

@@ -296,6 +296,7 @@ class CategoricalVariable(Variable):
 
     @property
     def num_descriptors(self) -> int:
+        """Returns the number of descriptors"""
         if self.ds is not None:
             return len(self.ds.data_columns)
 

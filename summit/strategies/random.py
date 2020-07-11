@@ -78,9 +78,9 @@ class Random(Strategy):
                 indices, values = self._random_categorical(variable, num_experiments)
             else:
                 raise DomainError(
-                    f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors)."
+                    f"Variable {variable} is not one of the possible variable types (continuous or categorical)."
                 )
-                
+
             design.add_variable(variable.name, values, indices=indices)
 
         ds = design.to_dataset()
@@ -169,12 +169,16 @@ class LHS(Strategy):
         """
         design = Design(self.domain, num_experiments, "Latin design", exclude=exclude)
 
-        # Instantiate the random design class to be used with discrete variables
+        # Instantiate the random design class to be used with categorical variables with no descriptors
         rdesigner = Random(self.domain, random_state=self._rstate)
 
-        num_discrete = self.domain.num_discrete_variables()
-        n = self.domain.num_continuous_dimensions()
-        if num_discrete < n:
+        categoricals = []
+        for v in self.domain.input_variables:
+            if isinstance(v, CategoricalVariable):
+                if v.ds is None:
+                    categoricals.append(v.name)
+        n = self.domain.num_continuous_dimensions(include_descriptors=True)
+        if len(categoricals) < n:
             samples = lhs(
                 n,
                 samples=num_experiments,
@@ -184,15 +188,12 @@ class LHS(Strategy):
 
         design.lhs = samples
         k = 0
-        for variable in self.domain.variables:
+        for variable in self.domain.input_variables:
             if variable.name in exclude:
                 continue
 
-            if variable.is_objective:
-                continue
-
-            # For continuous variable, use samples directly
-            if variable.variable_type == "continuous":
+            # For continuous variables, use samples directly
+            if isinstance(variable, ContinuousVariable):
                 b = variable.lower_bound * np.ones(num_experiments)
                 values = b + samples[:, k] * (
                     variable.upper_bound - variable.lower_bound
@@ -201,12 +202,12 @@ class LHS(Strategy):
                 indices = None
                 k += 1
 
-            # For discrete variable, randomly choose
-            elif variable.variable_type == "discrete":
-                indices, values = rdesigner._random_discrete(variable, num_experiments)
+            # For categorical variable with no descriptors, randomly choose
+            elif isinstance(variable, CategoricalVariable) and variable.name in categoricals:
+                indices, values = rdesigner._random_categorical(variable, num_experiments)
 
-            # For descriptors variable, choose closest point by euclidean distance
-            elif variable.variable_type == "descriptors":
+            # For categorical variable with descriptors, choose closest point by euclidean distance
+            elif isinstance(variable, CategoricalVariable) and variable.ds is not None:
                 num_descriptors = variable.num_descriptors
                 normal_arr = variable.ds.zero_to_one()
                 indices = _closest_point_indices(
@@ -230,14 +231,13 @@ class LHS(Strategy):
 
             else:
                 raise DomainError(
-                    f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors)."
+                    f"Variable {variable} is not one of the possible variable types (continuous or categorical)."
                 )
 
             design.add_variable(variable.name, values, indices=indices)
         ds = design.to_dataset()
         ds[("strategy", "METADATA")] = "LHS"
         return ds
-
 
 """
 The lhs code was copied from pyDoE and was originally published by 
