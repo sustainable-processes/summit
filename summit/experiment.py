@@ -198,18 +198,20 @@ class Experiment(ABC):
                     strat_data[objectives[0]],
                     strat_data[objectives[1]],
                     c="k",
+                    alpha=0.1,
                     marker=marker,
                     label=strategy,
                 )
 
             # Sort data so get nice pareto plot
-            pareto_data = self.data.iloc[indices].copy()
-            pareto_data = pareto_data.sort_values(by=objectives[0])
+            self.pareto_data = self.data.iloc[indices].copy()
+            self.pareto_data = self.pareto_data.sort_values(by=objectives[0])
             ax.plot(
-                pareto_data[objectives[0]],
-                pareto_data[objectives[1]],
-                c="k",
+                self.pareto_data[objectives[0]],
+                self.pareto_data[objectives[1]],
+                c="g",
                 label="Pareto Front",
+                linewidth=3
             )
             ax.set_xlabel(objectives[0])
             ax.set_ylabel(objectives[1])

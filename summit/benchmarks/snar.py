@@ -12,6 +12,13 @@ class SnarBenchmark(Experiment):
     Virtual experiments representing a nucleophilic aromatic
     substitution happening in a plug flow reactor. 
     
+    Parameters
+    ----------
+    noise_level_percent: float, optional
+        The mean of the random noise added to the concentration measurments in terms of 
+        percent of the signal. Default is 0.
+
+
     Examples
     --------
     >>> b = SnarBenchmark()
@@ -28,9 +35,11 @@ class SnarBenchmark(Experiment):
     
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, noise_level_percent=0, **kwargs):
         domain = self._setup_domain()
         super().__init__(domain)
+        self.rng = np.random.default_rng()
+        self.noise_level = noise_level_percent
 
     def _setup_domain(self):
         domain = Domain()
@@ -103,6 +112,10 @@ class SnarBenchmark(Experiment):
         # Integrate
         res = solve_ivp(self._integrand, [0, tau], self.C_i, args=(temperature,))
         C_final = res.y[:, -1]
+        
+        # Add measurment noise
+        C_final += C_final*self.rng.normal(scale=self.noise_level, size=len(C_final))/100
+        C_final[C_final < 0] = 0 # prevent negative values of concentration introduced by noise
 
         # Calculate STY and E-factor
         M = [159.09, 71.12, 210.21, 210.21, 261.33]  # molecular weights (g/mol)
@@ -118,7 +131,8 @@ class SnarBenchmark(Experiment):
             e_factor = (q_tot * rho_eth + term_2) / (1e-3 * M[2] * C_final[2] * q_tot)
         if e_factor > 1e3:
             e_factor = 1e3
-        return sty, e_factor, res
+
+        return sty, e_factor, {}
 
     def _integrand(self, t, C, T):
         # Kinetic Constants

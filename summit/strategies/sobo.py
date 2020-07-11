@@ -70,8 +70,8 @@ class SOBO(Strategy):
 
     '''
 
-    def __init__(self, domain, gp_model_type=None, acquisition_type=None, optimizer_type=None, evaluator_type=None, **kwargs):
-        Strategy.__init__(self, domain)
+    def __init__(self, domain, transform=None, gp_model_type=None, acquisition_type=None, optimizer_type=None, evaluator_type=None, **kwargs):
+        Strategy.__init__(self, domain, transform=transform)
 
         # TODO: notation - discrete in our model (e.g., catalyst type) = categorical?
         self.input_domain = []
