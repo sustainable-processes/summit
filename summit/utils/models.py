@@ -148,7 +148,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         """
 
         num_restarts=kwargs.get('num_restarts',10)
-        max_iters=kwargs.get('max_iters', 2000)
+        max_iters=kwargs.get('max_iters', 10000)
         parallel=kwargs.get('parallel',False)
         spectral_sample=kwargs.get('spectral_sample',False)
         verbose = kwargs.get('verbose', False)
