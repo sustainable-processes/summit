@@ -94,7 +94,7 @@ class Random(Strategy):
         sample = self._rstate.rand(num_samples, 1)
         b = variable.lower_bound * np.ones([num_samples, 1])
         values = b + sample * (variable.upper_bound - variable.lower_bound)
-        return np.atleast_2d(values)
+        return np.atleast_2d(values).T
 
     def _random_categorical(
         self, variable: CategoricalVariable, num_samples: int
@@ -134,8 +134,6 @@ class LHS(Strategy):
     2           55.0       0.22       0.30      LHS
     3           85.0       0.30       0.46      LHS
     4           75.0       0.38       0.22      LHS
-
-
     """
 
     def __init__(self, domain: Domain, 

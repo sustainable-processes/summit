@@ -55,7 +55,7 @@ class Transform:
         input_columns = []
         output_columns = []
 
-        for variable in self.domain.output_variables:
+        for variable in self.domain.input_variables:
             if isinstance(variable, CategoricalVariable) and transform_descriptors:
                 # Add descriptors to the dataset
                 indices = new_ds[variable.name].values
@@ -77,11 +77,15 @@ class Transform:
                 # add descriptors data columns to inputs
                 input_columns += descriptors.data_columns
             elif isinstance(variable, Variable):
-                input_columns.append(variable.name)
-            elif variable.name in data_columns and variable.is_objective:
-                if variable.variable_type == "descriptors":
+                input_columns.append(variable.name)            
+            else:
+                raise DomainError(f"Variable {variable.name} is not in the dataset.")
+
+        for variable in self.domain.output_variables:
+            if variable.name in data_columns and variable.is_objective:
+                if isinstance(variable, CategoricalVariable):
                     raise DomainError(
-                        "Output variables cannot be descriptors variables."
+                        "Output variables cannot be categorical variables currently."
                     )
                 output_columns.append(variable.name)
             else:
@@ -458,7 +462,6 @@ class Design:
             elif isinstance(variable,ContinuousVariable):
                 values = self.get_values(variable.name)[:, 0]
             elif isinstance(variable, CategoricalVariable):
-                import pdb; pdb.set_trace()
                 values = [variable.levels[i] for i in self.get_indices(variable.name)[:,0]]
             df.insert(i, variable.name, values)
             i += 1

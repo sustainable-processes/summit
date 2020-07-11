@@ -59,10 +59,7 @@ class TSEMO2(Strategy):
 
         # Internal models
         if models is None:
-            input_dim = (
-                self.domain.num_continuous_dimensions()
-                + self.domain.num_discrete_variables()
-            )
+            input_dim = self.domain.num_continuous_dimensions(include_outputs=False)
             models = {
                 v.name: GPyModel(input_dim=input_dim)
                 for v in self.domain.variables

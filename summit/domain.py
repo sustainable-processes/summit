@@ -247,7 +247,7 @@ class CategoricalVariable(Variable):
     Examples
     --------
     The simplest way to use a CategoricalVariable is without descriptors:
-    >>> base = CategoricalVariable('base', 'Organic Base', ['DBU', 'BMTG', 'TEA'])
+    >>> base = CategoricalVariable('base', 'Organic Base', levels=['DBU', 'BMTG', 'TEA'])
 
     When descriptors are available, they can be used directly without specfying the levels:
     >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
