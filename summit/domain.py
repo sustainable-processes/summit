@@ -85,7 +85,7 @@ class Variable(ABC):
 
     def to_dict(self):
         variable_dict = {
-            "type": self._variable_type,
+            "type": self.__class__.__name__,
             "is_objective": self._is_objective,
             "name": self.name,
             "description": self.description,
@@ -260,7 +260,7 @@ class CategoricalVariable(Variable):
 
     def __init__(self, name, description, **kwargs):
         Variable.__init__(self, name, description, "categorical", **kwargs)
-
+        
         # Get descriptors DataSet
         self.ds = kwargs.get("descriptors")
         if self.ds is not None and not isinstance(self.ds, DataSet):
@@ -281,9 +281,8 @@ class CategoricalVariable(Variable):
         if type(self._levels) != list:
             raise TypeError("Levels must be a list")
         # check that levels are unique
-        if len(levels) != len(set(levels)):
+        if len(self._levels) != len(set(self._levels)):
             raise ValueError("Levels must have unique values.")
-        self._levels = levels
 
     @property
     def levels(self) -> np.ndarray:
@@ -296,7 +295,8 @@ class CategoricalVariable(Variable):
 
     @property
     def num_descriptors(self) -> int:
-        return len(self.ds.data_columns)
+        if self.ds is not None:
+            return len(self.ds.data_columns)
 
     def add_level(self, level):
         """ Add a level to the discrete variable
@@ -599,35 +599,17 @@ class Domain:
         return k
 
     def num_discrete_variables(self, include_outputs=False) -> int:
-        """ Number of discrete varibles in the domain 
-        
-        Parameters
-        ---------- 
-        include_outputs: bool, optional
-            If True include output variables in the count.
-            Defaults to False.
-        
-        Returns
-        -------
-        num_variables: int
-            Number of discrete variables in the domain
-        """
-        k = 0
-        for v in self._variables:
-            if v.is_objective and not include_outputs:
-                continue
-            elif v.variable_type == "discrete":
-                k += 1
-        return k
+        raise NotImplementedError("num_discrete_variables has been deprecated due to the change of Discrete to Categorical variables")
 
-    def num_continuous_dimensions(self, include_outputs=False) -> int:
+    def num_continuous_dimensions(self, include_descriptors=False, include_outputs=False) -> int:
         """The number of continuous dimensions
         
-        This includes dimensions of descriptors variables
-        
         Parameters
         ---------- 
-        include_outputs: bool, optional
+        include_descriptors : bool, optional
+            If True, the number of descriptors columns are considered.
+            Defaults to False.
+        include_outputs : bool, optional
             If True include output variables in the count.
             Defaults to False.
         
@@ -637,13 +619,14 @@ class Domain:
             Number of variables in the domain
         """
         k = 0
-        for v in self._variables:
+        for v in self.variables:
             if v.is_objective and not include_outputs:
                 continue
-            if v.variable_type == "continuous":
+            if isinstance(v, ContinuousVariable):
                 k += 1
-            if v.variable_type == "descriptors":
-                k += v.num_descriptors
+            if isinstance(v, CategoricalVariable) and include_descriptors:
+                if v.num_descriptors is not None:
+                    k += v.num_descriptors
         return k
 
     def to_dict(self):
@@ -655,15 +638,13 @@ class Domain:
         return json.dumps(self.to_dict())
 
     @staticmethod
-    def from_dict(domain_dict):
+    def from_dict(domain_list):
         variables = []
-        for variable in domain_dict:
-            if variable["type"] == "continuous":
+        for variable in domain_list:
+            if variable["type"] == "ContinuousVariable":
                 new_variable = ContinuousVariable.from_dict(variable)
-            elif variable["type"] == "discrete":
+            elif variable["type"] == "CategoricalVariable":
                 new_variable = CategoricalVariable.from_dict(variable)
-            elif variable["type"] == "descriptors":
-                new_variable = DescriptorsVariable.from_dict(variable)
             else:
                 raise ValueError(
                     f"Cannot load variable of type:{variable['type']}. Variable should be continuous, discrete or descriptors"

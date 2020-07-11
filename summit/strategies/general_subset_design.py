@@ -2,14 +2,7 @@
 Original GSD code Copyright (C) 2018 - Rickard Sjoegren
 """
 from .base import Strategy, Design
-from summit.domain import (
-    Domain,
-    Variable,
-    ContinuousVariable,
-    CategoricalVariable,
-    DescriptorsVariable,
-    DomainError,
-)
+from summit.domain import *
 import itertools
 import numpy as np
 import pandas as pd

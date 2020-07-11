@@ -1,12 +1,5 @@
 from .base import Strategy, Design, _closest_point_indices, Transform
-from summit.domain import (
-    Domain,
-    Variable,
-    ContinuousVariable,
-    CategoricalVariable,
-    DescriptorsVariable,
-    DomainError,
-)
+from summit.domain import *
 from summit.utils.dataset import DataSet
 
 import numpy as np

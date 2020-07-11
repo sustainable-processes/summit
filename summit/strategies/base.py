@@ -1,11 +1,4 @@
-from summit.domain import (
-    Domain,
-    Variable,
-    ContinuousVariable,
-    CategoricalVariable,
-    DescriptorsVariable,
-    DomainError,
-)
+from summit.domain import *
 from summit.utils.models import ModelGroup
 from summit.utils.dataset import DataSet
 
