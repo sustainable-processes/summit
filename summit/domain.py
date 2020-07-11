@@ -13,6 +13,7 @@ __all__ = [
     "DescriptorsVariable",
     "Constraint",
     "Domain",
+    "DomainError"
 ]
 
 

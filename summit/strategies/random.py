@@ -71,18 +71,16 @@ class Random(Strategy):
         for i, variable in enumerate(self.domain.variables):
             if variable.is_objective:
                 continue
-            if variable.variable_type == "continuous":
+            if isinstance(variable, ContinuousVariable):
                 values = self._random_continuous(variable, num_experiments)
                 indices = None
-            elif variable.variable_type == "discrete":
-                indices, values = self._random_discrete(variable, num_experiments)
-            elif variable.variable_type == "descriptors":
-                indices, values = self._random_descriptors(variable, num_experiments)
+            elif isinstance(variable, CategoricalVariable):
+                indices, values = self._random_categorical(variable, num_experiments)
             else:
                 raise DomainError(
                     f"Variable {variable} is not one of the possible variable types (continuous, discrete or descriptors)."
                 )
-
+                
             design.add_variable(variable.name, values, indices=indices)
 
         ds = design.to_dataset()
@@ -96,28 +94,17 @@ class Random(Strategy):
         sample = self._rstate.rand(num_samples, 1)
         b = variable.lower_bound * np.ones([num_samples, 1])
         values = b + sample * (variable.upper_bound - variable.lower_bound)
-        return np.atleast_2d(values).T
+        return np.atleast_2d(values)
 
-    def _random_discrete(
+    def _random_categorical(
         self, variable: CategoricalVariable, num_samples: int
     ) -> Tuple[np.ndarray, np.ndarray]:
         """Generate a random design for a given discrete variable"""
         indices = self._rstate.randint(0, variable.num_levels, size=num_samples)
-        values = variable.levels[indices, :]
+        values = np.array([variable.levels[i] for i in indices])
         values.shape = (num_samples, 1)
         indices.shape = (num_samples, 1)
         return indices, values
-
-    def _random_descriptors(
-        self, variable: DescriptorsVariable, num_samples: int
-    ) -> Tuple[np.ndarray, np.ndarray]:
-        """Generate a design for a given descriptors variable"""
-        indices = self._rstate.randint(0, variable.num_examples - 1, size=num_samples)
-        values = variable.ds.data_to_numpy()[indices, :]
-        values.shape = (num_samples, variable.num_descriptors)
-        indices.shape = (num_samples, 1)
-        return indices, values
-
 
 class LHS(Strategy):
     """ Latin hypercube sampling (LHS) strategy for experiment suggestion
