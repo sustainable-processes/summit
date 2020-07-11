@@ -31,6 +31,7 @@ pytest = "^3.0"
 ipdb = "^0.13.2"
 jupyterlab = "^2.1.4"
 black = "^19.10b0"
+plotly = "^4.8.2"
 
 
 [build-system]

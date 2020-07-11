@@ -1,7 +1,20 @@
 import pytest
+from summmit.strategy import Strategy
+from summit.experiment import Experiment
 from summit.benchmarks import SnarBenchmark, DTLZ2
 from summit.utils.dataset import DataSet
 import numpy as np
+
+
+def test_experiment():
+    class MockStrategy(Strategy):
+        def suggest_experiments(self, num_experiments, previous_results):
+            inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
+            objectives = [v for v in self.domain.variables if v.is_objective]
+            assert len(objectives) == 1
+            assert objectives[0].name == "scalar_objective"
+            assert outputs["scalar_objective"].iloc[0] == 70.0
+            return self.transform.un_transform(inputs)
 
 
 def test_snar_benchmark():
