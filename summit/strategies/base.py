@@ -35,7 +35,7 @@ class Transform:
         self.transform_domain = domain.copy()
         self.domain = domain
 
-    def transform_inputs_outputs(self, ds: DataSet, copy=True):
+    def transform_inputs_outputs(self, ds: DataSet, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
         
         Parameters
@@ -44,12 +44,17 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default False.
 
         Returns
         -------
         inputs, outputs
             Datasets with the input and output datasets  
         """
+        copy = kwargs.get("copy", True)
+        transform_descriptors = kwargs.get("transform_descriptors", False)
+
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
 
@@ -57,12 +62,8 @@ class Transform:
         input_columns = []
         output_columns = []
 
-        for variable in self.domain.variables:
-            check_input = variable.name in data_columns and not variable.is_objective
-
-            if check_input and variable.variable_type != "descriptors":
-                input_columns.append(variable.name)
-            elif check_input and variable.variable_type == "descriptors":
+        for variable in self.domain.output_variables:
+            if isinstance(variable, CategoricalVariable) and transform_descriptors:
                 # Add descriptors to the dataset
                 indices = new_ds[variable.name].values
                 descriptors = variable.ds.loc[indices]
@@ -82,6 +83,8 @@ class Transform:
 
                 # add descriptors data columns to inputs
                 input_columns += descriptors.data_columns
+            elif isinstance(variable, Variable):
+                input_columns.append(variable.name)
             elif variable.name in data_columns and variable.is_objective:
                 if variable.variable_type == "descriptors":
                     raise DomainError(

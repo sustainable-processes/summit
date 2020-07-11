@@ -9,7 +9,7 @@ from copy import deepcopy
 __all__ = [
     "Variable",
     "ContinuousVariable",
-    "DiscreteVariable",
+    "CategoricalVariable",
     "DescriptorsVariable",
     "Constraint",
     "Domain",
@@ -202,20 +202,33 @@ class ContinuousVariable(Variable):
             is_objective=variable_dict["is_objective"],
         )
 
-
 class CategoricalVariable(Variable):
-    """Representation of a discrete variable
+    """Representation of a categorical variable
+
+    Categorical variables are discrete choices that do not have an ordering.
+    Common examples are selections of catalysts, bases, or ligands. 
+
+    Each possible discrete choice is referred to as a level. These are added as a list
+    using the `list` keyword argument. 
+
+    When available, descriptors can be added to a categorical variable. These might be values
+    such as the melting point, logP, etc. of each level of the categorical variable. These descriptors
+    can significantly improve the speed of optimization and also make many more strategies compatible
+    with categorical variables (i.e., all that work with continuos variables).
     
     Parameters
     ----------
-    name: str
+    name : str
         The name of the variable
-    description: str
+    description : str
         A short description of the variable 
-    levels: list of any serializable object
-        The potential values of the discrete variable
-    is_objective: bool, optional
-        If True, this variable is an output. Defaults to False (i.e., an input variable)
+    levels : list of any serializable object, optional
+        The potential values of the Categorical variable. When descriptors 
+        are passed, this can be left empty, and the levels will be inferred from
+        the index of the descriptors DataSet.
+    descriptors : :class:~summit.utils.dataset.DataSet, optional
+        A DataSet where the keys correspond to the levels and the data
+        columns are descriptors.
 
     Attributes
     ---------
@@ -229,18 +242,44 @@ class CategoricalVariable(Variable):
         When the levels are not unique
     TypeError
         When levels is not a list
+
     Examples
     --------
-    >>> reactant = DiscreteVariable('reactant', 'aromatic reactant', ['benzene', 'toluene'])
+    The simplest way to use a CategoricalVariable is without descriptors:
+    >>> base = CategoricalVariable('base', 'Organic Base', ['DBU', 'BMTG', 'TEA'])
 
+    When descriptors are available, they can be used directly without specfying the levels:
+    >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
+    >>> solvent = CategoricalVariable('solvent', 'solvent descriptors', descriptors=solvent_df)
+
+    It is also possible to specify a subset of the descriptors as possible choices by passing both descriptors and levels.
+    The levels must match the index of the descriptors DataSet.
+    >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
+    >>> solvent = CategoricalVariable('solvent', 'solvent descriptors', levels=['benzene', 'toluene'],descriptors=solvent_df)
     """
 
-    def __init__(self, name, description, levels, **kwargs):
-        Variable.__init__(self, name, description, "discrete", **kwargs)
+    def __init__(self, name, description, **kwargs):
+        Variable.__init__(self, name, description, "categorical", **kwargs)
 
-        if type(levels) != list:
+        # Get descriptors DataSet
+        self.ds = kwargs.get("descriptors")
+        if self.ds is not None and not isinstance(self.ds, DataSet):
+            raise TypeError("descriptors must be a DataSet")
+
+        self._levels = kwargs.get("levels")
+        #If levels and descriptors passed, check they match
+        if self.ds is not None and self._levels is not None:
+            index = self.ds.index
+            for level in self._levels:
+                assert level in index, "Levels must be in the descriptors DataSet index."
+        #If no levels passed but descriptors passed, make levels the whole index
+        elif self.ds is not None and self._levels is None:
+            self._levels = self.ds.index.to_list()
+        elif self.ds is None and self._levels is None:
+            raise ValueError("Levels, descriptors or both must be passed.")
+
+        if type(self._levels) != list:
             raise TypeError("Levels must be a list")
-
         # check that levels are unique
         if len(levels) != len(set(levels)):
             raise ValueError("Levels must have unique values.")
@@ -249,13 +288,15 @@ class CategoricalVariable(Variable):
     @property
     def levels(self) -> np.ndarray:
         """`numpy.ndarray`: Potential values of the discrete variable"""
-        # levels = np.array(self._levels)
-        # return np.atleast_2d(levels).T
         return self._levels
 
     @property
     def num_levels(self) -> int:
         return len(self._levels)
+
+    @property
+    def num_descriptors(self) -> int:
+        return len(self.ds.data_columns)
 
     def add_level(self, level):
         """ Add a level to the discrete variable
@@ -295,19 +336,26 @@ class CategoricalVariable(Variable):
     def to_dict(self):
         """ Return json encoding of the variable"""
         variable_dict = super().to_dict()
-        variable_dict.update({"levels": self.levels})
+        ds = self.ds.to_dict() if self.ds is not None else None
+        variable_dict.update(
+            dict(levels=self.levels, ds=ds)
+        )
         return variable_dict
 
     @staticmethod
     def from_dict(variable_dict):
+        ds = variable_dict["ds"]
+        ds = DataSet.from_dict(ds) if ds is not None else None
         return CategoricalVariable(
             name=variable_dict["name"],
             description=variable_dict["description"],
             levels=variable_dict["levels"],
+            descriptors=ds,
             is_objective=variable_dict["is_objective"],
         )
 
     def _html_table_rows(self):
+        """Return representation for Jupyter notebooks"""
         return self._make_html_table_rows(f"{self.num_levels} levels")
 
 
