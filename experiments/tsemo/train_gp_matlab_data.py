@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import warnings
 import pickle
+import datetime as dt
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 
@@ -77,6 +78,7 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
     rmse_test= rmse(y_pred_test.to_numpy(), y_test.to_numpy())
     print(f"RMSE test y0 ={rmse_test[0].round(2)}, RMSE test y1={rmse_test[1].round(2)}")
 
+    # Model validation on spectral sampling
     if  use_spectral_sample:
         y_pred_train_scaled = models.predict(X_train_scaled, 
                                 use_spectral_sample=True)
@@ -92,7 +94,7 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
         rmse_test_spectral = rmse(y_pred_test.to_numpy(), y_test.to_numpy())
         print(f"RMSE test spectral y0 ={rmse_test_spectral[0].round(2)}, RMSE test spectral y1={rmse_test_spectral[1].round(2)}")
 
-    # Plots
+    # Make parity plots for both objectives
     if plot:
         fig, axes = plt.subplots(1,2)
         fig.suptitle("With Spectral Sampling" if use_spectral_sample else "Without Spectral Sampling")
@@ -124,22 +126,29 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
 
 if __name__=='__main__':
     results = []
-    for i in range(5):
+    use_spectral_sample=True
+    n_spectral_points=4000
+    num_restarts=100
+    for i in range(10):
         res = fit_and_test(
                     n_training_matlab=30,
                     max_iters=int(1e4),
-                    num_restarts=20,
-                    n_spectral_points=1500,
-                    use_spectral_sample=True,
+                    num_restarts=num_restarts,
+                    n_spectral_points=n_spectral_points,
+                    use_spectral_sample=use_spectral_sample,
                     plot=False)
         results.append(res) 
     df = pd.DataFrame(results)
-    df.to_csv('20200710_train_gp_matlab_data_comparison_data_100_restarts_sampling.csv')
+    df.to_csv(f'{dt.date.today()}_train_gp_matlab_data_boxplot_{num_restarts}_restarts_{"sampling" if use_spectral_sample else "no_sampling"}.csv')
 
     # Make plot
     fig,ax = plt.subplots()
     columns =['rmse_train_y0', 'rmse_train_y0', 'rmse_test_y0', 'rmse_test_y1',
               'rmse_train_spectral_y0', 'rmse_train_spectral_y0', 'rmse_test_spectral_y0', 'rmse_test_spectral_y1',]
     df.boxplot(ax=ax, column=columns)
+    ax.set_ylabel('RMSE')
+    title = f"{num_restarts} restarts, "
+    title += f"with Spectral Sampling ({n_spectral_points} spectral samples)" if use_spectral_sample else "without Spectral Sampling"
+    ax.set_ylabel(f'RMSE')
     plt.show()
-    fig.savefig('20200710_train_gp_matlab_data_boxplot_100_restarts_sampling.png', dpi=300)
+    fig.savefig(f'{dt.date.today()}_train_gp_matlab_data_boxplot_{num_restarts}_restarts_{"sampling" if use_spectral_sample else "no_sampling"}.png', dpi=300)
