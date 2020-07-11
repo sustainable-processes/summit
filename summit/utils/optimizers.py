@@ -78,6 +78,7 @@ class NSGAII(Optimizer):
                     self.problem.MAXIMIZE if v.maximize else self.problem.MINIMIZE
                 )
                 self.problem.directions[j] = direction
+                j+=1
             elif v.variable_type == "continuous":
                 self.problem.types[i] = pp.Real(v.lower_bound, v.upper_bound)
             elif v.variable_type == "discrete":
