@@ -277,10 +277,10 @@ class GPyModel(BaseEstimator, RegressorMixin):
         
         # Spectral sampling. Clip values to match Matlab implementation
         noise = self._model.Gaussian_noise.variance.values[0]
-        self.sampled_f = None
+        sampled_f = None
         for i in range(n_retries):
             try:
-                self.sampled_f = spectral_sample(
+                sampled_f = pyrff.sample_rff(
                     lengthscales=self._model.kern.lengthscale.values,
                     scaling=self._model.kern.variance.values[0],
                     noise=noise,
@@ -295,14 +295,14 @@ class GPyModel(BaseEstimator, RegressorMixin):
             except ValueError as e:
                 self.logger.error(e)
 
-        if self.sampled_f is None:
+        if sampled_f is None:
             raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
 
-        # # Define function wrapper
-        # def f(x_new):
-        #     y_s = sampled_f(x_new)
-        #     return np.atleast_2d(y_s).T   
-        # self.sampled_f = f
+        # Define function wrapper
+        def f(x_new):
+            y_s = sampled_f(x_new)
+            return np.atleast_2d(y_s).T   
+        self.sampled_f = f
         return self.sampled_f
     
     @property

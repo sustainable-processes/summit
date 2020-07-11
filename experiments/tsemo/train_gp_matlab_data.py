@@ -1,3 +1,7 @@
+"""
+This code tests the efficiency of training and sampling a GP on a difficult test case
+(as opposed to the simple case in the unit tests).
+"""
 from summit.utils.models import GPyModel, ModelGroup
 from summit.utils.dataset import DataSet
 
@@ -46,6 +50,7 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
     models.fit(X_train_scaled, y_train_scaled, 
             num_restarts=num_restarts,
             max_iters=max_iters,
+            parallel=True,
             n_spectral_points=n_spectral_points, 
             spectral_sample=False)  # spectral sampling done below
     for name, model in models.models.items():
@@ -139,7 +144,7 @@ if __name__=='__main__':
                     plot=False)
         results.append(res) 
     df = pd.DataFrame(results)
-    df.to_csv(f'{dt.date.today()}_train_gp_matlab_data_boxplot_{num_restarts}_restarts_{"sampling" if use_spectral_sample else "no_sampling"}.csv')
+    df.to_csv(f'{dt.date.today()}_train_gp_matlab_data_pyrff_{num_restarts}_restarts_{"sampling" if use_spectral_sample else "no_sampling"}.csv')
 
     # Make plot
     fig,ax = plt.subplots()
@@ -151,4 +156,4 @@ if __name__=='__main__':
     title += f"with Spectral Sampling ({n_spectral_points} spectral samples)" if use_spectral_sample else "without Spectral Sampling"
     ax.set_ylabel(f'RMSE')
     plt.show()
-    fig.savefig(f'{dt.date.today()}_train_gp_matlab_data_boxplot_{num_restarts}_restarts_{"sampling" if use_spectral_sample else "no_sampling"}.png', dpi=300)
+    fig.savefig(f'{dt.date.today()}_train_gp_matlab_data_pyrff_boxplot_{num_restarts}_restarts_{"sampling" if use_spectral_sample else "no_sampling"}.png', dpi=300)
