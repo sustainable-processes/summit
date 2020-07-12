@@ -1,11 +1,4 @@
-from summit.domain import (
-    Domain,
-    Variable,
-    ContinuousVariable,
-    DiscreteVariable,
-    DescriptorsVariable,
-    DomainError,
-)
+from summit.domain import *
 from summit.utils.models import ModelGroup
 from summit.utils.dataset import DataSet
 
@@ -44,7 +37,7 @@ class Transform:
         self.transform_domain = domain.copy()
         self.domain = domain
 
-    def transform_inputs_outputs(self, ds: DataSet, copy=True):
+    def transform_inputs_outputs(self, ds: DataSet, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
         
         Parameters
@@ -53,12 +46,17 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default False.
 
         Returns
         -------
         inputs, outputs
             Datasets with the input and output datasets  
         """
+        copy = kwargs.get("copy", True)
+        transform_descriptors = kwargs.get("transform_descriptors", False)
+
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
 
@@ -66,12 +64,8 @@ class Transform:
         input_columns = []
         output_columns = []
 
-        for variable in self.domain.variables:
-            check_input = variable.name in data_columns and not variable.is_objective
-
-            if check_input and variable.variable_type != "descriptors":
-                input_columns.append(variable.name)
-            elif check_input and variable.variable_type == "descriptors":
+        for variable in self.domain.input_variables:
+            if isinstance(variable, CategoricalVariable) and transform_descriptors:
                 # Add descriptors to the dataset
                 indices = new_ds[variable.name].values
                 descriptors = variable.ds.loc[indices]
@@ -91,10 +85,16 @@ class Transform:
 
                 # add descriptors data columns to inputs
                 input_columns += descriptors.data_columns
-            elif variable.name in data_columns and variable.is_objective:
-                if variable.variable_type == "descriptors":
+            elif isinstance(variable, Variable):
+                input_columns.append(variable.name)            
+            else:
+                raise DomainError(f"Variable {variable.name} is not in the dataset.")
+
+        for variable in self.domain.output_variables:
+            if variable.name in data_columns and variable.is_objective:
+                if isinstance(variable, CategoricalVariable):
                     raise DomainError(
-                        "Output variables cannot be descriptors variables."
+                        "Output variables cannot be categorical variables currently."
                     )
                 output_columns.append(variable.name)
             else:
@@ -657,14 +657,12 @@ class Design:
         for variable in self._domain.variables:
             if variable.is_objective or variable.name in self.exclude:
                 continue
-            if variable.variable_type == "descriptors":
-                descriptors = variable.ds.iloc[self.get_indices(variable.name)[:, 0], :]
-                descriptors = descriptors.rename_axis(variable.name)
-                df = pd.concat([df, descriptors.index.to_frame(index=False)], axis=1)
-                i += variable.num_descriptors
-            else:
-                df.insert(i, variable.name, self.get_values(variable.name)[:, 0])
-                i += 1
+            elif isinstance(variable,ContinuousVariable):
+                values = self.get_values(variable.name)[:, 0]
+            elif isinstance(variable, CategoricalVariable):
+                values = [variable.levels[i] for i in self.get_indices(variable.name)[:,0]]
+            df.insert(i, variable.name, values)
+            i += 1
 
         return DataSet.from_df(df)
 

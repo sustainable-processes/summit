@@ -1,6 +1,6 @@
 from .base import Strategy
 from .random import LHS
-from summit.domain import Domain, DomainError
+from summit.domain import *
 from summit.utils.dataset import DataSet
 
 import GPy
@@ -57,12 +57,12 @@ class SOBO(Strategy):
 
     Examples
     --------
-    >>> from summit.domain import Domain, ContinuousVariable, DiscreteVariable
+    >>> from summit.domain import *
     >>> from summit.strategies import SOBO
     >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
-    >>> domain += DiscreteVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
+    >>> domain += CategoricalVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
     >>> strategy = SOBO(domain)
@@ -77,26 +77,27 @@ class SOBO(Strategy):
         self.input_domain = []
         for v in self.domain.variables:
             if not v.is_objective:
-                if v.variable_type == 'continuous':
+                if isinstance(v, ContinuousVariable):
                     self.input_domain.append(
                         {'name': v.name,
                         'type': v.variable_type,
                         'domain': (v.bounds[0], v.bounds[1])})
-                elif v.variable_type == 'discrete':
-                    self.input_domain.append(
-                        {'name': v.name,
-                        'type': 'discrete',
-                        'domain': tuple(v.levels)})
-                # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
-                elif v.variable_type == 'descriptors':
-                    self.input_domain.append({'name': v.name,
-                     'type': 'bandit',
-                     'domain': [tuple(t) for t in v.ds.data_to_numpy().tolist()]})
+                elif isinstance(v, CategoricalVariable):
+                    if v.ds is None:
+                        self.input_domain.append(
+                            {'name': v.name,
+                            'type': 'discrete',
+                            'domain': tuple(v.levels)})
+                    # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
+                    else:
+                        self.input_domain.append({'name': v.name,
+                            'type': 'bandit',
+                            'domain': [tuple(t) for t in v.ds.data_to_numpy().tolist()]})
 
-                    ''' possible workaround for mixed-type variable problems: treat descriptor as categorical variables
-                    self.input_domain.append({'name': v.name,
-                                            'type': 'categorical',
-                                            'domain': tuple(np.arange(v.ds.data_to_numpy().shape[0]).tolist())})
+                        ''' possible workaround for mixed-type variable problems: treat descriptor as categorical variables
+                        self.input_domain.append({'name': v.name,
+                                                'type': 'categorical',
+                                                'domain': tuple(np.arange(v.ds.data_to_numpy().shape[0]).tolist())})
                     '''
                 else:
                     raise TypeError('Unknown variable type.')
@@ -111,7 +112,7 @@ class SOBO(Strategy):
         else:
             self.constraints = None
 
-        self.input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
+        self.input_dim = len(self.domain.input_variables)
 
         """
         Gaussian Process (GP) model 

@@ -1,6 +1,6 @@
 import pytest
 
-from summit.domain import Domain, ContinuousVariable, Constraint
+from summit.domain import *
 from summit.strategies import *
 from summit.utils.dataset import DataSet
 from summit.benchmarks import test_functions
@@ -23,6 +23,7 @@ def test_random():
     domain += ContinuousVariable(
         name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5]
     )
+
     strategy = Random(domain, random_state=np.random.RandomState(3))
     results = strategy.suggest_experiments(5)
     arr = np.array(
@@ -38,6 +39,16 @@ def test_random():
     )
     results_arr = results.data_to_numpy().astype(np.float32)
     assert np.isclose(results_arr.all(), arr.all())
+
+    
+    solvent_ds = DataSet(
+        [[5, 81], [-93, 111]],
+        index=["benzene", "toluene"],
+        columns=["melting_point", "boiling_point"],
+    )
+    domain += CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
+    strategy = Random(domain, random_state=np.random.RandomState(3))
+    results = strategy.suggest_experiments(5)
     return results
 
 def test_lhs():
@@ -66,6 +77,16 @@ def test_lhs():
     )
     results_arr = results.data_to_numpy().astype(np.float32)
     assert np.isclose(results_arr.all(), arr.all())
+
+    solvent_ds = DataSet(
+        [[5, 81], [-93, 111]],
+        index=["benzene", "toluene"],
+        columns=["melting_point", "boiling_point"],
+    )
+    domain += CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
+    strategy = LHS(domain, random_state=np.random.RandomState(3))
+    results = strategy.suggest_experiments(5)
+
     return results
 
 def test_doe():
