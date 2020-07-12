@@ -1,6 +1,6 @@
 import pytest
 
-from summit.domain import Domain, ContinuousVariable, Constraint
+from summit.domain import Domain, ContinuousVariable, Constraint, DiscreteVariable, DescriptorsVariable
 from summit.strategies import *
 from summit.utils.dataset import DataSet
 from summit.benchmarks import test_functions
@@ -687,3 +687,19 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint,check_co
     if plot:
         hartmann3D.plot()
 
+def test_gryffin():
+
+    domain = Domain()
+    domain += ContinuousVariable(name="temperature", description="reaction temperature in celsius", bounds=[50, 100])
+    domain += DiscreteVariable(name="flowrate_a", description="flow of reactant a in mL/min", levels=[1,2,3,4,5])
+    base_df = DataSet([[1,2,3],[2,3,4],[8,8,8]], index = ["solv1","solv2","solv3"], columns=["MP","mol_weight","area"])
+    domain += DescriptorsVariable(name="solvent", description="solvent type - categorical", ds=base_df)
+    domain += ContinuousVariable(name="yield", description="yield of reaction", bounds=[0,100], is_objective=True)
+    strategy = GRYFFIN(domain, auto_desc_gen=True)
+    next_experiments = strategy.suggest_experiments()
+    next_experiments[("yield", "DATA")] = [1,1,1,1]
+    print(next_experiments)
+    next_experiments = strategy.suggest_experiments(prev_res=next_experiments)
+    print(next_experiments)
+
+test_gryffin()

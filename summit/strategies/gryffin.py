@@ -55,6 +55,7 @@ class GRYFFIN(Strategy):
         # TODO: notation - discrete in our model (e.g., catalyst type) = categorical?
         self.domain_inputs = []
         self.domain_objectives = []
+        with_descriptors = False
         for v in self.domain.variables:
             if not v.is_objective:
                 if v.variable_type == "continuous":
@@ -73,18 +74,23 @@ class GRYFFIN(Strategy):
                             "name": v.name,
                             "type": "categorical",
                             "size": 1,
-                            "levels": tuple(v.levels),
-                            "category_details": "CatDetails/cat_details_" + str(v.name) + ".pkl"
+                            "levels": v.levels,
+                            "descriptors": None,
+                            "category_details": "CatDetails/cat_details_" + str(v.name) + ".pkl",
                         }
                     )
-                #elif v.variable_type == "descriptors":
-                #    self.domain_inputs.append(
-                #        {
-                #            "name": v.name,
-                #            "type": "descriptor",
-                #            "domain": [tuple(t) for t in v.ds.data_to_numpy().tolist()]
-                #        }
-                #    )
+                elif v.variable_type == "descriptors":
+                    with_descriptors = True
+                    self.domain_inputs.append(
+                        {
+                            "name": v.name,
+                            "type": "categorical",
+                            "size": 1,
+                            "levels": [l for l in v.ds.index],
+                            "descriptors": [v.ds.loc[[l],:].values[0].tolist() for l in v.ds.index],
+                            "category_details": "CatDetails/cat_details_" + str(v.name) + ".pkl",
+                        }
+                    )
                 else:
                     raise TypeError("Unknown variable type: {}.".format(v.variable_type))
             else:
@@ -96,11 +102,13 @@ class GRYFFIN(Strategy):
                 )
 
         # TODO: how does GRYFFIN handle constraints?
-        if self.domain.constraints is not None:
-            constraints = self.constr_wrapper(self.domain)
-            self.constraints = [{"name": "constr_" + str(i),
-                                 "constraint": c[0] if c[1] in ["<=", "<"] else "(" + c[0] + ")*(-1)"}
-                                for i,c in enumerate(constraints) if not (c[1] == "==")]
+        if self.domain.constraints != []:
+            raise NotImplementedError("Gryffin can not handle constraints.")
+            # keep SOBO constraint wrapping for later application when gryffin adds constraint handling
+            #constraints = self.constr_wrapper(self.domain)
+            #self.constraints = [{"name": "constr_" + str(i),
+            #                     "constraint": c[0] if c[1] in ["<=", "<"] else "(" + c[0] + ")*(-1)"}
+            #                    for i,c in enumerate(constraints) if not (c[1] == "==")]
         else:
             self.constraints = None
 
@@ -151,7 +159,7 @@ class GRYFFIN(Strategy):
 
         # write categories
         category_writer = CategoryWriter(inputs=self.domain_inputs)
-        category_writer.write_categories(home_dir='./', num_descs=2, with_descriptors=False)
+        category_writer.write_categories(home_dir='./')
 
         # initialize gryffin
         self.gryffin = Gryffin(config_file)
@@ -273,20 +281,21 @@ class GRYFFIN(Strategy):
 class CategoryWriter(object):
 
     def __init__(self, inputs):
-        self.discrete_inputs = [[ent["name"], ent["levels"]] for ent in inputs if ent["type"]=="categorical"]
+        self.cat_inputs = [[ent["name"], ent["levels"], ent["descriptors"]] for ent in inputs if ent["type"] == "categorical"]
 
-    def write_categories(self, home_dir, num_descs, with_descriptors=True):
+    def write_categories(self, home_dir, with_descriptors=True):
 
-        for discr_inp in self.discrete_inputs:
-            param_name = discr_inp[0]
-            param_opt = discr_inp[1]
+        for cat_inp in self.cat_inputs:
+            param_name = cat_inp[0]
+            param_opt = cat_inp[1]
+            param_descr = cat_inp[2]
 
             opt_list = []
             for opt in range(len(param_opt)):
                 #TODO: descriptors all the same?
-                if with_descriptors:
-                    descriptors = np.array([float(opt_index) for _ in range(num_descs)])
-                    opt_dict = {'name': 'x_%d' % opt_index, 'descriptors': descriptors}
+                if param_descr is not None:
+                    descriptors = np.array(param_descr[opt])
+                    opt_dict = {'name': param_opt[opt], 'descriptors': descriptors}
                 else:
                     opt_dict = {'name': param_opt[opt]}
                 opt_list.append(copy.deepcopy(opt_dict))
