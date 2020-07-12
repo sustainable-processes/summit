@@ -9,10 +9,11 @@ from copy import deepcopy
 __all__ = [
     "Variable",
     "ContinuousVariable",
-    "DiscreteVariable",
+    "CategoricalVariable",
     "DescriptorsVariable",
     "Constraint",
     "Domain",
+    "DomainError"
 ]
 
 
@@ -85,7 +86,7 @@ class Variable(ABC):
 
     def to_dict(self):
         variable_dict = {
-            "type": self._variable_type,
+            "type": self.__class__.__name__,
             "is_objective": self._is_objective,
             "name": self.name,
             "description": self.description,
@@ -202,20 +203,33 @@ class ContinuousVariable(Variable):
             is_objective=variable_dict["is_objective"],
         )
 
+class CategoricalVariable(Variable):
+    """Representation of a categorical variable
 
-class DiscreteVariable(Variable):
-    """Representation of a discrete variable
+    Categorical variables are discrete choices that do not have an ordering.
+    Common examples are selections of catalysts, bases, or ligands. 
+
+    Each possible discrete choice is referred to as a level. These are added as a list
+    using the `list` keyword argument. 
+
+    When available, descriptors can be added to a categorical variable. These might be values
+    such as the melting point, logP, etc. of each level of the categorical variable. These descriptors
+    can significantly improve the speed of optimization and also make many more strategies compatible
+    with categorical variables (i.e., all that work with continuos variables).
     
     Parameters
     ----------
-    name: str
+    name : str
         The name of the variable
-    description: str
+    description : str
         A short description of the variable 
-    levels: list of any serializable object
-        The potential values of the discrete variable
-    is_objective: bool, optional
-        If True, this variable is an output. Defaults to False (i.e., an input variable)
+    levels : list of any serializable object, optional
+        The potential values of the Categorical variable. When descriptors 
+        are passed, this can be left empty, and the levels will be inferred from
+        the index of the descriptors DataSet.
+    descriptors : :class:~summit.utils.dataset.DataSet, optional
+        A DataSet where the keys correspond to the levels and the data
+        columns are descriptors.
 
     Attributes
     ---------
@@ -229,33 +243,62 @@ class DiscreteVariable(Variable):
         When the levels are not unique
     TypeError
         When levels is not a list
+
     Examples
     --------
-    >>> reactant = DiscreteVariable('reactant', 'aromatic reactant', ['benzene', 'toluene'])
+    The simplest way to use a CategoricalVariable is without descriptors:
+    >>> base = CategoricalVariable('base', 'Organic Base', levels=['DBU', 'BMTG', 'TEA'])
 
+    When descriptors are available, they can be used directly without specfying the levels:
+    >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
+    >>> solvent = CategoricalVariable('solvent', 'solvent descriptors', descriptors=solvent_df)
+
+    It is also possible to specify a subset of the descriptors as possible choices by passing both descriptors and levels.
+    The levels must match the index of the descriptors DataSet.
+    >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
+    >>> solvent = CategoricalVariable('solvent', 'solvent descriptors', levels=['benzene', 'toluene'],descriptors=solvent_df)
     """
 
-    def __init__(self, name, description, levels, **kwargs):
-        Variable.__init__(self, name, description, "discrete", **kwargs)
+    def __init__(self, name, description, **kwargs):
+        Variable.__init__(self, name, description, "categorical", **kwargs)
+        
+        # Get descriptors DataSet
+        self.ds = kwargs.get("descriptors")
+        if self.ds is not None and not isinstance(self.ds, DataSet):
+            raise TypeError("descriptors must be a DataSet")
 
-        if type(levels) != list:
+        self._levels = kwargs.get("levels")
+        #If levels and descriptors passed, check they match
+        if self.ds is not None and self._levels is not None:
+            index = self.ds.index
+            for level in self._levels:
+                assert level in index, "Levels must be in the descriptors DataSet index."
+        #If no levels passed but descriptors passed, make levels the whole index
+        elif self.ds is not None and self._levels is None:
+            self._levels = self.ds.index.to_list()
+        elif self.ds is None and self._levels is None:
+            raise ValueError("Levels, descriptors or both must be passed.")
+
+        if type(self._levels) != list:
             raise TypeError("Levels must be a list")
-
         # check that levels are unique
-        if len(levels) != len(set(levels)):
+        if len(self._levels) != len(set(self._levels)):
             raise ValueError("Levels must have unique values.")
-        self._levels = levels
 
     @property
     def levels(self) -> np.ndarray:
         """`numpy.ndarray`: Potential values of the discrete variable"""
-        # levels = np.array(self._levels)
-        # return np.atleast_2d(levels).T
         return self._levels
 
     @property
     def num_levels(self) -> int:
         return len(self._levels)
+
+    @property
+    def num_descriptors(self) -> int:
+        """Returns the number of descriptors"""
+        if self.ds is not None:
+            return len(self.ds.data_columns)
 
     def add_level(self, level):
         """ Add a level to the discrete variable
@@ -295,19 +338,26 @@ class DiscreteVariable(Variable):
     def to_dict(self):
         """ Return json encoding of the variable"""
         variable_dict = super().to_dict()
-        variable_dict.update({"levels": self.levels})
+        ds = self.ds.to_dict() if self.ds is not None else None
+        variable_dict.update(
+            dict(levels=self.levels, ds=ds)
+        )
         return variable_dict
 
     @staticmethod
     def from_dict(variable_dict):
-        return DiscreteVariable(
+        ds = variable_dict["ds"]
+        ds = DataSet.from_dict(ds) if ds is not None else None
+        return CategoricalVariable(
             name=variable_dict["name"],
             description=variable_dict["description"],
             levels=variable_dict["levels"],
+            descriptors=ds,
             is_objective=variable_dict["is_objective"],
         )
 
     def _html_table_rows(self):
+        """Return representation for Jupyter notebooks"""
         return self._make_html_table_rows(f"{self.num_levels} levels")
 
 
@@ -551,35 +601,17 @@ class Domain:
         return k
 
     def num_discrete_variables(self, include_outputs=False) -> int:
-        """ Number of discrete varibles in the domain 
-        
-        Parameters
-        ---------- 
-        include_outputs: bool, optional
-            If True include output variables in the count.
-            Defaults to False.
-        
-        Returns
-        -------
-        num_variables: int
-            Number of discrete variables in the domain
-        """
-        k = 0
-        for v in self._variables:
-            if v.is_objective and not include_outputs:
-                continue
-            elif v.variable_type == "discrete":
-                k += 1
-        return k
+        raise NotImplementedError("num_discrete_variables has been deprecated due to the change of Discrete to Categorical variables")
 
-    def num_continuous_dimensions(self, include_outputs=False) -> int:
+    def num_continuous_dimensions(self, include_descriptors=False, include_outputs=False) -> int:
         """The number of continuous dimensions
         
-        This includes dimensions of descriptors variables
-        
         Parameters
         ---------- 
-        include_outputs: bool, optional
+        include_descriptors : bool, optional
+            If True, the number of descriptors columns are considered.
+            Defaults to False.
+        include_outputs : bool, optional
             If True include output variables in the count.
             Defaults to False.
         
@@ -589,13 +621,14 @@ class Domain:
             Number of variables in the domain
         """
         k = 0
-        for v in self._variables:
+        for v in self.variables:
             if v.is_objective and not include_outputs:
                 continue
-            if v.variable_type == "continuous":
+            if isinstance(v, ContinuousVariable):
                 k += 1
-            if v.variable_type == "descriptors":
-                k += v.num_descriptors
+            if isinstance(v, CategoricalVariable) and include_descriptors:
+                if v.num_descriptors is not None:
+                    k += v.num_descriptors
         return k
 
     def to_dict(self):
@@ -607,15 +640,13 @@ class Domain:
         return json.dumps(self.to_dict())
 
     @staticmethod
-    def from_dict(domain_dict):
+    def from_dict(domain_list):
         variables = []
-        for variable in domain_dict:
-            if variable["type"] == "continuous":
+        for variable in domain_list:
+            if variable["type"] == "ContinuousVariable":
                 new_variable = ContinuousVariable.from_dict(variable)
-            elif variable["type"] == "discrete":
-                new_variable = DiscreteVariable.from_dict(variable)
-            elif variable["type"] == "descriptors":
-                new_variable = DescriptorsVariable.from_dict(variable)
+            elif variable["type"] == "CategoricalVariable":
+                new_variable = CategoricalVariable.from_dict(variable)
             else:
                 raise ValueError(
                     f"Cannot load variable of type:{variable['type']}. Variable should be continuous, discrete or descriptors"
