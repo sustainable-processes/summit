@@ -1,10 +1,6 @@
 import pytest
 
-<<<<<<< HEAD
-from summit.domain import Domain, ContinuousVariable, Constraint, DiscreteVariable, DescriptorsVariable
-=======
 from summit.domain import *
->>>>>>> master
 from summit.strategies import *
 from summit.utils.dataset import DataSet
 from summit.benchmarks import test_functions

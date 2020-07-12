@@ -22,6 +22,8 @@ def strategy_from_dict(d):
         return Random.from_dict(d)
     elif d["name"] == "LHS":
         return LHS.from_dict(d)
+    elif d["name"] == "Gryffin":
+        return GRYFFIN.from_dict(d)
     else:
         raise ValueError(f"""Strategy {d["name"]} not found.""")
 
