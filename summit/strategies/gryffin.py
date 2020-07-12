@@ -4,7 +4,6 @@ from summit.utils.dataset import DataSet
 
 import numpy as np
 import pandas as pd
-from abc import ABC, abstractmethod
 
 from gryffin import Gryffin
 import json
@@ -20,7 +19,50 @@ class GRYFFIN(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The Summit domain describing the optimization problem.
-    XYZ
+    save_dir: string, optional
+        Name of subfolder where temporary files during Gryffin execution are stored, i.e., summit/strategies/tmp_files/gryffin/<save_dir>.
+        By default: None (i.e. no subfolder created, files stored in summit/strategies/tmp_files/gryffin)
+    auto_desc_gen: Boolean, optional
+        Whether Dynamic Gryffin is used if descriptors are provided,
+        i.e., Gryffin applies automatic descriptor generation,
+        hence transforms the given descriptors with a non-linear transformation
+        to new descriptors (more "meaningful" or higher-correlated ones).
+        By default: False (i.e., Static Gryffin with originally given descriptors is used).
+    sampling_strategies: int, optional
+        Number of sampling strategies (similar to sampling of GPs).
+        One factor (next to batches) for the number of suggested new points in one optimization step.
+        Total number of suggested points: sampling_strategies x batches
+        By default: 4
+    batches: int, optional
+        Number of suggested points within one sampling strategy.
+        One factor (next to sampling_strategies) for the number of suggested new points in one optimization step.
+        Total number of suggested points: sampling_strategies x batches
+        By default: 1
+    logging: -1, optional
+        Corresponds to the verbosity level of logging of Gryffin
+	    verbosity_levels = -1: '', 0: ['INFO', 'FATAL'], 1: ['INFO', 'ERROR', 'FATAL'], 2: ['INFO', 'WARNING', 'ERROR', 'FATAL'], 3: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL']
+        By default: -1
+    parallel: Boolean, optional
+        Whether ... (no information found)
+        By default: True (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+    boosted: Boolean, optional
+        Whether "pseudo-boosting" is applied (see original Paper).
+        By default: True (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+    sampler: string, optional
+        A priori distribution of categorical variables.
+        By default: 'uniform' (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+    softness: float, optional
+        ... (no information found)
+        By default: 0.001 (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+    continuous_optimizer: string, optional
+        Optimizer type for continuous variables (available: "adam").
+        By default: 'adam' (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+    categorical_optimizer: string, optional
+        Optimizer type for categorical variables (available: "naive").
+        By default: naive (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+    discrete_optimizer: string, optional
+        Optimizer type for discrete variables ((available: "naive").
+        By default: naive (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
 
     Notes
     ----------
@@ -36,26 +78,41 @@ class GRYFFIN(Strategy):
 
     Examples
     --------
-    >>> from summit.domain import Domain, ContinuousVariable, DiscreteVariable
+    >>> from summit.domain import *
     >>> from summit.strategies import GRYFFIN
     >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name="temperature", description="reaction temperature in celsius", bounds=[50, 100])
-    >>> domain += DiscreteVariable(name="flowrate_a", description="flow of reactant a in mL/min", levels=[1,2,3,4,5])
-    >>> domain += ContinuousVariable(name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5])
+    >>> domain += CategoricalVariable(name="flowrate_a", description="flow of reactant a in mL/min", levels=[1,2,3,4,5])
+    >>> base_df = DataSet([[1,2,3],[2,3,4],[8,8,8]], index = ["solv1","solv2","solv3"], columns=["MP","mol_weight","area"])
+    >>> domain += DescriptorsVariable(name="solvent", description="solvent type - categorical", ds=base_df)
     >>> domain += ContinuousVariable(name="yield", description="yield of reaction", bounds=[0,100], is_objective=True)
-    >>> strategy = GRYFFIN(domain)
+    >>> strategy = GRYFFIN(domain, auto_desc_gen=True)
     >>> next_experiments = strategy.suggest_experiments()
 
     """
 
-    def __init__(self, domain, **kwargs):
+    def __init__(self, domain, save_dir=None, auto_desc_gen=False, sampling_strategies=4,
+                 batches=1, logging=-1, parallel=True, boosted=True, sampler="uniform", softness=0.001,
+                 continuous_optimizer="adam", categorical_optimizer="naive", discrete_optimizer="naive", **kwargs):
         Strategy.__init__(self, domain)
 
-        # TODO: notation - discrete in our model (e.g., catalyst type) = categorical?
         self.domain_inputs = []
         self.domain_objectives = []
-        with_descriptors = False
+        self.prev_param = None
+
+        # Create directories to store temporary files
+        tmp_files = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tmp_files")
+        tmp_dir = os.path.join(tmp_files, "gryffin")
+        if not os.path.isdir(tmp_files):
+            os.mkdir(tmp_files)
+        # if a directory was specified create subfolder for storing files
+        if save_dir:
+            tmp_dir = os.path.join(tmp_dir, save_dir)
+        if not os.path.isdir(tmp_dir):
+            os.mkdir(tmp_dir)
+
+        # Parse Summit domain to Gryffin domain
         for v in self.domain.variables:
             if not v.is_objective:
                 if v.variable_type == "continuous":
@@ -68,19 +125,19 @@ class GRYFFIN(Strategy):
                             "size": 1,
                         }
                     )
-                elif v.variable_type == "discrete":
+                elif v.variable_type == "categorical":
+                    descriptors = [v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index] if v.ds is not None else None
                     self.domain_inputs.append(
                         {
                             "name": v.name,
                             "type": "categorical",
                             "size": 1,
                             "levels": v.levels,
-                            "descriptors": None,
-                            "category_details": "CatDetails/cat_details_" + str(v.name) + ".pkl",
+                            "descriptors": descriptors,
+                            "category_details": os.path.join(tmp_dir, "CatDetails/cat_details_" + str(v.name) + ".pkl"),
                         }
                     )
                 elif v.variable_type == "descriptors":
-                    with_descriptors = True
                     self.domain_inputs.append(
                         {
                             "name": v.name,
@@ -88,7 +145,7 @@ class GRYFFIN(Strategy):
                             "size": 1,
                             "levels": [l for l in v.ds.index],
                             "descriptors": [v.ds.loc[[l],:].values[0].tolist() for l in v.ds.index],
-                            "category_details": "CatDetails/cat_details_" + str(v.name) + ".pkl",
+                            "category_details": os.path.join(tmp_dir, "CatDetails/cat_details_" + str(v.name) + ".pkl"),
                         }
                     )
                 else:
@@ -103,7 +160,7 @@ class GRYFFIN(Strategy):
 
         # TODO: how does GRYFFIN handle constraints?
         if self.domain.constraints != []:
-            raise NotImplementedError("Gryffin can not handle constraints.")
+            raise NotImplementedError("Gryffin can not handle constraints yet.")
             # keep SOBO constraint wrapping for later application when gryffin adds constraint handling
             #constraints = self.constr_wrapper(self.domain)
             #self.constraints = [{"name": "constr_" + str(i),
@@ -112,37 +169,24 @@ class GRYFFIN(Strategy):
         else:
             self.constraints = None
 
-        self.input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
-
-        self.auto_desc_gen = kwargs.get("auto_desc_gen", "False")
-        self.parallel = kwargs.get("parallel", "True")
-        self.boosted = kwargs.get("boosted", "True")
-        self.sampling_strategies = kwargs.get("sampling_strategies", 4)
-        self.batches = kwargs.get("batches", 1)
-        self.logging = kwargs.get("logging", -1)
-        self.prev_param = None
-
-        # Create tmp_files
-        tmp_files = os.path.join(os.path.dirname(os.path.realpath(__file__)),"tmp_files")
-        tmp_dir = os.path.join(tmp_files, "gryffin")
-        if not os.path.isdir(tmp_files):
-            os.mkdir(tmp_files)
-        if not os.path.isdir(tmp_dir):
-            os.mkdir(tmp_dir)
-
         # create a temporary config.json file to initialize GRYFFIN
         config_dict = {
             "general": {
-                "auto_desc_gen": self.auto_desc_gen,
-                "parallel": self.parallel,
-                "boosted": self.boosted,
-                "sampling_strategies": self.sampling_strategies,
-                "batches": self.batches,
+                "auto_desc_gen": auto_desc_gen,
+                "parallel": parallel,
+                "boosted": boosted,
+                "sampling_strategies": sampling_strategies,
+                "batches": batches,
                 "scratch_dir": os.path.join(tmp_dir, "scratch"),
+                "sampler": sampler,
+                "softness": softness,
+                "continuous_optimizer": continuous_optimizer,
+                "categorical_optimizer": categorical_optimizer,
+                "discrete_optimizer": discrete_optimizer,
                 'verbosity': {
-                    'default': self.logging,
-                    'bayesian_network': self.logging,
-                    'random_sampler': self.logging,
+                    'default': logging,
+                    'bayesian_network': logging,
+                    'random_sampler': logging,
                 }
             },
             "database": {
@@ -154,20 +198,21 @@ class GRYFFIN(Strategy):
         }
 
         config_file = "config.json"
-        with open(config_file, 'w') as configfile:
+        config_file_path = os.path.join(tmp_dir, config_file)
+        with open(config_file_path, 'w') as configfile:
             json.dump(config_dict, configfile, indent=2)
 
         # write categories
         category_writer = CategoryWriter(inputs=self.domain_inputs)
-        category_writer.write_categories(home_dir='./')
+        category_writer.write_categories(save_dir=tmp_dir)
 
         # initialize gryffin
-        self.gryffin = Gryffin(config_file)
+        self.gryffin = Gryffin(config_file_path)
 
 
     def suggest_experiments(self,
                             prev_res: DataSet=None, **kwargs):
-        """ Suggest experiments using GPyOpt single-objective Bayesian Optimization
+        """ Suggest experiments using Gryffin optimization strategy
         
         Parameters
         ----------  
@@ -235,7 +280,7 @@ class GRYFFIN(Strategy):
             for k in request[0].keys():
                 next_experiments[k] = [r[k][0] for r in request]
             next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
-            next_experiments[("strategy", "METADATA")] = "Gryffin"
+            next_experiments[("strategy", "METADATA")] = "GRYFFIN"
 
         obj = self.domain.output_variables[0]
         objective_dir = -1.0 if obj.maximize else 1.0
@@ -265,7 +310,8 @@ class GRYFFIN(Strategy):
             gryffin.prev_param = param
         return gryffin
 
-    # TODO: update constraint wrapper
+    # TODO: update constraint wrapper when Gryffin can handle constraints
+    ''' 
     def constr_wrapper(self, summit_domain):
         v_input_names = [v.name for v in summit_domain.variables if not v.is_objective]
         gpyopt_constraints = []
@@ -276,14 +322,33 @@ class GRYFFIN(Strategy):
                 tmp_c = tmp_c.replace(v_input_name, v_gpyopt_name)
             gpyopt_constraints.append([tmp_c, c.constraint_type])
         return gpyopt_constraints
-
+    '''
 
 class CategoryWriter(object):
+    """ Category Writer for Gryffin (adapted from https://github.com/aspuru-guzik-group/gryffin)
+
+    Parameters
+    ----------
+    inputs: array-like
+        List containing the input variables. Each entry is a dictionary describing the features of the input variable.
+
+    Notes
+    ----------
+    This implementation uses the software package Gryffin provided by
+    the Aspuru-Guzik Group and published by Haese et al. (2020), arXiv:2003.12127.
+
+    Copyright (C) 2020, Harvard University.
+    All rights reserved.
+
+    """
 
     def __init__(self, inputs):
         self.cat_inputs = [[ent["name"], ent["levels"], ent["descriptors"]] for ent in inputs if ent["type"] == "categorical"]
 
-    def write_categories(self, home_dir, with_descriptors=True):
+    def write_categories(self, save_dir):
+        """ Writes categories to pkl file
+        :param save_dir: string, path where category details will be saved.
+        """
 
         for cat_inp in self.cat_inputs:
             param_name = cat_inp[0]
@@ -301,10 +366,9 @@ class CategoryWriter(object):
                 opt_list.append(copy.deepcopy(opt_dict))
 
             # create cat_details dir if necessary
-            if not os.path.isdir('%s/CatDetails' % home_dir):
-                os.mkdir('%s/CatDetails' % home_dir)
+            if not os.path.isdir('%s/CatDetails' % save_dir):
+                os.mkdir('%s/CatDetails' % save_dir)
 
-            cat_details_file = '%s/CatDetails/cat_details_%s.pkl' % (home_dir, param_name)
+            cat_details_file = '%s/CatDetails/cat_details_%s.pkl' % (save_dir, param_name)
             pickle.dump(opt_list, open(cat_details_file, 'wb'))
 
-# =========================================================================
