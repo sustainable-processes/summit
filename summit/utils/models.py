@@ -282,8 +282,8 @@ class GPyModel(BaseEstimator, RegressorMixin):
             try:
                 sampled_f = pyrff.sample_rff(
                     lengthscales=self._model.kern.lengthscale.values,
-                    scaling=self._model.kern.variance.values[0],
-                    noise=noise,
+                    scaling=np.sqrt(self._model.kern.variance.values[0]),
+                    noise=np.sqrt(noise),
                     kernel_nu=matern_nu,
                     X=X,
                     Y=y[:,0],
