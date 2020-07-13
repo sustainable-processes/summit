@@ -28,8 +28,14 @@ class Emulator(ABC):
 
     """
 
-    def __init__(self, model, **kwargs):
-        self._model = model
+    def __init__(self, domain, dataset, model_name, kwargs={}):
+
+        self._domain = domain
+        self._dataset = dataset
+        self.model_name = str(model_name)
+        self._cat_to_descr = kwargs.get("cat_to_descr", False)
+
+        self._domain_preprocess()
 
     @property
     def domain(self):
@@ -100,44 +106,46 @@ class Emulator(ABC):
     def _save_model(self, **kwargs):
         raise NotImplementedError("_save_model be implemented by subclasses of Emulator")
 
-    def _domain_preprocess(self):
+    def _domain_preprocess(self, **kwargs):
 
         self.input_dim = 0
         self.output_dim = 0
         self.out_mean = np.asarray([])
         self.output_models = {}
-        input_names_continuous, input_names_discrete, input_names_descriptors = [], [], []
+        input_names_continuous, input_names_categorical, input_names_descriptors = [], [], []
 
         for i, v in enumerate(self._domain.variables):
             if not v.is_objective:
                 if v.variable_type == "continuous":
                     self.input_dim += 1
                     input_names_continuous.append(v.name)
-                elif v.variable_type == "discrete":
-                    self.input_dim += len(v.levels)
-                    input_names_discrete.append(v.name)
-                    # create one-hot tensor for discrete inputs
-                elif v.variable_type == "descriptors":
+                elif v.variable_type == "descriptors" or (v.variable_type == "categorical" and self._cat_to_descr == True):
+                    if v.ds is None:
+                        raise ValueError("No descriptors are defined for categorical variable {}".format(v.name))
                     self.input_dim += v.num_descriptors
                     input_names_descriptors.extend(v.ds.data_columns)
+                elif v.variable_type == "categorical":
+                    self.input_dim += len(v.levels)
+                    input_names_categorical.append(v.name)
+                    # create one-hot tensor for categorical inputs
                 else:
                     raise TypeError("Unknown variable type: {}.".format(v.variable_type))
             else:
                 if v.variable_type == "continuous":
                     self.output_dim += 1
                     self.output_models[v.name] = ""
-                elif v.variable_type == "discrete":
+                elif v.variable_type == "categorical":
                     raise TypeError(
-                        "{} is a discrete variable. Regressor not trainable for discrete outputs.".format(v.name))
+                        "{} is a categorical variable. BNN regressor not trainable for categorical outputs.".format(v.name))
                 elif v.variable_type == "descriptors":
                     raise TypeError(
-                        "{} is a descriptor variable. Regressor not trainable for descriptor outputs.".format(
+                        "{} is a descriptor variable. BNN regressor not trainable for descriptor outputs.".format(
                             v.name))
                 else:
                     raise TypeError("Unknown variable type: {}.".format(v.variable_type))
         self.input_names = []
         self.input_names_transformable = input_names_continuous + input_names_descriptors
-        self.input_names = self.input_names_transformable + input_names_discrete
+        self.input_names = self.input_names_transformable + input_names_categorical
 
     def _data_preprocess(
             self, inference=False, infer_dataset=None, validate=False, transform_input="standardize",
@@ -154,7 +162,7 @@ class Emulator(ABC):
                 data_column_names = infer_dataset.data_columns
 
         self.input_data_continuous = []
-        self.input_data_discrete = []
+        self.input_data_categorical = []
         self.input_data_descriptors = []
         self.output_data = []
         if not inference:
@@ -177,12 +185,7 @@ class Emulator(ABC):
                             else:
                                 tmp_cont_inp, _, _ = self._transform_data(data=tmp_cont_inp, reduce=self.data_transformation_dict[v.name][0], divide=self.data_transformation_dict[v.name][1])
                             self.input_data_continuous.append(tmp_cont_inp)
-                        elif v.variable_type == "discrete":
-                            # create one-hot tensor for discrete inputs
-                            one_hot_enc = sklearn.preprocessing.OneHotEncoder(categories=[v.levels])
-                            tmp_disc_inp_one_hot = one_hot_enc.fit_transform(np_dataset[:, i].reshape(-1, 1)).toarray()
-                            self.input_data_discrete.append(np.asarray(tmp_disc_inp_one_hot))
-                        elif v.variable_type == "descriptors":
+                        elif v.variable_type == "descriptors" or (v.variable_type == "categorical" and self._cat_to_descr == True):
                             tmp_descr_inp = []
                             for ent in np_dataset[:, i]:
                                 tmp_descr_inp.append(v.ds.loc[[ent], :].values[0].tolist())
@@ -194,10 +197,11 @@ class Emulator(ABC):
                                 else:
                                     tmp_descr_inp[:, i], _, _ = self._transform_data(data=tmp_descr_inp[:, i], reduce=self.data_transformation_dict[v.ds.data_columns[i]][0], divide=self.data_transformation_dict[v.ds.data_columns[i]][1])
                             self.input_data_descriptors.append(np.asarray(tmp_descr_inp))
-                            #raise TypeError(
-                            #    "Regressor not explicitely trainable on descriptor variables. Please redefine {} "
-                            #    "as continuous or discrete variable.".format(v.name)
-                            #)
+                        elif v.variable_type == "categorical":
+                            # create one-hot tensor for categorical inputs
+                            one_hot_enc = sklearn.preprocessing.OneHotEncoder(categories=[v.levels])
+                            tmp_disc_inp_one_hot = one_hot_enc.fit_transform(np_dataset[:, i].reshape(-1, 1)).toarray()
+                            self.input_data_categorical.append(np.asarray(tmp_disc_inp_one_hot))
                         else:
                             raise TypeError("Unknown variable type: {}.".format(v.variable_type))
                     elif not inference:
@@ -207,9 +211,9 @@ class Emulator(ABC):
                                 tmp_cont_out, _reduce, _divide = self._transform_data(data=tmp_cont_out, transformation_type=transform_output)
                                 self.data_transformation_dict[v.name] = [_reduce, _divide]
                             self.output_data.append(tmp_cont_out)
-                        elif v.variable_type == "discrete":
+                        elif v.variable_type == "categorical":
                             raise TypeError(
-                                "{} is a discrete variable. Regressor not trainable for discrete outputs.".format(
+                                "{} is a categorical variable. Regressor not trainable for categorical outputs.".format(
                                     v.name))
                         elif v.variable_type == "descriptors":
                             raise TypeError(
@@ -221,8 +225,8 @@ class Emulator(ABC):
                 raise ValueError("Variable {} defined in the domain is missing in the given dataset.".format(v.name))
 
         self.input_data_continuous = np.asarray(self.input_data_continuous).transpose()
-        if len(self.input_data_discrete) != 0:
-            self.input_data_discrete = np.concatenate([one_hot for one_hot in self.input_data_discrete], axis=1)
+        if len(self.input_data_categorical) != 0:
+            self.input_data_categorical = np.concatenate([one_hot for one_hot in self.input_data_categorical], axis=1)
         if len(self.input_data_descriptors) != 0:
             self.input_data_descriptors = np.concatenate([d for d in self.input_data_descriptors], axis=1)
         self.output_data = np.asarray(self.output_data).transpose()
@@ -230,13 +234,13 @@ class Emulator(ABC):
         # Set up training and test data
         if not inference:
             final_np_dataset = np.concatenate([inp for inp in [self.input_data_continuous, self.input_data_descriptors,
-                                                               self.input_data_discrete, self.output_data] if len(inp) != 0], axis=1)
+                                                               self.input_data_categorical, self.output_data] if len(inp) != 0], axis=1)
             X, y = final_np_dataset[:, :-self.output_dim], final_np_dataset[:, -self.output_dim:]
             X_train, X_test, y_train, y_test = sklearn_train_test_split(X, y, test_size=test_size, shuffle=shuffle)
             return [X_train.astype(dtype=float), y_train.astype(dtype=float)], [X_test.astype(dtype=float),
                                                                                 y_test.astype(dtype=float)]
         else:
-            X = np.concatenate([inp for inp in [self.input_data_continuous, self.input_data_descriptors, self.input_data_discrete] if len(inp) != 0], axis=1)
+            X = np.concatenate([inp for inp in [self.input_data_continuous, self.input_data_descriptors, self.input_data_categorical] if len(inp) != 0], axis=1)
             return X.astype(dtype=float)
 
     def _transform_data(self, data, transformation_type=None, reduce=None, divide=None, infer=False, kwargs={}):

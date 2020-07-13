@@ -5,7 +5,7 @@ from summit.experiment import Experiment
 
 import numpy as np
 
-from summit.benchmarks.experiment_emulator.bnn_regressor import BNNEmulator
+from summit.benchmarks.experiment_emulator.bnn_emulator import BNNEmulator
 from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.utils import jsonify_dict, unjsonify_dict
@@ -15,6 +15,28 @@ import matplotlib.pyplot as plt
 
 class ExperimentalEmulator(Experiment):
     """ Experimental Emulator
+
+    Parameters
+    ---------
+    domain: summit.domain.Domain
+        The domain of the experiment
+    dataset: class:~summit.utils.dataset.DataSet, optional
+        A DataSet with data for training where the data columns correspond to the domain and the data rows correspond to the training points.
+        By default: None
+    csv_dataset: string, optional
+        Path to csv_file with data for training where columns correspond to the domain and the rows correspond to the training points.
+        Note that the first row should exactly match the variable names of the domain and the second row should only have "DATA" as entry.
+        By default: None
+    model_name: string, optional
+        Name of the model that is used for saving model parameters. Should be unique.
+        By default: "dataset_emulator_model_name"
+    regressor_type: string, optional
+        Type of the regressor that is used within the emulator (available: "BNN").
+        By default: "BNN"
+    cat_to_descr: Boolean, optional
+        If True, transform categorical variable to one or more continuous variable(s)
+        corresponding to the descriptors of the categorical variable (else do nothing).
+        By default: False
     
     Examples
     --------
@@ -32,15 +54,15 @@ class ExperimentalEmulator(Experiment):
     >>> conditions = DataSet(values, columns=columns)
     >>> results = e.run_experiments(conditions)
 
-    Notes
-    -----
     """
 
 # =======================================================================
 
-    def __init__(self, domain, dataset=None, csv_dataset=None, model_name="dataset_name_emulator_bnn", regressor_type="BNN", **kwargs):
+    def __init__(self, domain, dataset=None, csv_dataset=None, model_name="dataset_name_emulator_bnn", regressor_type="BNN", cat_to_descr=False, **kwargs):
         super().__init__(domain)
         dataset = self._check_datasets(dataset, csv_dataset)
+
+        kwargs["cat_to_descr"] = cat_to_descr
 
         if regressor_type == "BNN":
             self.emulator = BNNEmulator(domain=domain, dataset=dataset, model_name=model_name, kwargs=kwargs)
@@ -174,7 +196,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
         # Decision variables
         des_1 = "Catalyst type - different ligands"
-        domain += DiscreteVariable(
+        domain += CategoricalVariable(
             name="catalyst", description=des_1, levels=["P1-L1", "P2-L1", "P1-L2", "P1-L3", "P1-L4", "P1-L5", "P1-L6", "P1-L7"])
 
         des_2 = "Residence time in seconds (s)"
@@ -292,12 +314,12 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         # Decision variables
         des_1 = "Catalyst type"
-        domain += DiscreteVariable(
+        domain += CategoricalVariable(
             name="catalyst", description=des_1, levels=["tBuXPhos", "tBuBrettPhos", "AlPhos"]
         )
 
         des_2 = "Base"
-        domain += DiscreteVariable(
+        domain += CategoricalVariable(
             name="base", description=des_2, levels=["DBU", "BTMG", "TMG", "TEA"]
         )
 

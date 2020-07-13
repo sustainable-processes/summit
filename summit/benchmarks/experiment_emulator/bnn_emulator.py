@@ -28,17 +28,11 @@ class BNNEmulator(Emulator):
 # =======================================================================
 
     def __init__(self, domain, dataset, model_name, kwargs={}):
-        self._domain = domain
-        self._domain_preprocess()
-
-        self._dataset = dataset
-
-        regression_model = self._setup_model()
-        super().__init__(regression_model)
+        super().__init__(domain, dataset, model_name, kwargs)
+        self._model = self._setup_model()
 
         # Set model name for saving
         self.save_path = kwargs.get("save_path", osp.join(osp.dirname(osp.realpath(__file__)), "trained_models/BNN"))
-        self.model_name = str(model_name)
 
         # Set up training hyperparameters
         self.set_training_hyperparameters()
@@ -326,7 +320,7 @@ class BNNEmulator(Emulator):
                 predictions = prediction_l.mean(axis=0)
                 val_dict[k] = {"MAE": (predictions - y_val).abs().mean().item(),
                                "RMSE": ((((predictions - y_val)**2).mean())**(1/2)).item(),
-                               "r2": r2_score(y_val, predictions)}
+                               "r2": r2_score(y_val, predictions) if y_val.shape[0] > 1 else "Too few data points to calculate r2."}
 
                 if parity_plots:
                     parity_plot = self.create_parity_plot(datasets_pred=[predictions], datasets_real=[y_val], kwargs=kwargs)
@@ -339,11 +333,11 @@ class BNNEmulator(Emulator):
                 val_dict[k] = {"Train":
                                    {"MAE": (y_train_real - y_train_pred).abs().mean().item(),
                                     "RMSE": ((((y_train_real - y_train_pred) ** 2).mean()) ** (1 / 2)).item(),
-                                    "r2": r2_score(y_train_real, y_train_pred)},
+                                    "r2": r2_score(y_train_real, y_train_pred) if y_train_pred.shape[0] > 1 else "Too few data points to calculate r2."},
                                "Test":
                                    {"MAE": (y_test_real - y_test_pred).abs().mean().item(),
                                     "RMSE": ((((y_test_real - y_test_pred) ** 2).mean()) ** (1 / 2)).item(),
-                                    "r2": r2_score(y_test_real, y_test_pred)}
+                                    "r2": r2_score(y_test_real, y_test_pred) if y_test_pred.shape[0] > 1 else "Too few data points to calculate r2."}
                                }
                 if parity_plots:
                     parity_plot = self.create_parity_plot(datasets_pred=[y_train_pred, y_test_pred], datasets_real=[y_train_real, y_test_real], kwargs=kwargs)
