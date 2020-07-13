@@ -25,6 +25,7 @@ scikit-learn = "^0.23.1"
 neptune-client = {version= "^0.4.115", optional = true}
 hiplot = {version= "^0.1.12", optional = true}
 neptune-contrib = {extras = ["viz"], version = "^0.22.0", optional=true}
+pymoo = "^0.4.1"
 
 [tool.poetry.extras]
 neptune = ["neptune-client", "hiplot", "neptune-contrib"]
