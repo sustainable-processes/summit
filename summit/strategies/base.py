@@ -33,9 +33,10 @@ class Transform:
     
     """
 
-    def __init__(self, domain):
+    def __init__(self, domain, **kwargs):
         self.transform_domain = domain.copy()
         self.domain = domain
+        self.transform_descriptors = kwargs.get("transform_descriptors", False)
 
     def transform_inputs_outputs(self, ds: DataSet, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
@@ -55,7 +56,7 @@ class Transform:
             Datasets with the input and output datasets  
         """
         copy = kwargs.get("copy", True)
-        transform_descriptors = kwargs.get("transform_descriptors", False)
+        self.transform_descriptors = kwargs.get("transform_descriptors")
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -65,7 +66,7 @@ class Transform:
         output_columns = []
 
         for variable in self.domain.input_variables:
-            if isinstance(variable, CategoricalVariable) and transform_descriptors:
+            if isinstance(variable, CategoricalVariable) and self.transform_descriptors:
                 # Add descriptors to the dataset
                 indices = new_ds[variable.name].values
                 descriptors = variable.ds.loc[indices]
@@ -492,8 +493,9 @@ class Strategy(ABC):
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
+        self.transform_descriptors = kwargs.get("transform_descriptors", False)
         if transform is None:
-            self.transform = Transform(domain)
+            self.transform = Transform(domain, transform_descriptors=self.transform_descriptors)
         elif isinstance(transform, Transform):
             self.transform = transform
         else:

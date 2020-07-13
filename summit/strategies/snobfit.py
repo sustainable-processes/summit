@@ -1,5 +1,5 @@
 from .base import Strategy, Transform
-from summit.domain import Domain
+from summit.domain import *
 from summit.utils.dataset import DataSet
 
 from SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
@@ -250,8 +250,18 @@ class SNOBFIT(Strategy):
         bounds = []
         for v in self.domain.variables:
             if not v.is_objective:
-                bounds.append(v.bounds)
+                if isinstance(v, ContinuousVariable):
+                    bounds.append(v.bounds)
+                elif isinstance(v, CategoricalVariable) and self.transform_descriptors is True:
+                    if v.ds is not None:
+                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                    else:
+                        raise ValueError("No descriptors given for {}".format(v.name))
+                    for d in descriptors:
+                        bounds.append([np.min(np.asarray(d)), np.max(np.asarray(d))])
         bounds = np.asarray(bounds, dtype=float)
+        print(bounds)
+        print((bounds[:, 1] - bounds[:, 0]))
 
         # Initialization
         x0 = []

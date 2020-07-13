@@ -313,13 +313,32 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         # Decision variables
         des_1 = "Catalyst type"
+        catalyst_df = DataSet(
+            [
+                [460.7543, 67.2057], # 30.8413, 2.3043, 0], #, 424.64, 421.25040226],
+                [518.8408, 89.8738], # 39.4424, 2.5548, 0], #, 487.7, 781.11247064],
+                [819.933, 129.0808], # 83.2017, 4.2959, 0], #, 815.06, 880.74916884],
+            ],
+            index = ['tBuXPhos', 'tBuBrettPhos', 'AlPhos'],
+            columns = ['area_cat', 'M2_cat']#, 'M3_cat', 'Macc3_cat', 'Mdon3_cat'] #,'mol_weight', 'sol']
+        )
         domain += CategoricalVariable(
-            name="catalyst", description=des_1, levels=["tBuXPhos", "tBuBrettPhos", "AlPhos"]
+            name="catalyst", description=des_1, levels=["tBuXPhos", "tBuBrettPhos", "AlPhos"], descriptors=catalyst_df
         )
 
         des_2 = "Base"
+        base_df = DataSet(
+            [
+                [162.2992, 25.8165], # 40.9469, 3.0278, 0], #101.19, 642.2973283],
+                [165.5447, 81.4847], # 107.0287, 10.215, 0.0169], # 115.18, 534.01544123],
+                [227.3523, 30.554], # 14.3676, 1.1196, 0.0127], # 171.28, 839.81215],
+                [192.4693, 59.8367], # 82.0661, 7.42, 0], # 152.24, 1055.82799],
+            ],
+            index = ["TEA", "TMG", "BTMG", "DBU"],
+            columns = ['area', 'M2']#, 'M3', 'Macc3', 'Mdon3'], # 'mol_weight', 'sol']
+        )
         domain += CategoricalVariable(
-            name="base", description=des_2, levels=["DBU", "BTMG", "TMG", "TEA"]
+            name="base", description=des_2, levels=["DBU", "BTMG", "TMG", "TEA"], descriptors=base_df
         )
 
         des_3 = "Base equivalents"
@@ -517,3 +536,53 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
             else:
                 exp.extras.append(e)
         return exp
+
+class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulator):
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.init_domain = self._domain
+        self.mod_domain = self._domain + ContinuousVariable(
+            name="cost",
+            description="cost",
+            bounds=[0.0, 1.0],
+            is_objective=True,
+            maximize=True,
+        )
+        self._domain = self.mod_domain
+
+    def _run(self, conditions, **kwargs):
+        self.domain = self.init_domain
+        conditions, _ = super()._run(self, conditions)
+        costs = self._calculate_costs(conditions)
+        conditions[("cost", "DATA")] = costs
+        self.domain = self.init_domain
+        return conditions, _
+
+    def _calculate_costs(self, conditions):
+        condition = DataSet.from_df(conditions.to_frame().T)
+        catalyst = str(condition["catalyst", "DATA"].iloc[0])
+        base = str(condition["base", "DATA"].iloc[0])
+        base_equ = float(condition["base_equivalents", "DATA"])
+        cost_catalyst = self._get_catalyst_cost(catalyst)
+        cost_base = self._get_base_cost(base, base_equ)
+        return float(cost_catalyst + cost_base)
+
+    def _get_catalyst_cost(self, catalyst):
+        catalyst_prices = {
+            "tBuXPhos": 10,
+            "tBuBrettPhos": 100,
+            "AlPhos": 1000,
+        }
+        return float(catalyst_prices[catalyst])
+
+    def _get_base_cost(self, base, base_equ):
+        base_prices = {
+            "DBU": 1,
+            "BTMG": 2,
+            "TMG": 3,
+            "TEA": 4,
+        }
+        return float(base_prices[base] * base_equ)
+
+

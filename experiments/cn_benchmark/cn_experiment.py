@@ -1,7 +1,7 @@
 import pytest
 
 from summit import *
-from summit.benchmarks import SnarBenchmark
+from summit.benchmarks import BaumgartnerCrossCouplingEmulator_Yield_Cost
 from summit.strategies import *
 
 import warnings
@@ -16,25 +16,26 @@ NUM_REPEATS=20
 MAX_EXPERIMENTS=100
 NEPTUNE_PROJECT="sustainable-processes/summit"
 
-#SnAr benchmark with 2.5% experimental measurement noise
-experiment = SnarBenchmark(noise_level_percent=2.5)
+# Cross Coupling Benchmark by Emulator trained on Baumgartner et al. (2019) data
+experiment = BaumgartnerCrossCouplingEmulator_Yield_Cost()
+print(experiment.domain.variables)
 
 # Transforms from multi to single objective
-hierarchies = [{'sty': {'hierarchy': 0, 'tolerance': 1}, 
-                'e_factor': {'hierarchy': 1, 'tolerance': 1}},
+hierarchies = [{'yield': {'hierarchy': 0, 'tolerance': 1},
+                'cost': {'hierarchy': 1, 'tolerance': 1}},
                
-               {'sty': {'hierarchy': 0, 'tolerance': 0.5}, 
-                'e_factor': {'hierarchy': 1, 'tolerance': 0.5}},
+               {'yield': {'hierarchy': 0, 'tolerance': 0.5},
+                'cost': {'hierarchy': 1, 'tolerance': 0.5}},
                
-               {'sty': {'hierarchy': 0, 'tolerance': 1.0}, 
-                'e_factor': {'hierarchy': 1, 'tolerance': 0.5}},
+               {'yield': {'hierarchy': 0, 'tolerance': 1.0},
+                'cost': {'hierarchy': 1, 'tolerance': 0.5}},
                
-               {'sty': {'hierarchy': 0, 'tolerance': 0.5}, 
-                'e_factor': {'hierarchy': 1, 'tolerance': 1.0}}
+               {'yield': {'hierarchy': 0, 'tolerance': 0.5},
+                'cost': {'hierarchy': 1, 'tolerance': 1.0}}
               ]
 transforms = [Chimera(experiment.domain, hierarchies[2]),
               MultitoSingleObjective(experiment.domain, 
-                                     expression='-sty/1e4+e_factor/100', 
+                                     expression='-yield+cost/123',
                                      maximize=False),
               Chimera(experiment.domain, hierarchies[0]),
               Chimera(experiment.domain, hierarchies[1]),
@@ -43,10 +44,10 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 ]
 
 # Run experiments
-@pytest.mark.parametrize('strategy', [NelderMead, SNOBFIT, Random, SOBO])
+@pytest.mark.parametrize('strategy', [NelderMead, SNOBFIT, Random, SOBO, FullFactorial, GRYFFIN])
 @pytest.mark.parametrize('transform', transforms)
 @pytest.mark.parametrize('batch_size', [1,24])
-def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
+def test_cn_experiment(strategy, transform, batch_size):
     warnings.filterwarnings('ignore', category=RuntimeWarning)
     for i in range(NUM_REPEATS):
         experiment.reset()
@@ -60,8 +61,8 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
 
         r = NeptuneRunner(experiment=experiment, strategy=s, 
                           neptune_project=NEPTUNE_PROJECT,
-                          neptune_experiment_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}",
-                          files=["snar_experiment.py"],
+                          neptune_experiment_name=f"cn_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}",
+                          files=["experimental_emulator"],
                           max_iterations=MAX_EXPERIMENTS//batch_size,
                           batch_size=batch_size,
                           f_tol=f_tol)
