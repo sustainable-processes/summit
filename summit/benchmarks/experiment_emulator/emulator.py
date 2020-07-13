@@ -20,6 +20,9 @@ class Emulator(ABC):
     dataset: summit.utils.dataset.Dataset
         The data points obtained from an experiment the emulator
         is trained on.
+    model_name: string, optional
+        Name of the model that is used for saving model parameters. Should be unique.
+        By default: "dataset_emulator_model_name"
 
     Notes
     -----

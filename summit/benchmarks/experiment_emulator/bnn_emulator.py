@@ -22,7 +22,16 @@ class BNNEmulator(Emulator):
 
     A Bayesian Neural Network (BNN) emulator.
 
-
+    Parameters
+    ---------
+    domain: summit.domain.Domain
+        The domain of the experiment
+    dataset: class:~summit.utils.dataset.DataSet, optional
+        A DataSet with data for training where the data columns correspond to the domain and the data rows correspond to the training points.
+        By default: None
+    model_name: string, optional
+        Name of the model that is used for saving model parameters. Should be unique.
+        By default: "dataset_emulator_model_name"
     """
 
 # =======================================================================
@@ -177,6 +186,10 @@ class BNNEmulator(Emulator):
                     continue
 
                 # Setup train and val dataset for cross-validation
+                if cv_fold <= 1:
+                    raise ValueError("{}-fold Cross-Validation not possible. Increase cv_fold.".format(cv_fold))
+                if len(X_train) < cv_fold:
+                    raise ValueError("Too few data points ({}) for training provided. Decrease cv_fold.".format(len(X_train)))
                 n = len(X_train) // cv_fold
                 r = len(X_train) % cv_fold
                 val_mask = torch.zeros(len(X_train), dtype=torch.uint8)
@@ -252,12 +265,12 @@ class BNNEmulator(Emulator):
             y_train_pred_l, y_train_real_l, y_test_pred_l, y_test_real_l = \
                 torch.tensor(y_train_pred_l), torch.tensor(y_train_real_l), torch.tensor(y_test_pred_l), torch.tensor(y_test_real_l)
 
-            X_train = np.asarray(X_train_init.tolist())
-            X_test = np.asarray(X_test.tolist())
+            X_train_final = np.asarray(X_train_init.tolist())
+            X_test_final = np.asarray(X_test.tolist())
             for ind, inp_var in enumerate(self.input_names_transformable):
                 tmp_inp_transform = self.data_transformation_dict[inp_var]
-                X_train[:,ind] = self._untransform_data(data=X_train[:,ind], reduce=tmp_inp_transform[0], divide=tmp_inp_transform[1])
-                X_test[:,ind] = self._untransform_data(data=X_test[:,ind], reduce=tmp_inp_transform[0], divide=tmp_inp_transform[1])
+                X_train_final[:,ind] = self._untransform_data(data=X_train_final[:,ind], reduce=tmp_inp_transform[0], divide=tmp_inp_transform[1])
+                X_test_final[:,ind] = self._untransform_data(data=X_test_final[:,ind], reduce=tmp_inp_transform[0], divide=tmp_inp_transform[1])
 
             self.output_models[k] = {
                 "model_save_dirs": [self.model_name + "_" + str(k) + "_" + str(j+1) for j in range(cv_fold)],
@@ -266,10 +279,10 @@ class BNNEmulator(Emulator):
                 "Final test MAE": test_acc.mean().tolist(),
                 "data_transformation_dict": self.data_transformation_dict,
                 "X variable names": self.input_names,
-                "X_train": X_train.tolist(),
+                "X_train": X_train_final.tolist(),
                 "y_train_real": y_train_real_l.mean(axis=0).tolist(),
                 "y_train_pred_average": y_train_pred_l.mean(axis=0).tolist(),
-                "X_test": X_test.tolist(),
+                "X_test": X_test_final.tolist(),
                 "y_test_real": y_test_real_l.mean(axis=0).tolist(),
                 "y_test_pred_average": y_test_pred_l.mean(axis=0).tolist()
             }

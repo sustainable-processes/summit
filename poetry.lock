@@ -129,7 +129,7 @@ description = "A simple and extensible library to create Bayesian Neural Network
 name = "blitz-bayesian-pytorch"
 optional = false
 python-versions = "*"
-version = "0.2.5"
+version = "0.2.3"
 
 [package.dependencies]
 numpy = "*"
@@ -1531,7 +1531,7 @@ testing = ["jaraco.itertools", "func-timeout"]
 neptune = ["neptune-client", "hiplot", "neptune-contrib"]
 
 [metadata]
-content-hash = "0d82d66009c3b482cf43aedd1de5b19923792e46aac6c6a5dab6615470f2556f"
+content-hash = "30958f0937d5f57cd817c730f0bd3e49fbbbd92053a1fcb3bca3f855fb5f0759"
 python-versions = "^3.6.1"
 
 [metadata.files]
@@ -1577,8 +1577,8 @@ bleach = [
     {file = "bleach-3.1.5.tar.gz", hash = "sha256:3c4c520fdb9db59ef139915a5db79f8b51bc2a7257ea0389f30c846883430a4b"},
 ]
 blitz-bayesian-pytorch = [
-    {file = "blitz-bayesian-pytorch-0.2.5.tar.gz", hash = "sha256:0b2819b7cb2f176dbfaa5464102acf29875c2f6799f6172ef4dcfc04d4305dd7"},
-    {file = "blitz_bayesian_pytorch-0.2.5-py3-none-any.whl", hash = "sha256:4e1568e92551b47e3cefb3d623087f56e71418fb1d295bce2bb273f006f32bcd"},
+    {file = "blitz-bayesian-pytorch-0.2.3.tar.gz", hash = "sha256:b7933d31f9c8ea285ebf35f7659eb031a9091a57e30197c7a206c0068b86f3f2"},
+    {file = "blitz_bayesian_pytorch-0.2.3-py3-none-any.whl", hash = "sha256:a255229bbe0600fe747915752d5cb4be32bc5f3c860e5a2910df648962d41594"},
 ]
 bravado = [
     {file = "bravado-10.6.2-py2.py3-none-any.whl", hash = "sha256:e3623a6cd551c650bcb1f7881f08c4f767bc2e8cbac0c0f63ffbbb9835855d46"},

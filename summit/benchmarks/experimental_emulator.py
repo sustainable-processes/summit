@@ -10,8 +10,6 @@ from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.utils import jsonify_dict, unjsonify_dict
 
-import matplotlib.pyplot as plt
-
 
 class ExperimentalEmulator(Experiment):
     """ Experimental Emulator
@@ -44,9 +42,9 @@ class ExperimentalEmulator(Experiment):
     >>> e = ExperimentalEmulator(domain=test_domain, model_name="Pytest")
     No trained model for Pytest. Train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.
     >>> columns = [v.name for v in e.domain.variables]
-    >>> train_values = {("catalyst", "DATA"): ["P1-L2", "P1-L7", "P1-L3"], ("t_res", "DATA"): [60, 120, 110], ("temperature", "DATA"): [110, 170, 250], ("catalyst_loading", "DATA"): [0.508, 0.6, 1.4], ("yield", "DATA"): [20, 40, 60], ("ton", "DATA"): [33, 34, 21]}
+    >>> train_values = {("catalyst", "DATA"): ["P1-L2", "P1-L7", "P1-L3", "P1-L3"], ("t_res", "DATA"): [60, 120, 110, 250], ("temperature", "DATA"): [110, 30, 70, 80], ("catalyst_loading", "DATA"): [0.508, 0.6, 1.4, 1.3], ("yield", "DATA"): [20, 40, 60, 34], ("ton", "DATA"): [33, 34, 21, 22]}
     >>> train_dataset = DataSet(train_values, columns=columns)
-    >>> e.train(train_dataset, verbose=False, test_size=0.1)
+    >>> e.train(train_dataset, verbose=False, cv_fold=2, test_size=0.25)
     >>> columns = [v.name for v in e.domain.variables]
     >>> values = [float(v.bounds[0] + 0.6 * (v.bounds[1] - v.bounds[0])) if v.variable_type == 'continuous' else v.levels[-1] for v in e.domain.variables]
     >>> values = np.array(values)
@@ -92,10 +90,10 @@ class ExperimentalEmulator(Experiment):
 
 # =======================================================================
 
-    def validate(self, dataset=None, csv_dataset=None, parity_plots=False, **kwargs):
+    def validate(self, dataset=None, csv_dataset=None, parity_plots=False, get_pred=False, **kwargs):
         dataset = self._check_datasets(dataset, csv_dataset)
         if dataset is not None:
-            return self.emulator.validate_model(dataset=dataset, parity_plots=parity_plots, kwargs=kwargs)
+            return self.emulator.validate_model(dataset=dataset, parity_plots=parity_plots, get_pred=get_pred, kwargs=kwargs)
         else:
             try:
                 print("Evaluation based on training and test set.")
@@ -302,9 +300,10 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 # =======================================================================
 
     def __init__(self, **kwargs):
-        model_name = "baumgartner_aniline_cn_crosscoupling"
+        model_name = kwargs.get("model_name", "baumgartner_aniline_cn_crosscoupling")
+        dataset_file = kwargs.get("dataset_file", "baumgartner_aniline_cn_crosscoupling.csv")
         domain = self.setup_domain()
-        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + model_name + ".csv")
+        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + dataset_file)
         super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
 
 # =======================================================================
@@ -413,9 +412,10 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
 # =======================================================================
 
     def __init__(self, **kwargs):
-        model_name = "baumgartner_aniline_cn_crosscoupling_descriptors"
+        model_name = kwargs.get("model_name", "baumgartner_aniline_cn_crosscoupling_descriptors")
+        dataset_file = kwargs.get("dataset_file",  "baumgartner_aniline_cn_crosscoupling_descriptors.csv")
         domain = self.setup_domain()
-        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + model_name + ".csv")
+        dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + dataset_file)
         super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
 
 # =======================================================================

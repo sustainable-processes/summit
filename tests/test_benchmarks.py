@@ -1,5 +1,5 @@
 import pytest
-from summit.benchmarks import SnarBenchmark, Hartmann3D, Himmelblau, ThreeHumpCamel, ReizmanSuzukiEmulator
+from summit.benchmarks import SnarBenchmark, Hartmann3D, Himmelblau, ThreeHumpCamel, ReizmanSuzukiEmulator, BaumgartnerCrossCouplingEmulator
 from summit.utils.dataset import DataSet
 import numpy as np
 
@@ -30,24 +30,26 @@ def test_snar_benchmark():
     return results
 
 
-def test_reizman_suzuki_emulator():
-    """ Test the Reizman Suzuki emulator"""
-    b = ReizmanSuzukiEmulator(case=1)
+def test_baumgartner_CC_emulator():
+    """ Test the Baumgartner Cross Coupling emulator"""
+    b = BaumgartnerCrossCouplingEmulator()
     columns = [v.name for v in b.domain.variables]
     values = {
-        ("catalyst", "DATA"): "P1-L2",
-        ("t_res", "DATA"): 60,
-        ("temperature", "DATA"): 110,
-        ("catalyst_loading", "DATA"): 0.508,
+        ("catalyst", "DATA"): "tBuXPhos",
+        ("base", "DATA"): "DBU",
+        ("t_res", "DATA"): 328.717801570892,
+        ("temperature", "DATA"): 30,
+        ("base_equivalents", "DATA"): 2.18301549894049,
+        ("yield", "DATA"): 0.19,
     }
     conditions = DataSet([values], columns=columns)
     results = b.run_experiments(conditions)
 
     assert str(results["catalyst", "DATA"].iloc[0]) == values["catalyst", "DATA"]
+    assert str(results["base", "DATA"].iloc[0]) == values["base", "DATA"]
     assert float(results["t_res"]) == values["t_res", "DATA"]
     assert float(results["temperature"]) == values["temperature", "DATA"]
-    assert float(results["catalyst_loading"]) == values["catalyst_loading", "DATA"]
-    assert np.isclose(float(results["ton"]), 16.513082)
-    assert np.isclose(float(results["yield"]), 1.643731)
+    print(float(results["yield"]))
+    assert np.isclose(float(results["yield"]), 0.173581)
 
     return results
