@@ -5,6 +5,7 @@ from .tsemo import TSEMO2
 from .neldermead import NelderMead
 from .snobfit import SNOBFIT
 from .sobo import SOBO
+from .gryffin import GRYFFIN
 
 def strategy_from_dict(d):
     if d["name"] == "TSEMO2":
@@ -21,5 +22,8 @@ def strategy_from_dict(d):
         return Random.from_dict(d)
     elif d["name"] == "LHS":
         return LHS.from_dict(d)
+    elif d["name"] == "Gryffin":
+        return GRYFFIN.from_dict(d)
     else:
         raise ValueError(f"""Strategy {d["name"]} not found.""")
+

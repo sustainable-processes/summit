@@ -188,6 +188,7 @@ class Himmelblau(Experiment):
         else:
             return ax
 
+
 class Hartmann3D(Experiment):
     """ Hartmann test function (3D) for testing optimization algorithms
 

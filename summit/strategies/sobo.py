@@ -86,7 +86,7 @@ class SOBO(Strategy):
                     if v.ds is None:
                         self.input_domain.append(
                             {'name': v.name,
-                            'type': 'discrete',
+                            'type': 'categorical',
                             'domain': tuple(v.levels)})
                     # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
                     else:
@@ -98,7 +98,7 @@ class SOBO(Strategy):
                         self.input_domain.append({'name': v.name,
                                                 'type': 'categorical',
                                                 'domain': tuple(np.arange(v.ds.data_to_numpy().shape[0]).tolist())})
-                    '''
+                        '''
                 else:
                     raise TypeError('Unknown variable type.')
 
