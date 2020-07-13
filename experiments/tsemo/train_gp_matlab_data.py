@@ -59,13 +59,6 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
         print(f"Model {name} variance: {hyp[1]}")
         print(f"Model {name} noise: {hyp[2]}")
 
-    # Spectral sampling
-    if use_spectral_sample:
-        print(f"Spectral sampling with {n_spectral_points} spectral points.")
-        for model in models.models.values():
-            model.spectral_sample(X_train_scaled, y_train_scaled, 
-                                  n_spectral_points=n_spectral_points)
-
     # Model validation
     rmse = lambda pred, actual: np.sqrt(np.mean((pred-actual)**2, axis=0))
 
@@ -82,6 +75,15 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
     y_pred_test = y_pred_test_scaled*y_std+y_mean
     rmse_test= rmse(y_pred_test.to_numpy(), y_test.to_numpy())
     print(f"RMSE test y0 ={rmse_test[0].round(2)}, RMSE test y1={rmse_test[1].round(2)}")
+
+    # Spectral sampling
+    if use_spectral_sample:
+        print(f"Spectral sampling with {n_spectral_points} spectral points.")
+        for name, model in models.models.items():
+            model.spectral_sample(X_train_scaled, y_train_scaled[[name]], 
+                                  n_spectral_points=n_spectral_points)
+
+
 
     # Model validation on spectral sampling
     if  use_spectral_sample:
@@ -132,7 +134,7 @@ def fit_and_test(n_training_matlab, num_restarts=100, max_iters=2000, n_spectral
 if __name__=='__main__':
     results = []
     use_spectral_sample=True
-    n_spectral_points=4000
+    n_spectral_points=1000
     num_restarts=100
     for i in range(10):
         res = fit_and_test(

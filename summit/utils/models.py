@@ -274,16 +274,19 @@ class GPyModel(BaseEstimator, RegressorMixin):
             pass
         else:
             raise TypeError("Y must be a DataSet or numpy array")
+
+        if y.shape[1] > 1:
+            raise ValueError("Y must be 1D")
         
         # Spectral sampling. Clip values to match Matlab implementation
         noise = self._model.Gaussian_noise.variance.values[0]
         sampled_f = None
         for i in range(n_retries):
             try:
-                sampled_f = pyrff.sample_rff(
-                    lengthscales=self._model.kern.lengthscale.values,
-                    scaling=np.sqrt(self._model.kern.variance.values[0]),
-                    noise=np.sqrt(noise),
+                sampled_f = spectral_sample(
+                    lengthscales=self._model.kern.lengthscale.values.round(3),
+                    scaling=np.sqrt(self._model.kern.variance.values[0]).round(3),
+                    noise=noise.round(3),
                     kernel_nu=matern_nu,
                     X=X,
                     Y=y[:,0],
@@ -302,7 +305,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         def f(x_new):
             y_s = sampled_f(x_new)
             return np.atleast_2d(y_s).T   
-        self.sampled_f = f
+        self.sampled_f = f  
         return self.sampled_f
     
     @property
@@ -342,7 +345,7 @@ def spectral_sample(lengthscales, scaling, noise, kernel_nu, X, Y, M):
         # Get variables from problem structure
         n, D = np.shape(X)
         ell = np.array(lengthscales) 
-        sf2 = scaling
+        sf2 = scaling**2
         sn2 = noise
 
         # Monte carlo samples of W and b
@@ -389,7 +392,7 @@ def spectral_sample(lengthscales, scaling, noise, kernel_nu, X, Y, M):
             inputs, _ = np.shape(x)
             bprime = matlib.repmat(b, 1, inputs)
             output =  (theta.T*np.sqrt(2*sf2/M))@np.cos(W@x.T+bprime)
-            return np.atleast_2d(output).T
+            return output
         return f
 
 class AnalyticalModel(Model):
