@@ -130,7 +130,7 @@ class DataSet(pd.core.frame.DataFrame):
             if c[1] == "METADATA":
                 metadata_columns.append(c[0])
         columns = [c[0] for c in d["columns"]]
-        return DataSet(d["data"], columns=columns, metadata_columns=metadata_columns)
+        return DataSet(d["data"], index=d["index"], columns=columns, metadata_columns=metadata_columns)
 
     def zero_to_one(self, small_tol=1.0e-5) -> np.ndarray:
         """ Scale the data columns between zero and one 

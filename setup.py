@@ -36,14 +36,15 @@ setup(
     package_data={},
     install_requires=[
         'fastprogress==0.*,>=0.2.3', 'gpy==1.*,>=1.9.0', 'gpyopt==1.*,>=1.2.6',
-        'ipywidgets==7.*,>=7.5.1', 'numpy==1.16.0', 'pandas==1.0.3',
-        'platypus-opt==1.*,>=1.0.0', 'sklearn==0.*,>=0.0.0',
+        'ipywidgets==7.*,>=7.5.1', 'matplotlib==3.*,>=3.2.2', 'numpy==1.18.0',
+        'pandas==1.0.3', 'platypus-opt==1.*,>=1.0.0', 'sklearn==0.*,>=0.0.0',
         'sqsnobfit==0.*,>=0.4.3', 'tqdm==4.*,>=4.46.1'
     ],
     extras_require={
         'dev': [
             'black==19.*,>=19.10.0', 'ipdb==0.*,>=0.13.2',
             'jupyterlab==2.*,>=2.1.4', 'pytest==3.*,>=3.0.0'
-        ]
+        ],
+        'extras': ['neptune-client==0.*,>=0.4.115']
     },
 )

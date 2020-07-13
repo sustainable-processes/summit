@@ -1,11 +1,4 @@
-from summit.domain import (
-    Variable,
-    ContinuousVariable,
-    DiscreteVariable,
-    DescriptorsVariable,
-    Constraint,
-    Domain,
-)
+from summit.domain import *
 from summit.utils.dataset import DataSet
 import pytest
 
@@ -53,9 +46,9 @@ def test_continuous_variable():
     assert var.maximize == new_var.maximize
 
 
-def test_discrete_variable():
+def test_categorical_variable():
     levels = ["benzene", "toluene", 1]
-    var = DiscreteVariable(
+    var = CategoricalVariable(
         name="reactant", description="aromatic reactant", levels=levels
     )
     assert isinstance(var, Variable)
@@ -69,16 +62,16 @@ def test_discrete_variable():
     # Make sure exception raised on non unique levels
     levels = ["benzene", "benzene"]
     with pytest.raises(ValueError):
-        var = DiscreteVariable(name="nu", description="not_unique", levels=levels)
+        var = CategoricalVariable(name="nu", description="not_unique", levels=levels)
 
     # Make sure exception raise if a list is not passed
     levels = ("benzene", "toluene")
     with pytest.raises(TypeError):
-        var = DiscreteVariable(name="nl", description="not_list", levels=levels)
+        var = CategoricalVariable(name="nl", description="not_list", levels=levels)
 
     # Test serialization
     ser = var.to_dict()
-    new_var = DiscreteVariable.from_dict(ser)
+    new_var = CategoricalVariable.from_dict(ser)
     assert isinstance(new_var, Variable)
     assert var.name == new_var.name
     assert var.description == new_var.description
@@ -95,23 +88,22 @@ def test_discrete_variable():
         var.remove_level("does_not_exist")
 
 
-def test_descriptors_variable():
     # I should probably mock the dataset but I'm lazy
     solvent_ds = DataSet(
         [[5, 81], [-93, 111]],
         index=["benzene", "toluene"],
         columns=["melting_point", "boiling_point"],
     )
-    var = DescriptorsVariable("solvent", "solvent descriptors", solvent_ds)
+    var = CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
     assert isinstance(var, Variable)
     assert var.name == "solvent"
     assert var.description == "solvent descriptors"
     assert all(var.ds) == all(solvent_ds)
-    assert var.num_examples == 2
+    assert var.num_levels == 2
 
     # Test serialization
     ser = var.to_dict()
-    new_var = DescriptorsVariable.from_dict(ser)
+    new_var = CategoricalVariable.from_dict(ser)
     assert var.name == new_var.name
     assert var.description == new_var.description
     assert all(var.ds) == all(new_var.ds)
@@ -137,7 +129,7 @@ def test_domain():
     var3 = ContinuousVariable(
         name="flowrate_b", description="flowrate of reactant b", bounds=[1, 100]
     )
-    var4 = DiscreteVariable(
+    var4 = CategoricalVariable(
         name="base",
         description="base additive",
         levels=["potassium_hydroxide", "sodium_hydroxide"],
@@ -147,7 +139,7 @@ def test_domain():
         index=["benzene", "toluene"],
         columns=["melting_point", "boiling_point"],
     )
-    var5 = DescriptorsVariable("solvent", "solvent descriptors", solvent_ds)
+    var5 = CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
     var6 = ContinuousVariable(
         name="yield",
         description="yield of reaction",
@@ -161,12 +153,12 @@ def test_domain():
     input_variables = [var1, var2, var3, var4, var5]
     assert domain.input_variables == input_variables
     assert domain.output_variables == [var6]
-    assert domain.num_variables() == 5
+    assert domain.num_variables() == 5 #not including outputs
     assert domain.num_variables(include_outputs=True) == 6
-    assert domain.num_discrete_variables() == 1
-    assert domain.num_discrete_variables(include_outputs=True) == 1
-    assert domain.num_continuous_dimensions() == 5
-    assert domain.num_continuous_dimensions(include_outputs=True) == 6
+    assert domain.num_continuous_dimensions() == 3 #Not including outputs or descriptors 
+    assert domain.num_continuous_dimensions(include_outputs=True) == 4
+    assert domain.num_continuous_dimensions(include_descriptors=True) == 5
+    assert domain.num_continuous_dimensions(include_outputs=True, include_descriptors=True) == 6
     assert domain.constraints == [c]
 
     # Test the adding feature
@@ -175,15 +167,14 @@ def test_domain():
         domain += var
     domain += var6
     domain += c
-    input_variables = [var1, var2, var3, var4, var5]
     assert domain.input_variables == input_variables
     assert domain.output_variables == [var6]
-    assert domain.num_variables() == 5
+    assert domain.num_variables() == 5 #not including outputs
     assert domain.num_variables(include_outputs=True) == 6
-    assert domain.num_discrete_variables() == 1
-    assert domain.num_discrete_variables(include_outputs=True) == 1
-    assert domain.num_continuous_dimensions() == 5
-    assert domain.num_continuous_dimensions(include_outputs=True) == 6
+    assert domain.num_continuous_dimensions() == 3 #Not including outputs or descriptors 
+    assert domain.num_continuous_dimensions(include_outputs=True) == 4
+    assert domain.num_continuous_dimensions(include_descriptors=True) == 5
+    assert domain.num_continuous_dimensions(include_outputs=True, include_descriptors=True) == 6
     assert domain.constraints == [c]
 
     # Test sending wrong type
@@ -200,18 +191,11 @@ def test_domain():
     domain = Domain(variables=[var1, var2, var3, var4, var5, var6], constraints=[c])
     ser = domain.to_dict()
     new_domain = Domain.from_dict(ser)
-    # assert domain.input_variables == new_domain.input_variables
-    # assert domain.output_variables == new_domain.output_variables
     assert domain.num_variables() == new_domain.num_variables()
     assert domain.num_variables(include_outputs=True) == new_domain.num_variables(
         include_outputs=True
     )
-    assert domain.num_discrete_variables() == new_domain.num_discrete_variables()
-    assert domain.num_discrete_variables(
-        include_outputs=True
-    ) == new_domain.num_discrete_variables(include_outputs=True)
     assert domain.num_continuous_dimensions() == new_domain.num_continuous_dimensions()
     assert domain.num_continuous_dimensions(
         include_outputs=True
     ) == new_domain.num_continuous_dimensions(include_outputs=True)
-    # assert domain.constraints == new_domain.constraints
