@@ -119,8 +119,9 @@ class DataSet(pd.core.frame.DataFrame):
         df = pd.read_csv(filepath_or_buffer, header=header, index_col=index_col)
         return DataSet(df.to_numpy(), columns=df.columns, index=df.index)
 
-    def to_dict(self):
-        return super().to_dict(orient="split")
+    def to_dict(self, **kwargs):
+        orient = kwargs.get("orient", "split")
+        return super().to_dict(orient=orient)
 
     @classmethod
     def from_dict(cls, d):
