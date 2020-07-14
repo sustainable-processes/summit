@@ -149,7 +149,8 @@ class TSEMO(Strategy):
         self.output_mean = outputs.mean()
         self.output_std = outputs.std()
         outputs_scaled = (outputs-self.output_mean)/self.output_std
-        import ipdb; ipdb.set_trace()
+
+        # Set up models
         num_restarts=kwargs.get("num_restarts", 100)
         print(f"Fitting models (number of optimization restarts={num_restarts})\n")
         kerns = [GPy.kern.Exponential(input_dim=3,ARD=True) for _ in range(2)]
@@ -162,7 +163,7 @@ class TSEMO(Strategy):
         
         rmse_train = np.zeros(2)
         rmse_train_spectral = np.zeros(2)
-        rffs = [0 for  _ in range(len(self.domain.output_variables))]
+        rffs = [None for  _ in range(len(self.domain.output_variables))]
         i = 0
         for name, model in models.items():
             # Constrain hyperparameters
@@ -207,16 +208,27 @@ class TSEMO(Strategy):
                 raise TypeError("Spectral sample currently only works with Matern type kernels, including RBF.")
             
             n_spectral_points = kwargs.get('n_spectral_points', 4000)
+            n_retries = kwargs.get('n_retries',10)
             print(f"Spectral sampling {name} with {n_spectral_points} spectral points.")
-            rffs[i] = pyrff.sample_rff(
-                lengthscales=lengthscale,
-                scaling=np.sqrt(variance),
-                noise=noise,
-                kernel_nu=matern_nu,
-                X=inputs_scaled.to_numpy(),
-                Y=outputs_scaled[[name]].to_numpy()[:,0],
-                M=n_spectral_points
-            )
+            for _ in range(n_retries):
+                try:
+                    rffs[i] = pyrff.sample_rff(
+                        lengthscales=lengthscale,
+                        scaling=np.sqrt(variance),
+                        noise=noise,
+                        kernel_nu=matern_nu,
+                        X=inputs_scaled.to_numpy(),
+                        Y=outputs_scaled[[name]].to_numpy()[:,0],
+                        M=n_spectral_points
+                )
+                    break
+                except np.linalg.LinAlgError as e:
+                    self.logger.error(e)
+                except ValueError as e:
+                    self.logger.error(e)
+            if rffs[i] is None:
+                raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
+
             sample_f = lambda x: np.atleast_2d(rffs[i](x)).T
 
             rmse_train_spectral[i] = rmse(sample_f(inputs_scaled.to_numpy()), 
@@ -229,15 +241,18 @@ class TSEMO(Strategy):
             print('\n')
             
         # Save spectral samples
-        dp_results = pathlib.Path('TSEMO_DATA', 'models.h5')
-        pyrff.save_rffs(rffs, dp_results)
+        
+        dp_results = pathlib.Path('TSEMO_DATA')
+        dp_results.mkdir(exist_ok=True)
+        pyrff.save_rffs(rffs, pathlib.Path(dp_results, 'models.h5'))
 
         # NSGAII internal optimisation
         generations = kwargs.get("generations", 100)
         pop_size = kwargs.get("pop_size", 100)
         self.logger.info("Optimizing models using NSGAII.")
         optimizer = NSGA2(pop_size=pop_size)
-        problem = TSEMOInternalWrapper(dp_results, self.domain)
+        problem = TSEMOInternalWrapper(pathlib.Path(dp_results, 'models.h5'),
+                                       self.domain)
         termination = get_termination("n_gen", generations)
         self.internal_res = minimize(
             problem, optimizer, termination, seed=1, verbose=False
@@ -444,7 +459,7 @@ class TSEMOInternalWrapper(Problem):
         # X = DataSet(np.atleast_2d(X), columns=input_columns)
         F = np.zeros([X.shape[0], self.n_obj])
         for i in range(self.n_obj):
-            F[:,i] = self.rffs[i](X)[:,0]
+            F[:,i] = self.rffs[i](X)
         
         # Negate objectives that are need to be maximized
         for i, v in enumerate(self.domain.output_variables):
