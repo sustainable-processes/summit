@@ -11,8 +11,6 @@ logging.basicConfig(level=logging.INFO)
 token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
-
-NUM_REPEATS=20
 MAX_EXPERIMENTS=100
 NEPTUNE_PROJECT="sustainable-processes/summit"
 
@@ -43,12 +41,9 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 ]
 
 # Run experiments
-@pytest.mark.parametrize('strategy', [NelderMead, SNOBFIT, Random, SOBO])
-@pytest.mark.parametrize('transform', transforms)
-@pytest.mark.parametrize('batch_size', [1,24])
 def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
     warnings.filterwarnings('ignore', category=RuntimeWarning)
-    for i in range(NUM_REPEATS):
+    for i in range(num_repeats):
         experiment.reset()
         s = strategy(experiment.domain, transform=transform)
 
@@ -66,3 +61,11 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
                           batch_size=batch_size,
                           f_tol=f_tol)
         r.run(save_at_end=True)
+
+if __name__== "__main__":
+    # Test Factorial DoE
+    test_snar_experiment(strategy=FullFactorial, transform=None, batch_szie=1)
+
+    # Test Gryffin
+    for transform in transforms:
+        test_snar_experiment(strategy=GRYFFIN, transform=transform, batch_size=1)
