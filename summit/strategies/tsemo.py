@@ -2,7 +2,6 @@ from .base import Strategy, Transform
 from .random import LHS
 from summit.domain import Domain, DomainError
 from summit.utils.multiobjective import pareto_efficient, hypervolume
-from summit.utils.optimizers import NSGAII
 from summit.utils.models import ModelGroup, GPyModel
 from summit.utils.dataset import DataSet
 from GPy.models import GPRegression as gpr
