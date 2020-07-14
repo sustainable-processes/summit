@@ -18,7 +18,7 @@ if os.path.exists(readme_path):
     with open(readme_path, 'rb') as stream:
         readme = stream.read().decode('utf8')
 
-setup(
+setup(  
     long_description=readme,
     name='summit',
     version='0.4.0',
