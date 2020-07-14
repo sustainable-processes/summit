@@ -65,8 +65,6 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
         r.run(save_at_end=True)
 
 if __name__== "__main__":
-    # Test Factorial DoE
-    test_snar_experiment(strategy=FullFactorial, transform=None, batch_szie=1)
 
     # Test Gryffin
     for transform in transforms:
