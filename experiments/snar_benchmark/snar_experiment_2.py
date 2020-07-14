@@ -66,6 +66,7 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
 
 if __name__== "__main__":
 
-    # Test Gryffin
+    # Test Gryffin and TSEMO
     for transform in transforms:
         test_snar_experiment(strategy=GRYFFIN, transform=transform, batch_size=1)
+        test_snar_experiment(strategy=TSEMO, transform=transform, batch_size=1)
