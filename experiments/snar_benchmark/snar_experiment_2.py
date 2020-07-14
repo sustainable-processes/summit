@@ -43,9 +43,6 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 ]
 
 # Run experiments
-@pytest.mark.parametrize('strategy', [Griffyn])
-@pytest.mark.parametrize('transform', transforms)
-@pytest.mark.parametrize('batch_size', [1,24])
 def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
     warnings.filterwarnings('ignore', category=RuntimeWarning)
     for i in range(NUM_REPEATS):
@@ -66,3 +63,11 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
                           batch_size=batch_size,
                           f_tol=f_tol)
         r.run(save_at_end=True)
+
+if __name__== "__main__":
+    # Test Factorial DoE
+    test_snar_experiment(strategy=FullFactorial, transform=None, batch_szie=1)
+
+    # Test Gryffin
+    for transform in transforms:
+        test_snar_experiment(strategy=GRYFFIN, transform=transform, batch_size=1)
