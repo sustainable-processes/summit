@@ -56,7 +56,7 @@ class Transform:
             Datasets with the input and output datasets  
         """
         copy = kwargs.get("copy", True)
-        self.transform_descriptors = kwargs.get("transform_descriptors")
+        self.transform_descriptors = kwargs.get("transform_descriptors", self.transform_descriptors)
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -68,24 +68,31 @@ class Transform:
         for variable in self.domain.input_variables:
             if isinstance(variable, CategoricalVariable) and self.transform_descriptors:
                 # Add descriptors to the dataset
-                indices = new_ds[variable.name].values
-                descriptors = variable.ds.loc[indices]
-                new_metadata_name = descriptors.index.name
-                descriptors.index = new_ds.index
-                new_ds = new_ds.join(descriptors, how="inner")
+                var_descriptor_names = variable.ds.data_columns
+                if all(np.isin(var_descriptor_names, new_ds.columns.levels[0].to_list())):
+                    # Make the descriptors columns a metadata column
+                    column_list_1 = new_ds.columns.levels[0].to_list()
+                    ix = [column_list_1.index(d_name) for d_name in var_descriptor_names]
+                    column_codes_2 = list(new_ds.columns.codes[1])
+                    ix_code = [np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix]
+                    for ixc in ix_code: column_codes_2[ixc] = 0
+                    new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+                else:
+                    indices = new_ds[variable.name].values
+                    descriptors = variable.ds.loc[indices]
+                    descriptors.index = new_ds.index
+                    new_ds = new_ds.join(descriptors, how="inner")
 
                 # Make the original descriptors column a metadata column
                 column_list_1 = new_ds.columns.levels[0].to_list()
                 ix = column_list_1.index(variable.name)
-                column_list_1[ix] = new_metadata_name
-                new_ds.columns.set_levels(column_list_1, level=0, inplace=True)
                 column_codes_2 = list(new_ds.columns.codes[1])
                 ix_code = np.where(new_ds.columns.codes[0] == ix)[0][0]
                 column_codes_2[ix_code] = 1
                 new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
 
                 # add descriptors data columns to inputs
-                input_columns += descriptors.data_columns
+                input_columns.extend(var_descriptor_names)
             elif isinstance(variable, Variable):
                 input_columns.append(variable.name)            
             else:
@@ -122,7 +129,38 @@ class Transform:
         -----
         Override this class to achieve custom untransformations 
         """
-        return ds
+
+        # Determine input and output columns in dataset
+        new_ds = ds
+        if self.transform_descriptors:
+            for i, variable in enumerate(self.domain.input_variables):
+                if isinstance(variable, CategoricalVariable) and self.transform_descriptors:
+                    # Add original categorical variable to the dataset
+                    var_descriptor_names = variable.ds.data_columns
+                    var_descriptor_conditions = ds[var_descriptor_names]
+                    var_descriptor_orig_data = np.asarray([variable.ds.loc[[level], :].values[0].tolist() for level in variable.ds.index])
+                    var_categorical_transformed = []
+                    for _, dc in var_descriptor_conditions.iterrows():
+                        eucl_distance_squ = np.sum(np.square(np.subtract(var_descriptor_orig_data, dc.to_numpy())), axis=1)
+                        cat_level_index = np.where(eucl_distance_squ == np.min(eucl_distance_squ))[0][0]
+                        cat_level = variable.ds.index[cat_level_index]
+                        var_categorical_transformed.append(cat_level)
+                    dt = {variable.name: var_categorical_transformed}
+                    new_ds.insert(loc=i, column=variable.name, value=var_categorical_transformed)
+
+                    # Make the descriptors columns a metadata column
+                    column_list_1 = new_ds.columns.levels[0].to_list()
+                    ix = [column_list_1.index(d_name) for d_name in var_descriptor_names]
+                    column_codes_2 = list(new_ds.columns.codes[1])
+                    ix_code = [np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix]
+                    for ixc in ix_code: column_codes_2[ixc] = 1
+                    new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+                elif isinstance(variable, Variable):
+                    continue
+                else:
+                    raise DomainError(f"Variable {variable.name} is not in the dataset.")
+
+        return new_ds
 
     def to_dict(self, **kwargs):
         """ Output a dictionary representation of the transform"""
@@ -498,6 +536,7 @@ class Strategy(ABC):
             self.transform = Transform(domain, transform_descriptors=self.transform_descriptors)
         elif isinstance(transform, Transform):
             self.transform = transform
+            self.transform.transform_descriptors = self.transform_descriptors
         else:
             raise TypeError("transform must be a Transform class")
         self.domain = self.transform.transform_domain

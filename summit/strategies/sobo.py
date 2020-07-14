@@ -71,7 +71,7 @@ class SOBO(Strategy):
     '''
 
     def __init__(self, domain, transform=None, gp_model_type=None, acquisition_type=None, optimizer_type=None, evaluator_type=None, **kwargs):
-        Strategy.__init__(self, domain, transform=transform)
+        Strategy.__init__(self, domain, transform=transform, **kwargs)
 
         # TODO: notation - discrete in our model (e.g., catalyst type) = categorical?
         self.input_domain = []
@@ -83,22 +83,33 @@ class SOBO(Strategy):
                         'type': v.variable_type,
                         'domain': (v.bounds[0], v.bounds[1])})
                 elif isinstance(v, CategoricalVariable):
-                    if v.ds is None:
+                    if not self.transform_descriptors:
                         self.input_domain.append(
                             {'name': v.name,
                             'type': 'categorical',
-                            'domain': tuple(v.levels)})
-                    # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
+                            'domain': tuple(self.categorical_wrapper(v.levels))})
                     else:
-                        self.input_domain.append({'name': v.name,
-                            'type': 'bandit',
-                            'domain': [tuple(t) for t in v.ds.data_to_numpy().tolist()]})
+                        if v.ds is None:
+                            raise ValueError("No descriptors provided for variable: {}".format(v.name))
+                        descriptor_names = v.ds.data_columns
+                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                        for j, d in enumerate(descriptors):
+                            self.input_domain.append(
+                                {'name': descriptor_names[j],
+                                 'type': 'continuous',
+                                 'domain': (np.min(np.asarray(d)), np.max(np.asarray(d)))
+                                })
+                    # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
+                elif isinstance(v, DescriptorsVariable):
+                    self.input_domain.append({'name': v.name,
+                        'type': 'bandit',
+                        'domain': [tuple(t) for t in v.ds.data_to_numpy().tolist()]})
 
-                        ''' possible workaround for mixed-type variable problems: treat descriptor as categorical variables
-                        self.input_domain.append({'name': v.name,
-                                                'type': 'categorical',
-                                                'domain': tuple(np.arange(v.ds.data_to_numpy().shape[0]).tolist())})
-                        '''
+                    ''' possible workaround for mixed-type variable problems: treat descriptor as categorical variables
+                    self.input_domain.append({'name': v.name,
+                                            'type': 'categorical',
+                                            'domain': tuple(np.arange(v.ds.data_to_numpy().shape[0]).tolist())})
+                    '''
                 else:
                     raise TypeError('Unknown variable type.')
 
@@ -222,6 +233,9 @@ class SOBO(Strategy):
             for v in self.domain.variables:
                 if v.is_objective and v.maximize:
                     outputs[v.name] = -1 * outputs[v.name]
+                if isinstance(v, CategoricalVariable):
+                    if not self.transform_descriptors:
+                        inputs[v.name] = self.categorical_wrapper(inputs[v.name], v.levels)
 
             inputs = inputs.to_numpy()
             outputs = outputs.to_numpy()
@@ -269,14 +283,31 @@ class SOBO(Strategy):
             i_inp = 0
             for v in self.domain.variables:
                 if not v.is_objective:
-                    next_experiments[v.name] = request[:, i_inp]
-                    i_inp += 1
+                    if isinstance(v, CategoricalVariable):
+                        if not self.transform_descriptors:
+                            cat_list = []
+                            for j, entry in enumerate(request[:, i_inp]):
+                               cat_list.append(self.categorical_unwrap(entry, v.levels))
+                            next_experiments[v.name] = np.asarray(cat_list)
+                            i_inp += 1
+                        else:
+                            descriptor_names = v.ds.data_columns
+                            for d in descriptor_names:
+                                next_experiments[d] = request[:, i_inp]
+                                i_inp += 1
+                    else:
+                        next_experiments[v.name] = request[:, i_inp]
+                        i_inp += 1
             next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
             next_experiments[('strategy', 'METADATA')] = 'Single-objective BayOpt'
         
         self.fbest= objective_dir * fbest
         self.xbest = xbest
         self.prev_param = param
+
+        # Do any necessary transformation back
+        next_experiments = self.transform.un_transform(next_experiments)
+
         return next_experiments
 
     def reset(self):
@@ -311,3 +342,13 @@ class SOBO(Strategy):
                 tmp_c = tmp_c.replace(v_input_name, v_gpyopt_name)
             gpyopt_constraints.append([tmp_c, c.constraint_type])
         return gpyopt_constraints
+
+    def categorical_wrapper(self, categories, reference_categories=None):
+        if not reference_categories:
+            return [i for i, _ in enumerate(categories)]
+        else:
+            return [reference_categories.index(c) for c in categories]
+
+    def categorical_unwrap(self, gpyopt_level, categories):
+        return categories[int(gpyopt_level)]
+

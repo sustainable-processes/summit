@@ -49,8 +49,8 @@ class Random(Strategy):
     def __init__(self, domain: Domain, 
                  transform: Transform = None,
                  random_state: np.random.RandomState = None,
-                 ):
-        super().__init__(domain, transform)
+                 **kwargs):
+        super().__init__(domain, transform, **kwargs)
         self._rstate = random_state if random_state else np.random.RandomState()
 
     def suggest_experiments(self, num_experiments: int, **kwargs) -> DataSet:

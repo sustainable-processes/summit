@@ -1722,7 +1722,6 @@ version = "1.4.0"
 reference = ""
 type = "url"
 url = "https://download.pytorch.org/whl/cu101/torch-1.4.0-cp37-cp37m-linux_x86_64.whl"
-
 [[package]]
 category = "main"
 description = "image and video datasets and models for torch deep learning"

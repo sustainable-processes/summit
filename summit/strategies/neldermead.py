@@ -1,4 +1,5 @@
 from .base import Strategy, Transform
+from summit.domain import *
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 from summit.utils import jsonify_dict, unjsonify_dict
@@ -70,7 +71,7 @@ class NelderMead(Strategy):
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
-        Strategy.__init__(self, domain, transform)
+        Strategy.__init__(self, domain, transform, **kwargs)
 
         self._x_start = kwargs.get("x_start", [])
         self._dx = kwargs.get("dx", 1e-5)
@@ -240,18 +241,37 @@ class NelderMead(Strategy):
             List with parameters and prev_param of Nelder-Mead Simplex algorithm (required for next iteration)
         """
 
-        # Extract dimension of input domain
-        dim = self.domain.num_continuous_dimensions()
-
         # intern
         stay_inner = False
 
         # Get bounds of input variables
         bounds = []
+        input_var_names = []
+        output_var_names = []
         for v in self.domain.variables:
             if not v.is_objective:
-                bounds.append(v.bounds)
+                if isinstance(v, ContinuousVariable):
+                    bounds.append(v.bounds)
+                    input_var_names.append(v.name)
+                elif (isinstance(v, CategoricalVariable) and self.transform_descriptors is True) \
+                        or isinstance(v, DescriptorsVariable):
+                    if v.ds is not None:
+                        descriptor_names = v.ds.data_columns
+                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                    else:
+                        raise ValueError("No descriptors given for {}".format(v.name))
+                    for d in descriptors:
+                        bounds.append([np.min(np.asarray(d)), np.max(np.asarray(d))])
+                    input_var_names.extend(descriptor_names)
+                else:
+                    raise TypeError("Nelder-Mead can not handle variable type: {}".format(v.type))
+            else:
+                output_var_names.extend(v.name)
         bounds = np.asarray(bounds, dtype=float)
+
+
+        # Extract dimension of input domain
+        dim = len(bounds[:,0])
 
         # Initialization
         initial_run = True
@@ -434,7 +454,7 @@ class NelderMead(Strategy):
             red_dim = False
 
         # Circle (suggested point that already has been investigated)
-        if any((memory == x).all(1).any() for x in request):
+        if any(np.array([np.array(memory == x).all(1).any() for x in request])):
             ## if dimension is reduced and requested point has already been evaluated, recover dimension with
             # reflected and translated simplex before dimension reduction
             if red_dim:
@@ -488,11 +508,8 @@ class NelderMead(Strategy):
 
         # Generate DataSet object with variable values of next experiments
         next_experiments = {}
-        i_inp = 0
-        for v in self.domain.variables:
-            if not v.is_objective:
-                next_experiments[v.name] = request[:, i_inp]
-                i_inp += 1
+        for i, v in enumerate(input_var_names):
+            next_experiments[v] = request[:, i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
 
         # Violate constraint

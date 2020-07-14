@@ -282,7 +282,4 @@ class DataSet(pd.core.frame.DataFrame):
     def insert(
         self, loc, column, value, type="DATA", units=None, allow_duplicates=False
     ):
-        super().insert(loc, column, value, allow_duplicates)
-        self.columns[loc][0] = column
-        self.columns[loc][1] = type
-        self.columns[loc][2] = units
+        super().insert(loc, (column, type), value, allow_duplicates)

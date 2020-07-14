@@ -13,7 +13,7 @@ if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
 NUM_REPEATS=20
-MAX_EXPERIMENTS=100
+MAX_EXPERIMENTS=50
 NEPTUNE_PROJECT="sustainable-processes/summit"
 
 # Cross Coupling Benchmark by Emulator trained on Baumgartner et al. (2019) data
@@ -21,21 +21,21 @@ experiment = BaumgartnerCrossCouplingEmulator_Yield_Cost()
 print(experiment.domain.variables)
 
 # Transforms from multi to single objective
-hierarchies = [{'yield': {'hierarchy': 0, 'tolerance': 1},
+hierarchies = [{'yld': {'hierarchy': 0, 'tolerance': 1},
                 'cost': {'hierarchy': 1, 'tolerance': 1}},
                
-               {'yield': {'hierarchy': 0, 'tolerance': 0.5},
+               {'yld': {'hierarchy': 0, 'tolerance': 0.5},
                 'cost': {'hierarchy': 1, 'tolerance': 0.5}},
                
-               {'yield': {'hierarchy': 0, 'tolerance': 1.0},
+               {'yld': {'hierarchy': 0, 'tolerance': 1.0},
                 'cost': {'hierarchy': 1, 'tolerance': 0.5}},
                
-               {'yield': {'hierarchy': 0, 'tolerance': 0.5},
+               {'yld': {'hierarchy': 0, 'tolerance': 0.5},
                 'cost': {'hierarchy': 1, 'tolerance': 1.0}}
               ]
 transforms = [Chimera(experiment.domain, hierarchies[2]),
               MultitoSingleObjective(experiment.domain, 
-                                     expression='-yield+cost/123',
+                                     expression='-yld+(cost-1.001)/(2.999)',
                                      maximize=False),
               Chimera(experiment.domain, hierarchies[0]),
               Chimera(experiment.domain, hierarchies[1]),
@@ -44,7 +44,7 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 ]
 
 # Run experiments
-@pytest.mark.parametrize('strategy', [NelderMead, SNOBFIT, Random, SOBO, FullFactorial, GRYFFIN])
+@pytest.mark.parametrize('strategy', [SNOBFIT])#, Random, SOBO, FullFactorial, GRYFFIN])
 @pytest.mark.parametrize('transform', transforms)
 @pytest.mark.parametrize('batch_size', [1,24])
 def test_cn_experiment(strategy, transform, batch_size):

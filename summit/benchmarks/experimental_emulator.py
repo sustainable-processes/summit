@@ -353,12 +353,12 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         des_5 = "residence time in seconds (s)"
         domain += ContinuousVariable(
-            name="t_res", description=des_5, bounds=[60, 1500]
+            name="t_res", description=des_5, bounds=[60, 1800]
         )
 
         des_6 = "Yield"
         domain += ContinuousVariable(
-            name="yield",
+            name="yld",
             description=des_6,
             bounds=[0.0, 1.0],
             is_objective=True,
@@ -484,7 +484,7 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
 
         des_5 = "residence time in seconds (s)"
         domain += ContinuousVariable(
-            name="t_res", description=des_5, bounds=[60, 1500]
+            name="t_res", description=des_5, bounds=[60, 1800]
         )
 
         des_6 = "Yield"
@@ -552,36 +552,35 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
         self._domain = self.mod_domain
 
     def _run(self, conditions, **kwargs):
-        self.domain = self.init_domain
-        conditions, _ = super()._run(self, conditions)
+        self._domain = self.init_domain
+        conditions, _ = super()._run(conditions=conditions)
         costs = self._calculate_costs(conditions)
         conditions[("cost", "DATA")] = costs
-        self.domain = self.init_domain
+        self._domain = self.mod_domain
         return conditions, _
 
-    def _calculate_costs(self, conditions):
-        condition = DataSet.from_df(conditions.to_frame().T)
-        catalyst = str(condition["catalyst", "DATA"].iloc[0])
-        base = str(condition["base", "DATA"].iloc[0])
-        base_equ = float(condition["base_equivalents", "DATA"])
+    def _calculate_costs(self, condition):
+        catalyst = str(condition[("catalyst", "DATA")])#.iloc[0])
+        base = str(condition[("base", "DATA")])#.iloc[0])
+        base_equ = float(condition[("base_equivalents", "DATA")])
         cost_catalyst = self._get_catalyst_cost(catalyst)
         cost_base = self._get_base_cost(base, base_equ)
         return float(cost_catalyst + cost_base)
 
     def _get_catalyst_cost(self, catalyst):
         catalyst_prices = {
-            "tBuXPhos": 10,
-            "tBuBrettPhos": 100,
-            "AlPhos": 1000,
+            "tBuXPhos": 1,
+            "tBuBrettPhos": 1,
+            "AlPhos": 1,
         }
         return float(catalyst_prices[catalyst])
 
     def _get_base_cost(self, base, base_equ):
         base_prices = {
-            "DBU": 1,
-            "BTMG": 2,
-            "TMG": 3,
-            "TEA": 4,
+            "DBU": 0.03,
+            "BTMG": 1.2,
+            "TMG": 0.001,
+            "TEA": 0.01,
         }
         return float(base_prices[base] * base_equ)
 

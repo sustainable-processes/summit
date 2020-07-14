@@ -292,3 +292,5 @@ def experiment_from_dict(d):
         return Himmelblau.from_dict(d)
     elif d["name"] == "ThreeHumpCamel":
         return Himmelblau.from_dict(d)
+    elif d["name"] == "BaumgartnerCrossCouplingBenchmark":
+        return BaumgartnerCrossCouplingEmulator.from_dict(d)
