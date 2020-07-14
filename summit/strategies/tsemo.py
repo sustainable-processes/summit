@@ -5,12 +5,18 @@ from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.optimizers import NSGAII
 from summit.utils.models import ModelGroup, GPyModel
 from summit.utils.dataset import DataSet
+from GPy.models import GPRegression as gpr
+import GPy
+import pyrff
 
 from pymoo.model.problem import Problem
 from pymoo.algorithms.nsga2 import NSGA2
 from pymoo.factory import get_sampling, get_crossover, get_mutation
 from pymoo.optimize import minimize
 from pymoo.factory import get_termination
+
+import pathlib
+import os
 import numpy as np
 from abc import ABC, abstractmethod
 import logging
@@ -60,9 +66,11 @@ class TSEMO(Strategy):
  
     """
 
-    def __init__(self, domain, transform=None, models=None, **kwargs):
+    def __init__(self, domain, inputs_min, inputs_max, transform=None, models=None, **kwargs):
         Strategy.__init__(self, domain, transform)
 
+        self.inputs_min = inputs_min
+        self.inputs_max = inputs_max
         # Internal models
         if models is None:
             input_dim = (
@@ -135,34 +143,101 @@ class TSEMO(Strategy):
             )
 
         # Scale decision variables [0,1]
-        inputs_scaled, self.input_min, self.input_max = inputs.zero_to_one(return_min_max=True)
+        inputs_scaled = (inputs-self.inputs_min)/(self.inputs_max-self.inputs_min)
 
         # Standardize objectives
-        outputs_scaled, self.output_mean, self.output_std = outputs.standardize(
-            return_mean=True, return_std=True
-        )
-        output_names = [v.name for v in self.domain.output_variables]
-        outputs_scaled = DataSet(outputs_scaled, columns=output_names)
+        self.output_mean = outputs.mean()
+        self.output_std = outputs.std()
+        outputs_scaled = (outputs-self.output_mean)/self.output_std
+        import ipdb; ipdb.set_trace()
+        num_restarts=kwargs.get("num_restarts", 100)
+        print(f"Fitting models (number of optimization restarts={num_restarts})\n")
+        kerns = [GPy.kern.Exponential(input_dim=3,ARD=True) for _ in range(2)]
+        models = {'y_0': gpr(inputs_scaled.to_numpy(), 
+                             outputs_scaled[['y_0']].to_numpy(),
+                            kernel=kerns[0]),
+                 'y_1':  gpr(inputs_scaled.to_numpy(),
+                             outputs_scaled[['y_1']].to_numpy(),
+                             kernel=kerns[1])}
+        
+        rmse_train = np.zeros(2)
+        rmse_train_spectral = np.zeros(2)
+        rffs = [0 for  _ in range(len(self.domain.output_variables))]
+        i = 0
+        for name, model in models.items():
+            # Constrain hyperparameters
+            model.kern.lengthscale.constrain_bounded(np.sqrt(1e-3), np.sqrt(1e3),warning=False)
+            model.kern.lengthscale.set_prior(GPy.priors.LogGaussian(0, 10), warning=False)
+            model.kern.variance.constrain_bounded(np.sqrt(1e-3), np.sqrt(1e3), warning=False)
+            model.kern.variance.set_prior(GPy.priors.LogGaussian(-6, 10), warning=False)
+            model.Gaussian_noise.constrain_bounded(np.exp(-6), 1, warning=False)
+            
+            # Train model
+            model.optimize_restarts( 
+                num_restarts=num_restarts,
+                max_iters=kwargs.get("max_iters", 10000),
+                parallel=kwargs.get("parallel", True),
+                verbose=False)
+            
+            # Print model hyperparameters
+            lengthscale=model.kern.lengthscale.values
+            variance=model.kern.variance.values[0]
+            noise=model.Gaussian_noise.variance.values[0]
+            print(f"Model {name} lengthscales:", lengthscale)
+            print(f"Model {name} variance:", variance)
+            print(f"Model {name} noise:", noise)
 
-        # Fit models to data
-        self.logger.info(f"Fitting {len(self.models._models)} models.")
-        self.models.fit(inputs_scaled, outputs_scaled, spectral_sample=False, 
-                        num_restarts=100,parallel=True)
+            # Model validation
+            rmse_train[i] = rmse(model.predict(inputs_scaled.to_numpy())[0], 
+                                 outputs_scaled[[name]].to_numpy(),
+                                 mean=self.output_mean[name].values[0], std=self.output_std[name].values[0])
+            print(f"RMSE train {name} = {rmse_train[i].round(2)}")
+        
 
-        # Spectral sampling
-        n_spectral_points = kwargs.get("n_spectral_points", 1500)
-        for name, model in self.models.models.items():
-            self.logger.info(f"Spectral sampling for model {name}.")
-            model.spectral_sample(
-                inputs_scaled, outputs_scaled[[name]], n_spectral_points=n_spectral_points
+            # Spectral sampling
+            if type(model.kern) == GPy.kern.Exponential:
+                matern_nu = 1
+            elif type(model.kern) == GPy.kern.Matern32:
+                matern_nu = 3
+            elif type(model.kern) == GPy.kern.Matern52:
+                matern_nu = 5
+            elif type(model.kern) == GPy.kern.RBF:
+                matern_nu = np.inf
+            else:
+                raise TypeError("Spectral sample currently only works with Matern type kernels, including RBF.")
+            
+            n_spectral_points = kwargs.get('n_spectral_points', 4000)
+            print(f"Spectral sampling {name} with {n_spectral_points} spectral points.")
+            rffs[i] = pyrff.sample_rff(
+                lengthscales=lengthscale,
+                scaling=np.sqrt(variance),
+                noise=noise,
+                kernel_nu=matern_nu,
+                X=inputs_scaled.to_numpy(),
+                Y=outputs_scaled[[name]].to_numpy()[:,0],
+                M=n_spectral_points
             )
+            sample_f = lambda x: np.atleast_2d(rffs[i](x)).T
+
+            rmse_train_spectral[i] = rmse(sample_f(inputs_scaled.to_numpy()), 
+                                          outputs_scaled[[name]].to_numpy(),
+                                          mean=self.output_mean[name].values[0], 
+                                          std=self.output_std[name].values[0])
+            print(f"RMSE train spectral {name} = {rmse_train_spectral[i].round(2)}")
+            
+            i+=1
+            print('\n')
+            
+        # Save spectral samples
+        dp_results = pathlib.Path('TSEMO_DATA', 'models.h5')
+        pyrff.save_rffs(rffs, dp_results)
 
         # NSGAII internal optimisation
         generations = kwargs.get("generations", 100)
         pop_size = kwargs.get("pop_size", 100)
         self.logger.info("Optimizing models using NSGAII.")
         optimizer = NSGA2(pop_size=pop_size)
-        problem = TSEMOInternalWrapper(self.models, self.domain)
+        problem = TSEMOInternalWrapper(dp_results, self.domain)
         termination = get_termination("n_gen", generations)
         self.internal_res = minimize(
             problem, optimizer, termination, seed=1, verbose=False
@@ -172,13 +247,14 @@ class TSEMO(Strategy):
 
         if X.shape[0] != 0 and y.shape[0] != 0:
             # Select points that give maximum hypervolume improvement
-            hv_imp, indices = self.select_max_hvi(
+            self.hv_imp, indices = self.select_max_hvi(
                 outputs_scaled, y, num_experiments
             )
 
             # Unscale data
-            X = X * (self.input_max - self.input_min) + self.input_min
-            y = y * self.output_std + self.output_mean
+            X = X * (self.inputs_max.to_numpy() - self.inputs_min.to_numpy()) + self.inputs_min.to_numpy()
+            y = y * self.output_std.to_numpy() + self.output_mean.to_numpy()
+
 
             # Join to get single dataset with inputs and outputs
             result = X.join(y)
@@ -192,13 +268,13 @@ class TSEMO(Strategy):
 
             # Add model hyperparameters as metadata columns
             self.iterations += 1
-            for name, model in self.models.models.items():
-                lengthscales, var, noise = model.hyperparameters
-                result[(f"{name}_variance", "METADATA")] = var
-                result[(f"{name}_noise", "METADATA")] = noise
-                for var, l in zip(self.domain.input_variables, lengthscales):
-                    result[(f"{name}_{var.name}_lengthscale", "METADATA")] = l
-                result[("iterations", "METADATA")] = self.iterations
+            # for name, model in self.models.models.items():
+            #     lengthscales, var, noise = model.hyperparameters
+            #     result[(f"{name}_variance", "METADATA")] = var
+            #     result[(f"{name}_noise", "METADATA")] = noise
+            #     for var, l in zip(self.domain.input_variables, lengthscales):
+            #         result[(f"{name}_{var.name}_lengthscale", "METADATA")] = l
+            #     result[("iterations", "METADATA")] = self.iterations
             return result
         else:
             self.iterations += 1
@@ -208,6 +284,7 @@ class TSEMO(Strategy):
         self.all_experiments = None
         self.iterations = 0
         self.samples = [] # Samples drawn using NSGA-II
+        self.sample_fs = [0 for i in range(len(self.domain.output_variables))]
 
     def to_dict(self):
         ae = (
@@ -329,14 +406,20 @@ class TSEMO(Strategy):
             hv_imp = hv_improvement[masked_index] + hvY - hvY0
         return hv_imp, indices
 
+def rmse(Y_pred, Y_true, mean, std):
+    Y_pred = Y_pred*std+mean
+    Y_true = Y_true*std+mean
+    square_error = (Y_pred[:,0]-Y_true[:,0])**2
+    return np.sqrt(np.mean(square_error))
+
 
 class TSEMOInternalWrapper(Problem):
     """ Wrapper for NSGAII internal optimisation 
     
     Parameters
     ---------- 
-    models : :class:`~summit.utils.models.ModelGroup`
-        Model group used for optimisation
+    fp : os.PathLike
+        Path to a folder containing the rffs
     domain : :class:`~summit.domain.Domain`
         Domain used for optimisation.
     Notes
@@ -344,8 +427,8 @@ class TSEMOInternalWrapper(Problem):
     It is assumed that the inputs are scaled between 0 and 1.
     
     """
-    def __init__(self, models, domain):
-        self.models = models
+    def __init__(self, fp:os.PathLike, domain):
+        self.rffs =  pyrff.load_rffs(fp)
         self.domain = domain
         # Number of decision variables
         n_var = domain.num_continuous_dimensions()
@@ -357,10 +440,12 @@ class TSEMOInternalWrapper(Problem):
         super().__init__(n_var=n_var, n_obj=n_obj, n_constr=n_constr, xl=0, xu=1)
 
     def _evaluate(self, X, out, *args, **kwargs):
-        input_columns = [v.name for v in self.domain.input_variables]
-        X = DataSet(np.atleast_2d(X), columns=input_columns)
-        F = self.models.predict(X, use_spectral_sample=False,**kwargs)
-
+        # input_columns = [v.name for v in self.domain.input_variables]
+        # X = DataSet(np.atleast_2d(X), columns=input_columns)
+        F = np.zeros([X.shape[0], self.n_obj])
+        for i in range(self.n_obj):
+            F[:,i] = self.rffs[i](X)[:,0]
+        
         # Negate objectives that are need to be maximized
         for i, v in enumerate(self.domain.output_variables):
             if v.maximize:

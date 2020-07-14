@@ -132,11 +132,11 @@ class GPyModel(BaseEstimator, RegressorMixin):
             The data columns will be used as inputs for fitting the model
         y : DataSet
             The data columns will be used as outputs for fitting the model
-        num_restarts : int, optional (default=10)
+        num_restarts : int, optional (default=100)
             The number of random restarts of the optimizer.
         max_iters : int, optional (default=2000)
             The maximum number of iterations of the optimizer.
-        parallel : bool (default=False)
+        parallel : bool (default=True)
             Use parallel computation for the optimization.
         spectral_sample: bool, optional
             Calculate the spectral sampled function. Defaults to False.
@@ -147,9 +147,9 @@ class GPyModel(BaseEstimator, RegressorMixin):
         -----
         """
 
-        num_restarts=kwargs.get('num_restarts',10)
+        num_restarts=kwargs.get('num_restarts',100)
         max_iters=kwargs.get('max_iters', 10000)
-        parallel=kwargs.get('parallel',False)
+        parallel=kwargs.get('parallel',True)
         spectral_sample=kwargs.get('spectral_sample',False)
         verbose = kwargs.get('verbose', False)
 
@@ -216,6 +216,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
         if not self._model:
             raise ValueError("Fit must be called on the model prior to prediction")
 
+        
         if isinstance(X, DataSet):
             X = X.to_numpy()
         elif isinstance(X, np.ndarray):
@@ -277,16 +278,16 @@ class GPyModel(BaseEstimator, RegressorMixin):
 
         if y.shape[1] > 1:
             raise ValueError("Y must be 1D")
-        
+
         # Spectral sampling. Clip values to match Matlab implementation
         noise = self._model.Gaussian_noise.variance.values[0]
         sampled_f = None
         for i in range(n_retries):
             try:
-                sampled_f = spectral_sample(
-                    lengthscales=self._model.kern.lengthscale.values.round(3),
-                    scaling=np.sqrt(self._model.kern.variance.values[0]).round(3),
-                    noise=noise.round(3),
+                sampled_f = pyrff.sample_rff(
+                    lengthscales=self._model.kern.lengthscale.values,
+                    scaling=np.sqrt(self._model.kern.variance.values[0]),
+                    noise=noise,
                     kernel_nu=matern_nu,
                     X=X,
                     Y=y[:,0],

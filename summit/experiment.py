@@ -65,7 +65,7 @@ class Experiment(ABC):
         for i, condition in conditions.iterrows():
             start = time.time()
             res, extras = self._run(condition, **kwargs)
-            res = add_metadata_columns(res, conditions[conditions.metadata_columns])
+            # res = add_metadata_columns(res, conditions[conditions.metadata_columns])
             experiment_time = time.time() - start
             self._data = self._data.append(res)
             self._data["experiment_t"].iat[-1] = float(experiment_time)
