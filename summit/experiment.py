@@ -208,11 +208,11 @@ class Experiment(ABC):
                 )
 
             # Sort data so get nice pareto plot
-            pareto_data = self.data.iloc[indices].copy()
-            pareto_data = pareto_data.sort_values(by=objectives[0])
+            self.pareto_data = self.data.iloc[indices].copy()
+            self.pareto_data = self.pareto_data.sort_values(by=objectives[0])
             ax.plot(
-                pareto_data[objectives[0]],
-                pareto_data[objectives[1]],
+                self.pareto_data[objectives[0]],
+                self.pareto_data[objectives[1]],
                 c="k",
                 label="Pareto Front",
             )

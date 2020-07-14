@@ -207,6 +207,7 @@ class TSEMO(Strategy):
     def reset(self):
         self.all_experiments = None
         self.iterations = 0
+        self.samples = [] # Samples drawn using NSGA-II
 
     def to_dict(self):
         ae = (
@@ -247,6 +248,7 @@ class TSEMO(Strategy):
             and the indices of the corresponding points in samples       
         
         """
+        samples_original = samples.copy()
         samples = samples.copy()
         y = y.copy()
 
@@ -259,7 +261,6 @@ class TSEMO(Strategy):
         # samples, mean, std = samples.standardize(return_mean=True, return_std=True)
         samples = samples.data_to_numpy()
         Ynew = y.data_to_numpy()
-        # Ynew = (Ynew - mean)/std
 
         # Reference
         Yfront, _ = pareto_efficient(Ynew, maximize=False)
@@ -267,9 +268,10 @@ class TSEMO(Strategy):
             np.max(Yfront, axis=0) - np.min(Yfront, axis=0)
         )
 
-        index = []
+        indices = []
         n = samples.shape[1]
         mask = np.ones(samples.shape[0], dtype=bool)
+        samples_indices = np.arange(0, samples.shape[0])
 
         # Set up random selection
         if not (self._random_rate <= 1.0) | (self._random_rate >= 0.0):
@@ -299,31 +301,33 @@ class TSEMO(Strategy):
                 hv_improvement.append(hv - hvY)
 
             hvY0 = hvY if i == 0 else hvY0
-            if i in random_selects:
-                masked_index = np.random.randint(0, masked_samples.shape[0])
-            else:
-                # Choose the point that maximizes hypervolume improvement
-                masked_index = hv_improvement.index(max(hv_improvement))
+            hv_improvement = np.array(hv_improvement)
+            masked_index = np.argmax(hv_improvement)
 
-            samples_index = np.where(
-                (samples == masked_samples[masked_index, :]).all(axis=1)
-            )[0][0]
-            new_point = samples[samples_index, :].reshape(1, n)
+            # Housekeeping: find the max HvI point and mask out for next round
+            original_index = samples_indices[mask][masked_index]
+            new_point = samples[original_index, :].reshape(1, n)
             Ynew = np.append(Ynew, new_point, axis=0)
-            mask[samples_index] = False
-            index.append(samples_index)
+            mask[original_index] = False
+            indices.append(original_index)
+
+            # Append current estimate of the pareto front to sample_paretos
+            samples_copy = samples_original.copy()
+            samples_copy = samples_copy*self.output_std+self.output_mean
+            samples_copy[('hvi', 'DATA')] = hv_improvement
+            self.samples.append(samples_copy)
 
         if len(hv_improvement) == 0:
             hv_imp = 0
-        elif len(index) == 0:
-            index = []
+        elif len(indices) == 0:
+            indices = []
             hv_imp = 0
         else:
             # Total hypervolume improvement
             # Includes all points added to batch (hvY + last hv_improvement)
             # Subtracts hypervolume without any points added (hvY0)
             hv_imp = hv_improvement[masked_index] + hvY - hvY0
-        return hv_imp, index
+        return hv_imp, indices
 
 
 class TSEMOInternalWrapper(Problem):

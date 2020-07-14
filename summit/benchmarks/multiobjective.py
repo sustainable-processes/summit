@@ -10,7 +10,7 @@ import numpy as np
 class DTLZ2(Experiment):
     def __init__(self, num_inputs=6, num_objectives=2):
         if num_objectives >= num_inputs:
-            raise ValueError('Number of objectives must be greater than number of inputs.')
+            raise ValueError('Number of inputs must be greater than number of objectives.')
         self.nobjs = num_objectives
         self.nvars = num_inputs
         domain = self._setup_domain(self.nobjs, self.nvars)
