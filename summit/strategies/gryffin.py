@@ -92,10 +92,10 @@ class GRYFFIN(Strategy):
 
     """
 
-    def __init__(self, domain, save_dir=None, auto_desc_gen=False, sampling_strategies=4,
+    def __init__(self, domain, transform=None, save_dir=None, auto_desc_gen=False, sampling_strategies=4,
                  batches=1, logging=-1, parallel=True, boosted=True, sampler="uniform", softness=0.001,
                  continuous_optimizer="adam", categorical_optimizer="naive", discrete_optimizer="naive", **kwargs):
-        Strategy.__init__(self, domain)
+        Strategy.__init__(self, domain, transform=transform, **kwargs)
 
         self.domain_inputs = []
         self.domain_objectives = []
@@ -126,17 +126,35 @@ class GRYFFIN(Strategy):
                         }
                     )
                 elif v.variable_type == "categorical":
-                    descriptors = [v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index] if v.ds is not None else None
-                    self.domain_inputs.append(
-                        {
-                            "name": v.name,
-                            "type": "categorical",
-                            "size": 1,
-                            "levels": v.levels,
-                            "descriptors": descriptors,
-                            "category_details": os.path.join(tmp_dir, "CatDetails/cat_details_" + str(v.name) + ".pkl"),
-                        }
-                    )
+                    descriptors = None
+                    if not self.transform_descriptors:
+                        if v.ds is not None:
+                            descriptors = [v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index]
+                        self.domain_inputs.append(
+                            {
+                                "name": v.name,
+                                "type": "categorical",
+                                "size": 1,
+                                "levels": v.levels,
+                                "descriptors": descriptors,
+                                "category_details": os.path.join(tmp_dir, "CatDetails/cat_details_" + str(v.name) + ".pkl"),
+                            }
+                        )
+                    else:
+                        if v.ds is None:
+                            raise ValueError("No descriptors provided for categorical variable: {}".format(v.name))
+                        descriptor_names = v.ds.data_columns
+                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                        for j, d in enumerate(descriptors):
+                            self.domain_inputs.append(
+                                {
+                                    "name": descriptor_names[j],
+                                    "type": "continuous",
+                                    "low": np.min(np.asarray(d)),
+                                    "high": np.max(np.asarray(d)),
+                                    "size": 1,
+                                }
+                            )
                 elif v.variable_type == "descriptors":
                     self.domain_inputs.append(
                         {
@@ -288,6 +306,10 @@ class GRYFFIN(Strategy):
         self.fbest = fbest
         self.xbest = xbest
         self.prev_param = param
+
+        # Do any necessary transformation back
+        next_experiments = self.transform.un_transform(next_experiments)
+
         return next_experiments
 
     def reset(self):

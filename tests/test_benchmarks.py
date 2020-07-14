@@ -49,7 +49,7 @@ def test_baumgartner_CC_emulator():
     assert str(results["base", "DATA"].iloc[0]) == values["base", "DATA"]
     assert float(results["t_res"]) == values["t_res", "DATA"]
     assert float(results["temperature"]) == values["temperature", "DATA"]
-    print(float(results["yield"]))
-    assert np.isclose(float(results["yield"]), 0.173581)
+    assert np.isclose(float(results["yld"]), 0.173581)
 
     return results
+
