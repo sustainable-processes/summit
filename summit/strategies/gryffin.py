@@ -92,7 +92,7 @@ class GRYFFIN(Strategy):
 
     """
 
-    def __init__(self, domain, save_dir=None, auto_desc_gen=False, sampling_strategies=4,
+    def __init__(self, domain, transform=None, save_dir=None, auto_desc_gen=False, sampling_strategies=4,
                  batches=1, logging=-1, parallel=True, boosted=True, sampler="uniform", softness=0.001,
                  continuous_optimizer="adam", categorical_optimizer="naive", discrete_optimizer="naive", **kwargs):
         Strategy.__init__(self, domain, transform=kwargs.get('transform'))

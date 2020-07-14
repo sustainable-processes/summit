@@ -1,7 +1,7 @@
 from summit.initial_design import LatinDesigner
 from summit.data import DataSet
 from summit.domain import ContinuousVariable, Constraint, Domain
-from summit.strategies import TSEMO2
+from summit.strategies import TSEMO
 from summit.models import GPyModel
 
 import pandas as pd
@@ -93,7 +93,7 @@ def get_suggestions(project, experiments, num_experiments):
         logging.info(f"Running optimization for project {project_id}")
         # Run the optimization
         try:
-            tsemo = TSEMO2(domain=domain, models=models)
+            tsemo = TSEMOs(domain=domain, models=models)
             results = tsemo.generate_experiments(
                 previous_results=data, num_experiments=num_experiments
             )
