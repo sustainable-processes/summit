@@ -114,3 +114,5 @@ venv.bak/
 
 # TSEMO
 .TSEMO_DATA
+tmp_files
+Pytest*

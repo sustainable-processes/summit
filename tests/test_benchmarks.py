@@ -4,7 +4,7 @@ from summit.experiment import Experiment
 from summit.benchmarks import SnarBenchmark,DTLZ2, Hartmann3D, Himmelblau, ThreeHumpCamel, ReizmanSuzukiEmulator, BaumgartnerCrossCouplingEmulator
 from summit.utils.dataset import DataSet
 import numpy as np
-
+import os
 
 def test_experiment():
     class MockStrategy(Strategy):

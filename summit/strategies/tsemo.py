@@ -95,7 +95,7 @@ class TSEMO(Strategy):
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
-            return lhs.suggest_experiments(num_experiments, criterion='maximin')
+            return lhs.suggest_experiments(num_experiments)
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
@@ -270,16 +270,12 @@ class TSEMO(Strategy):
             self.all_experiments.to_dict() if self.all_experiments is not None else None
         )
         strategy_params = dict(
-            models=self.models.to_dict(),
             all_experiments=ae,
         )
         return super().to_dict(**strategy_params)
 
     @classmethod
     def from_dict(cls, d):
-        d["strategy_params"]["models"] = ModelGroup.from_dict(
-            d["strategy_params"]["models"]
-        )
         tsemo = super().from_dict(d)
         ae = d["strategy_params"]["all_experiments"]
         if ae is not None:

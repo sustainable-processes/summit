@@ -3,7 +3,7 @@ import random
 import warnings
 import numpy as np
 
-__all__ = ["pareto_efficient", "HvI"]
+__all__ = ["pareto_efficient", "hypervolume"]
 
 
 def pareto_efficient(data, maximize=True):

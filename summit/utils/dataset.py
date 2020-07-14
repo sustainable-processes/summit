@@ -133,7 +133,7 @@ class DataSet(pd.core.frame.DataFrame):
         columns = [c[0] for c in d["columns"]]
         return DataSet(d["data"], index=d["index"], columns=columns, metadata_columns=metadata_columns)
 
-    def zero_to_one(self, small_tol=1.0e-5) -> np.ndarray:
+    def zero_to_one(self, small_tol=1.0e-5, return_min_max=False) -> np.ndarray:
         """ Scale the data columns between zero and one 
 
         Each of the data columns is scaled between zero and one 

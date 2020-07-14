@@ -42,11 +42,7 @@ class ModelGroup:
 
     def fit(self, X, y, **kwargs):
         for column_name, model in self.models.items():
-<<<<<<< HEAD
             model.fit(X, y[[column_name]], **kwargs) 
-=======
-            model.fit(X, y[[column_name]])
->>>>>>> master
 
     def predict(self, X, **kwargs):
         """
@@ -74,10 +70,6 @@ class ModelGroup:
             models[k] = model_from_dict(v)
         return cls(models)
 
-<<<<<<< HEAD
-=======
-
->>>>>>> master
 def model_from_dict(d):
     if d["name"] == "GPyModel":
         return GPyModel.from_dict(d)
@@ -113,11 +105,7 @@ class GPyModel(BaseEstimator, RegressorMixin):
     
     """
 
-<<<<<<< HEAD
     def __init__(self, kernel=None, input_dim=None, noise_var=1.0, optimizer=None, **kwargs):
-=======
-    def __init__(self, kernel=None, input_dim=None, noise_var=1.0, optimizer=None):
->>>>>>> master
         if kernel:
             self._kernel = kernel
         else:
@@ -134,14 +122,9 @@ class GPyModel(BaseEstimator, RegressorMixin):
         self.input_std = []
         self.output_mean = []
         self.output_std = []
-<<<<<<< HEAD
         self.logger = kwargs.get('logger', logging.getLogger(__name__))
 
     def fit(self, X, y, **kwargs):
-=======
-
-    def fit(self, X, y, num_restarts=10, max_iters=2000, parallel=False):
->>>>>>> master
         """Fit Gaussian process regression model.
         Parameters
         ----------
@@ -163,7 +146,6 @@ class GPyModel(BaseEstimator, RegressorMixin):
         self : returns an instance of self.
         -----
         """
-<<<<<<< HEAD
 
         num_restarts=kwargs.get('num_restarts',100)
         max_iters=kwargs.get('max_iters', 10000)
@@ -217,51 +199,6 @@ class GPyModel(BaseEstimator, RegressorMixin):
 
 
     def predict(self, X, **kwargs):
-=======
-        # Standardize inputs and outputs
-        if isinstance(X, DataSet):
-            X_std, self.input_mean, self.input_std = X.standardize(
-                return_mean=True, return_std=True
-            )
-        elif isinstance(X, np.ndarray):
-            self.input_mean = np.mean(X, axis=0)
-            self.input_std = np.std(X, axis=0)
-            X_std = (X - self.input_mean) / self.input_std
-            X_std[abs(X_std) < 1e-5] = 0.0
-
-        if isinstance(y, DataSet):
-            y_std, self.output_mean, self.output_std = y.standardize(
-                return_mean=True, return_std=True
-            )
-        elif isinstance(y, np.ndarray):
-            self.output_mean = np.mean(y, axis=0)
-            self.output_std = np.std(y, axis=0)
-            y_std = (y - self.output_mean) / self.output_std
-            y_std[abs(y_std) < 1e-5] = 0.0
-
-        # Initialize and fit model
-        self._model = GPRegression(
-            X_std, y_std, self._kernel, noise_var=self._noise_var
-        )
-        if self._optimizer:
-            self._model.optimize_restarts(
-                num_restarts=num_restarts,
-                verbose=False,
-                max_iters=max_iters,
-                optimizer=self._optimizer,
-                parallel=parallel,
-            )
-        else:
-            self._model.optimize_restarts(
-                num_restarts=num_restarts,
-                verbose=False,
-                max_iters=max_iters,
-                parallel=parallel,
-            )
-        return self
-
-    def predict(self, X, return_cov: bool = False, return_std: bool = False):
->>>>>>> master
         """Predict using the Gaussian process regression model
 
         In addition to the mean of the predictive distribution, also its
@@ -279,7 +216,6 @@ class GPyModel(BaseEstimator, RegressorMixin):
         if not self._model:
             raise ValueError("Fit must be called on the model prior to prediction")
 
-<<<<<<< HEAD
         
         if isinstance(X, DataSet):
             X = X.to_numpy()
@@ -394,40 +330,6 @@ class GPyModel(BaseEstimator, RegressorMixin):
             output_std=list(self.output_std),
         )
 
-=======
-        if return_std and return_cov:
-            raise RuntimeError(
-                "Not returning standard deviation of predictions when "
-                "returning full covariance."
-            )
-
-        if isinstance(X, np.ndarray):
-            X_std = (X - self.input_mean) / self.input_std
-            X_std[abs(X_std) < 1e-5] = 0.0
-        elif isinstance(X, DataSet):
-            X_std = X.standardize(mean=self.input_mean, std=self.input_std)
-        else:
-            raise TypeError("X must be a numpy array or summit DataSet.")
-
-        m_std, v_std = self._model.predict(X_std)
-        m = m_std * self.output_std + self.output_mean
-
-        return m
-
-    def to_dict(self):
-        _model = self._model.to_dict() if self._model is not None else self._model
-        return dict(
-            name="GPyModel",
-            _model=_model,
-            kernel=self._kernel.to_dict(),
-            noise_var=self._noise_var,
-            input_mean=list(self.input_mean),
-            input_std=list(self.input_std),
-            output_mean=list(self.output_mean),
-            output_std=list(self.output_std),
-        )
-
->>>>>>> master
     @classmethod
     def from_dict(cls, d):
         kernel = GPy.kern.Kern.from_dict(d["kernel"])
@@ -440,7 +342,6 @@ class GPyModel(BaseEstimator, RegressorMixin):
         m.output_std = np.array(d["output_std"])
         return m
 
-<<<<<<< HEAD
 def spectral_sample(lengthscales, scaling, noise, kernel_nu, X, Y, M):
         # Get variables from problem structure
         n, D = np.shape(X)
@@ -494,8 +395,6 @@ def spectral_sample(lengthscales, scaling, noise, kernel_nu, X, Y, M):
             output =  (theta.T*np.sqrt(2*sf2/M))@np.cos(W@x.T+bprime)
             return output
         return f
-=======
->>>>>>> master
 
 class AnalyticalModel(Model):
     """ An analytical model instead of statistical model

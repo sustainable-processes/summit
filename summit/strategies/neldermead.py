@@ -479,15 +479,9 @@ class NelderMead(Strategy):
             sim=sim,
             fsim=fsim,
             x_iter=x_iter,
-<<<<<<< HEAD
-            red_sim=red_sim,
-            red_fsim=red_fsim,
-            red_dim=red_dim,
-=======
             red_dim=red_dim,            
             red_sim=red_sim,
             red_fsim=red_fsim,
->>>>>>> master
             rec_dim=rec_dim,
             memory=memory,
         )

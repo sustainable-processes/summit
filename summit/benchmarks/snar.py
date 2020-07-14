@@ -35,11 +35,7 @@ class SnarBenchmark(Experiment):
     
     """
 
-<<<<<<< HEAD
-    def __init__(self):
-=======
     def __init__(self, noise_level_percent=0, **kwargs):
->>>>>>> master
         domain = self._setup_domain()
         super().__init__(domain)
         self.rng = np.random.default_rng()
