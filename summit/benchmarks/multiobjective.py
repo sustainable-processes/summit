@@ -62,11 +62,11 @@ class VLMOP2(Experiment):
     def _setup_domain(self, nobjs, nvars):
         variables = [ContinuousVariable(f'x_{i}', 
                                         f'Decision variable {i}', 
-                                        bounds=[0, 1.0])
+                                        bounds=[-2, 2])
                       for i in range(nvars)]
         variables += [ContinuousVariable(f'y_{i}', 
                                          f'Objective {i}', 
-                                         bounds=[0, 1.0],
+                                         bounds=[-2, 2],
                                          is_objective=True,
                                          maximize=False)
                       for i in range(nobjs)]

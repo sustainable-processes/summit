@@ -1,7 +1,7 @@
 import pytest
 
 from summit.domain import Domain, ContinuousVariable, Constraint
-from summit.benchmarks import DTLZ2, test_functions
+from summit.benchmarks import DTLZ2, VLMOP2
 from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.models import GPyModel
@@ -169,43 +169,28 @@ def test_logspaceobjectives_transform():
 
 
 def test_tsemo(save=False):
-    num_inputs = 6
+    num_inputs = 2
     num_objectives= 2
-    lab = DTLZ2(num_inputs=num_inputs,
-               num_objectives=num_objectives)
-    models = {f'y_{i}': GPyModel(GPy.kern.Exponential(input_dim=num_inputs,ARD=True))
-              for i in range(num_objectives)}
-    strategy = TSEMO(lab.domain, models=models, random_rate=0.00)
+    lab = VLMOP2()
+    strategy = TSEMO(lab.domain)
     experiments = strategy.suggest_experiments(5*num_inputs)
     warnings.filterwarnings('ignore',category=RuntimeWarning)
-    tsemo_options = dict(pop_size=100,                          #population size for NSGAII
-                         iterations=100,                        #iterations for NSGAII
-                         n_spectral_points=4000,                #number of spectral points for spectral sampling
-                         num_restarts=100,                      #number of restarts for GP optimizer (LBSG)
-                         parallel=True)                         #operate GP optimizer in parallel
-
-    pb = progress_bar(range(100))
+    warnings.filterwarnings('ignore',category=DeprecationWarning)
+    pb = progress_bar(range(20))
     for i in pb:
         # Run experiments
         experiments = lab.run_experiments(experiments)
         
         # Get suggestions
-        experiments = strategy.suggest_experiments(1, experiments,
-                                                   **tsemo_options)
+        experiments = strategy.suggest_experiments(1, experiments)
 
-        print("Model 1 Hyperparameters:", strategy.models['y_0'].hyperparameters)
-        print("Model 2 Hyperparameters:", strategy.models['y_1'].hyperparameters)
         if save:
             strategy.save('tsemo_settings.json')
         y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
-                                   maximize=False)  
+                                       maximize=False)  
         hv = hypervolume(y_pareto, [11,11])
         pb.comment = f"Hypervolume: {hv}" 
-    #This is a really loose bound. It's generally testing
-    #to see if the optimization goes in the correct direction
-    #If it identifies even some of the pareto points this will work
-    #https://sop.tik.ee.ethz.ch/download/supplementary/testproblems/dtlz2/index.php
-    assert hv > 120.0
+    assert hv > 119.0
 
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])
 @pytest.mark.parametrize("maximize", [True, False])

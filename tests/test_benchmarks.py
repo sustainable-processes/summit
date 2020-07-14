@@ -1,5 +1,5 @@
 import pytest
-from summmit.strategy import Strategy
+from summit.strategies import Strategy
 from summit.experiment import Experiment
 from summit.benchmarks import SnarBenchmark, DTLZ2
 from summit.utils.dataset import DataSet
