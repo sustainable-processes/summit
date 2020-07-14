@@ -1,3 +1,8 @@
 from .snar import SnarBenchmark
-from .multiobjective import DTLZ2, VLMOP2
-from .test_functions import Himmelblau, Hartmann3D
+from .test_functions import Himmelblau, Hartmann3D, ThreeHumpCamel, DTLZ2, VLMOP2
+from .experimental_emulator import (
+    ExperimentalEmulator,
+    ReizmanSuzukiEmulator,
+    BaumgartnerCrossCouplingEmulator,
+    BaumgartnerCrossCouplingDescriptorEmulator,
+)

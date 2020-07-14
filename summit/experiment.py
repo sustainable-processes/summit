@@ -135,7 +135,7 @@ class Experiment(ABC):
     @classmethod
     def from_dict(cls, d, **kwargs):
         domain = Domain.from_dict(d["domain"])
-        exp = cls(domain, **kwargs)
+        exp = cls(domain=domain, **kwargs)
         exp._data = DataSet.from_dict(d["data"])
         for e in d["extras"]:
             if type(e) == dict:
@@ -203,6 +203,7 @@ class Experiment(ABC):
                     strat_data[objectives[0]],
                     strat_data[objectives[1]],
                     c="k",
+                    alpha=0.1,
                     marker=marker,
                     label=strategy,
                 )
@@ -213,8 +214,9 @@ class Experiment(ABC):
             ax.plot(
                 self.pareto_data[objectives[0]],
                 self.pareto_data[objectives[1]],
-                c="k",
+                c="g",
                 label="Pareto Front",
+                linewidth=3
             )
             ax.set_xlabel(objectives[0])
             ax.set_ylabel(objectives[1])

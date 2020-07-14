@@ -39,7 +39,6 @@ def pareto_efficient(data, maximize=True):
         next_point_index = np.sum(nondominated_point_mask[:next_point_index]) + 1
     return data, indices
 
-
 def hypervolume(pointset, ref):
     """Compute the absolute hypervolume of a *pointset* according to the
     reference point *ref*.
