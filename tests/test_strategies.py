@@ -763,5 +763,5 @@ def test_tsemo(save=False):
                                        maximize=False)  
         hv = hypervolume(y_pareto, [11,11])
         pb.comment = f"Hypervolume: {hv}" 
-    assert hv > 119.0
+    assert hv > 117.0
 
