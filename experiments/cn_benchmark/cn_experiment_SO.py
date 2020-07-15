@@ -42,6 +42,3 @@ def test_cn_experiment(strategy, batch_size, transform_descriptors=False):
                           batch_size=batch_size,
                           f_tol=f_tol)
         r.run(save_at_end=True)
-
-for s in [SOBO]:
-    test_cn_experiment(s, 1)
