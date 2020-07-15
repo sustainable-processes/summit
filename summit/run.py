@@ -212,9 +212,11 @@ class NeptuneRunner(Runner):
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
             if num_initial_experiments is not None and i==0:
+                
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=num_initial_experiments)
             else:
+                import pdb; pdb.set_trace()
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=self.batch_size, prev_res=prev_res
                 )
