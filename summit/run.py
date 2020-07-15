@@ -248,6 +248,7 @@ class NeptuneRunner(Runner):
                     os.remove(file)
             
             # Stop if no improvement
+            # TODO: maybe we should at a <max_stop> parameter, such that the algorithm is stopped after #max_stop iterations w/o improvement
             if self.f_tol is not None and i >1:
                 compare = np.abs(fbest-fbest_old) < self.f_tol
                 if all(compare):
@@ -294,3 +295,5 @@ def experiment_from_dict(d):
         return Himmelblau.from_dict(d)
     elif d["name"] == "BaumgartnerCrossCouplingBenchmark":
         return BaumgartnerCrossCouplingEmulator.from_dict(d)
+    elif d["name"] == "BaumgartnerCrossCouplingBenchmark_Yield_Cost":
+        return BaumgartnerCrossCouplingEmulator_Yield_Cost.from_dict(d)

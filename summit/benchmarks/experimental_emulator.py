@@ -559,14 +559,16 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
         self._domain = self.mod_domain
         return conditions, _
 
+    # TODO: adjust formula
     def _calculate_costs(self, condition):
-        catalyst = str(condition[("catalyst", "DATA")])#.iloc[0])
-        base = str(condition[("base", "DATA")])#.iloc[0])
+        catalyst = str(condition[("catalyst", "DATA")])
+        base = str(condition[("base", "DATA")])
         base_equ = float(condition[("base_equivalents", "DATA")])
         cost_catalyst = self._get_catalyst_cost(catalyst)
         cost_base = self._get_base_cost(base, base_equ)
         return float(cost_catalyst + cost_base)
 
+    # TODO: get correct prices
     def _get_catalyst_cost(self, catalyst):
         catalyst_prices = {
             "tBuXPhos": 1,
@@ -575,6 +577,7 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
         }
         return float(catalyst_prices[catalyst])
 
+    # TODO: get correct prices and adjust formula
     def _get_base_cost(self, base, base_equ):
         base_prices = {
             "DBU": 0.03,
