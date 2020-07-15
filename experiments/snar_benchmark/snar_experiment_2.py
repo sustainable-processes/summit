@@ -43,7 +43,7 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 ]
 
 # Run experiments
-def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
+def test_snar_experiment(strategy, transform, batch_size, num_repeats=1):
     warnings.filterwarnings('ignore', category=RuntimeWarning)
     for i in range(NUM_REPEATS):
         experiment.reset()
@@ -62,11 +62,11 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
                           max_iterations=MAX_EXPERIMENTS//batch_size,
                           batch_size=batch_size,
                           f_tol=f_tol)
-        r.run(save_at_end=True)
+        r.run(save_at_end=True, num_initial_experiments=4)
 
 if __name__== "__main__":
 
     # Test Gryffin and TSEMO
     for transform in transforms:
-        test_snar_experiment(strategy=GRYFFIN, transform=transform, batch_size=1)
-        test_snar_experiment(strategy=TSEMO, transform=transform, batch_size=1)
+        test_snar_experiment(strategy=TSEMO, transform=transform, 
+                batch_size=1)

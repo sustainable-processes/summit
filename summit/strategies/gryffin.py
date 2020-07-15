@@ -96,7 +96,7 @@ class GRYFFIN(Strategy):
                  batches=1, logging=-1, parallel=True, boosted=True, sampler="uniform", softness=0.001,
                  continuous_optimizer="adam", categorical_optimizer="naive", discrete_optimizer="naive", **kwargs):
         Strategy.__init__(self, domain, transform=kwargs.get('transform'))
-        import ipdb; ipdb.set_trace()
+        
         self.domain_inputs = []
         self.domain_objectives = []
         self.prev_param = None

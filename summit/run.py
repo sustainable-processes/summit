@@ -177,6 +177,8 @@ class NeptuneRunner(Runner):
 
         Parameters
         ----------
+        num_initial_experiments : int, optional
+            Number of initial experiments to request before iterative experimentation.
         save_freq : int, optional
             The frequency with which to checkpoint the state of the optimization. Defaults to None.
         save_at_end : bool, optional
@@ -202,13 +204,20 @@ class NeptuneRunner(Runner):
         save_freq = kwargs.get('save_freq')
         save_dir = kwargs.get('save_dir')
         save_at_end = kwargs.get('save_at_end', True)
+        num_initial_experiments = kwargs.get('num_initial_experiments')
+
+
 
         # Run optimization loop
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
-            next_experiments = self.strategy.suggest_experiments(
-                num_experiments=self.batch_size, prev_res=prev_res
-            )
+            if num_initial_experiments is not None and i==0:
+                next_experiments = self.strategy.suggest_experiments(
+                    num_experiments=num_initial_experiments)
+            else:
+                next_experiments = self.strategy.suggest_experiments(
+                    num_experiments=self.batch_size, prev_res=prev_res
+                )
 
             #Run experiment suggestions
             prev_res = self.experiment.run_experiments(next_experiments)
