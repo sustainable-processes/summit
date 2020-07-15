@@ -9,7 +9,6 @@ import logging
 import os
 logging.basicConfig(level=logging.INFO)
 token = os.environ.get('NEPTUNE_API_TOKEN')
-print(token)
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
