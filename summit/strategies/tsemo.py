@@ -108,7 +108,7 @@ class TSEMO(Strategy):
             )
 
         # Scale decision variables [0,1]
-        inputs_scaled = (inputs-self.inputs_min)/(self.inputs_max-self.inputs_min)
+        inputs_scaled = (inputs-self.inputs_min.to_numpy())/(self.inputs_max.to_numpy()-self.inputs_min.to_numpy())
 
         # Standardize objectives
         self.output_mean = outputs.mean()
@@ -118,8 +118,8 @@ class TSEMO(Strategy):
         # Set up models
         input_dim = self.domain.num_continuous_dimensions()
         self.models = {v.name: gpr(inputs_scaled.to_numpy(), 
-                              outputs_scaled[[v.name]].to_numpy(),
-                              kernel=self.kernel(input_dim=input_dim, ARD=True)
+                                   outputs_scaled[[v.name]].to_numpy(),
+                                   kernel=self.kernel(input_dim=input_dim, ARD=True)
                               )
                        for v in self.domain.output_variables}
         
