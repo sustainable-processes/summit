@@ -65,4 +65,4 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=1):
 
 if __name__== "__main__":
     # Test TSEMO
-    test_snar_experiment(strategy=TSEMO, transform=None,batch_size=1, num_repeats=2)
+    test_snar_experiment(strategy=TSEMO, transform=None,batch_size=1, num_repeats=20)
