@@ -64,7 +64,7 @@ Then, to run a container, here is an example with the SnAr experiment code. The 
 
 ```
 export token= #place your neptune token here
-sudo docker run-v `pwd`/:/summit_user --rm   -it --env NEPTUNE_API_TOKEN=$token summit:snar_benchmark  snar_experiment.py
+sudo docker run -v `pwd`/:/summit_user --rm -it --env NEPTUNE_API_TOKEN=$token summit:snar_benchmark snar_experiment_2.py
 ```
 
 ### Releases

@@ -216,7 +216,6 @@ class NeptuneRunner(Runner):
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=num_initial_experiments)
             else:
-                import pdb; pdb.set_trace()
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=self.batch_size, prev_res=prev_res
                 )
