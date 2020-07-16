@@ -17,6 +17,7 @@ numpy = "1.16.0"
 platypus-opt = "^1.0"
 sklearn = "^0.0.0"
 scikit-quant = {git = "https://github.com/sustainable-processes/scikit-quant.git"}
+chemopt = {git = "https://github.com/sustainable-processes/chemopt.git"}
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

@@ -200,7 +200,7 @@ class Hartmann3D(Experiment):
         des_4 = 'Function value'
         domain += ContinuousVariable(name='y',
                                      description=des_4,
-                                     bounds=[-1000, 1000],
+                                     bounds=[0, 3.9],
                                      is_objective=True,
                                      maximize=self.maximize)
         if self.constraints:
@@ -290,4 +290,87 @@ class Hartmann3D(Experiment):
         plt.show()
         plt.close()
 
- 
+class Quad3D(Experiment):
+    ''' Hartmann test function (3D) for testing optimization algorithms
+
+    Virtual experiment corresponds to a function evaluation.
+
+    Examples
+    --------
+    >>> b = Hartmann3D()
+    >>> columns = [v.name for v in b.domain.variables]
+    >>> values = [v.bounds[0]+0.1*(v.bounds[1]-v.bounds[0]) for v in b.domain.variables]
+    >>> values = np.array(values)
+    >>> values = np.atleast_2d(values)
+    >>> conditions = DataSet(values, columns=columns)
+    >>> results = b.run_experiments(conditions)
+
+    Notes
+    -----
+    This function is taken from https://www.sfu.ca/~ssurjano/hart3.html.
+
+    '''
+
+    def __init__(self, constraints=False, maximize=False):
+        self.constraints = constraints
+        self.evaluated_points = []
+
+        if maximize:
+            self.maximize = True
+        else:
+            self.maximize = False
+
+        domain = self._setup_domain()
+        super().__init__(domain)
+
+    def _setup_domain(self):
+        domain = Domain()
+
+        # Decision variables
+        des_1 = "Input 1"
+        domain += ContinuousVariable(name='x_1',
+                                     description=des_1,
+                                     bounds=[0, 1])
+
+        des_2 = "Input 2"
+        domain += ContinuousVariable(name='x_2',
+                                     description=des_2,
+                                     bounds=[0, 1])
+
+        des_3 = "Input 3"
+        domain += ContinuousVariable(name='x_3',
+                                     description=des_3,
+                                     bounds=[0, 1])
+
+        # Objectives
+        des_4 = 'Function value'
+        domain += ContinuousVariable(name='y',
+                                     description=des_4,
+                                     bounds=[-1000, 1000],
+                                     is_objective=True,
+                                     maximize=self.maximize)
+        if self.constraints:
+            domain += Constraint(lhs="x_1+x_2+x_3-1.625", constraint_type="<=")
+
+        return domain
+
+    def _run(self, conditions, **kwargs):
+
+        def function_evaluation(x_1,x_2,x_3):
+            x_exp = np.asarray([x_1,x_2,x_3])
+            y = 3*x_1 + 2*x_2 + 100*(x_3-0.5)**2
+            if not self.maximize:
+                y = -y
+            return -y
+
+        x_1 = float(conditions['x_1'])
+        x_2 = float(conditions['x_2'])
+        x_3 = float(conditions['x_3'])
+
+        y = function_evaluation(x_1,x_2,x_3)
+        conditions[('y', 'DATA')] = y
+
+        # save evaluated points for plotting
+        self.evaluated_points.append([x_1, x_2, x_3, y])
+
+        return conditions, None

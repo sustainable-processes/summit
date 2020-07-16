@@ -346,3 +346,56 @@ def test_nm3D(maximize,x_start,constraint, plot=False):
     #          (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
     if plot:
         hartmann3D.plot(polygons=polygons_points)
+
+
+maximize=False
+constraint=False
+def test_dro3D():
+    hartmann3D = test_functions.Hartmann3D(maximize=True, constraints=constraint)
+    strategy = DRO(hartmann3D.domain)
+
+    initial_exp = None
+    # Uncomment to create test case which results in reduction dimension and dimension recovery
+    # initial_exp = pd.DataFrame(data={'x_1': [0.1,0.1,0.4,0.3], 'x_2': [0.6,0.2,0.4,0.5], 'x_3': [1,1,1,0.3]})
+    # initial_exp = DataSet.from_df(initial_exp)
+    # initial_exp = hartmann3D.run_experiments(initial_exp)
+
+    # run Nelder-Mead loop for fixed <num_iter> number of iteration
+    num_iter = 200  # maximum number of iterations
+    max_stop = 40  # allowed number of consecutive iterations w/o improvement
+    nstop = 0
+    fbestold = float("inf")
+
+    # Initial experiments
+    if initial_exp is not None:
+        next_experiments = initial_exp
+    else:
+        next_experiments = None
+
+    param = None
+    for i in range(num_iter):
+        next_experiments, xbest, y, param = \
+            strategy.suggest_experiments(prev_res=next_experiments, prev_param=param)
+
+        # This is the part where experiments take place
+        next_experiments = hartmann3D.run_experiments(next_experiments)
+
+        print(y)
+        if y < fbestold:
+            fbestold = y
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+        print(next_experiments)  # show next experiments
+        print("\n")
+
+    xbest = np.around(xbest, decimals=3)
+    fbestold = np.around(fbestold, decimals=3)
+
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbestold))
+
+#test_dro3D()
+
