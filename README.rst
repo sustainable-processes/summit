@@ -64,6 +64,26 @@ Commit Worfklow
   * All pull requests need one review.
   * Tests will be run automatically when a pull request is created, and all tests need to pass before the pull request is merged. 
 
+Docker
+^^^^^^
+
+Sometimes, it is easier to run tests using a Docker container (e.g., on compute clusters). Here are the commands to build and run the docker containers using the included Dockferfile. The container entrypoint is python, so you just need to specify the file name.
+
+To build the container:
+
+.. code-block::
+
+   docker build . -t summit:latest
+
+You can change the tag from ``latest`` to whatever is most appropriate (e.g., the branch name).
+
+Then, to run a container, here is an example with the SnAr experiment code. The home directory of the container is called ``summit_user``\ , hence we mount the current working directory into that folder.  We remove the container upon finishing using ``--rm`` and make it interactive using ``--it`` (remove this if you just want the container to run in the background). `Neptune.ai <https://neptune.ai/>`_ is used for the experiments so the API token is passed in. Finally, I specify the image name and the tag and before referencing the python file I want to run. 
+
+.. code-block::
+
+   export token= #place your neptune token here
+   sudo docker run-v `pwd`/:/summit_user --rm   -it --env NEPTUNE_API_TOKEN=$token summit:snar_benchmark  snar_experiment.py
+
 Releases
 ^^^^^^^^
 

@@ -35,13 +35,13 @@ setup(
         'summit.strategies', 'summit.utils'
     ],
     package_data={
-        'summit.strategies': [
-            'tmp_files/gryffin/*.json', 'tmp_files/gryffin/scratch/*.pkl'
-        ],
         'summit.benchmarks.experiment_emulator': [
             'data/*.csv', 'data/*.md', 'data/*.xlsx',
             'trained_models/BNN/*.json', 'trained_models/BNN/*.png',
             'trained_models/BNN/*.pt'
+        ],
+        'summit.strategies': [
+            'tmp_files/gryffin/*.json', 'tmp_files/gryffin/scratch/*.pkl'
         ]
     },
     install_requires=[
@@ -51,10 +51,8 @@ setup(
         'pandas==1.0.3', 'pathlib==1.*,>=1.0.1', 'pymoo==0.*,>=0.4.1',
         'pyrff==1.*,>=1.0.1', 'sqsnobfit==0.*,>=0.4.3',
         'tensorflow==2.*,>=2.2.0', 'tensorflow-probability==0.*,>=0.10.1',
-        'torch', 'tqdm==4.*,>=4.46.1'
-    ],
-    dependency_links=[
-        'git+https://github.com/sustainable-processes/gryffin.git#egg=gryffin'
+        'torch', 'tqdm==4.*,>=4.46.1', 
+        'gryffin @ git+https://api.github.com/repos/sustainable-processes/gryffin/tarball/0.1.0'
     ],
     extras_require={
         'dev': [
