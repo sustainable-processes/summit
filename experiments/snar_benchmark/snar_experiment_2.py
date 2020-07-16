@@ -1,4 +1,3 @@
-import pytest
 
 from summit import *
 from summit.benchmarks import SnarBenchmark

@@ -1,7 +1,8 @@
 FROM python:3.7
 
-COPY pyproject.toml poetry.lock README.md /
-COPY summit/ /summit/
-RUN pip install .
-ENTRYPOINT python 
+WORKDIR /summit_user
+COPY setup.py ./
+COPY summit summit/
+RUN ls && pip install .
+ENTRYPOINT ["python"] 
 
