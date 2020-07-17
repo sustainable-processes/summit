@@ -203,8 +203,6 @@ class DRO(Strategy):
 
             def load(self, sess, model_path):
                 try:
-                    logger.info('Reading model parameters from {}.'.format(model_path))
-                    print(model_path)
                     self.saver.restore(sess, model_path)
                 except:
                     raise FileNotFoundError('No checkpoint available')
@@ -220,9 +218,7 @@ class DRO(Strategy):
                 with tf.Session() as sess:
                     if prev_res is None:
                         x, state = self.get_init()
-                        print(self.ckpt_path)
                         ckpt = tf.train.get_checkpoint_state(self.ckpt_path)
-                        print(ckpt)
                         model_id = ckpt.model_checkpoint_path.split("/")[-1]
                         init_model = os.path.join(os.path.dirname(chemopt.__file__), 'save', str(self.ndim) + '_inputs_standard', model_id)
                         self.load(sess, init_model)
