@@ -8,9 +8,10 @@ from summit.utils.dataset import DataSet
 
 import numpy as np
 from abc import ABC, abstractmethod
-        
+
+
 class TSEMO2(Strategy):
-    ''' A modified version of Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
+    """ A modified version of Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
     
     Parameters
     ---------- 
@@ -51,43 +52,47 @@ class TSEMO2(Strategy):
     >>> strategy = TSEMO2(domain, random_state=np.random.RandomState(3))
     >>> result = strategy.suggest_experiments(5)
  
-    ''' 
-    def __init__(self, domain, transform=None,
-                 models=None, optimizer=None, **kwargs):
+    """
+
+    def __init__(self, domain, transform=None, models=None, **kwargs):
         Strategy.__init__(self, domain, transform)
 
+        # Internal models
         if models is None:
-            input_dim = self.domain.num_continuous_dimensions() + self.domain.num_discrete_variables()
-            models = {v.name: GPyModel(input_dim=input_dim) for v in self.domain.variables 
-                      if v.is_objective}
+            input_dim = self.domain.num_continuous_dimensions(include_outputs=False)
+            models = {
+                v.name: GPyModel(input_dim=input_dim)
+                for v in self.domain.variables
+                if v.is_objective
+            }
             self.models = ModelGroup(models)
         elif isinstance(models, ModelGroup):
             self.models = models
         elif isinstance(models, dict):
             self.models = ModelGroup(models)
-        else: 
-            raise TypeError('models must be a ModelGroup or a dictionary of models.')
-
-        if not optimizer:
-            self.optimizer = NSGAII(self.domain)
         else:
-            self.optimizer = optimizer
+            raise TypeError("models must be a ModelGroup or a dictionary of models.")
 
-        self._reference = kwargs.get('reference',
-                                     [0 for v in self.domain.variables if v.is_objective])
-        self._random_rate = kwargs.get('random_rate', 0.25)
+        # NSGAII internal optimizer
+        self.optimizer = NSGAII(self.domain)
+
+        self._reference = kwargs.get(
+            "reference", [0 for v in self.domain.variables if v.is_objective]
+        )
+        self._random_rate = kwargs.get("random_rate", 0.25)
         if self._random_rate < 0.0 or self._random_rate > 1.0:
-            raise ValueError('Random rate must be between 0 and 1.')
+            raise ValueError("Random rate must be between 0 and 1.")
 
-    def suggest_experiments(self, num_experiments, 
-                            previous_results: DataSet=None):
+        self.all_experiments = None
+
+    def suggest_experiments(self, num_experiments, prev_res: DataSet = None):
         """ Suggest experiments using TSEMO
         
         Parameters
         ----------  
         num_experiments: int
             The number of experiments (i.e., samples) to generate
-        previous_results: summit.utils.data.DataSet, optional
+        prev_res: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, then latin hypercube sampling will
             be used to suggest an initial design.
@@ -97,39 +102,67 @@ class TSEMO2(Strategy):
         ds
             A `Dataset` object with the random design
         """
-        # Suggest lhs initial design
-        if previous_results is None:
+        # Suggest lhs initial design or append new experiments to previous experiments
+        if prev_res is None:
             lhs = LHS(self.domain)
             return lhs.suggest_experiments(num_experiments)
+        elif prev_res is not None and self.all_experiments is None:
+            self.all_experiments = prev_res
+        elif prev_res is not None and self.all_experiments is not None:
+            self.all_experiments = self.all_experiments.concat(prev_res)
 
-        #Get inputs and outputs
-        inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
-        
-        #Fit models to new data
+        # Get inputs and outputs
+        inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
+
+        # Fit models to new data
         self.models.fit(inputs, outputs)
 
-        #Run internal optimization
+        # Run internal optimization
         internal_res = self.optimizer.optimize(self.models)
-        
-        if internal_res is not None and len(internal_res.fun)!=0:
-            # Select points that give maximum hypervolume improvement
-            hv_imp, indices = self.select_max_hvi(outputs, internal_res.fun, num_experiments)
 
-            #Join to get single dataset with inputs and outputs
-            result = internal_res.x.join(internal_res.fun) 
-            result =  result.iloc[indices, :]
+        if internal_res is not None and len(internal_res.fun) != 0:
+            # Select points that give maximum hypervolume improvement
+            hv_imp, indices = self.select_max_hvi(
+                outputs, internal_res.fun, num_experiments
+            )
+
+            # Join to get single dataset with inputs and outputs
+            result = internal_res.x.join(internal_res.fun)
+            result = result.iloc[indices, :]
 
             # Do any necessary transformations back
             result = self.transform.un_transform(result)
 
-            #State the strategy used
-            result[('strategy', 'METADATA')] = 'TSEMO2'
+            # State the strategy used
+            result[("strategy", "METADATA")] = "TSEMO2"
             return result
         else:
             return None
 
+    def to_dict(self):
+        ae = (
+            self.all_experiments.to_dict() if self.all_experiments is not None else None
+        )
+        strategy_params = dict(
+            models=self.models.to_dict(),
+            random_rate=self._random_rate,
+            all_experiments=ae,
+        )
+        return super().to_dict(**strategy_params)
+
+    @classmethod
+    def from_dict(cls, d):
+        d["strategy_params"]["models"] = ModelGroup.from_dict(
+            d["strategy_params"]["models"]
+        )
+        tsemo = super().from_dict(d)
+        ae = d["strategy_params"]["all_experiments"]
+        if ae is not None:
+            tsemo.all_experiments = DataSet.from_dict(ae)
+        return tsemo
+
     def select_max_hvi(self, y, samples, num_evals=1):
-        '''  Returns the point(s) that maximimize hypervolume improvement 
+        """  Returns the point(s) that maximimize hypervolume improvement 
         
         Parameters
         ---------- 
@@ -144,79 +177,80 @@ class TSEMO2(Strategy):
             Returns a tuple with lists of the best hypervolume improvement
             and the indices of the corresponding points in samples       
         
-        ''' 
-        #Get the reference point, r
-        # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0)) 
+        """
+        # Get the reference point, r
+        # r = self._reference + 0.01*(np.max(samples, axis=0)-np.min(samples, axis=0))
         r = self._reference
 
         samples = samples.copy()
         y = y.copy()
-        
-        #Set up maximization and minimization
+
+        # Set up maximization and minimization
         for v in self.domain.variables:
             if v.is_objective and v.maximize:
                 y[v.name] = -1 * y[v.name]
                 samples[v.name] = -1 * samples[v.name]
-        
+
         # samples, mean, std = samples.standardize(return_mean=True, return_std=True)
         samples = samples.data_to_numpy()
         Ynew = y.data_to_numpy()
         # Ynew = (Ynew - mean)/std
-        
+
         index = []
         n = samples.shape[1]
         mask = np.ones(samples.shape[0], dtype=bool)
 
-        #Set up random selection
-        if not (self._random_rate <=1.) | (self._random_rate >=0.):
-            raise ValueError('Random Rate must be between 0 and 1.')
+        # Set up random selection
+        if not (self._random_rate <= 1.0) | (self._random_rate >= 0.0):
+            raise ValueError("Random Rate must be between 0 and 1.")
 
-        if self._random_rate>0:
-            num_random = round(self._random_rate*num_evals)
+        if self._random_rate > 0:
+            num_random = round(self._random_rate * num_evals)
             random_selects = np.random.randint(0, num_evals, size=num_random)
         else:
             random_selects = np.array([])
-        
+
         for i in range(num_evals):
             masked_samples = samples[mask, :]
             Yfront, _ = pareto_efficient(Ynew, maximize=False)
             if len(Yfront) == 0:
-                raise ValueError('Pareto front length too short')
+                raise ValueError("Pareto front length too short")
 
             hv_improvement = []
             hvY = HvI.hypervolume(Yfront, [0, 0])
-            #Determine hypervolume improvement by including
-            #each point from samples (masking previously selected poonts)
+            # Determine hypervolume improvement by including
+            # each point from samples (masking previously selected poonts)
             for sample in masked_samples:
-                sample = sample.reshape(1,n)
+                sample = sample.reshape(1, n)
                 A = np.append(Ynew, sample, axis=0)
                 Afront, _ = pareto_efficient(A, maximize=False)
-                hv = HvI.hypervolume(Afront, [0,0])
-                hv_improvement.append(hv-hvY)
-            
-            hvY0 = hvY if i==0 else hvY0
+                hv = HvI.hypervolume(Afront, [0, 0])
+                hv_improvement.append(hv - hvY)
+
+            hvY0 = hvY if i == 0 else hvY0
 
             if i in random_selects:
                 masked_index = np.random.randint(0, masked_samples.shape[0])
             else:
-                #Choose the point that maximizes hypervolume improvement
+                # Choose the point that maximizes hypervolume improvement
                 masked_index = hv_improvement.index(max(hv_improvement))
-            
-            samples_index = np.where((samples == masked_samples[masked_index, :]).all(axis=1))[0][0]
+
+            samples_index = np.where(
+                (samples == masked_samples[masked_index, :]).all(axis=1)
+            )[0][0]
             new_point = samples[samples_index, :].reshape(1, n)
             Ynew = np.append(Ynew, new_point, axis=0)
             mask[samples_index] = False
             index.append(samples_index)
 
-        if len(hv_improvement)==0:
+        if len(hv_improvement) == 0:
             hv_imp = 0
         elif len(index) == 0:
             index = []
             hv_imp = 0
         else:
-            #Total hypervolume improvement
-            #Includes all points added to batch (hvY + last hv_improvement)
-            #Subtracts hypervolume without any points added (hvY0)
-            hv_imp = hv_improvement[masked_index] + hvY-hvY0
+            # Total hypervolume improvement
+            # Includes all points added to batch (hvY + last hv_improvement)
+            # Subtracts hypervolume without any points added (hvY0)
+            hv_imp = hv_improvement[masked_index] + hvY - hvY0
         return hv_imp, index
-
