@@ -741,41 +741,98 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint,check_co
         fig, ax = hartmann3D.plot()
 
 
-maximize=False
-constraint=False
-def test_dro3D():
-    hartmann3D = test_functions.Hartmann3D(maximize=False, constraints=constraint)
+@pytest.mark.parametrize(
+    "max_num_exp, maximize",
+    [
+        [1, True],
+        [50, True],
+        [50, False]
+    ]
+)
+def test_dro2D(max_num_exp, maximize, constraint=False, plot=False):
+
+    himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
+    strategy = DRO(himmelblau.domain)
+
+    # run DRO loop for fixed <num_iter> number of iteration
+    num_iter = max_num_exp  # maximum number of iterations
+    max_stop = 20  # allowed number of consecutive iterations w/o improvement
+    nstop = 0
+    fbestold = float("inf")
+    polygons_points = []
+
+
+    next_experiments = None
+    param = None
+    for i in range(num_iter):
+        next_experiments = strategy.suggest_experiments(
+            prev_res=next_experiments
+        )
+        # This is the part where experiments take place
+        next_experiments = himmelblau.run_experiments(next_experiments)
+
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
+        xbest = strategy.xbest
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+        print(next_experiments)  # show next experiments
+
+    xbest = np.around(xbest, decimals=3)
+    fbest = np.around(fbest, decimals=3)
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # Extrema of test function without constraints: four identical local minima f = 0 at x1 = (3.000, 2.000),
+    # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
+
+    # Test saving and loading
+    strategy.save('dro_2d.json')
+    strategy_2 = DRO.load('dro_2d.json')
+    os.remove('dro_2d.json')
+
+    if strategy.prev_param is not None:
+        assert np.array_equal(np.array(list(strategy.prev_param["state"])), np.array(list(strategy_2.prev_param["state"])))
+        assert np.array_equal(strategy.prev_param["xbest"],strategy_2.prev_param["xbest"])
+        assert strategy.prev_param["fbest"] == strategy_2.prev_param["fbest"]
+        assert np.array_equal(strategy.prev_param["last_requested_point"], strategy_2.prev_param["last_requested_point"])
+        assert strategy.prev_param["iteration"] == strategy_2.prev_param["iteration"]
+
+
+@pytest.mark.parametrize(
+    "max_num_exp, maximize",
+    [
+        [1, True],
+        [50, True],
+        [50, False]
+    ]
+)
+def test_dro3D(max_num_exp, maximize, constraint=False, plot=False):
+    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = DRO(hartmann3D.domain)
 
-    initial_exp = None
-    # Uncomment to create test case which results in reduction dimension and dimension recovery
-    # initial_exp = pd.DataFrame(data={'x_1': [0.1,0.1,0.4,0.3], 'x_2': [0.6,0.2,0.4,0.5], 'x_3': [1,1,1,0.3]})
-    # initial_exp = DataSet.from_df(initial_exp)
-    # initial_exp = hartmann3D.run_experiments(initial_exp)
-
-    # run Nelder-Mead loop for fixed <num_iter> number of iteration
-    num_iter = 200  # maximum number of iterations
-    max_stop = 40  # allowed number of consecutive iterations w/o improvement
+    # run DRO loop for fixed <num_iter> number of iteration
+    num_iter = max_num_exp  # maximum number of iterations
+    max_stop = 20  # allowed number of consecutive iterations w/o improvement
     nstop = 0
     fbestold = float("inf")
 
-    # Initial experiments
-    if initial_exp is not None:
-        next_experiments = initial_exp
-    else:
-        next_experiments = None
-
+    next_experiments = None
     param = None
     for i in range(num_iter):
-        next_experiments, xbest, y, param = \
-            strategy.suggest_experiments(prev_res=next_experiments, prev_param=param)
+        next_experiments = \
+            strategy.suggest_experiments(prev_res=next_experiments)
 
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
 
-        print(y)
-        if y < fbestold:
-            fbestold = y
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
+        xbest = strategy.xbest
+        if fbest < fbestold:
+            fbestold = fbest
             nstop = 0
         else:
             nstop += 1
@@ -790,4 +847,14 @@ def test_dro3D():
 
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbestold))
 
-test_dro3D()
+    # Test saving and loading
+    strategy.save('dro_3d.json')
+    strategy_2 = DRO.load('dro_3d.json')
+    os.remove('dro_3d.json')
+
+    if strategy.prev_param is not None:
+        assert np.array_equal(np.array(list(strategy.prev_param["state"])), np.array(list(strategy_2.prev_param["state"])))
+        assert np.array_equal(strategy.prev_param["xbest"],strategy_2.prev_param["xbest"])
+        assert strategy.prev_param["fbest"] == strategy_2.prev_param["fbest"]
+        assert np.array_equal(strategy.prev_param["last_requested_point"], strategy_2.prev_param["last_requested_point"])
+        assert strategy.prev_param["iteration"] == strategy_2.prev_param["iteration"]

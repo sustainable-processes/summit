@@ -59,7 +59,7 @@ class Himmelblau(Experiment):
         domain += ContinuousVariable(
             name="y",
             description=des_3,
-            bounds=[-1000, 1000],
+            bounds=[-1000, 0],
             is_objective=True,
             maximize=self.maximize,
         )
