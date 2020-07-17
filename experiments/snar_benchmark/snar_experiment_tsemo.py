@@ -1,4 +1,3 @@
-
 from summit import *
 from summit.benchmarks import SnarBenchmark
 from summit.strategies import *
@@ -11,58 +10,30 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
+# Variables
 NUM_REPEATS=20
-MAX_EXPERIMENTS=100
 NEPTUNE_PROJECT="sustainable-processes/summit"
+MAX_EXPERIMENTS=50
+BATCH_SIZE=1
 
 #SnAr benchmark with 2.5% experimental measurement noise
 experiment = SnarBenchmark(noise_level_percent=2.5)
 
-# Transforms from multi to single objective
-hierarchies = [{'sty': {'hierarchy': 0, 'tolerance': 1}, 
-                'e_factor': {'hierarchy': 1, 'tolerance': 1}},
-               
-               {'sty': {'hierarchy': 0, 'tolerance': 0.5}, 
-                'e_factor': {'hierarchy': 1, 'tolerance': 0.5}},
-               
-               {'sty': {'hierarchy': 0, 'tolerance': 1.0}, 
-                'e_factor': {'hierarchy': 1, 'tolerance': 0.5}},
-               
-               {'sty': {'hierarchy': 0, 'tolerance': 0.5}, 
-                'e_factor': {'hierarchy': 1, 'tolerance': 1.0}}
-              ]
-transforms = [Chimera(experiment.domain, hierarchies[2]),
-              MultitoSingleObjective(experiment.domain, 
-                                     expression='-sty/1e4+e_factor/100', 
-                                     maximize=False),
-              Chimera(experiment.domain, hierarchies[0]),
-              Chimera(experiment.domain, hierarchies[1]),
-              Chimera(experiment.domain, hierarchies[3]),
-
-]
-
 # Run experiments
-def test_snar_experiment(strategy, transform, batch_size, num_repeats=1):
-    warnings.filterwarnings('ignore', category=RuntimeWarning)
-    for i in range(num_repeats):
-        experiment.reset()
-        s = strategy(experiment.domain, transform=transform)
+warnings.filterwarnings('ignore', category=RuntimeWarning)
+for i in range(NUM_REPEATS):
+    experiment.reset()
+    s = TSEMO(experiment.domain, transform=transform)
 
-        # Early stopping for local optimization strategies
-        if strategy in [NelderMead]:
-            f_tol = 1e-5
-        else:
-            f_tol = None
+    exp_name = f"snar_experiment_{s.__class__.__name__}_repeat_{i}"
+    r = NeptuneRunner(experiment=experiment, strategy=s, 
+                      neptune_project=NEPTUNE_PROJECT,
+                      tags=["snar_experiment", s.__class__.__name__],
+                      neptune_experiment_name=exp_name,
+                      files=["snar_experiment_tsemo.py"],
+                      max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
+                      batch_size=BATCH_SIZE,
+                      num_initial_experiments=4,
+                      hypervolume_ref=[-2957,10.7])
+    r.run(save_at_end=True)
 
-        r = NeptuneRunner(experiment=experiment, strategy=s, 
-                          neptune_project=NEPTUNE_PROJECT,
-                          neptune_experiment_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}",
-                          files=["snar_experiment.py"],
-                          max_iterations=MAX_EXPERIMENTS//batch_size,
-                          batch_size=batch_size,
-                          f_tol=f_tol)
-        r.run(save_at_end=True, num_initial_experiments=4)
-
-if __name__== "__main__":
-    # Test TSEMO
-    test_snar_experiment(strategy=TSEMO, transform=None,batch_size=1, num_repeats=20)

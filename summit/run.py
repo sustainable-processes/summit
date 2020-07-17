@@ -39,11 +39,13 @@ class Runner:
         self,
         strategy: Strategy,
         experiment: Experiment,
+        num_initial_experiments=1,
         max_iterations=100,
         batch_size=1,
     ):
         self.strategy = strategy
         self.experiment = experiment
+        self.num_initial_experiments = num_initial_experiments
         self.max_iterations = max_iterations
         self.batch_size = batch_size
 
@@ -53,13 +55,19 @@ class Runner:
         prev_res = None
         i = 0
         for i in progress_bar(range(self.max_iterations)):
-            next_experiments = self.strategy.suggest_experiments(
-                num_experiments=self.batch_size, prev_res=prev_res
-            )
+            # Get experiment suggestions
+            if i==0:
+                next_experiments = self.strategy.suggest_experiments(
+                    num_experiments=self.num_initial_experiments)
+            else:
+                next_experiments = self.strategy.suggest_experiments(
+                    num_experiments=self.batch_size, prev_res=prev_res
+                )
             prev_res = self.experiment.run_experiments(next_experiments)
 
     def to_dict(self,):
         runner_params = dict(
+            num_initial_experiments=self.num_initial_experiments,
             max_iterations=self.max_iterations, batch_size=self.batch_size
         )
 
@@ -137,13 +145,15 @@ class NeptuneRunner(Runner):
         neptune_description: str = None,
         files: list = None,
         max_iterations=100,
+        num_initial_experiments=1,
         batch_size=1,
         f_tol = None,
         hypervolume_ref=None,
         logger = None
     ):
 
-        super().__init__(strategy, experiment, 
+        super().__init__(strategy, experiment,
+                         num_initial_experiments=num_initial_experiments,
                          max_iterations=max_iterations, 
                          batch_size=batch_size)
 
@@ -187,14 +197,6 @@ class NeptuneRunner(Runner):
         save_dir : str, optional
             The directory to save checkpoints locally. Defaults to not saving locally.
         """
-        neptune_exp = self.proj.create_experiment(
-            name=self.neptune_experiment_name,
-            description=self.neptune_description,
-            params=self.to_dict(),
-            upload_source_files=self.files,
-            logger=self.logger,
-            tags=self.tags
-        )
 
         # Set parameters
         prev_res = None
@@ -206,14 +208,22 @@ class NeptuneRunner(Runner):
         save_at_end = kwargs.get('save_at_end', True)
         num_initial_experiments = kwargs.get('num_initial_experiments')
 
-
+        # Create neptune experiment
+        neptune_exp = self.proj.create_experiment(
+            name=self.neptune_experiment_name,
+            description=self.neptune_description,
+            params=self.to_dict(),
+            upload_source_files=self.files,
+            logger=self.logger,
+            tags=self.tags
+        )
 
         # Run optimization loop
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
-            if num_initial_experiments is not None and i==0:
+            if i==0:
                 next_experiments = self.strategy.suggest_experiments(
-                    num_experiments=num_initial_experiments)
+                    num_experiments=self.num_initial_experiments)
             else:
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=self.batch_size, prev_res=prev_res
@@ -234,13 +244,13 @@ class NeptuneRunner(Runner):
                 neptune_exp.send_metric(v.name+"_best", fbest[j])
             
             # Send hypervolume for multiobjective experiments
-            if n_objs >1:
+            if n_objs>1:
                 output_names = [v.name for v in self.experiment.domain.output_variables]
-                data = self.experiment.data[output_names].to_numpy()
-                for j, v in enumerate(self.experiment.domain.output_variables):
+                data = self.experiment.data[output_names]
+                for v in self.experiment.domain.output_variables:
                     if v.maximize:
-                        data[:, j] = -1.0*data[:, j]
-                y_pareto, _ = pareto_efficient(data, maximize=False) 
+                        data[(v.name, 'DATA')] = -1.0*data[v.name]
+                y_pareto, _ = pareto_efficient(data.to_numpy(), maximize=False) 
                 hv = hypervolume(y_pareto, self.ref)
                 neptune_exp.send_metric('hypervolume', hv)
             

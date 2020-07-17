@@ -1,3 +1,10 @@
+""" SnAr Experiment Base Script
+
+Run this with pytest: `pytest snar_experiment_base.py``
+
+You need to have your Neptune API token as an environmental variable.
+
+"""
 import pytest
 
 from summit import *
@@ -13,8 +20,9 @@ if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
 NUM_REPEATS=20
-MAX_EXPERIMENTS=100
+MAX_EXPERIMENTS=50
 NEPTUNE_PROJECT="sustainable-processes/summit"
+BATCH_SIZE=1
 
 #SnAr benchmark with 2.5% experimental measurement noise
 experiment = SnarBenchmark(noise_level_percent=2.5)
@@ -45,7 +53,6 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 # Run experiments
 @pytest.mark.parametrize('strategy', [NelderMead, SNOBFIT, Random, SOBO])
 @pytest.mark.parametrize('transform', transforms)
-@pytest.mark.parametrize('batch_size', [1,24])
 def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
     warnings.filterwarnings('ignore', category=RuntimeWarning)
     for i in range(NUM_REPEATS):
@@ -58,11 +65,14 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
         else:
             f_tol = None
 
+        exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
         r = NeptuneRunner(experiment=experiment, strategy=s, 
                           neptune_project=NEPTUNE_PROJECT,
-                          neptune_experiment_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}",
+                          neptune_experiment_name=exp_name,
                           files=["snar_experiment.py"],
                           max_iterations=MAX_EXPERIMENTS//batch_size,
-                          batch_size=batch_size,
-                          f_tol=f_tol)
+                          batch_size=BATCH_SIZE,
+                          f_tol=f_tol,
+                          num_initial_experiments=1,
+                          hypervolume_ref=[-2957,10.7])
         r.run(save_at_end=True)
