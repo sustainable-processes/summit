@@ -6,6 +6,7 @@ from .neldermead import NelderMead
 from .snobfit import SNOBFIT
 from .sobo import SOBO
 from .gryffin import GRYFFIN
+from .deep_reaction_optimizer import DRO
 
 def strategy_from_dict(d):
     if d["name"] == "TSEMO2":
@@ -24,6 +25,8 @@ def strategy_from_dict(d):
         return LHS.from_dict(d)
     elif d["name"] == "Gryffin":
         return GRYFFIN.from_dict(d)
+    elif d["name"] == "DRO":
+        return DRO.from_dict(d)
     else:
         raise ValueError(f"""Strategy {d["name"]} not found.""")
 

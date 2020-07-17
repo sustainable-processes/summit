@@ -240,7 +240,7 @@ class Hartmann3D(Experiment):
         domain += ContinuousVariable(
             name="y",
             description=des_4,
-            bounds=[-1000, 1000],
+            bounds=[-3.9, 0],
             is_objective=True,
             maximize=self.maximize,
         )
@@ -435,6 +435,7 @@ class ThreeHumpCamel(Experiment):
         des_1 = "Input 1"
         domain += ContinuousVariable(name='x_1',
                                      description=des_1,
+                                     bounds=[-2, 2])
 
         des_2 = "Input 2"
         domain += ContinuousVariable(name='x_2',

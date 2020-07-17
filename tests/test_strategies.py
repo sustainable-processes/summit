@@ -744,7 +744,7 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint,check_co
 maximize=False
 constraint=False
 def test_dro3D():
-    hartmann3D = test_functions.Hartmann3D(maximize=True, constraints=constraint)
+    hartmann3D = test_functions.Hartmann3D(maximize=False, constraints=constraint)
     strategy = DRO(hartmann3D.domain)
 
     initial_exp = None
@@ -790,4 +790,4 @@ def test_dro3D():
 
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbestold))
 
-#test_dro3D()
+test_dro3D()
