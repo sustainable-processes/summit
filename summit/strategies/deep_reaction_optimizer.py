@@ -7,7 +7,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from chemopt import *
+import chemopt
 
 import tensorflow as tf
 import numpy as np
@@ -16,8 +16,6 @@ import json
 
 import os.path as osp
 
-import chemopt.rnn as rnn
-from chemopt.reactions import RealReaction
 from chemopt.logger import get_handlers
 from collections import namedtuple
 
@@ -222,23 +220,22 @@ class DRO(Strategy):
                 with tf.Session() as sess:
                     if prev_res is None:
                         x, state = self.get_init()
-                        print(1111)
                         print(self.ckpt_path)
                         ckpt = tf.train.get_checkpoint_state(self.ckpt_path)
                         print(ckpt)
-                        print(ckpt.model_checkpoint_path)
                         model_id = ckpt.model_checkpoint_path.split("/")[-1]
-                        init_model = os.path.join('/home/jr/.cache/pypoetry/virtualenvs/summit-6x283KM7-py3.7/src/chemopt/chemopt/save/3_inputs_standard_v3/', model_id)
+                        init_model = os.path.join(os.path.dirname(chemopt.__file__), 'save', str(self.ndim) + '_inputs_standard', model_id)
                         self.load(sess, init_model)
+                        self.infer_model_path = os.path.join(self.infer_model_path, model_id)
                         self.saver.save(sess, self.infer_model_path)
                     else:
                         ckpt = tf.train.get_checkpoint_state(self.ckpt_path)
-                        print(ckpt)
-                        print(ckpt.model_checkpoint_path)
                         model_id = ckpt.model_checkpoint_path.split("/")[-1]
                         self.infer_model_path = os.path.join(self.infer_model_path, model_id)
                         self.load(sess, self.infer_model_path)
                         state = prev_param[0]
+                        if not np.array_equal(self.x, prev_param[1]):
+                            raise ValueError("Values for input variables do not match requested points: {} != {}".format(str(self.x), str(prev_param[1])))
                         x, state = self.step(sess, self.x, self.y, state)
                         self.saver.save(sess, self.infer_model_path)
                 return x, state
@@ -250,29 +247,21 @@ class DRO(Strategy):
                 real_x[i] = x[0,i] * (b - a) + a
             return real_x
 
-        def y_convert(y):
-            if self.direction == 'max':
-                return 1 - y
-            a, b = self.obj_bounds[0]
-            y = (y - a) / (b - a)
-            return y
-
         def main(num_input=3, prev_res=None, prev_param=None):
-            t_path = '/home/jr/.cache/pypoetry/virtualenvs/summit-6x283KM7-py3.7/src/chemopt/chemopt/'
-            path = osp.join(t_path, 'config_' + str(num_input) + '_inputs_standard.json')
+            module_path = os.path.dirname(chemopt.__file__)
+            path = osp.join(module_path, 'config_' + str(num_input) + '_inputs_standard.json')
             config_file = open(path)
             config = json.load(config_file,
                                object_hook=lambda d:namedtuple('x', d.keys())(*d.values()))
-            save_dir = str(config.save_path)
-            save_path = osp.join(t_path, save_dir)
+            saved_model_path = osp.join(module_path, str(config.save_path))
 
-            cell = rnn.StochasticRNNCell(cell=rnn.LSTM,
+            cell = chemopt.rnn.StochasticRNNCell(cell=chemopt.rnn.LSTM,
                                          kwargs={'hidden_size':config.hidden_size},
                                          nlayers=config.num_layers,
                                          reuse=config.reuse)
             optimizer = StepOptimizer(cell=cell, ndim=config.num_params,
                                       nsteps=config.num_steps,
-                                      ckpt_path=save_path, infer_model_path=self.infer_model_path, logger=logger,
+                                      ckpt_path=saved_model_path, infer_model_path=self.infer_model_path, logger=logger,
                                       constraints=config.constraints, x=self.x0, y=self.y0)
             x, state = optimizer.run(prev_res=prev_res, prev_param=prev_param)
 
@@ -297,8 +286,6 @@ class DRO(Strategy):
 
             return next_experiments, xbest, self.y0[0], prev_param
 
-        #print(self.y0)
-        #print(prev_param)
         return main(num_input=self.dim, prev_res=self.y0, prev_param=prev_param)
 
 
