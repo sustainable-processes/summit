@@ -49,7 +49,7 @@ def test_runner_unit():
     assert r.strategy.iterations == max_iterations
     assert r.experiment.data.shape[0] == int(batch_size * max_iterations)
 
-@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, TSEMO2, NelderMead, Random, LHS])
+@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, TSEMO, NelderMead, Random, LHS])
 def test_runner_integration(strategy):
     class MockExperiment(Experiment):
         def __init__(self):

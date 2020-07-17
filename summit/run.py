@@ -1,11 +1,10 @@
 from summit.strategies import Strategy, strategy_from_dict
 from summit.experiment import Experiment
 from summit.benchmarks import *
-from summit.utils.multiobjective import pareto_efficient, HvI
+from summit.utils.multiobjective import pareto_efficient, hypervolume
 
 from fastprogress.fastprogress import progress_bar
 import numpy as np
-
 import os
 import json
 import pkg_resources
@@ -233,7 +232,7 @@ class NeptuneRunner(Runner):
                     if v.maximize:
                         data[:, j] = -1.0*data[:, j]
                 y_pareto, _ = pareto_efficient(data, maximize=False) 
-                hv = HvI.hypervolume(y_pareto, self.ref)
+                hv = hypervolume(y_pareto, self.ref)
                 neptune_exp.send_metric('hypervolume', hv)
             
             # Save state
@@ -290,5 +289,9 @@ def experiment_from_dict(d):
         return Hartmann3D.from_dict(d)
     elif d["name"] == "Himmelblau":
         return Himmelblau.from_dict(d)
+    elif d["name"] == "DTLZ2":
+        return DTLZ2.from_dict(d)
+    elif d["name"] == "VLMOP2":
+        return VLMOP2.from_dict(d)
     elif d["name"] == "ThreeHumpCamel":
         return Himmelblau.from_dict(d)

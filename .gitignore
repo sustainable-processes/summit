@@ -111,3 +111,8 @@ venv.bak/
 ~*.xlsx
 *.DS_STORE
 .vscode/
+
+# TSEMO
+.TSEMO_DATA
+tmp_files
+Pytest*
