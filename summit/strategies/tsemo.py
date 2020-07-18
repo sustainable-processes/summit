@@ -19,6 +19,7 @@ import os
 import numpy as np
 from abc import ABC, abstractmethod
 import logging
+import warnings
 
 
 class TSEMO(Strategy):
@@ -92,19 +93,26 @@ class TSEMO(Strategy):
             A `Dataset` object with the random design
         """
         # Suggest lhs initial design or append new experiments to previous experiments
-        if prev_res is None:
+        if prev_res is None :
             lhs = LHS(self.domain)
+            self.iterations +=1
+            return lhs.suggest_experiments(num_experiments)
+        elif (self.iterations == 1 and len(prev_res)==1):
+            lhs = LHS(self.domain)
+            self.iterations +=1
+            self.all_experiments = prev_res
             return lhs.suggest_experiments(num_experiments)
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
             self.all_experiments = self.all_experiments.append(prev_res)
 
+        
         # Get inputs (decision variables) and outputs (objectives)
         inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
         if inputs.shape[0] < self.domain.num_continuous_dimensions():
-            raise ValueError(
-                f"The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}. Add more examples, for example, using a LHS."
+            self.logger.warning(
+                f"The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}."
             )
 
         # Scale decision variables [0,1]
@@ -113,7 +121,7 @@ class TSEMO(Strategy):
         # Standardize objectives
         self.output_mean = outputs.mean()
         self.output_std = outputs.std()
-        outputs_scaled = (outputs-self.output_mean)/self.output_std
+        outputs_scaled = (outputs-self.output_mean.to_numpy())/self.output_std.to_numpy()
 
         # Set up models
         input_dim = self.domain.num_continuous_dimensions()
@@ -128,7 +136,7 @@ class TSEMO(Strategy):
         rffs = [None for  _ in range(len(self.domain.output_variables))]
         i = 0
         num_restarts=kwargs.get("num_restarts", 100)
-        print(f"Fitting models (number of optimization restarts={num_restarts})\n")
+        self.logger.debug(f"Fitting models (number of optimization restarts={num_restarts})\n")
         for name, model in self.models.items():
             # Constrain hyperparameters
             model.kern.lengthscale.constrain_bounded(np.sqrt(1e-3), np.sqrt(1e3),warning=False)
@@ -144,19 +152,19 @@ class TSEMO(Strategy):
                 parallel=kwargs.get("parallel", True),
                 verbose=False)
             
-            # Print model hyperparameters
+            # self.logger.info model hyperparameters
             lengthscale=model.kern.lengthscale.values
             variance=model.kern.variance.values[0]
             noise=model.Gaussian_noise.variance.values[0]
-            print(f"Model {name} lengthscales:", lengthscale)
-            print(f"Model {name} variance:", variance)
-            print(f"Model {name} noise:", noise)
+            self.logger.debug(f"Model {name} lengthscales: {lengthscale}")
+            self.logger.debug(f"Model {name} variance: {variance}")
+            self.logger.debug(f"Model {name} noise: {noise}")
 
             # Model validation
             rmse_train[i] = rmse(model.predict(inputs_scaled.to_numpy())[0], 
                                  outputs_scaled[[name]].to_numpy(),
                                  mean=self.output_mean[name].values[0], std=self.output_std[name].values[0])
-            print(f"RMSE train {name} = {rmse_train[i].round(2)}")
+            self.logger.debug(f"RMSE train {name} = {rmse_train[i].round(2)}")
         
             # Spectral sampling
             if type(model.kern) == GPy.kern.Exponential:
@@ -172,7 +180,7 @@ class TSEMO(Strategy):
             
             n_spectral_points = kwargs.get('n_spectral_points', 1500)
             n_retries = kwargs.get('n_retries',10)
-            print(f"Spectral sampling {name} with {n_spectral_points} spectral points.")
+            self.logger.debug(f"Spectral sampling {name} with {n_spectral_points} spectral points.")
             for _ in range(n_retries):
                 try:
                     rffs[i] = pyrff.sample_rff(
@@ -198,10 +206,9 @@ class TSEMO(Strategy):
                                           outputs_scaled[[name]].to_numpy(),
                                           mean=self.output_mean[name].values[0], 
                                           std=self.output_std[name].values[0])
-            print(f"RMSE train spectral {name} = {rmse_train_spectral[i].round(2)}")
+            self.logger.debug(f"RMSE train spectral {name} = {rmse_train_spectral[i].round(2)}")
             
             i+=1
-            print('\n')
             
         # Save spectral samples
         dp_results = pathlib.Path('.TSEMO_DATA')
