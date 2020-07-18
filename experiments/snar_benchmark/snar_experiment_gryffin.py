@@ -49,7 +49,7 @@ for transform in transforms:
         experiment.reset()
         s = GRYFFIN(experiment.domain, transform=transform)
 
-        f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
+        exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
         r = NeptuneRunner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         neptune_experiment_name=exp_name,
