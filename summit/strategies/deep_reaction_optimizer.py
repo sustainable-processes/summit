@@ -53,6 +53,11 @@ class DRO(Strategy):
         (chemopt/chemopt/save/<num_inputs>_inputs_<standard/bigger>/checkpoint).
         By default: "standard" (these models were all pretrained for 50.000 epochs)
 
+    Notes
+    -------
+        For applying the DRO it is necessary to define reasonable bounds of the objective variable, e.g., yield in [0, 1],
+        since the DRO normalizes the objective function values to be between 0 and 1.
+
 
     Examples
     -------
@@ -81,7 +86,6 @@ class DRO(Strategy):
         if not os.path.isdir(tmp_dir):
             os.mkdir(tmp_dir)
 
-        self.domain = domain
         self._pretrained_model_config_path = pretrained_model_config_path
         self._infer_model_path = tmp_dir
         self._model_size = model_size
