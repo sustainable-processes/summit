@@ -130,7 +130,7 @@ class GRYFFIN(Strategy):
                             "size": 1,
                             "levels": v.levels,
                             "descriptors": descriptors,
-                            "category_details": tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl",
+                            "category_details": str(tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"),
                         }
                     )
                 elif v.variable_type == "descriptors":
@@ -141,7 +141,7 @@ class GRYFFIN(Strategy):
                             "size": 1,
                             "levels": [l for l in v.ds.index],
                             "descriptors": [v.ds.loc[[l],:].values[0].tolist() for l in v.ds.index],
-                            "category_details": tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl",
+                            "category_details": str(tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"),
                         }
                     )
                 else:
@@ -173,7 +173,7 @@ class GRYFFIN(Strategy):
                 "boosted": boosted,
                 "sampling_strategies": sampling_strategies,
                 "batches": batches,
-                "scratch_dir": tmp_dir / "scratch",
+                "scratch_dir": str(tmp_dir / "scratch"),
                 "sampler": sampler,
                 "softness": softness,
                 "continuous_optimizer": continuous_optimizer,
@@ -187,7 +187,7 @@ class GRYFFIN(Strategy):
             },
             "database": {
                 'format': 'pickle',
-                "path": tmp_dir / "SearchProgress",
+                "path": str(tmp_dir / "SearchProgress"),
             },
             "parameters": self.domain_inputs,
             "objectives": self.domain_objectives,
