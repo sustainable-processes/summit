@@ -553,38 +553,55 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
 
     def _run(self, conditions, **kwargs):
         self._domain = self.init_domain
-        conditions, _ = super()._run(conditions=conditions)
+        conditions, _ = super()._run(conditions=conditions, **kwargs)
         costs = self._calculate_costs(conditions)
         conditions[("cost", "DATA")] = costs
         self._domain = self.mod_domain
         return conditions, _
 
-    # TODO: adjust formula
+    @staticmethod
     def _calculate_costs(self, condition):
         catalyst = str(condition[("catalyst", "DATA")])
         base = str(condition[("base", "DATA")])
-        base_equ = float(condition[("base_equivalents", "DATA")])
-        cost_catalyst = self._get_catalyst_cost(catalyst)
-        cost_base = self._get_base_cost(base, base_equ)
-        return float(cost_catalyst + cost_base)
+        base_equiv = float(condition[("base_equivalents", "DATA")])
 
-    # TODO: get correct prices
-    def _get_catalyst_cost(self, catalyst):
-        catalyst_prices = {
-            "tBuXPhos": 1,
-            "tBuBrettPhos": 1,
-            "AlPhos": 1,
+        #Calculate amounts
+        droplet_vol = 40*1e-3 # mL
+        mmol_triflate = 0.91*droplet_vol
+        mmol_anniline = 1.6*mmol_triflate
+        catalyst_equiv = {
+            "tBuXPhos": 0.0095,
+            "tBuBrettPhos": 0.0094,
+            "AlPhos": 0.0094,
         }
-        return float(catalyst_prices[catalyst])
+        mmol_catalyst = catalyst_equiv[catalyst]*mmol_triflate
+        mmol_base = base_eqiv*mmol_triflate
 
-    # TODO: get correct prices and adjust formula
-    def _get_base_cost(self, base, base_equ):
+        #Calculate costs
+        cost_triflate = mmol_triflate*5.91  # triflate is $5.91/mmol
+        cost_anniline = mmol_anniline*0.01  # anniline is $0.01/mmol
+        cost_catalyst = self._get_catalyst_cost(catalyst, mmol_catalyst)
+        cost_base = self._get_base_cost(base, mmol_base)
+        return cost_triflate + cost_anniline + cost_catalyst + cost_base
+
+    @staticmethod
+    def _get_catalyst_cost(self, catalyst, catalyst_mmol):
+        catalyst_prices = {
+            "tBuXPhos": 94.08,
+            "tBuBrettPhos": 182.85,
+            "AlPhos": 594.18,
+        }
+        return float(catalyst_prices[catalyst]*catalyst_mmol)
+
+    @staticmethod
+    def _get_base_cost(self, base, mmol_base):
+        # prices in $/mmol
         base_prices = {
             "DBU": 0.03,
             "BTMG": 1.2,
             "TMG": 0.001,
             "TEA": 0.01,
         }
-        return float(base_prices[base] * base_equ)
+        return float(base_prices[base] * mmol_base)
 
 
