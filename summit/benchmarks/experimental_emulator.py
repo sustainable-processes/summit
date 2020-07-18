@@ -557,13 +557,13 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
         costs = self._calculate_costs(conditions)
         conditions[("cost", "DATA")] = costs
         self._domain = self.mod_domain
-        return conditions, _
+        return conditions, {}
 
-    @staticmethod
-    def _calculate_costs(self, condition):
-        catalyst = str(condition[("catalyst", "DATA")])
-        base = str(condition[("base", "DATA")])
-        base_equiv = float(condition[("base_equivalents", "DATA")])
+    @classmethod
+    def _calculate_costs(cls, conditions):
+        catalyst = conditions["catalyst"].values
+        base = conditions["base"].values
+        base_equiv = conditions["base_equivalents"].values
 
         #Calculate amounts
         droplet_vol = 40*1e-3 # mL
@@ -574,18 +574,20 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
             "tBuBrettPhos": 0.0094,
             "AlPhos": 0.0094,
         }
-        mmol_catalyst = catalyst_equiv[catalyst]*mmol_triflate
-        mmol_base = base_eqiv*mmol_triflate
+        mmol_catalyst = [catalyst_equiv[c]*mmol_triflate for c in catalyst]
+        mmol_base = base_equiv*mmol_triflate
 
         #Calculate costs
         cost_triflate = mmol_triflate*5.91  # triflate is $5.91/mmol
         cost_anniline = mmol_anniline*0.01  # anniline is $0.01/mmol
-        cost_catalyst = self._get_catalyst_cost(catalyst, mmol_catalyst)
-        cost_base = self._get_base_cost(base, mmol_base)
+        cost_catalyst = np.array([cls._get_catalyst_cost(c, m) 
+                                  for c, m in zip(catalyst, mmol_catalyst)])
+        cost_base = np.array([cls._get_base_cost(b, m) 
+                              for b,m in zip(base, mmol_base)])
         return cost_triflate + cost_anniline + cost_catalyst + cost_base
 
     @staticmethod
-    def _get_catalyst_cost(self, catalyst, catalyst_mmol):
+    def _get_catalyst_cost(catalyst, catalyst_mmol):
         catalyst_prices = {
             "tBuXPhos": 94.08,
             "tBuBrettPhos": 182.85,
@@ -594,7 +596,7 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
         return float(catalyst_prices[catalyst]*catalyst_mmol)
 
     @staticmethod
-    def _get_base_cost(self, base, mmol_base):
+    def _get_base_cost(base, mmol_base):
         # prices in $/mmol
         base_prices = {
             "DBU": 0.03,
