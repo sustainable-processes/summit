@@ -4,6 +4,8 @@ from summit.domain import Domain, DomainError
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.models import ModelGroup, GPyModel
 from summit.utils.dataset import DataSet
+from summit import get_summit_config_path
+
 from GPy.models import GPRegression as gpr
 import GPy
 import pyrff
@@ -17,6 +19,7 @@ from pymoo.factory import get_termination
 import pathlib
 import os
 import numpy as np
+import uuid
 from abc import ABC, abstractmethod
 import logging
 import warnings
@@ -211,8 +214,8 @@ class TSEMO(Strategy):
             i+=1
             
         # Save spectral samples
-        dp_results = pathlib.Path('.TSEMO_DATA')
-        dp_results.mkdir(exist_ok=True)
+        dp_results = get_summit_config_path() / 'tsemo' / str(self.uuid_val)
+        os.makedirs(dp_results, exist_ok=True)
         pyrff.save_rffs(rffs, pathlib.Path(dp_results, 'models.h5'))
 
         # NSGAII internal optimisation
@@ -270,6 +273,7 @@ class TSEMO(Strategy):
         self.iterations = 0
         self.samples = [] # Samples drawn using NSGA-II
         self.sample_fs = [0 for i in range(len(self.domain.output_variables))]
+        self.uuid_val = uuid.uuid4()
 
     def to_dict(self):
         ae = (
