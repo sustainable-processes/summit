@@ -29,6 +29,7 @@ tensorflow-probability = "^0.10.1"
 torch = {url = "https://download.pytorch.org/whl/cu101/torch-1.4.0-cp37-cp37m-linux_x86_64.whl"}
 blitz-bayesian-pytorch = "0.2.3"
 tensorflow = "1.13.1"
+chemopt = {git = "https://github.com/sustainable-processes/chemopt.git"}
 
 [tool.poetry.extras]
 neptune = ["neptune-client", "hiplot", "neptune-contrib"]

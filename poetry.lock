@@ -227,6 +227,22 @@ version = "3.0.4"
 
 [[package]]
 category = "main"
+description = ""
+name = "chemopt"
+optional = false
+python-versions = "^3.6"
+version = "0.1.0"
+
+[package.dependencies]
+matplotlib = "^3.2.1"
+tensorflow = "1.13.1"
+
+[package.source]
+reference = "bbc69e997149b4c25c06fa19eb7d60f8beb746f0"
+type = "git"
+url = "https://github.com/sustainable-processes/chemopt.git"
+[[package]]
+category = "main"
 description = "Composable command line interface toolkit"
 name = "click"
 optional = false
@@ -1801,7 +1817,7 @@ testing = ["jaraco.itertools", "func-timeout"]
 neptune = ["neptune-client", "hiplot", "neptune-contrib"]
 
 [metadata]
-content-hash = "17f0337b7110ff1fe53de35b02cfd8ea49f4d1333922b99173c881d04a2e3fde"
+content-hash = "55fff25d5f77722b9b8334339d67c2bfcf8e2157618bde98fce92377f7fae624"
 python-versions = "^3.6.1"
 
 [metadata.files]
@@ -1908,6 +1924,7 @@ chardet = [
     {file = "chardet-3.0.4-py2.py3-none-any.whl", hash = "sha256:fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691"},
     {file = "chardet-3.0.4.tar.gz", hash = "sha256:84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae"},
 ]
+chemopt = []
 click = [
     {file = "click-7.1.2-py2.py3-none-any.whl", hash = "sha256:dacca89f4bfadd5de3d7489b7c8a566eee0d3676333fbb50030263894c38c0dc"},
     {file = "click-7.1.2.tar.gz", hash = "sha256:d2b5255c7c6349bc1bd1e59e08cd12acbbd63ce649f2588755783aa94dfb6b1a"},
