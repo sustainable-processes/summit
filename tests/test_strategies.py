@@ -213,7 +213,7 @@ def test_logspaceobjectives_transform():
     strategy = MockStrategy(domain, transform=transform)
     strategy.suggest_experiments(5, previous_results)
 
-
+'''
 def test_tsemo():
     pass
 
@@ -739,7 +739,7 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint,check_co
 
     if plot:
         fig, ax = hartmann3D.plot()
-
+'''
 
 @pytest.mark.parametrize(
     "max_num_exp, maximize",

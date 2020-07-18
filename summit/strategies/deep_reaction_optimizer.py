@@ -263,7 +263,7 @@ class DRO(Strategy):
 
         param = {}
         if not y0:
-            y0 = [float("inf")]
+            y0 = np.array([[float("inf")]])
             param["iteration"] = 0
         else:
             param["iteration"] = prev_param["iteration"] + 1
@@ -271,7 +271,7 @@ class DRO(Strategy):
             self.fbest = y0[0]
             self.xbest = real_x
         elif y0 < prev_param["fbest"]:
-            self.fbest = y0
+            self.fbest = y0[0]
             self.xbest = real_x
         else:
             self.fbest = prev_param["fbest"]
