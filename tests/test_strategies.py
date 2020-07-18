@@ -505,11 +505,9 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
     [
         [1, 1, True, True],
         [1, 200, True, True],
-        [4, 200, True, True],
-        [1, 200, False, True],
         [4, 200, False, True],
         [1, 200, True, False],
-        [4, 200, True, False],
+        [4, 200, False, False],
     ]
 )
 def test_sobo(batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False):
@@ -580,9 +578,7 @@ def test_sobo(batch_size, max_num_exp, maximize, constraint, test_num_improve_it
     [
         [1, 1, True, False, 0],
         [1, 200, True, False, 1],
-        [4, 200, True, False, 2],
-        [1, 200, False, False, 3],
-        [4, 200, False, False, 4]
+        [4, 200, False, False, 2]
     ]
 )
 def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, test_id, test_num_improve_iter=2, plot=False):
@@ -652,9 +648,7 @@ def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, test_
     [
         [1, 1, True, False, 0],
         [1, 200, True, False, 1],
-        [4, 200, True, False, 2],
-        [2, 200, False, False, 3],
-        [4, 200, False, False, 4]
+        [4, 200, False, False, 2]
     ]
 )
 def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint, test_id, test_num_improve_iter=2, plot=False):
