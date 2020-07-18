@@ -5,7 +5,7 @@ from summit.strategies import *
 import warnings
 import logging
 import os
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
@@ -23,7 +23,7 @@ experiment = SnarBenchmark(noise_level_percent=2.5)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 for i in range(NUM_REPEATS):
     experiment.reset()
-    s = TSEMO(experiment.domain, transform=transform)
+    s = TSEMO(experiment.domain)
 
     exp_name = f"snar_experiment_{s.__class__.__name__}_repeat_{i}"
     r = NeptuneRunner(experiment=experiment, strategy=s, 
@@ -33,7 +33,7 @@ for i in range(NUM_REPEATS):
                       files=["snar_experiment_tsemo.py"],
                       max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                       batch_size=BATCH_SIZE,
-                      num_initial_experiments=4,
+                      num_initial_experiments=1,
                       hypervolume_ref=[-2957,10.7])
-    r.run(save_at_end=True)
+    r.run(save_at_end=True, save_freq=10)
 

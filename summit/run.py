@@ -2,10 +2,13 @@ from summit.strategies import Strategy, strategy_from_dict
 from summit.experiment import Experiment
 from summit.benchmarks import *
 from summit.utils.multiobjective import pareto_efficient, hypervolume
+from summit import get_summit_config_path
 
 from fastprogress.fastprogress import progress_bar
 import numpy as np
 import os
+import pathlib
+import uuid
 import json
 import pkg_resources
 import logging
@@ -42,6 +45,7 @@ class Runner:
         num_initial_experiments=1,
         max_iterations=100,
         batch_size=1,
+        **kwargs
     ):
         self.strategy = strategy
         self.experiment = experiment
@@ -51,7 +55,25 @@ class Runner:
 
     def run(self, **kwargs):
         """  Run the closed loop experiment cycle
+
+        Parameters
+        ----------
+        save_freq : int, optional
+            The frequency with which to checkpoint the state of the optimization. Defaults to None.
+        save_at_end : bool, optional
+            Save the state of the optimization at the end of a run, even if it is stopped early.
+            Default is True.
+        save_dir : str, optional
+            The directory to save checkpoints locally. Defaults to not saving locally.
         """
+        save_freq = kwargs.get('save_freq')
+        save_dir = kwargs.get('save_dir', str(get_summit_config_path()))
+        self.uuid_val = uuid.uuid4()
+        save_dir = pathlib.Path(save_dir) / "runner" / str(self.uuid_val)
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        save_at_end = kwargs.get('save_at_end', True)
+
         prev_res = None
         i = 0
         for i in progress_bar(range(self.max_iterations)):
@@ -64,6 +86,27 @@ class Runner:
                     num_experiments=self.batch_size, prev_res=prev_res
                 )
             prev_res = self.experiment.run_experiments(next_experiments)
+
+            # Save state
+            if save_freq is not None:
+                file = f'iteration_{i}.json'
+                if save_dir is not None:
+                    file = save_dir + "/" + file
+                if i % save_freq == 0:
+                    self.save(file)
+                    neptune_exp.send_artifact(file)
+                if not save_dir:
+                    os.remove(file)
+            
+        # Save at end
+        if save_at_end:
+            file = f'iteration_{i}.json'
+            if save_dir is not None:
+                file = save_dir + "/" + file
+            self.save(file)
+            neptune_exp.send_artifact(file)
+            if not save_dir:
+                os.remove(file)
 
     def to_dict(self,):
         runner_params = dict(

@@ -17,7 +17,7 @@
 #SBATCH --nodes=1
 #! How many (MPI) tasks will there be in total? (<= nodes*32)
 #! The skylake/skylake-himem nodes have 32 CPUs (cores) each.
-#SBATCH --ntasks=8
+#SBATCH --ntasks=1
 #! How much wallclock time will be required?
 #SBATCH --time=08:00:00
 #! What types of email messages do you wish to receive?
@@ -58,10 +58,10 @@ module load rhel7/default-peta4            # REQUIRED - loads the basic environm
 # singularity pull docker:marcosfelt/summit:snar_benchmark
 
 #! Full path to application executable: 
-application="singularity run"
+application="singularity exec"
 
 #! Run options for the application:
-options="-v `pwd`/:/summit_user --rm -it --env NEPTUNE_API_TOKEN=$NEPTUNE_API_TOKEN marcosfelt/summit:snar_benchmark $SCRIPT"
+options="-B $SLURM_SUBMIT_DIR:/summit_user docker://marcosfelt/summit:snar_benchmark python $1"
 
 #! Work directory (i.e. where the job will run):
 workdir="$SLURM_SUBMIT_DIR"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
