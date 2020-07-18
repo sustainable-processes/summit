@@ -35,5 +35,5 @@ for i in range(NUM_REPEATS):
                       batch_size=BATCH_SIZE,
                       num_initial_experiments=1,
                       hypervolume_ref=[-2957,10.7])
-    r.run(save_at_end=True)
+    r.run(save_at_end=True, save_freq=10)
 
