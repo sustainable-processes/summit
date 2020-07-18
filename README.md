@@ -67,6 +67,12 @@ export token= #place your neptune token here
 sudo docker run -v `pwd`/:/summit_user --rm -it --env NEPTUNE_API_TOKEN=$token summit:snar_benchmark snar_experiment_2.py
 ```
 
+Singularity (for running Docker containers on the HPC):
+```
+export NEPTUNE_API_TOKEN=
+singularity exec -B `pwd`/:/summit_user docker://marcosfelt/summit:snar_benchmark snar_experiment.py
+```
+
 ### Releases
 
 Below is the old process for building a release. In the future, we will have this automated using Github actions.
