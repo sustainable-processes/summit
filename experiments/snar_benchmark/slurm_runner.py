@@ -1,11 +1,18 @@
 from summit import NeptuneRunner, get_summit_config_path
+from paramiko import SSHClient
+from scp import SCPClient
 import uuid
 import pathlib
 import os
 
 class SlurmRunner(NeptuneRunner):
-    """  Run a closed-loop strategy and experiment cycle
+    """  Run an experiment on a remote server (e.g., HPC) using SLURM.
     
+    You need to set the environmental variables SSH_USER and SSH_PASSWORD
+    with the information to log into the remote server. 
+
+    This inherits NeptuneRunner so it will report up to Neptune.
+
     Parameters
     ---------- 
     strategy : `summit.strategies.Strategy`
@@ -45,12 +52,15 @@ class SlurmRunner(NeptuneRunner):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.docker_container = kwargs.get('docker_container', "marcosfelt/summit:snar_benchmark")
+        self.docker_container = kwargs.get('docker_container', 
+                            "marcosfelt/summit:snar_benchmark")
+        self.hostname = kwargs.get('hostname',"login-cpu.hpc.cam.ac.uk")
 
     def run(self, **kwargs):
         # Set up file structure
         base = pathlib.Path(".snar_benchmark")
-        save_file_dir = base /  str(uuid.uuid4())
+        uuid_val = str(uuid.uuid4())
+        save_file_dir = base /  uuid_val
         os.makedirs(save_file_dir, exist_ok=True)
 
         # Save json
@@ -64,5 +74,26 @@ class SlurmRunner(NeptuneRunner):
             f.write(f"""r = NeptuneRunner.load("{json_file_path}")\n""")
             f.write("r.run(save_at_end=True)")
         
-        # Run slurm job
-        os.system(f"sbatch slurm_summit_snar_experiment.sh {self.docker_container} {python_file_path}")
+        # SSH into remote server
+        username = os.getenv('SSH_USER')
+        password = os.getenv('SSH_PASSWORD')
+        neptune_api_token = os.getenv('NEPTUNE_API_TOKEN')
+        ssh = SSHClient()
+        ssh.load_system_host_keys()
+        ssh.connect(self.hostname, username=username, password=password)
+
+        # Make the .snar_benchmark folder on the remote server if it doesn't exist
+        remote_path = f".snar_benchmark/{uuid_val}"
+        ssh.exec_command(f"mkdir -p {remote_path}")
+
+        # Copy files onto remote server
+        scp = SCPClient(ssh.get_transport())
+        scp.put([str(python_file_path), str(json_file_path), "slurm_summit_snar_experiment.sh"], 
+                remote_path=remote_path)
+
+        # Run the experiment
+        ssh.exec_command(f"export NEPTUNE_API_TOKEN={neptune_api_token}")
+        ssh.exec_command(f"cd {remote_path} && sbatch slurm_summit_snar_experiment.sh {self.docker_container} {python_file_path}")
+
+        # Close the ssh connection
+        scp.close()

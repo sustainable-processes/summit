@@ -13,7 +13,7 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=20
+NUM_REPEATS=1
 NEPTUNE_PROJECT="sustainable-processes/summit"
 MAX_EXPERIMENTS=50
 BATCH_SIZE=1
@@ -41,26 +41,22 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
               Chimera(experiment.domain, hierarchies[0]),
               Chimera(experiment.domain, hierarchies[1]),
               Chimera(experiment.domain, hierarchies[3]),
-
 ]
 
 # Run experiments
 warnings.filterwarnings('ignore', category=RuntimeWarning)
-# for transform in transforms:
-    # for i in range(NUM_REPEATS):
-experiment.reset()
-i=0
-transform=transforms[0]
-s = GRYFFIN(experiment.domain, transform=transform)
+for transform in [transforms[0]]:
+    for i in range(NUM_REPEATS):
+        s = GRYFFIN(experiment.domain, transform=transform)
 
-exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-r = SlurmRunner(experiment=experiment, strategy=s, 
-                neptune_project=NEPTUNE_PROJECT,
-                neptune_experiment_name=exp_name,
-                neptune_tags=["snar_experiment", s.__class__.__name__, transform.__class__.__name__],
-                neptune_files=["snar_experiment_gryffin.py"],
-                max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
-                batch_size=BATCH_SIZE,
-                num_initial_experiments=1,
-                hypervolume_ref=[-2957,10.7])
-r.run(save_at_end=True)
+        exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
+        r = SlurmRunner(experiment=experiment, strategy=s, 
+                        neptune_project=NEPTUNE_PROJECT,
+                        neptune_experiment_name=exp_name,
+                        neptune_tags=["snar_experiment", s.__class__.__name__, transform.__class__.__name__],
+                        neptune_files=["slurm_summit_snar_experiment.sh"],
+                        max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
+                        batch_size=BATCH_SIZE,
+                        num_initial_experiments=1,
+                        hypervolume_ref=[-2957,10.7])
+        r.run(save_at_end=True)

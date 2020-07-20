@@ -32,7 +32,7 @@ for i in range(NUM_REPEATS):
                       neptune_project=NEPTUNE_PROJECT,
                       neptune_tags=["snar_experiment", s.__class__.__name__],
                       neptune_experiment_name=exp_name,
-                      neptune_files=["snar_experiment_tsemo.py"],
+                      neptune_files=["slurm_summit_snar_experiment.sh"],
                       max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                       batch_size=BATCH_SIZE,
                       num_initial_experiments=1,

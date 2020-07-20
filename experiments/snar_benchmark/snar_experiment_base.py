@@ -70,7 +70,7 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
         r = SlurmRunner(experiment=experiment, strategy=s, 
                           neptune_project=NEPTUNE_PROJECT,
                           neptune_experiment_name=exp_name,
-                          neptune_files=["snar_experiment.py"],
+                          neptune_files=["slurm_summit_snar_experiment.sh"],
                           max_iterations=MAX_EXPERIMENTS//batch_size,
                           batch_size=BATCH_SIZE,
                           f_tol=f_tol,
