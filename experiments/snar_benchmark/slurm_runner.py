@@ -11,7 +11,10 @@ class SlurmRunner(NeptuneRunner):
     You need to set the environmental variables SSH_USER and SSH_PASSWORD
     with the information to log into the remote server. 
 
-    This inherits NeptuneRunner so it will report up to Neptune.
+    This runs the code inside a docker container. 
+    It also inherits NeptuneRunner so it will report up to Neptune. This means
+    the NEPTUNE_API_TOKEN environmental variable needs to be set, which will be
+    transferred to the remote server.
 
     Parameters
     ---------- 
@@ -76,8 +79,14 @@ class SlurmRunner(NeptuneRunner):
         
         # SSH into remote server
         username = os.getenv('SSH_USER')
+        if username is None:
+            raise ValueError("SSH_USER must be set")
         password = os.getenv('SSH_PASSWORD')
+        if password is None:
+            raise ValueError("SSH_PASSWORD must be set")
         neptune_api_token = os.getenv('NEPTUNE_API_TOKEN')
+        if neptune_api_token is None:
+            raise ValueError("NEPTUNE_API_TOKEN must be set")
         ssh = SSHClient()
         ssh.load_system_host_keys()
         ssh.connect(self.hostname, username=username, password=password)
@@ -91,9 +100,12 @@ class SlurmRunner(NeptuneRunner):
         scp.put([str(python_file_path), str(json_file_path), "slurm_summit_snar_experiment.sh"], 
                 remote_path=remote_path)
 
-        # Run the experiment
+        # Set the Neptune api token as an environmental variable in the remote environment
+        # Singularity automatically passes environmental variables to the Docker containers
         ssh.exec_command(f"export NEPTUNE_API_TOKEN={neptune_api_token}")
-        ssh.exec_command(f"cd {remote_path} && sbatch slurm_summit_snar_experiment.sh {self.docker_container} {python_file_path}")
+        
+        # Run the experiment        
+        ssh.exec_command(f"cd {remote_path} && sbatch slurm_summit_snar_experiment.sh {self.docker_container} run.py")
 
         # Close the ssh connection
         scp.close()
