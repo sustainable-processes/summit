@@ -10,6 +10,7 @@ import pytest
 from summit import *
 from summit.benchmarks import SnarBenchmark
 from summit.strategies import *
+from slurm_runner import SlurmRunner
 
 import warnings
 import logging
@@ -66,10 +67,10 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
             f_tol = None
 
         exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = NeptuneRunner(experiment=experiment, strategy=s, 
+        r = SlurmRunner(experiment=experiment, strategy=s, 
                           neptune_project=NEPTUNE_PROJECT,
                           neptune_experiment_name=exp_name,
-                          files=["snar_experiment.py"],
+                          neptune_files=["snar_experiment.py"],
                           max_iterations=MAX_EXPERIMENTS//batch_size,
                           batch_size=BATCH_SIZE,
                           f_tol=f_tol,

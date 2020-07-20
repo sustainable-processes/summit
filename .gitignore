@@ -110,9 +110,11 @@ venv.bak/
 .pickle
 ~*.xlsx
 *.DS_STORE
-.vscode/
 
 # TSEMO
 .TSEMO_DATA
 tmp_files
 Pytest*
+
+# Snar benchmark
+.snar_benchmark

@@ -2,6 +2,7 @@
 from summit import *
 from summit.benchmarks import SnarBenchmark
 from summit.strategies import *
+from slurm_runner import SlurmRunner
 
 import warnings
 import logging
@@ -12,7 +13,7 @@ if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
 # Variables
-NUM_REPEATS=1
+NUM_REPEATS=20
 NEPTUNE_PROJECT="sustainable-processes/summit"
 MAX_EXPERIMENTS=50
 BATCH_SIZE=1
@@ -27,11 +28,11 @@ for i in range(NUM_REPEATS):
     s = TSEMO(experiment.domain)
 
     exp_name = f"snar_experiment_{s.__class__.__name__}_repeat_{i}"
-    r = NeptuneRunner(experiment=experiment, strategy=s, 
+    r = SlurmRunner(experiment=experiment, strategy=s, 
                       neptune_project=NEPTUNE_PROJECT,
-                      tags=["snar_experiment", s.__class__.__name__],
+                      neptune_tags=["snar_experiment", s.__class__.__name__],
                       neptune_experiment_name=exp_name,
-                      files=["snar_experiment_tsemo.py"],
+                      neptune_files=["snar_experiment_tsemo.py"],
                       max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                       batch_size=BATCH_SIZE,
                       num_initial_experiments=1,

@@ -57,18 +57,12 @@ class SlurmRunner(NeptuneRunner):
         json_file_path = save_file_dir / "slurm_runner.json"
         self.save(json_file_path)
 
-        # create pyton script())
-        python_script = \
-        f"""
-        from summit import NeptuneRunner
-
-        r = NeptuneRunner.load({json_file_path})
-        r.run(save_at_end=True)
-        """
-        
+        # Create python file        
         python_file_path = save_file_dir / "run.py"
         with open(python_file_path, 'w') as f:
-            f.write(python_script)
+            f.write("from summit import NeptuneRunner\n")
+            f.write(f"""r = NeptuneRunner.load("{json_file_path}")\n""")
+            f.write("r.run(save_at_end=True)")
         
         # Run slurm job
         os.system(f"sbatch slurm_summit_snar_experiment.sh {self.docker_container} {python_file_path}")
