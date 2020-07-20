@@ -1,3 +1,4 @@
+#!/usr/bin/python
 
 from summit import *
 from summit.benchmarks import SnarBenchmark
@@ -11,7 +12,7 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=20
+NUM_REPEATS=1
 NEPTUNE_PROJECT="sustainable-processes/summit"
 MAX_EXPERIMENTS=50
 BATCH_SIZE=1
@@ -59,4 +60,4 @@ for transform in transforms:
                         batch_size=BATCH_SIZE,
                         num_initial_experiments=1,
                         hypervolume_ref=[-2957,10.7])
-        r.run(save_at_end=True, save_freq=10)
+        r.run(save_at_end=True)

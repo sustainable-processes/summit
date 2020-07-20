@@ -1,0 +1,7 @@
+#!/bin/bash
+
+for i in {0..20}
+do
+    sbatch slurm_summit_snar_experiment.sh snar_experiment_gryffin.py
+    sbatch slurm_summit_snar_experiment.sh snar_experiment_tsemo.py
+done

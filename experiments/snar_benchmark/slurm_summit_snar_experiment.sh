@@ -13,13 +13,11 @@
 #SBATCH -J cpujob
 #! Which project should be charged:
 #SBATCH -A LAPKIN-SL3-CPU 
-#! How many whole nodes should be allocated?
-#SBATCH --nodes=1
 #! How many (MPI) tasks will there be in total? (<= nodes*32)
 #! The skylake/skylake-himem nodes have 32 CPUs (cores) each.
 #SBATCH --ntasks=1
 #! How much wallclock time will be required?
-#SBATCH --time=08:00:00
+#SBATCH --time=12:00:00
 #! What types of email messages do you wish to receive?
 #SBATCH --mail-type=FAIL
 #! Uncomment this to prevent the job from being requeued (e.g. if
@@ -56,6 +54,7 @@ module load rhel7/default-peta4            # REQUIRED - loads the basic environm
 
 #! Insert additional module load commands after this line if needed:
 # singularity pull docker:marcosfelt/summit:snar_benchmark
+unset OMP_NUM_THREADS
 
 #! Full path to application executable: 
 application="singularity exec"
