@@ -10,7 +10,7 @@
 
 #! sbatch directives begin here ###############################
 #! Name of the job:
-#SBATCH -J cpujob
+#SBATCH -J slurm_snar
 #! Which project should be charged:
 #SBATCH -A LAPKIN-SL3-CPU 
 #! How many (MPI) tasks will there be in total? (<= nodes*32)
@@ -54,13 +54,13 @@ module load rhel7/default-peta4            # REQUIRED - loads the basic environm
 
 #! Insert additional module load commands after this line if needed:
 # singularity pull docker:marcosfelt/summit:snar_benchmark
-unset OMP_NUM_THREADS
+
 
 #! Full path to application executable: 
 application="singularity exec"
 
 #! Run options for the application:
-options="-B $SLURM_SUBMIT_DIR:/summit_user docker://marcosfelt/summit:snar_benchmark python $1"
+options="-B $SLURM_SUBMIT_DIR:/summit_user docker://$1 python $2"
 
 #! Work directory (i.e. where the job will run):
 workdir="$SLURM_SUBMIT_DIR"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
@@ -68,7 +68,8 @@ workdir="$SLURM_SUBMIT_DIR"  # The value of SLURM_SUBMIT_DIR sets workdir to the
 
 #! Are you using OpenMP (NB this is unrelated to OpenMPI)? If so increase this
 #! safe value to no more than 32:
-export OMP_NUM_THREADS=1
+# export OMP_NUM_THREADS=1
+unset OMP_NUM_THREADS # Use max number of threads
 
 #! Number of MPI tasks to be started by the application per node and in total (do not change):
 np=$[${numnodes}*${mpi_tasks_per_node}]

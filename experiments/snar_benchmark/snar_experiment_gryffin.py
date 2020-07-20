@@ -3,6 +3,7 @@
 from summit import *
 from summit.benchmarks import SnarBenchmark
 from summit.strategies import *
+from slurm_runner import SlurmRunner
 
 import warnings
 import logging
@@ -51,7 +52,7 @@ for transform in transforms:
         s = GRYFFIN(experiment.domain, transform=transform)
 
         exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = NeptuneRunner(experiment=experiment, strategy=s, 
+        r = SlurmRunner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         neptune_experiment_name=exp_name,
                         tags=["snar_experiment", s.__class__.__name__, transform.__class__.__name__],
