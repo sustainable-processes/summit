@@ -74,7 +74,7 @@ class SlurmRunner(NeptuneRunner):
         python_file_path = save_file_dir / "run.py"
         with open(python_file_path, 'w') as f:
             f.write("from summit import NeptuneRunner\n")
-            f.write(f"""r = NeptuneRunner.load("{json_file_path}")\n""")
+            f.write(f"""r = NeptuneRunner.load("slurm_runner.json")\n""")
             f.write("r.run(save_at_end=True)")
         
         # SSH into remote server
