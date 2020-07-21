@@ -25,12 +25,13 @@ experiment = SnarBenchmark(noise_level_percent=2.5)
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 for i in range(NUM_REPEATS):
     experiment.reset()
-    s = TSEMO(experiment.domain)
+    s = TSEMO(experiment.domain, n_spectral_points=4000)
 
     exp_name = f"snar_experiment_{s.__class__.__name__}_repeat_{i}"
     r = SlurmRunner(experiment=experiment, strategy=s, 
                       neptune_project=NEPTUNE_PROJECT,
                       neptune_tags=["snar_experiment", s.__class__.__name__],
+                      neptune_description="Increased spectral points to 4000",
                       neptune_experiment_name=exp_name,
                       neptune_files=["slurm_summit_snar_experiment.sh"],
                       max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
