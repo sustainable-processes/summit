@@ -15,7 +15,7 @@ if token is None:
 # Variables
 NUM_REPEATS=20
 NEPTUNE_PROJECT="sustainable-processes/summit"
-MAX_EXPERIMENTS=50
+MAX_EXPERIMENTS=46
 BATCH_SIZE=1
 
 #SnAr benchmark with 2.5% experimental measurement noise
@@ -31,12 +31,12 @@ for i in range(NUM_REPEATS):
     r = SlurmRunner(experiment=experiment, strategy=s, 
                       neptune_project=NEPTUNE_PROJECT,
                       neptune_tags=["snar_experiment", s.__class__.__name__],
-                      neptune_description="Increased spectral points to 4000",
+                      neptune_description="Increased number of initial experiments to 4",
                       neptune_experiment_name=exp_name,
                       neptune_files=["slurm_summit_snar_experiment.sh"],
                       max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                       batch_size=BATCH_SIZE,
-                      num_initial_experiments=1,
+                      num_initial_experiments=4,
                       hypervolume_ref=[-2957,10.7])
     r.run(save_at_end=True)
 
