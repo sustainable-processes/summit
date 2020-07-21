@@ -1,12 +1,16 @@
 from summit.strategies import Strategy, strategy_from_dict
 from summit.experiment import Experiment
 from summit.benchmarks import *
-from summit.utils.multiobjective import pareto_efficient, HvI
+from summit.utils.multiobjective import pareto_efficient, hypervolume
+from summit import get_summit_config_path
+
+from neptune.sessions import Session, HostedNeptuneBackend
 
 from fastprogress.fastprogress import progress_bar
 import numpy as np
-
 import os
+import pathlib
+import uuid
 import json
 import pkg_resources
 import logging
@@ -30,7 +34,9 @@ class Runner:
         The maximum number of iterations to run. By default this is None.
     batch_size: int, optional
         The number experiments to request at each call of strategy.suggest_experiments.
-
+    f_tol : float, optional
+        How much difference between successive best objective values will be tolerated before stopping.
+        This is generally useful for nonglobal algorithms like Nelder-Mead. Default is None.
     Examples
     --------    
     
@@ -40,28 +46,90 @@ class Runner:
         self,
         strategy: Strategy,
         experiment: Experiment,
+        num_initial_experiments=1,
         max_iterations=100,
         batch_size=1,
+        f_tol = None,
+        **kwargs
     ):
         self.strategy = strategy
         self.experiment = experiment
+        self.num_initial_experiments = num_initial_experiments
         self.max_iterations = max_iterations
         self.batch_size = batch_size
+        self.f_tol = f_tol
+
+        #Set up logging
+        self.logger = logging.getLogger(__name__)
 
     def run(self, **kwargs):
         """  Run the closed loop experiment cycle
+
+        Parameters
+        ----------
+        save_freq : int, optional
+            The frequency with which to checkpoint the state of the optimization. Defaults to None.
+        save_at_end : bool, optional
+            Save the state of the optimization at the end of a run, even if it is stopped early.
+            Default is True.
+        save_dir : str, optional
+            The directory to save checkpoints locally. Defaults to not saving locally.
         """
+        save_freq = kwargs.get('save_freq')
+        save_dir = kwargs.get('save_dir', str(get_summit_config_path()))
+        self.uuid_val = uuid.uuid4()
+        save_dir = pathlib.Path(save_dir) / "runner" / str(self.uuid_val)
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
+        save_at_end = kwargs.get('save_at_end', True)
+
         prev_res = None
         i = 0
         for i in progress_bar(range(self.max_iterations)):
-            next_experiments = self.strategy.suggest_experiments(
-                num_experiments=self.batch_size, prev_res=prev_res
-            )
+            # Get experiment suggestions
+            if i==0:
+                next_experiments = self.strategy.suggest_experiments(
+                    num_experiments=self.num_initial_experiments)
+            else:
+                next_experiments = self.strategy.suggest_experiments(
+                    num_experiments=self.batch_size, prev_res=prev_res
+                )
             prev_res = self.experiment.run_experiments(next_experiments)
+
+            # Save state
+            if save_freq is not None:
+                file = f'iteration_{i}.json'
+                if save_dir is not None:
+                    file = save_dir + "/" + file
+                if i % save_freq == 0:
+                    self.save(file)
+                    neptune_exp.send_artifact(file)
+                if not save_dir:
+                    os.remove(file)
+
+            # Stop if no improvement
+            if self.f_tol is not None and i >1:
+                compare = np.abs(fbest-fbest_old) < self.f_tol
+                if all(compare):
+                    self.logger.info(f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objective(s) (less than f_tol={self.f_tol}).")
+                    break
+            
+        # Save at end
+        if save_at_end:
+            file = f'iteration_{i}.json'
+            if save_dir is not None:
+                file = save_dir + "/" + file
+            self.save(file)
+            neptune_exp.send_artifact(file)
+            if not save_dir:
+                os.remove(file)
 
     def to_dict(self,):
         runner_params = dict(
-            max_iterations=self.max_iterations, batch_size=self.batch_size
+            num_initial_experiments=self.num_initial_experiments,
+            max_iterations=self.max_iterations, 
+            batch_size=self.batch_size,
+            f_tol=self.f_tol
         )
 
         return dict(
@@ -77,8 +145,7 @@ class Runner:
         return cls(
             strategy=strategy,
             experiment=experiment,
-            max_iterations=d["runner"]["max_iterations"],
-            batch_size=d["runner"]["batch_size"],
+            **d["runner"]
         )
 
     def save(self, filename):
@@ -134,17 +201,19 @@ class NeptuneRunner(Runner):
         experiment: Experiment,
         neptune_project: str,
         neptune_experiment_name: str,
-        tags: list = None,
+        neptune_tags: list = None,
         neptune_description: str = None,
-        files: list = None,
+        neptune_files: list = None,
         max_iterations=100,
+        num_initial_experiments=1,
         batch_size=1,
         f_tol = None,
         hypervolume_ref=None,
         logger = None
     ):
 
-        super().__init__(strategy, experiment, 
+        super().__init__(strategy, experiment,
+                         num_initial_experiments=num_initial_experiments,
                          max_iterations=max_iterations, 
                          batch_size=batch_size)
 
@@ -163,21 +232,22 @@ class NeptuneRunner(Runner):
             )
 
         # Set up Neptune session
-        self.session = Session(backend=HostedNeptuneBackend())
-        self.proj = self.session.get_project(neptune_project)
+        self.neptune_project = neptune_project
         self.neptune_experiment_name = neptune_experiment_name
         self.neptune_description = neptune_description
-        self.files = files
-        self.tags = tags
+        self.neptune_files = neptune_files
+        self.neptune_tags = neptune_tags
 
         #Set up logging
-        self.logger = logger or logging.getLogger(__name__)
+        self.logger = logging.getLogger(__name__)
 
     def run(self, **kwargs):
         """  Run the closed loop experiment cycle
 
         Parameters
         ----------
+        num_initial_experiments : int, optional
+            Number of initial experiments to request before iterative experimentation.
         save_freq : int, optional
             The frequency with which to checkpoint the state of the optimization. Defaults to None.
         save_at_end : bool, optional
@@ -186,14 +256,6 @@ class NeptuneRunner(Runner):
         save_dir : str, optional
             The directory to save checkpoints locally. Defaults to not saving locally.
         """
-        neptune_exp = self.proj.create_experiment(
-            name=self.neptune_experiment_name,
-            description=self.neptune_description,
-            params=self.to_dict(),
-            upload_source_files=self.files,
-            logger=self.logger,
-            tags=self.tags
-        )
 
         # Set parameters
         prev_res = None
@@ -203,13 +265,30 @@ class NeptuneRunner(Runner):
         save_freq = kwargs.get('save_freq')
         save_dir = kwargs.get('save_dir')
         save_at_end = kwargs.get('save_at_end', True)
+        num_initial_experiments = kwargs.get('num_initial_experiments')
+
+        # Create neptune experiment
+        session = Session(backend=HostedNeptuneBackend())
+        proj = session.get_project(self.neptune_project)
+        neptune_exp = proj.create_experiment(
+            name=self.neptune_experiment_name,
+            description=self.neptune_description,
+            params=self.to_dict(),
+            upload_source_files=self.neptune_files,
+            logger=self.logger,
+            tags=self.neptune_tags
+        )
 
         # Run optimization loop
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
-            next_experiments = self.strategy.suggest_experiments(
-                num_experiments=self.batch_size, prev_res=prev_res
-            )
+            if i==0:
+                next_experiments = self.strategy.suggest_experiments(
+                    num_experiments=self.num_initial_experiments)
+            else:
+                next_experiments = self.strategy.suggest_experiments(
+                    num_experiments=self.batch_size, prev_res=prev_res
+                )
 
             #Run experiment suggestions
             prev_res = self.experiment.run_experiments(next_experiments)
@@ -226,14 +305,14 @@ class NeptuneRunner(Runner):
                 neptune_exp.send_metric(v.name+"_best", fbest[j])
             
             # Send hypervolume for multiobjective experiments
-            if n_objs >1:
+            if n_objs>1:
                 output_names = [v.name for v in self.experiment.domain.output_variables]
-                data = self.experiment.data[output_names].to_numpy()
-                for j, v in enumerate(self.experiment.domain.output_variables):
+                data = self.experiment.data[output_names]
+                for v in self.experiment.domain.output_variables:
                     if v.maximize:
-                        data[:, j] = -1.0*data[:, j]
-                y_pareto, _ = pareto_efficient(data, maximize=False) 
-                hv = HvI.hypervolume(y_pareto, self.ref)
+                        data[(v.name, 'DATA')] = -1.0*data[v.name]
+                y_pareto, _ = pareto_efficient(data.to_numpy(), maximize=False) 
+                hv = hypervolume(y_pareto, self.ref)
                 neptune_exp.send_metric('hypervolume', hv)
             
             # Save state
@@ -268,19 +347,17 @@ class NeptuneRunner(Runner):
         neptune_exp.stop()
 
     def to_dict(self,):
-        runner_params = dict(
-            max_iterations=self.max_iterations, batch_size=self.batch_size, hypervolume_ref=self.ref,
-        )
+        d = super().to_dict()
+        d["runner"].update(dict(
+            hypervolume_ref = self.ref,
+            neptune_project = self.neptune_project,
+            neptune_experiment_name = self.neptune_experiment_name,
+            neptune_description = self.neptune_description,
+            neptune_files = self.neptune_files,
+            neptune_tags = self.neptune_tags
+        ))
+        return d
         
-        return dict(
-            runner=runner_params,
-            strategy=self.strategy.to_dict(),
-            experiment=self.experiment.to_dict(),
-        )
-
-    @classmethod
-    def from_dict(cls, d):
-        raise NotImplementedError("From dict does not work on NeptuneRunner becuase Neptune cannot be serialized.")
 
 
 def experiment_from_dict(d):
@@ -290,5 +367,9 @@ def experiment_from_dict(d):
         return Hartmann3D.from_dict(d)
     elif d["name"] == "Himmelblau":
         return Himmelblau.from_dict(d)
+    elif d["name"] == "DTLZ2":
+        return DTLZ2.from_dict(d)
+    elif d["name"] == "VLMOP2":
+        return VLMOP2.from_dict(d)
     elif d["name"] == "ThreeHumpCamel":
         return Himmelblau.from_dict(d)

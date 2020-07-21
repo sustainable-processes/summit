@@ -14,13 +14,13 @@ pandas = "1.0.3"
 python = "^3.6.1"
 GPy = "^1.9"
 numpy = "1.18.0"
-platypus-opt = "^1.0"
+pyrff = "^1.0.1"
 SQSnobFit = "^0.4.3"
 fastprogress = "^0.2.3"
-tqdm = "^4.46.1"
 ipywidgets = "^7.5.1"
-gpyopt = "^1.2.6"
 matplotlib = "^3.2.2"
+pymoo = "^0.4.1"
+gpyopt = "^1.2.6"
 neptune-client = {version= "^0.4.115", optional = true}
 hiplot = {version= "^0.1.12", optional = true}
 neptune-contrib = {extras = ["viz"], version = "^0.22.0", optional=true}
@@ -30,19 +30,18 @@ torch = {url = "https://download.pytorch.org/whl/cu101/torch-1.4.0-cp37-cp37m-li
 blitz-bayesian-pytorch = "0.2.3"
 tensorflow = "1.13.1"
 chemopt = {git = "https://github.com/sustainable-processes/chemopt.git"}
+paramiko = {version="^2.7.1", optional=true}    
+scp = {git = "https://github.com/jbardin/scp.py", rev = "v0.13.2", optional = true}
 
 [tool.poetry.extras]
-neptune = ["neptune-client", "hiplot", "neptune-contrib"]
+experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko", "scp"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
 ipdb = "^0.13.2"
-jupyterlab = "^2.1.4"
 black = "^19.10b0"
 rope = "^0.17.0"
 python-dotenv = "^0.13.0"
-
-
 [build-system]
 requires = ["poetry>=0.12"]
 build-backendpoet = "poetry.masonry.api"
