@@ -209,7 +209,8 @@ class NeptuneRunner(Runner):
         batch_size=1,
         f_tol = None,
         hypervolume_ref=None,
-        logger = None
+        logger = None,
+        **kwargs
     ):
 
         super().__init__(strategy, experiment,

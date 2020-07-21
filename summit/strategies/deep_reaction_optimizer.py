@@ -91,8 +91,7 @@ class DRO(Strategy):
         self._model_size = model_size
         self.prev_param = None
 
-
-    def suggest_experiments(self, prev_res: DataSet=None):
+    def suggest_experiments(self, prev_res: DataSet=None, **kwargs):
         """ Suggest experiments using the Deep Reaction Optimizer
 
         Parameters
