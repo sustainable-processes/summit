@@ -102,10 +102,8 @@ class SlurmRunner(NeptuneRunner):
 
         # Set the Neptune api token as an environmental variable in the remote environment
         # Singularity automatically passes environmental variables to the Docker containers
-        ssh.exec_command(f"export NEPTUNE_API_TOKEN={neptune_api_token}")
-        
         # Run the experiment        
-        ssh.exec_command(f"cd {remote_path} && sbatch slurm_summit_snar_experiment.sh {self.docker_container} run.py")
+        ssh.exec_command(f"export NEPTUNE_API_TOKEN={neptune_api_token} && cd {remote_path} && sbatch slurm_summit_snar_experiment.sh {self.docker_container} run.py")
 
         # Close the ssh connection
         scp.close()

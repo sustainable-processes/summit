@@ -10,7 +10,7 @@ import pytest
 from summit import *
 from summit.benchmarks import SnarBenchmark
 from summit.strategies import *
-from slurm_runner import SlurmRunner
+from .slurm_runner import SlurmRunner
 
 import warnings
 import logging
@@ -54,7 +54,7 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 # Run experiments
 @pytest.mark.parametrize('strategy', [NelderMead, SNOBFIT, Random, SOBO])
 @pytest.mark.parametrize('transform', transforms)
-def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
+def test_snar_experiment(strategy, transform, num_repeats=20):
     warnings.filterwarnings('ignore', category=RuntimeWarning)
     for i in range(NUM_REPEATS):
         experiment.reset()
@@ -71,7 +71,7 @@ def test_snar_experiment(strategy, transform, batch_size, num_repeats=20):
                           neptune_project=NEPTUNE_PROJECT,
                           neptune_experiment_name=exp_name,
                           neptune_files=["slurm_summit_snar_experiment.sh"],
-                          max_iterations=MAX_EXPERIMENTS//batch_size,
+                          max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                           batch_size=BATCH_SIZE,
                           f_tol=f_tol,
                           num_initial_experiments=1,

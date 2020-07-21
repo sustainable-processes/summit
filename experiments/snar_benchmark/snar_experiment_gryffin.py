@@ -13,7 +13,7 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=1
+NUM_REPEATS=20
 NEPTUNE_PROJECT="sustainable-processes/summit"
 MAX_EXPERIMENTS=50
 BATCH_SIZE=1
@@ -45,7 +45,7 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 
 # Run experiments
 warnings.filterwarnings('ignore', category=RuntimeWarning)
-for transform in [transforms[0]]:
+for transform in transforms:
     for i in range(NUM_REPEATS):
         s = GRYFFIN(experiment.domain, transform=transform)
 

@@ -39,6 +39,20 @@ class TSEMO(Strategy):
     kernel : :class:~GPy.kern.Kern, optional
         A GPy kernel class (not instantiated). Must be Exponential,
         Matern32, Matern52 or RBF. Default Exponential.
+    n_spectral_points : int, optional
+        Number of spectral points used in spectral sampling.
+        Default is 1500. Note that the TSEMO version uses 4000
+        which will improve accuracy but significantly slow down optimisation speed.
+    n_retries : int, optional
+        Number of retries to use for spectral sampling in the singular value decomposition
+        fails. Retrying chooses a new Monte Carlo sampling which usually fixes the problem.
+        Defualt is 10.
+    generations : int, optional
+        Number of generations used in the internal optimisation with NSGAII.
+        Default is 100.
+    pop_size : int, optional
+        Population size used in the internal optimisation with NSGAII.
+        Default is 100.
 
     Examples
     --------
@@ -68,6 +82,13 @@ class TSEMO(Strategy):
         self.kernel = kwargs.get("kernel", GPy.kern.Exponential)
         self.logger = kwargs.get("logger", logging.getLogger(__name__))
 
+        # Spectral sampling settings
+        self.n_spectral_points = kwargs.get('n_spectral_points', 1500)
+        self.n_retries = kwargs.get('n_retries',10)
+
+        # NSGA-II tsemo_settings
+        self.generations = kwargs.get("generations", 100)
+        self.pop_size = kwargs.get("pop_size", 100)
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
@@ -81,15 +102,6 @@ class TSEMO(Strategy):
             Dataset with data from previous experiments.
             If no data is passed, then latin hypercube sampling will
             be used to suggest an initial design. 
-        n_spectral_points : int, optional
-            Number of spectral points used in spectral sampling.
-            Default is 1500.
-        generations : int, optional
-            Number of generations used in the internal optimisation with NSGAII.
-            Default is 100.
-        pop_size : int, optional
-            Population size used in the internal optimisation with NSGAII.
-            Default is 100.
         Returns
         -------
         ds
@@ -99,7 +111,8 @@ class TSEMO(Strategy):
         if prev_res is None :
             lhs = LHS(self.domain)
             self.iterations +=1
-            return lhs.suggest_experiments(num_experiments)
+            k = num_experiments if num_experiments > 1 else 2
+            return lhs.suggest_experiments(k, criterion='maximin')
         elif (self.iterations == 1 and len(prev_res)==1):
             lhs = LHS(self.domain)
             self.iterations +=1
@@ -109,7 +122,6 @@ class TSEMO(Strategy):
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
             self.all_experiments = self.all_experiments.append(prev_res)
-
         
         # Get inputs (decision variables) and outputs (objectives)
         inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
@@ -123,7 +135,9 @@ class TSEMO(Strategy):
 
         # Standardize objectives
         self.output_mean = outputs.mean()
-        self.output_std = outputs.std()
+        std = outputs.std()
+        std[std<1e-5] = 1e-5
+        self.output_std = std
         outputs_scaled = (outputs-self.output_mean.to_numpy())/self.output_std.to_numpy()
 
         # Set up models
@@ -134,11 +148,15 @@ class TSEMO(Strategy):
                               )
                        for v in self.domain.output_variables}
         
-        rmse_train = np.zeros(2)
-        rmse_train_spectral = np.zeros(2)
-        rffs = [None for  _ in range(len(self.domain.output_variables))]
+        output_dim = len(self.domain.output_variables)
+        rmse_train = np.zeros(output_dim)
+        rmse_train_spectral = np.zeros(output_dim)
+        lengthscales = [None for _ in range(output_dim)]
+        variances = [None for _ in range(output_dim)]
+        noises = [None for _ in range(output_dim)]
+        rffs = [None for  _ in range(output_dim)]
         i = 0
-        num_restarts=kwargs.get("num_restarts", 100)
+        num_restarts=kwargs.get("num_restarts", 100) # This is a kwarg solely for debugging
         self.logger.debug(f"Fitting models (number of optimization restarts={num_restarts})\n")
         for name, model in self.models.items():
             # Constrain hyperparameters
@@ -151,17 +169,17 @@ class TSEMO(Strategy):
             # Train model
             model.optimize_restarts( 
                 num_restarts=num_restarts,
-                max_iters=kwargs.get("max_iters", 10000),
-                parallel=kwargs.get("parallel", True),
+                max_iters=10000,
+                parallel=True,
                 verbose=False)
             
             # self.logger.info model hyperparameters
-            lengthscale=model.kern.lengthscale.values
-            variance=model.kern.variance.values[0]
-            noise=model.Gaussian_noise.variance.values[0]
-            self.logger.debug(f"Model {name} lengthscales: {lengthscale}")
-            self.logger.debug(f"Model {name} variance: {variance}")
-            self.logger.debug(f"Model {name} noise: {noise}")
+            lengthscales[i]=model.kern.lengthscale.values
+            variances[i]=model.kern.variance.values[0]
+            noises[i]=model.Gaussian_noise.variance.values[0]
+            self.logger.debug(f"Model {name} lengthscales: {lengthscales[i]}")
+            self.logger.debug(f"Model {name} variance: {variances[i]}")
+            self.logger.debug(f"Model {name} noise: {noises[i]}")
 
             # Model validation
             rmse_train[i] = rmse(model.predict(inputs_scaled.to_numpy())[0], 
@@ -170,6 +188,7 @@ class TSEMO(Strategy):
             self.logger.debug(f"RMSE train {name} = {rmse_train[i].round(2)}")
         
             # Spectral sampling
+            self.logger.debug(f"Spectral sampling {name} with {self.n_spectral_points} spectral points.")
             if type(model.kern) == GPy.kern.Exponential:
                 matern_nu = 1
             elif type(model.kern) == GPy.kern.Matern32:
@@ -181,19 +200,17 @@ class TSEMO(Strategy):
             else:
                 raise TypeError("Spectral sample currently only works with Matern type kernels, including RBF.")
             
-            n_spectral_points = kwargs.get('n_spectral_points', 1500)
-            n_retries = kwargs.get('n_retries',10)
-            self.logger.debug(f"Spectral sampling {name} with {n_spectral_points} spectral points.")
-            for _ in range(n_retries):
+            
+            for _ in range(self.n_retries):
                 try:
                     rffs[i] = pyrff.sample_rff(
-                        lengthscales=lengthscale,
-                        scaling=np.sqrt(variance),
-                        noise=noise,
+                        lengthscales=lengthscales[i],
+                        scaling=np.sqrt(variances[i]),
+                        noise=noises[i],
                         kernel_nu=matern_nu,
                         X=inputs_scaled.to_numpy(),
                         Y=outputs_scaled[[name]].to_numpy()[:,0],
-                        M=n_spectral_points
+                        M=self.n_spectral_points
                 )
                     break
                 except np.linalg.LinAlgError as e:
@@ -201,8 +218,7 @@ class TSEMO(Strategy):
                 except ValueError as e:
                     self.logger.error(e)
             if rffs[i] is None:
-                raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
-
+                raise RuntimeError(f"Spectral sampling failed after {self.n_retries} retries.")
             sample_f = lambda x: np.atleast_2d(rffs[i](x)).T
 
             rmse_train_spectral[i] = rmse(sample_f(inputs_scaled.to_numpy()), 
@@ -219,21 +235,19 @@ class TSEMO(Strategy):
         pyrff.save_rffs(rffs, pathlib.Path(dp_results, 'models.h5'))
 
         # NSGAII internal optimisation
-        generations = kwargs.get("generations", 100)
-        pop_size = kwargs.get("pop_size", 100)
         self.logger.info("Optimizing models using NSGAII.")
-        optimizer = NSGA2(pop_size=pop_size)
+        optimizer = NSGA2(pop_size=self.pop_size)
         problem = TSEMOInternalWrapper(pathlib.Path(dp_results, 'models.h5'),
                                        self.domain)
-        termination = get_termination("n_gen", generations)
+        termination = get_termination("n_gen", self.generations)
         self.internal_res = minimize(
             problem, optimizer, termination, seed=1, verbose=False
         )
         X = DataSet(self.internal_res.X, columns=[v.name for v in self.domain.input_variables])
         y = DataSet(self.internal_res.F, columns=[v.name for v in self.domain.output_variables])
 
+        # Select points that give maximum hypervolume improvement
         if X.shape[0] != 0 and y.shape[0] != 0:
-            # Select points that give maximum hypervolume improvement
             self.hv_imp, indices = self.select_max_hvi(
                 outputs_scaled, y, num_experiments
             )
@@ -255,15 +269,17 @@ class TSEMO(Strategy):
 
             # Add model hyperparameters as metadata columns
             self.iterations += 1
-            # for name, model in self.models.models.items():
-            #     lengthscales, var, noise = model.hyperparameters
-            #     result[(f"{name}_variance", "METADATA")] = var
-            #     result[(f"{name}_noise", "METADATA")] = noise
-            #     for var, l in zip(self.domain.input_variables, lengthscales):
-            #         result[(f"{name}_{var.name}_lengthscale", "METADATA")] = l
-            #     result[("iterations", "METADATA")] = self.iterations
+            i=0
+            for name, model in self.models.items():
+                result[(f"{name}_variance", "METADATA")] = variances[i]
+                result[(f"{name}_noise", "METADATA")] = noises[i]
+                for var, l in zip(self.domain.input_variables, lengthscales[i]):
+                    result[(f"{name}_{var.name}_lengthscale", "METADATA")] = l
+                result[("iterations", "METADATA")] = self.iterations
+                i+=1
             return result
         else:
+            self.logger.warning("No suggestions found.")
             self.iterations += 1
             return None
 
@@ -281,6 +297,10 @@ class TSEMO(Strategy):
         )
         strategy_params = dict(
             all_experiments=ae,
+            n_spectral_points=self.n_spectral_points,
+            n_retries=self.n_retries,
+            pop_size=self.pop_size,
+            generation=self.generations,
         )
         return super().to_dict(**strategy_params)
 
