@@ -1,10 +1,11 @@
 from .base import Strategy, Design, _closest_point_indices, Transform
 from summit.domain import *
 from summit.utils.dataset import DataSet
-
+from summit.utils.lhs import lhs
 import numpy as np
 import pandas as pd
 from typing import Type, Tuple
+
 
 class Random(Strategy):
     """ Random strategy for experiment suggestion

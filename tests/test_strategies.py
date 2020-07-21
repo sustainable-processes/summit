@@ -1,14 +1,20 @@
 import pytest
 
+from summit.benchmarks import *
 from summit.domain import *
 from summit.strategies import *
 from summit.utils.dataset import DataSet
-from summit.benchmarks import test_functions
+from summit.utils.multiobjective import pareto_efficient, hypervolume
+from summit.utils.models import GPyModel
+from summit.strategies import *
 
+import GPy
 from fastprogress.fastprogress import progress_bar
 import numpy as np
 import pandas as pd
 import os
+import warnings
+
 
 def test_random():
     domain = Domain()
@@ -23,7 +29,6 @@ def test_random():
     domain += ContinuousVariable(
         name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5]
     )
-
     strategy = Random(domain, random_state=np.random.RandomState(3))
     results = strategy.suggest_experiments(5)
     arr = np.array(
@@ -50,6 +55,7 @@ def test_random():
     strategy = Random(domain, random_state=np.random.RandomState(3))
     results = strategy.suggest_experiments(5)
     return results
+
 
 def test_lhs():
     domain = Domain()
@@ -213,17 +219,12 @@ def test_logspaceobjectives_transform():
     strategy = MockStrategy(domain, transform=transform)
     strategy.suggest_experiments(5, previous_results)
 
-'''
-def test_tsemo():
-    pass
-
-
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("constraints", [True, False])
 def test_snobfit(num_experiments, maximize, constraints):
 
-    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraints)
+    hartmann3D = Hartmann3D(maximize=maximize, constraints=constraints)
     strategy = SNOBFIT(hartmann3D.domain, probability_p=0.5, dx_dim=1e-5)
 
     initial_exp = None
@@ -297,7 +298,7 @@ def test_snobfit(num_experiments, maximize, constraints):
 @pytest.mark.parametrize("constraint", [True, False])
 def test_nm2D(x_start, maximize, constraint, plot=False):
 
-    himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
+    himmelblau = Himmelblau(maximize=maximize, constraints=constraint)
     strategy = NelderMead(himmelblau.domain, x_start=x_start, adaptive=False)
 
     initial_exp = None
@@ -411,7 +412,7 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
 )
 def test_nm3D(maximize, x_start, constraint, plot=False):
 
-    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
+    hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = NelderMead(hartmann3D.domain, x_start=x_start)
 
     initial_exp = None
@@ -519,7 +520,7 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
     ]
 )
 def test_sobo(batch_size, max_num_exp, maximize, constraint,check_convergence, plot=False):
-    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
+    hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = SOBO(domain=hartmann3D.domain)
 
     # Uncomment to start algorithm with pre-defined initial experiments
@@ -602,7 +603,7 @@ def test_sobo(batch_size, max_num_exp, maximize, constraint,check_convergence, p
     ]
 )
 def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, check_convergence, test_id, plot=False):
-    himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
+    himmelblau = Himmelblau(maximize=maximize, constraints=constraint)
     strategy = GRYFFIN(domain=himmelblau.domain, sampling_strategies=batch_size)
 
     # Uncomment to start algorithm with pre-defined initial experiments
@@ -678,7 +679,7 @@ def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, check
     ]
 )
 def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint,check_convergence, test_id, plot=False, ):
-    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
+    hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = GRYFFIN(domain=hartmann3D.domain, sampling_strategies=batch_size)
 
     # Uncomment to start algorithm with pre-defined initial experiments
@@ -739,7 +740,6 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint,check_co
 
     if plot:
         fig, ax = hartmann3D.plot()
-'''
 
 @pytest.mark.parametrize(
     "max_num_exp, maximize",
@@ -858,3 +858,28 @@ def test_dro3D(max_num_exp, maximize, constraint=False, plot=False):
         assert strategy.prev_param["fbest"] == strategy_2.prev_param["fbest"]
         assert np.array_equal(strategy.prev_param["last_requested_point"], strategy_2.prev_param["last_requested_point"])
         assert strategy.prev_param["iteration"] == strategy_2.prev_param["iteration"]
+
+def test_tsemo(save=False):
+    num_inputs = 2
+    num_objectives= 2
+    lab = VLMOP2()
+    strategy = TSEMO(lab.domain)
+    experiments = strategy.suggest_experiments(1)
+    warnings.filterwarnings('ignore',category=RuntimeWarning)
+    warnings.filterwarnings('ignore',category=DeprecationWarning)
+    pb = progress_bar(range(20))
+    for i in pb:
+        # Run experiments
+        experiments = lab.run_experiments(experiments)
+        
+        # Get suggestions
+        experiments = strategy.suggest_experiments(1, experiments)
+
+        if save:
+            strategy.save('tsemo_settings.json')
+        y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
+                                       maximize=False)  
+        hv = hypervolume(y_pareto, [11,11])
+        pb.comment = f"Hypervolume: {hv}" 
+    assert hv > 117.0
+

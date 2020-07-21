@@ -1,6 +1,7 @@
 from .base import Strategy
 from summit.domain import Domain, DomainError
 from summit.utils.dataset import DataSet
+from summit import get_summit_config_path
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,8 @@ import json
 import os
 import copy
 import pickle
+import uuid
+import pathlib
         
 class GRYFFIN(Strategy):
     """ Gryffin strategy
@@ -19,9 +22,6 @@ class GRYFFIN(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The Summit domain describing the optimization problem.
-    save_dir: string, optional
-        Name of subfolder where temporary files during Gryffin execution are stored, i.e., summit/strategies/tmp_files/gryffin/<save_dir>.
-        By default: None (i.e. no subfolder created, files stored in summit/strategies/tmp_files/gryffin)
     auto_desc_gen: Boolean, optional
         Whether Dynamic Gryffin is used if descriptors are provided,
         i.e., Gryffin applies automatic descriptor generation,
@@ -95,22 +95,18 @@ class GRYFFIN(Strategy):
     def __init__(self, domain, save_dir=None, auto_desc_gen=False, sampling_strategies=4,
                  batches=1, logging=-1, parallel=True, boosted=True, sampler="uniform", softness=0.001,
                  continuous_optimizer="adam", categorical_optimizer="naive", discrete_optimizer="naive", **kwargs):
-        Strategy.__init__(self, domain)
-
+        Strategy.__init__(self, domain, transform=kwargs.get('transform'))
+        
         self.domain_inputs = []
         self.domain_objectives = []
         self.prev_param = None
 
         # Create directories to store temporary files
-        tmp_files = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tmp_files")
-        tmp_dir = os.path.join(tmp_files, "gryffin")
-        if not os.path.isdir(tmp_files):
-            os.mkdir(tmp_files)
-        # if a directory was specified create subfolder for storing files
-        if save_dir:
-            tmp_dir = os.path.join(tmp_dir, save_dir)
+        summit_config_path = get_summit_config_path()
+        self.uuid_val = uuid.uuid4()  # Unique identifier for this run
+        tmp_dir = summit_config_path / "gryffin" / str(self.uuid_val)
         if not os.path.isdir(tmp_dir):
-            os.mkdir(tmp_dir)
+            os.makedirs(tmp_dir)
 
         # Parse Summit domain to Gryffin domain
         for v in self.domain.variables:
@@ -134,7 +130,7 @@ class GRYFFIN(Strategy):
                             "size": 1,
                             "levels": v.levels,
                             "descriptors": descriptors,
-                            "category_details": os.path.join(tmp_dir, "CatDetails/cat_details_" + str(v.name) + ".pkl"),
+                            "category_details": str(tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"),
                         }
                     )
                 elif v.variable_type == "descriptors":
@@ -145,7 +141,7 @@ class GRYFFIN(Strategy):
                             "size": 1,
                             "levels": [l for l in v.ds.index],
                             "descriptors": [v.ds.loc[[l],:].values[0].tolist() for l in v.ds.index],
-                            "category_details": os.path.join(tmp_dir, "CatDetails/cat_details_" + str(v.name) + ".pkl"),
+                            "category_details": str(tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"),
                         }
                     )
                 else:
@@ -177,7 +173,7 @@ class GRYFFIN(Strategy):
                 "boosted": boosted,
                 "sampling_strategies": sampling_strategies,
                 "batches": batches,
-                "scratch_dir": os.path.join(tmp_dir, "scratch"),
+                "scratch_dir": str(tmp_dir / "scratch"),
                 "sampler": sampler,
                 "softness": softness,
                 "continuous_optimizer": continuous_optimizer,
@@ -191,14 +187,14 @@ class GRYFFIN(Strategy):
             },
             "database": {
                 'format': 'pickle',
-                "path": os.path.join(tmp_dir, "SearchProgress"),
+                "path": str(tmp_dir / "SearchProgress"),
             },
             "parameters": self.domain_inputs,
             "objectives": self.domain_objectives,
         }
 
         config_file = "config.json"
-        config_file_path = os.path.join(tmp_dir, config_file)
+        config_file_path = tmp_dir / config_file
         with open(config_file_path, 'w') as configfile:
             json.dump(config_dict, configfile, indent=2)
 

@@ -49,6 +49,29 @@ The documentation for summit can be found on the [wiki](https://github.com/susta
     - All pull requests need one review.
     - Tests will be run automatically when a pull request is created, and all tests need to pass before the pull request is merged. 
 
+### Docker
+Sometimes, it is easier to run tests using a Docker container (e.g., on compute clusters). Here are the commands to build and run the docker containers using the included Dockferfile. The container entrypoint is python, so you just need to specify the file name.
+
+To build the container and upload the container to Docker Hub.:
+```
+docker build . -t marcosfelt/summit:latest
+docker push marcosfelt/summit:latest
+```
+You can change the tag from `latest` to whatever is most appropriate (e.g., the branch name). I have found that this takes up a lot of space on disk, so I have been running the commands on our private servers.
+
+Then, to run a container, here is an example with the SnAr experiment code. The home directory of the container is called `summit_user`, hence we mount the current working directory into that folder.  We remove the container upon finishing using `--rm` and make it interactive using `--it` (remove this if you just want the container to run in the background). [Neptune.ai](https://neptune.ai/) is used for the experiments so the API token is passed in. Finally, I specify the image name and the tag and before referencing the python file I want to run. 
+
+```
+export token= #place your neptune token here
+sudo docker run -v `pwd`/:/summit_user --rm -it --env NEPTUNE_API_TOKEN=$token summit:snar_benchmark snar_experiment_2.py
+```
+
+Singularity (for running Docker containers on the HPC):
+```
+export NEPTUNE_API_TOKEN=
+singularity exec -B `pwd`/:/summit_user docker://marcosfelt/summit:snar_benchmark snar_experiment.py
+```
+
 ### Releases
 
 Below is the old process for building a release. In the future, we will have this automated using Github actions.
