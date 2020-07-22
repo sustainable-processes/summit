@@ -199,7 +199,6 @@ class DRO(Strategy):
     def from_dict(cls, d):
         dro = super().from_dict(d)
         params = d["strategy_params"]["prev_param"]
-        infer_model_path = d["strategy_params"]["infer_model"]
         if params is not None:
             params["state"] = tuple([tuple([np.array(s, dtype=np.float32) for s in e]) for e in params["state"]])
             params["xbest"] = np.array(params["xbest"])
