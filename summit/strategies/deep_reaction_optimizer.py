@@ -1,22 +1,20 @@
 from .base import Strategy, Transform
 from summit.domain import Domain, ContinuousVariable
 from summit.utils.dataset import DataSet
-
-import os
+from summit import get_summit_config_path
+import chemopt
+from chemopt.logger import get_handlers
 
 import numpy as np
 import pandas as pd
-
-import chemopt
-
 import tensorflow as tf
-import numpy as np
+
 import logging
 import json
-
 import os.path as osp
-
-from chemopt.logger import get_handlers
+import os
+import pathlib
+import uuid
 from collections import namedtuple
 from copy import deepcopy
 
@@ -76,15 +74,11 @@ class DRO(Strategy):
         Strategy.__init__(self, domain, transform)
 
         # Create directories to store temporary files
-        tmp_files = os.path.join(os.path.dirname(os.path.realpath(__file__)), "tmp_files")
-        tmp_dir = os.path.join(tmp_files, "dro")
-        if not os.path.isdir(tmp_files):
-            os.mkdir(tmp_files)
-        # if a directory was specified create subfolder for storing files
-        if save_dir:
-            tmp_dir = os.path.join(tmp_dir, save_dir)
+        summit_config_path = get_summit_config_path()
+        self.uuid_val = uuid.uuid4()  # Unique identifier for this run
+        tmp_dir = summit_config_path / "dro" / str(self.uuid_val)
         if not os.path.isdir(tmp_dir):
-            os.mkdir(tmp_dir)
+            os.makedirs(tmp_dir)
 
         self._pretrained_model_config_path = pretrained_model_config_path
         self._infer_model_path = tmp_dir
@@ -197,7 +191,7 @@ class DRO(Strategy):
         else:
             params = None
         strategy_params = dict(
-            infer_model=self._infer_model_path, prev_param=params
+            infer_model=str(self._infer_model_path), prev_param=params
         )
         return super().to_dict(**strategy_params)
 
@@ -212,7 +206,7 @@ class DRO(Strategy):
             params["fbest"] =  np.array(params["fbest"])
             params["last_requested_point"] = np.array(params["last_requested_point"])
         dro.prev_param = params
-        dro._infer_model_path = infer_model_path
+        dro._infer_model_path = pathlib.Path(infer_model_path)
         return dro
 
     def x_convert(self, x):
