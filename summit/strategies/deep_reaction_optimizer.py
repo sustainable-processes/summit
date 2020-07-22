@@ -191,7 +191,7 @@ class DRO(Strategy):
         else:
             params = None
         strategy_params = dict(
-            infer_model=str(self._infer_model_path), prev_param=params
+            prev_param=params
         )
         return super().to_dict(**strategy_params)
 
@@ -206,7 +206,6 @@ class DRO(Strategy):
             params["fbest"] =  np.array(params["fbest"])
             params["last_requested_point"] = np.array(params["last_requested_point"])
         dro.prev_param = params
-        dro._infer_model_path = pathlib.Path(infer_model_path)
         return dro
 
     def x_convert(self, x):
