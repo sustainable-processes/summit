@@ -47,6 +47,7 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 for transform in transforms:
     for i in range(NUM_REPEATS):
+        experiment.reset()
         s = GRYFFIN(experiment.domain, transform=transform)
 
         exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
