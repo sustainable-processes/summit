@@ -18,14 +18,12 @@ def strategy_from_dict(d):
         return SNOBFIT.from_dict(d)
     elif d["name"] == "NelderMead":
         return NelderMead.from_dict(d)
-
     elif d["name"] == "FullFactorial":
         return FullFactorial.from_dict(d)
     elif d["name"] == "Random":
         return Random.from_dict(d)
     elif d["name"] == "LHS":
         return LHS.from_dict(d)
-
     else:
         raise ValueError(f"""Strategy {d["name"]} not found.""")
 

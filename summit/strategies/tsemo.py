@@ -2,7 +2,6 @@ from .base import Strategy, Transform
 from .random import LHS
 from summit.domain import Domain, DomainError
 from summit.utils.multiobjective import pareto_efficient, hypervolume
-from summit.utils.models import ModelGroup, GPyModel
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
 

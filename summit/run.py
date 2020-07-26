@@ -32,6 +32,9 @@ class Runner:
         argument to the `run` method.
     max_iterations: int, optional
         The maximum number of iterations to run. By default this is None.
+    num_initial_experiments : int, optional
+        Number of initial experiments to run, if different than batch size.
+        Default is to start with batch size.
     batch_size: int, optional
         The number experiments to request at each call of strategy.suggest_experiments.
     f_tol : float, optional
@@ -46,7 +49,7 @@ class Runner:
         self,
         strategy: Strategy,
         experiment: Experiment,
-        num_initial_experiments=1,
+        num_initial_experiments=None,
         max_iterations=100,
         batch_size=1,
         f_tol = None,
@@ -54,7 +57,7 @@ class Runner:
     ):
         self.strategy = strategy
         self.experiment = experiment
-        self.num_initial_experiments = num_initial_experiments
+        self.n_init = num_initial_experiments
         self.max_iterations = max_iterations
         self.batch_size = batch_size
         self.f_tol = f_tol
@@ -84,12 +87,12 @@ class Runner:
         save_at_end = kwargs.get('save_at_end', True)
 
         prev_res = None
-        i = 0
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
             if i==0:
+                k = self.n_init if self.n_init is not None else self.batch_size
                 next_experiments = self.strategy.suggest_experiments(
-                    num_experiments=self.num_initial_experiments)
+                    num_experiments=k)
             else:
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=self.batch_size, prev_res=prev_res
@@ -98,14 +101,9 @@ class Runner:
 
             # Save state
             if save_freq is not None:
-                file = f'iteration_{i}.json'
-                if save_dir is not None:
-                    file = save_dir + "/" + file
+                file = save_dir / f'iteration_{i}.json'
                 if i % save_freq == 0:
                     self.save(file)
-                    neptune_exp.send_artifact(file)
-                if not save_dir:
-                    os.remove(file)
 
             # Stop if no improvement
             if self.f_tol is not None and i >1:
@@ -116,17 +114,12 @@ class Runner:
             
         # Save at end
         if save_at_end:
-            file = f'iteration_{i}.json'
-            if save_dir is not None:
-                file = save_dir + "/" + file
+            file = save_dir / f'iteration_{i}.json'
             self.save(file)
-            neptune_exp.send_artifact(file)
-            if not save_dir:
-                os.remove(file)
 
     def to_dict(self,):
         runner_params = dict(
-            num_initial_experiments=self.num_initial_experiments,
+            num_initial_experiments=self.n_init,
             max_iterations=self.max_iterations, 
             batch_size=self.batch_size,
             f_tol=self.f_tol
@@ -254,7 +247,10 @@ class NeptuneRunner(Runner):
             Save the state of the optimization at the end of a run, even if it is stopped early.
             Default is True.
         save_dir : str, optional
-            The directory to save checkpoints locally. Defaults to not saving locally.
+            The directory to save checkpoints locally. Defaults to `~/.summit/runner`.
+        delete_local_files : bool, optional
+            Delete the local files once they are uploaded to Neptune.
+            Defaults to True.
         """
 
         # Set parameters
@@ -263,9 +259,13 @@ class NeptuneRunner(Runner):
         fbest_old = np.zeros(n_objs)
         fbest = np.zeros(n_objs)
         save_freq = kwargs.get('save_freq')
-        save_dir = kwargs.get('save_dir')
+        save_dir = kwargs.get('save_dir', str(get_summit_config_path()))
+        self.uuid_val = uuid.uuid4()
+        save_dir = pathlib.Path(save_dir) / "runner" / str(self.uuid_val)
+        if not os.path.isdir(save_dir):
+            os.makedirs(save_dir)
         save_at_end = kwargs.get('save_at_end', True)
-        num_initial_experiments = kwargs.get('num_initial_experiments')
+        delete_local_files = kwargs.get('delete_local_files', True)
 
         # Create neptune experiment
         session = Session(backend=HostedNeptuneBackend())
@@ -284,7 +284,7 @@ class NeptuneRunner(Runner):
             # Get experiment suggestions
             if i==0:
                 next_experiments = self.strategy.suggest_experiments(
-                    num_experiments=self.num_initial_experiments)
+                    num_experiments=self.n_init)
             else:
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=self.batch_size, prev_res=prev_res
@@ -317,9 +317,7 @@ class NeptuneRunner(Runner):
             
             # Save state
             if save_freq is not None:
-                file = f'iteration_{i}.json'
-                if save_dir is not None:
-                    file = save_dir + "/" + file
+                file = save_dir / f'iteration_{i}.json'
                 if i % save_freq == 0:
                     self.save(file)
                     neptune_exp.send_artifact(file)
@@ -335,9 +333,7 @@ class NeptuneRunner(Runner):
         
         # Save at end
         if save_at_end:
-            file = f'iteration_{i}.json'
-            if save_dir is not None:
-                file = save_dir + "/" + file
+            file = save_dir / f'iteration_{i}.json'
             self.save(file)
             neptune_exp.send_artifact(file)
             if not save_dir:

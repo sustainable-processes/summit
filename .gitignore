@@ -110,6 +110,7 @@ venv.bak/
 .pickle
 ~*.xlsx
 *.DS_STORE
+.vscode/
 
 # TSEMO
 .TSEMO_DATA
