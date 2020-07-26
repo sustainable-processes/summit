@@ -1,5 +1,4 @@
 from summit.domain import *
-from summit.utils.models import ModelGroup
 from summit.utils.dataset import DataSet
 
 import numpy as np
