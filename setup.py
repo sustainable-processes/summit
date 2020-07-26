@@ -43,15 +43,13 @@ setup(
     },
     install_requires=[
         'blitz-bayesian-pytorch==0.2.3', 'fastprogress==0.*,>=0.2.3',
-        'gpy==1.*,>=1.9.0', 'gpyopt==1.*,>=1.2.6', 'gryffin',
+        'gpy==1.*,>=1.9.0', 'gpyopt==1.*,>=1.2.6',
         'ipywidgets==7.*,>=7.5.1', 'matplotlib==3.*,>=3.2.2', 'numpy==1.18.0',
-        'pandas==1.0.3', 'pathlib==1.*,>=1.0.1', 'pymoo==0.*,>=0.4.1',
+	    'gryffin @ git+https://github.com/sustainable-processes/gryffin@0.1.0', 
+        'pandas==1.0.3', 'pymoo==0.*,>=0.4.1',
         'pyrff==1.*,>=1.0.1', 'sqsnobfit==0.*,>=0.4.3',
         'tensorflow==2.*,>=2.2.0', 'tensorflow-probability==0.*,>=0.10.1',
-        'torch', 'tqdm==4.*,>=4.46.1'
-    ],
-    dependency_links=[
-        'git+https://github.com/sustainable-processes/gryffin.git#egg=gryffin'
+        'torch', 'tqdm==4.*,>=4.46.1', 
     ],
     extras_require={
         'dev': [

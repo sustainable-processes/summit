@@ -607,11 +607,9 @@ class DTLZ2(Experiment):
             f.extend((1.0+g) * reduce(mul, (cos(0.5*xi*pi) for xi in xc[:m]), 1) * sin(0.5*xc[m]*pi) for m in range(nobjs-2, -1, -1))
         
         #Convert to dataset
-        ds = DataSet(x, 
-                     columns=[f'x_{i}' for i in range(self.nvars)])
         for i in range(nobjs):
-            ds[(f'y_{i}', 'DATA')] = f[i]
-        return ds, {}
+            conditions[(f'y_{i}', 'DATA')] = f[i]
+        return conditions, {}
 
 class VLMOP2(Experiment):
     def __init__(self,):
@@ -647,8 +645,6 @@ class VLMOP2(Experiment):
         f = np.hstack((y1, y2))
 
         #Convert to dataset
-        ds = DataSet(x, 
-                     columns=[f'x_{i}' for i in range(self.nvars)])
         for i in range(self.nobjs):
-            ds[(f'y_{i}', 'DATA')] = f[:, i]
-        return ds, {}
+            conditions[(f'y_{i}', 'DATA')] = f[:, i][0]
+        return conditions, {}

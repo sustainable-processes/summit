@@ -116,3 +116,6 @@ venv.bak/
 .TSEMO_DATA
 tmp_files
 Pytest*
+
+# Snar benchmark
+.snar_benchmark

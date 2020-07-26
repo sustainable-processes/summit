@@ -6,6 +6,7 @@ from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.strategies import *
 
+import GPy
 from fastprogress.fastprogress import progress_bar
 import numpy as np
 import os

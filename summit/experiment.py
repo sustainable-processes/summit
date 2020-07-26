@@ -228,9 +228,7 @@ class Experiment(ABC):
         else:
             return ax
 
-def add_metadata_columns(df, metadata_df, copy=True):
-    if copy:
-        df = df.copy()
+def add_metadata_columns(df, metadata_df):
     for column in metadata_df.metadata_columns:
         df[(column, 'METADATA')] = metadata_df[column]
     return df
