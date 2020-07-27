@@ -13,15 +13,15 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=1
+NUM_REPEATS=20
 MAX_EXPERIMENTS=50
 NEPTUNE_PROJECT="sustainable-processes/summit"
 BATCH_SIZE=1
+HYPERVOLUME_REF=[0,1]
 
 # Cross Coupling Benchmark by Emulator trained on Baumgartner et al. (2019) data
 # This emulator is modified to include costs as an output
 experiment = BaumgartnerCrossCouplingEmulator_Yield_Cost()
-print(experiment.domain.variables)
 
 # Transforms from multi to single objective
 hierarchies = [{'yld': {'hierarchy': 0, 'tolerance': 1},
@@ -38,7 +38,7 @@ hierarchies = [{'yld': {'hierarchy': 0, 'tolerance': 1},
               ]
 transforms = [Chimera(experiment.domain, hierarchies[2]),
               MultitoSingleObjective(experiment.domain, 
-                                     expression='-yld+(cost-1.001)/(2.999)',
+                                     expression='-yld+cost',
                                      maximize=False),
               Chimera(experiment.domain, hierarchies[0]),
               Chimera(experiment.domain, hierarchies[1]),
@@ -54,14 +54,15 @@ def test_baselines(strategy):
         s = strategy(experiment.domain, transform_descriptors=True)
 
         # Run these locally since they are fast
-        name=f"cn_experiment_MO__baselines_{s.__class__.__name__}_repeat_{i}"
+        name=f"cn_experiment_MO_baselines_{s.__class__.__name__}_repeat_{i}"
         r = NeptuneRunner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         neptune_experiment_name=name,
                         neptune_tags=["cn_experiment_MO", s.__class__.__name__],
                         neptune_files=["slurm_summit_cn_experiment.sh"],
                         max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
-                        batch_size=BATCH_SIZE)
+                        batch_size=BATCH_SIZE,
+                        hypervolume_ref=HYPERVOLUME_REF)
         r.run(save_at_end=True)
 
 @pytest.mark.parametrize('strategy', [SNOBFIT, NelderMead, SOBO, GRYFFIN])
@@ -79,7 +80,7 @@ def test_cn_experiment_descriptors(strategy, transform):
         else:
             f_tol = None
 
-        name=f"cn_experiment_MO__descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
+        name=f"cn_experiment_MO_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
         r = SlurmRunner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         docker_container="marcosfelt/summit:cn_benchmark",
@@ -88,6 +89,7 @@ def test_cn_experiment_descriptors(strategy, transform):
                         neptune_files=["slurm_summit_cn_experiment.sh"],
                         max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                         batch_size=BATCH_SIZE,
+                        hypervolume_ref=HYPERVOLUME_REF,
                         f_tol=f_tol)
         r.run(save_at_end=True)
 
@@ -106,7 +108,8 @@ def test_cn_experiment_tsemo():
                         neptune_files=["slurm_summit_cn_experiment.sh"],
                         max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                         batch_size=BATCH_SIZE,
-                        f_tol=f_tol)
+                        f_tol=f_tol,
+                        hypervolume_ref=HYPERVOLUME_REF)
         r.run(save_at_end=True)
 
 @pytest.mark.parametrize('strategy', [SOBO, GRYFFIN])
@@ -127,6 +130,7 @@ def test_cn_experiment_no_descriptors(strategy, transform):
                         neptune_files=["slurm_summit_cn_experiment.sh"],
                         max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                         batch_size=BATCH_SIZE,
-                        f_tol=f_tol)
+                        f_tol=f_tol,
+                        hypervolume_ref=HYPERVOLUME_REF)
         r.run(save_at_end=True)
 

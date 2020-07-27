@@ -583,7 +583,10 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
                                   for c, m in zip(catalyst, mmol_catalyst)])
         cost_base = np.array([cls._get_base_cost(b, m) 
                               for b,m in zip(base, mmol_base)])
-        return cost_triflate + cost_anniline + cost_catalyst + cost_base
+        tot_cost = cost_triflate + cost_anniline + cost_catalyst + cost_base
+        if len(tot_cost) == 1:
+            tot_cost = tot_cost[0]
+        return tot_cost
 
     @staticmethod
     def _get_catalyst_cost(catalyst, catalyst_mmol):

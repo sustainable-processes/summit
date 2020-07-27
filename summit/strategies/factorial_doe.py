@@ -52,9 +52,9 @@ class FullFactorial(Strategy):
         
         Parameters
         ---------- 
-        levels: dict
+        levels_dict : dict
             A dictionary with the number of levels for each variable. Keys are 
-            the variable names and values are arrays witht the values of each level.
+            the variable names and values are arrays with the values of each level.
         
         Returns
         -------
