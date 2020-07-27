@@ -54,7 +54,7 @@ class ExperimentalEmulator(Experiment):
 
     """
 
-# =======================================================================
+
 
     def __init__(self, domain, dataset=None, csv_dataset=None, model_name="dataset_name_emulator_bnn", regressor_type="BNN", cat_to_descr=False, **kwargs):
         super().__init__(domain)
@@ -71,7 +71,7 @@ class ExperimentalEmulator(Experiment):
         else:
             raise NotImplementedError("Regressor type <{}> not implemented yet".format(str(regressor_type)))
 
-# =======================================================================
+
 
     def _run(self, conditions, **kwargs):
         condition = DataSet.from_df(conditions.to_frame().T)
@@ -80,7 +80,7 @@ class ExperimentalEmulator(Experiment):
             conditions[(k, "DATA")] = v
         return conditions, None
 
-# =======================================================================
+
 
     def train(self, dataset=None, csv_dataset=None, verbose=True, **kwargs):
         dataset = self._check_datasets(dataset, csv_dataset)
@@ -88,7 +88,7 @@ class ExperimentalEmulator(Experiment):
         self.emulator.train_model(dataset=dataset, verbose=verbose, kwargs=kwargs)
         self.extras = [self.emulator.output_models]
 
-# =======================================================================
+
 
     def validate(self, dataset=None, csv_dataset=None, parity_plots=False, get_pred=False, **kwargs):
         dataset = self._check_datasets(dataset, csv_dataset)
@@ -101,7 +101,7 @@ class ExperimentalEmulator(Experiment):
             except:
                 raise ValueError("No dataset to evaluate.")
 
-# =======================================================================
+
 
     def _check_datasets(self, dataset=None, csv_dataset=None):
         if csv_dataset:
@@ -110,7 +110,7 @@ class ExperimentalEmulator(Experiment):
             dataset=DataSet.read_csv(csv_dataset, index_col=None)
         return dataset
 
-# =======================================================================
+
 
     def to_dict(self):
         """Serialize the class to a dictionary
@@ -135,7 +135,7 @@ class ExperimentalEmulator(Experiment):
             extras=extras
         )
 
-# =======================================================================
+
 
     @classmethod
     def from_dict(cls, d, **kwargs):
@@ -179,7 +179,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
     """
 
-# =======================================================================
+
 
     def __init__(self, case=1, **kwargs):
         model_name = "reizman_suzuki_case" + str(case)
@@ -187,7 +187,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + model_name + "_train_test.csv")
         super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
 
-# =======================================================================
+
 
     def setup_domain(self):
         domain = Domain()
@@ -233,7 +233,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
         return domain
 
-# =======================================================================
+
 
     def to_dict(self):
         """Serialize the class to a dictionary
@@ -257,7 +257,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
             extras=extras
         )
 
-# =======================================================================
+
 
     @classmethod
     def from_dict(cls, d, **kwargs):
@@ -297,7 +297,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
     """
 
-# =======================================================================
+
 
     def __init__(self, **kwargs):
         model_name = kwargs.get("model_name", "baumgartner_aniline_cn_crosscoupling")
@@ -305,8 +305,6 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         domain = self.setup_domain()
         dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + dataset_file)
         super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
-
-# =======================================================================
 
     def setup_domain(self):
         domain = Domain()
@@ -367,8 +365,6 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         return domain
 
-# =======================================================================
-
     def to_dict(self):
         """Serialize the class to a dictionary
 
@@ -389,8 +385,6 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
             output_models=self.emulator.output_models,
             extras=extras
         )
-
-# =======================================================================
 
     @classmethod
     def from_dict(cls, d, **kwargs):
@@ -428,7 +422,7 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
 
     """
 
-# =======================================================================
+
 
     def __init__(self, **kwargs):
         model_name = kwargs.get("model_name", "baumgartner_aniline_cn_crosscoupling_descriptors")
@@ -437,7 +431,7 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
         dataset_file = osp.join(osp.dirname(osp.realpath(__file__)), "experiment_emulator/data/" + dataset_file)
         super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
 
-# =======================================================================
+
 
     def setup_domain(self):
         domain = Domain()
@@ -498,7 +492,7 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
 
         return domain
 
-# =======================================================================
+
 
     def to_dict(self):
         """Serialize the class to a dictionary
@@ -521,7 +515,7 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
             extras=extras
         )
 
-# =======================================================================
+
 
     @classmethod
     def from_dict(cls, d, **kwargs):
@@ -544,18 +538,23 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
         self.init_domain = self._domain
         self.mod_domain = self._domain + ContinuousVariable(
             name="cost",
-            description="cost",
+            description="cost in USD of 40 uL reaction",
             bounds=[0.0, 1.0],
             is_objective=True,
-            maximize=True,
+            maximize=False,
         )
         self._domain = self.mod_domain
 
     def _run(self, conditions, **kwargs):
+        # Change to original domain for running predictive model
         self._domain = self.init_domain
         conditions, _ = super()._run(conditions=conditions, **kwargs)
+
+        #Calculate costs 
         costs = self._calculate_costs(conditions)
         conditions[("cost", "DATA")] = costs
+
+        # Change back to modified domain
         self._domain = self.mod_domain
         return conditions, {}
 

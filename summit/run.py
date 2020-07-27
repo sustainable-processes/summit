@@ -202,7 +202,8 @@ class NeptuneRunner(Runner):
         batch_size=1,
         f_tol = None,
         hypervolume_ref=None,
-        logger = None
+        logger = None,
+        **kwargs
     ):
 
         super().__init__(strategy, experiment,
@@ -320,7 +321,7 @@ class NeptuneRunner(Runner):
                 file = save_dir / f'iteration_{i}.json'
                 if i % save_freq == 0:
                     self.save(file)
-                    neptune_exp.send_artifact(file)
+                    neptune_exp.send_artifact(str(file))
                 if not save_dir:
                     os.remove(file)
             
@@ -336,7 +337,7 @@ class NeptuneRunner(Runner):
         if save_at_end:
             file = save_dir / f'iteration_{i}.json'
             self.save(file)
-            neptune_exp.send_artifact(file)
+            neptune_exp.send_artifact(str(file))
             if not save_dir:
                 os.remove(file)
         

@@ -117,5 +117,6 @@ venv.bak/
 tmp_files
 Pytest*
 
-# Snar benchmark
+# Benchmark temporary files
 .snar_benchmark
+.cn_benchmark

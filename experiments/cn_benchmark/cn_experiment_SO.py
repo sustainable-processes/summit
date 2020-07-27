@@ -1,5 +1,6 @@
 import pytest
 
+from slurm_runner import SlurmRunner
 from summit import *
 from summit.benchmarks import BaumgartnerCrossCouplingEmulator
 from summit.strategies import *
@@ -37,7 +38,8 @@ def test_cn_experiment(strategy, batch_size, transform_descriptors=False):
         r = NeptuneRunner(experiment=experiment, strategy=s, 
                           neptune_project=NEPTUNE_PROJECT,
                           neptune_experiment_name=f"cn_experiment_SO_{s.__class__.__name__}_with_descriptors_repeat_{i}",
-                          files=["cn_experiment_SO.py"],
+                          neptune_tags=["cn_experiment_single_objective", s.__class__.__name__,transform.__class__.__name__],
+                          files=["slrum_summit_cn_experiment.sh"],
                           max_iterations=MAX_EXPERIMENTS//batch_size,
                           batch_size=batch_size,
                           f_tol=f_tol)
