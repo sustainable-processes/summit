@@ -37,7 +37,6 @@ class Transform:
     def __init__(self, domain, **kwargs):
         self.transform_domain = domain.copy()
         self.domain = domain
-        self.transform_descriptors = kwargs.get("transform_descriptors", True)
     
     def transform_inputs_outputs(self, ds: DataSet, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
@@ -48,13 +47,15 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
-
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
         Returns
         -------
         inputs, outputs
             Datasets with the input and output datasets  
         """
         copy = kwargs.get("copy", True)
+        transform_descriptors = kwargs.get("transform_descriptors", True)
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -64,7 +65,7 @@ class Transform:
         output_columns = []
 
         for variable in self.domain.input_variables:
-            if isinstance(variable, CategoricalVariable) and self.transform_descriptors:
+            if isinstance(variable, CategoricalVariable) and transform_descriptors:
                 # Add descriptors to the dataset
                 var_descriptor_names = variable.ds.data_columns
                 if all(np.isin(var_descriptor_names, new_ds.columns.levels[0].to_list())):
@@ -114,7 +115,7 @@ class Transform:
         # Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
 
-    def un_transform(self, ds):
+    def un_transform(self, ds, **kwargs):
         """ Transform data back into its original represetnation
             after strategy is finished 
         
@@ -122,17 +123,19 @@ class Transform:
         ---------- 
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
 
         Notes
         -----
         Override this class to achieve custom untransformations 
         """
-
+        transform_descriptors = kwargs.get("transform_descriptors", True)
         # Determine input and output columns in dataset
         new_ds = ds
-        if self.transform_descriptors:
+        if transform_descriptors:
             for i, variable in enumerate(self.domain.input_variables):
-                if isinstance(variable, CategoricalVariable) and self.transform_descriptors:
+                if isinstance(variable, CategoricalVariable) and transform_descriptors:
                     # Add original categorical variable to the dataset
                     var_descriptor_names = variable.ds.data_columns
                     var_descriptor_conditions = ds[var_descriptor_names]

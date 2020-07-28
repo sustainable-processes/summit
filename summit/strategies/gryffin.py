@@ -85,7 +85,7 @@ class GRYFFIN(Strategy):
     >>> domain += ContinuousVariable(name="temperature", description="reaction temperature in celsius", bounds=[50, 100])
     >>> domain += CategoricalVariable(name="flowrate_a", description="flow of reactant a in mL/min", levels=[1,2,3,4,5])
     >>> base_df = DataSet([[1,2,3],[2,3,4],[8,8,8]], index = ["solv1","solv2","solv3"], columns=["MP","mol_weight","area"])
-    >>> domain += CategoricalVariable(name="solvent", description="solvent type - categorical", ds=base_df)
+    >>> domain += CategoricalVariable(name="solvent", description="solvent type - categorical", descriptors=base_df)
     >>> domain += ContinuousVariable(name="yield", description="yield of reaction", bounds=[0,100], is_objective=True)
     >>> strategy = GRYFFIN(domain, auto_desc_gen=True)
     >>> next_experiments = strategy.suggest_experiments()
@@ -245,7 +245,7 @@ class GRYFFIN(Strategy):
             request = self.gryffin.recommend(observations = [])
         else:
             # Get inputs and outputs
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, transform_descriptors=False)
 
             # Set up maximization and minimization by converting maximization to minimization problem
             for v in self.domain.variables:
@@ -287,7 +287,7 @@ class GRYFFIN(Strategy):
         self.prev_param = param
 
         # Do any necessary transformation back
-        next_experiments = self.transform.un_transform(next_experiments)
+        next_experiments = self.transform.un_transform(next_experiments, transform_descriptors=False)
 
         return next_experiments
 

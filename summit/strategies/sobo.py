@@ -17,6 +17,7 @@ class SOBO(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The Summit domain describing the optimization problem.
+    transform_descriptors : bool, optional
     gp_model_type: string, optional
         The GPy Gaussian Process model type.
         By default, gaussian processes with the Matern 5.2 kernel will be used.
@@ -83,7 +84,7 @@ class SOBO(Strategy):
                         'type': v.variable_type,
                         'domain': (v.bounds[0], v.bounds[1])})
                 elif isinstance(v, CategoricalVariable):
-                    if not self.transform_descriptors:
+                    if v.ds is None:
                         self.input_domain.append(
                             {'name': v.name,
                             'type': 'categorical',
@@ -268,13 +269,14 @@ class SOBO(Strategy):
 
         # Generate DataSet object with variable values of next
         next_experiments = None
+        transform_descriptors = False
         if request is not None and len(request)!=0:
             next_experiments = {}
             i_inp = 0
             for v in self.domain.variables:
                 if not v.is_objective:
                     if isinstance(v, CategoricalVariable):
-                        if not self.transform_descriptors:
+                        if v.ds is None:
                             cat_list = []
                             for j, entry in enumerate(request[:, i_inp]):
                                cat_list.append(self.categorical_unwrap(entry, v.levels))
@@ -285,6 +287,7 @@ class SOBO(Strategy):
                             for d in descriptor_names:
                                 next_experiments[d] = request[:, i_inp]
                                 i_inp += 1
+                            transform_descriptors =True
                     else:
                         next_experiments[v.name] = request[:, i_inp]
                         i_inp += 1
@@ -296,7 +299,8 @@ class SOBO(Strategy):
         self.prev_param = param
 
         # Do any necessary transformation back
-        next_experiments = self.transform.un_transform(next_experiments)
+        next_experiments = self.transform.un_transform(next_experiments,
+                        transform_descriptors=transform_descriptors)
 
         return next_experiments
 

@@ -86,7 +86,7 @@ class Random(Strategy):
         ds = design.to_dataset()
         ds[("strategy", "METADATA")] = "Random"
 
-        return self.transform.un_transform(ds)
+        return self.transform.un_transform(ds, transform_descriptors=False)
 
     def _random_continuous(
         self, variable: ContinuousVariable, num_samples: int
@@ -167,7 +167,7 @@ class LHS(Strategy):
             A `Dataset` object with the random design
         """
         # design = Design(self.domain, num_experiments, "Latin design", exclude=exclude)
-        design = dict()
+        design = pd.DataFrame()
 
         # Instantiate the random design class to be used with categorical variables with no descriptors
         rdesigner = Random(self.domain, random_state=self._rstate)
@@ -192,6 +192,7 @@ class LHS(Strategy):
             raise ValueError("Need sufficient number of variables")
 
         k = 0
+        columns = []
         for variable in self.domain.input_variables:
             if variable.name in exclude:
                 continue
@@ -202,13 +203,13 @@ class LHS(Strategy):
                 values = b + samples[:, k] * (
                     variable.upper_bound - variable.lower_bound
                 )
-                design[(variable.name, "DATA")] = values
+                design.insert(design.shape[1], variable.name, values)
                 k += 1
 
             # For categorical variable with no descriptors, randomly choose
             elif isinstance(variable, CategoricalVariable) and variable.name in categoricals:
                 indices, values = rdesigner._random_categorical(variable, num_experiments)
-                design[variable.name, "DATA"] =  values
+                design.insert(design.shape[1], variable.name, values)
 
             # For categorical variable with descriptors, look in descriptors space
             # The untransform method at the end should find the closest point by euclidean distance. 
@@ -236,17 +237,16 @@ class LHS(Strategy):
                 # Add each descriptors
                 names = variable.ds.columns.levels[0].to_list()
                 for i in range(num_descriptors):
-                    design[names[i], "DATA"] = values_scaled[:,i]
-                continue
+                    design.insert(design.shape[1], names[i], values_scaled[:,i])
             else:
                 raise DomainError(
                     f"Variable {variable} is not one of the possible variable types (continuous or categorical)."
                 )
 
             # design.add_variable(variable.name, values, indices=indices)
-        design = DataSet(design)
+        design = DataSet.from_df(design)
         design[("strategy", "METADATA")] = "LHS"
-        return self.transform.un_transform(design)
+        return self.transform.un_transform(design, transform_descriptors=True)
 
 """
 The lhs code was copied from pyDoE and was originally published by 

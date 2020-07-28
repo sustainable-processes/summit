@@ -106,7 +106,9 @@ class SNOBFIT(Strategy):
             A `Dataset` object with the suggested experiments by SNOBFIT algorithm
             
         """
-
+        silence_warnings = kwargs.get('silence_warnings', True)
+        if silence_warnings:
+            warnings.filterwarnings('ignore', category=DeprecationWarning)
         # get objective name and whether optimization is maximization problem
         obj_name = None
         obj_maximize = False
