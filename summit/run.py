@@ -86,9 +86,13 @@ class Runner:
             os.makedirs(save_dir)
         save_at_end = kwargs.get('save_at_end', True)
 
+        n_objs = len(self.experiment.domain.output_variables)
+        fbest_old = np.zeros(n_objs)
+        fbest = np.zeros(n_objs)
         prev_res = None
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
+            import pdb; pdb.set_trace()
             if i==0:
                 k = self.n_init if self.n_init is not None else self.batch_size
                 next_experiments = self.strategy.suggest_experiments(
@@ -99,6 +103,14 @@ class Runner:
                 )
             prev_res = self.experiment.run_experiments(next_experiments)
 
+            for j, v in enumerate(self.experiment.domain.output_variables):
+                if i > 0:
+                    fbest_old[j] = fbest[j]
+                if v.maximize:
+                    fbest[j] = self.experiment.data[v.name].max()
+                elif not v.maximize:
+                    fbest[j] = self.experiment.data[v.name].min()
+                
             # Save state
             if save_freq is not None:
                 file = save_dir / f'iteration_{i}.json'

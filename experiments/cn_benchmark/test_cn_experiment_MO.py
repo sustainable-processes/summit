@@ -13,7 +13,7 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=20
+NUM_REPEATS=1
 MAX_EXPERIMENTS=50
 NEPTUNE_PROJECT="sustainable-processes/summit"
 BATCH_SIZE=1
@@ -53,9 +53,9 @@ def test_baselines(strategy):
         experiment.reset()
         s = strategy(experiment.domain, transform_descriptors=True)
 
-        # Run these locally since they are fast
         name=f"cn_experiment_MO_baselines_{s.__class__.__name__}_repeat_{i}"
-        r = NeptuneRunner(experiment=experiment, strategy=s, 
+        r = SlurmRunner(experiment=experiment, strategy=s, 
+                        docker_container="marcosfelt/summit:cn_benchmark",
                         neptune_project=NEPTUNE_PROJECT,
                         neptune_experiment_name=name,
                         neptune_tags=["cn_experiment_MO", s.__class__.__name__],
@@ -65,14 +65,19 @@ def test_baselines(strategy):
                         hypervolume_ref=HYPERVOLUME_REF)
         r.run(save_at_end=True)
 
-@pytest.mark.parametrize('strategy', [SNOBFIT, NelderMead, SOBO, GRYFFIN])
+@pytest.mark.parametrize('strategy', [NelderMead, SNOBFIT, SOBO, GRYFFIN])
 @pytest.mark.parametrize('transform', transforms)
 def test_cn_experiment_descriptors(strategy, transform):
     """Test multiobjective CN benchmark with descriptors and multiobjective transforms"""
     warnings.filterwarnings('ignore', category=RuntimeWarning)
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
+    warnings.filterwarnings('ignore', category=UserWarning)
     for i in range(NUM_REPEATS):
         experiment.reset()
-        s = strategy(experiment.domain, transform=transform, transform_descriptors=True)
+        if strategy != GRYFFIN:
+            s = strategy(experiment.domain, transform=transform, transform_descriptors=True)
+        else:
+            s = strategy(experiment.domain, transform=transform, transform_descriptors=False)
 
         # Early stopping for local optimization strategies
         if strategy in [NelderMead]:
@@ -81,7 +86,7 @@ def test_cn_experiment_descriptors(strategy, transform):
             f_tol = None
 
         name=f"cn_experiment_MO_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = SlurmRunner(experiment=experiment, strategy=s, 
+        r = Runner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         docker_container="marcosfelt/summit:cn_benchmark",
                         neptune_experiment_name=name,
@@ -95,12 +100,15 @@ def test_cn_experiment_descriptors(strategy, transform):
 
 def test_cn_experiment_tsemo():
     """Test multiobjective CN benchmark with descriptors and TSEMO (multiobjective strategy)."""
+    warnings.filterwarnings('ignore', category=RuntimeWarning)
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
     for i in range(NUM_REPEATS):
         experiment.reset()
-        s = TSEMO(experiment.domain, transform_descriptors=True)
+        s = TSEMO(experiment.domain, transform_descriptors=True,
+                 n_spectral_points=1500)
 
         name = f"cn_experiment_MO_{s.__class__.__name__}_repeat_{i}"
-        r = SlurmRunner(experiment=experiment, strategy=s, 
+        r = Runner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         docker_container="marcosfelt/summit:cn_benchmark",
                         neptune_experiment_name=name,
@@ -108,7 +116,6 @@ def test_cn_experiment_tsemo():
                         neptune_files=["slurm_summit_cn_experiment.sh"],
                         max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                         batch_size=BATCH_SIZE,
-                        f_tol=f_tol,
                         hypervolume_ref=HYPERVOLUME_REF)
         r.run(save_at_end=True)
 
@@ -130,7 +137,6 @@ def test_cn_experiment_no_descriptors(strategy, transform):
                         neptune_files=["slurm_summit_cn_experiment.sh"],
                         max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                         batch_size=BATCH_SIZE,
-                        f_tol=f_tol,
                         hypervolume_ref=HYPERVOLUME_REF)
         r.run(save_at_end=True)
 

@@ -10,7 +10,6 @@ __all__ = [
     "Variable",
     "ContinuousVariable",
     "CategoricalVariable",
-    "DescriptorsVariable",
     "Constraint",
     "Domain",
     "DomainError"
@@ -236,6 +235,7 @@ class CategoricalVariable(Variable):
     name
     description
     levels
+    ds : descriptors DataSet
 
     Raises
     ------

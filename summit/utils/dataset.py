@@ -59,6 +59,11 @@ class DataSet(pd.core.frame.DataFrame):
         dtype=None,
         copy=False,
     ):
+        # Column multindex level names
+        level_names = ["NAME", "TYPE"]
+        if units:
+            names.append("UNITS")
+
         if isinstance(columns, pd.MultiIndex):
             pass
         elif columns is not None:
@@ -71,15 +76,16 @@ class DataSet(pd.core.frame.DataFrame):
             else:
                 types = ["DATA" for _ in range(len(column_names))]
             arrays = [column_names, types]
-            levels = ["NAME", "TYPE"]
             if units:
                 arrays.append(units)
-                levels.append("UNITS")
             tuples = list(zip(*arrays))
-            columns = pd.MultiIndex.from_tuples(tuples, names=levels)
+            columns = pd.MultiIndex.from_tuples(tuples, names=level_names)
+
         pd.core.frame.DataFrame.__init__(
             self, data=data, index=index, columns=columns, dtype=dtype, copy=copy
         )
+
+
 
     @staticmethod
     def from_df(df: pd.DataFrame, metadata_columns: List = [], units: List = []):
@@ -266,13 +272,6 @@ class DataSet(pd.core.frame.DataFrame):
         mask = np.ones(len(self.columns), dtype=bool)
         mask[metadata_columns] = False
         return result[:, mask]
-
-    # @property
-    # def num_data_columns(self) -> int:
-    #     col_types = self.columns.get_level_values('TYPE')
-    #     values, counts = np.unique(col_types, return_counts=True)
-    #     i= np.where(values=='DATA')
-    #     return counts[i][0]
 
     @property
     def metadata_columns(self):

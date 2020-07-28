@@ -1,6 +1,6 @@
 from .base import Strategy, Transform
 from .random import LHS
-from summit.domain import Domain, DomainError
+from summit.domain import *
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
@@ -40,7 +40,7 @@ class TSEMO(Strategy):
         Matern32, Matern52 or RBF. Default Exponential.
     n_spectral_points : int, optional
         Number of spectral points used in spectral sampling.
-        Default is 1500. Note that the TSEMO version uses 4000
+        Default is 1500. Note that the Matlab TSEMO version uses 4000
         which will improve accuracy but significantly slow down optimisation speed.
     n_retries : int, optional
         Number of retries to use for spectral sampling in the singular value decomposition
@@ -69,18 +69,30 @@ class TSEMO(Strategy):
     """
 
     def __init__(self, domain, transform=None, **kwargs):
-        Strategy.__init__(self, domain, transform)
+        Strategy.__init__(self, domain, transform, **kwargs)
         
-        # Bounds
-        self.inputs_min = DataSet([[v.bounds[0] for v in self.domain.input_variables]],
-                                  columns=[v.name for v in self.domain.input_variables])
-        self.inputs_max = DataSet([[v.bounds[1] for v in self.domain.input_variables]],
-                                  columns=[v.name for v in self.domain.input_variables])
+        # Input bounds
+        lowers = []
+        uppers = []
+        self.columns = []
+        for v in self.domain.input_variables:
+            if type(v) == ContinuousVariable:
+                lowers.append(v.bounds[0])
+                uppers.append(v.bounds[1])
+                self.columns.append(v.name)
+            elif type(v) == CategoricalVariable and v.ds is not None:
+                lowers += v.ds.min().to_list()
+                uppers += v.ds.max().to_list()
+                self.columns += [c[0] for c in v.ds.columns]
+            elif type(v) == CategoricalVariable and v.ds is None:
+                raise DomainError("TSEMO only supports categorical variables with descriptors.")
+        self.inputs_min = DataSet([lowers], columns=self.columns)
+        self.inputs_max = DataSet([uppers],columns=self.columns)
+        self.kern_dim = len(self.columns)
 
         # Kernel
         self.kernel = kwargs.get("kernel", GPy.kern.Exponential)
-        self.logger = kwargs.get("logger", logging.getLogger(__name__))
-
+        
         # Spectral sampling settings
         self.n_spectral_points = kwargs.get('n_spectral_points', 1500)
         self.n_retries = kwargs.get('n_retries',10)
@@ -88,6 +100,8 @@ class TSEMO(Strategy):
         # NSGA-II tsemo_settings
         self.generations = kwargs.get("generations", 100)
         self.pop_size = kwargs.get("pop_size", 100)
+
+        self.logger = kwargs.get("logger", logging.getLogger(__name__))
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
@@ -128,7 +142,7 @@ class TSEMO(Strategy):
             self.logger.warning(
                 f"The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}."
             )
-
+            
         # Scale decision variables [0,1]
         inputs_scaled = (inputs-self.inputs_min.to_numpy())/(self.inputs_max.to_numpy()-self.inputs_min.to_numpy())
 
@@ -140,7 +154,7 @@ class TSEMO(Strategy):
         outputs_scaled = (outputs-self.output_mean.to_numpy())/self.output_std.to_numpy()
 
         # Set up models
-        input_dim = self.domain.num_continuous_dimensions()
+        input_dim = self.kern_dim
         self.models = {v.name: gpr(inputs_scaled.to_numpy(), 
                                    outputs_scaled[[v.name]].to_numpy(),
                                    kernel=self.kernel(input_dim=input_dim, ARD=True)
@@ -237,12 +251,12 @@ class TSEMO(Strategy):
         self.logger.info("Optimizing models using NSGAII.")
         optimizer = NSGA2(pop_size=self.pop_size)
         problem = TSEMOInternalWrapper(pathlib.Path(dp_results, 'models.h5'),
-                                       self.domain)
+                                       self.domain, n_var=self.kern_dim)
         termination = get_termination("n_gen", self.generations)
         self.internal_res = minimize(
             problem, optimizer, termination, seed=1, verbose=False
         )
-        X = DataSet(self.internal_res.X, columns=[v.name for v in self.domain.input_variables])
+        X = DataSet(self.internal_res.X, columns=self.columns)
         y = DataSet(self.internal_res.F, columns=[v.name for v in self.domain.output_variables])
 
         # Select points that give maximum hypervolume improvement
@@ -255,17 +269,14 @@ class TSEMO(Strategy):
             X = X * (self.inputs_max.to_numpy() - self.inputs_min.to_numpy()) + self.inputs_min.to_numpy()
             y = y * self.output_std.to_numpy() + self.output_mean.to_numpy()
 
-
             # Join to get single dataset with inputs and outputs
             result = X.join(y)
             result = result.iloc[indices, :]
-
+            
             # Do any necessary transformations back
-            result = self.transform.un_transform(result)
-
-            # State the strategy used
             result[("strategy", "METADATA")] = "TSEMO"
-
+            result = self.transform.un_transform(result)
+            
             # Add model hyperparameters as metadata columns
             self.iterations += 1
             i=0
@@ -419,11 +430,13 @@ class TSEMOInternalWrapper(Problem):
     It is assumed that the inputs are scaled between 0 and 1.
     
     """
-    def __init__(self, fp:os.PathLike, domain):
+    def __init__(self, fp:os.PathLike, domain, n_var=None):
         self.rffs =  pyrff.load_rffs(fp)
         self.domain = domain
         # Number of decision variables
-        n_var = domain.num_continuous_dimensions()
+        if n_var is None:
+            n_var = domain.num_continuous_dimensions()
+        
         # Number of objectives
         n_obj = len(domain.output_variables)
         # Number of constraints

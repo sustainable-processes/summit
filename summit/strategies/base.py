@@ -25,6 +25,8 @@ class Transform:
     ---------- 
     domain: `sumit.domain.Domain``
         A domain for that is being used in the strategy
+    transform_descriptors: bool, optional
+        Transform the descriptors into continuous variables. Default True.
 
     Notes
     ------
@@ -35,8 +37,8 @@ class Transform:
     def __init__(self, domain, **kwargs):
         self.transform_domain = domain.copy()
         self.domain = domain
-        self.transform_descriptors = kwargs.get("transform_descriptors", False)
-
+        self.transform_descriptors = kwargs.get("transform_descriptors", True)
+    
     def transform_inputs_outputs(self, ds: DataSet, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
         
@@ -46,8 +48,6 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
-        transform_descriptors: bool, optional
-            Transform the descriptors into continuous variables. Default False.
 
         Returns
         -------
@@ -55,7 +55,6 @@ class Transform:
             Datasets with the input and output datasets  
         """
         copy = kwargs.get("copy", True)
-        self.transform_descriptors = kwargs.get("transform_descriptors", self.transform_descriptors)
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -148,9 +147,9 @@ class Transform:
                     new_ds.insert(loc=i, column=variable.name, value=var_categorical_transformed)
 
                     # Make the descriptors columns a metadata column
-                    column_list_1 = new_ds.columns.levels[0].to_list()
-                    ix = [column_list_1.index(d_name) for d_name in var_descriptor_names]
-                    column_codes_2 = list(new_ds.columns.codes[1])
+                    column_list_1 = new_ds.columns.levels[0].to_list() # all variables
+                    ix = [column_list_1.index(d_name) for d_name in var_descriptor_names] # just descriptors variables
+                    column_codes_2 = list(new_ds.columns.codes[1]) # codes for the variable type 
                     ix_code = [np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix]
                     for ixc in ix_code: column_codes_2[ixc] = 1
                     new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
@@ -530,7 +529,7 @@ class Strategy(ABC):
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
-        self.transform_descriptors = kwargs.get("transform_descriptors", False)
+        self.transform_descriptors = kwargs.get("transform_descriptors", True)
         if transform is None:
             self.transform = Transform(domain, transform_descriptors=self.transform_descriptors)
         elif isinstance(transform, Transform):

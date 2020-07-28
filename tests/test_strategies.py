@@ -89,7 +89,6 @@ def test_lhs():
     domain += CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
     strategy = LHS(domain, random_state=np.random.RandomState(3))
     results = strategy.suggest_experiments(5)
-
     return results
 
 def test_doe():
