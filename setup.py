@@ -13,10 +13,23 @@ import os.path
 
 readme = ''
 here = os.path.abspath(os.path.dirname(__file__))
-readme_path = os.path.join(here, 'README.rst')
+readme_path = os.path.join(here, 'README.md')
 if os.path.exists(readme_path):
-    with open(readme_path, 'rb') as stream:
-        readme = stream.read().decode('utf8')
+    with open(readme_path, 'r', encoding='utf8') as stream:
+        readme = stream.read()
+
+requirements = []
+requirements_path = os.path.join(here, 'requirements.txt')
+if os.path.exists(requirements_path):
+    with open(requirements_path, 'r', encoding='utf8') as stream:
+        requirements = stream.read().splitlines()
+
+extras_requiremetns = []
+extras_requirements = []
+requirements_path = os.path.join(here, 'experiments_requirements.txt')
+if os.path.exists(requirements_path):
+    with open(requirements_path, 'r', encoding='utf8') as stream:
+        extras_requirements = stream.read().splitlines()
 
 setup(
     long_description=readme,
@@ -28,7 +41,7 @@ setup(
         'homepage': 'https://pypi.org/project/summit',
         'repository': 'https://github.com/sustainable-processes/summit'
     },
-    author='Kobi Felton',
+    author='Kobi Felton, Jan Rittig',
     author_email='kobi.c.f@gmail.com',
     packages=[
         'summit', 'summit.benchmarks', 'summit.benchmarks.experiment_emulator',
@@ -36,31 +49,8 @@ setup(
     ],
     package_data={
         'summit.benchmarks.experiment_emulator': [
-            'data/*.csv', 'data/*.md', 'data/*.xlsx',
-            'trained_models/BNN/*.json', 'trained_models/BNN/*.png',
-            'trained_models/BNN/*.pt'
+            'trained_models/BNN/*.json','trained_models/BNN/*.pt'
         ]
     },
-    install_requires=[
-        'blitz-bayesian-pytorch==0.2.3', 'fastprogress==0.*,>=0.2.3',
-        'gpy==1.*,>=1.9.0', 'gpyopt==1.*,>=1.2.6',
-        'ipywidgets==7.*,>=7.5.1', 'matplotlib==3.*,>=3.2.2', 'numpy==1.18.0',
-	    'gryffin @ git+https://github.com/sustainable-processes/gryffin@0.1.0', 
-        'pandas==1.0.3', 'pymoo==0.*,>=0.4.1',
-        'pyrff==1.*,>=1.0.1', 'sqsnobfit==0.*,>=0.4.3',
-        'tensorflow==2.*,>=2.2.0', 'tensorflow-probability==0.*,>=0.10.1',
-        'torch', 'tqdm==4.*,>=4.46.1', 
-    ],
-    extras_require={
-        'dev': [
-            'black==19.*,>=19.10.0', 'ipdb==0.*,>=0.13.2',
-            'jupyterlab==2.*,>=2.1.4', 'plotly==4.*,>=4.8.2',
-            'pytest==3.*,>=3.0.0', 'python-dotenv==0.*,>=0.13.0',
-            'rope==0.*,>=0.17.0'
-        ],
-        'neptune': [
-            'hiplot==0.*,>=0.1.12', 'neptune-client==0.*,>=0.4.115',
-            'neptune-contrib[viz]==0.*,>=0.22.0'
-        ]
-    },
+    install_requires=requirements,
 )

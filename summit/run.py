@@ -92,7 +92,6 @@ class Runner:
         prev_res = None
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
-            import pdb; pdb.set_trace()
             if i==0:
                 k = self.n_init if self.n_init is not None else self.batch_size
                 next_experiments = self.strategy.suggest_experiments(

@@ -13,7 +13,7 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=1
+NUM_REPEATS=20
 MAX_EXPERIMENTS=50
 NEPTUNE_PROJECT="sustainable-processes/summit"
 BATCH_SIZE=1
@@ -86,7 +86,7 @@ def test_cn_experiment_descriptors(strategy, transform):
             f_tol = None
 
         name=f"cn_experiment_MO_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = Runner(experiment=experiment, strategy=s, 
+        r = SlurmRunner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         docker_container="marcosfelt/summit:cn_benchmark",
                         neptune_experiment_name=name,
@@ -105,10 +105,10 @@ def test_cn_experiment_tsemo():
     for i in range(NUM_REPEATS):
         experiment.reset()
         s = TSEMO(experiment.domain, transform_descriptors=True,
-                 n_spectral_points=1500)
+                 n_spectral_points=4000)
 
         name = f"cn_experiment_MO_{s.__class__.__name__}_repeat_{i}"
-        r = Runner(experiment=experiment, strategy=s, 
+        r = SlurmRunner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         docker_container="marcosfelt/summit:cn_benchmark",
                         neptune_experiment_name=name,
