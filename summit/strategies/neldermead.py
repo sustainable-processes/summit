@@ -253,7 +253,7 @@ class NelderMead(Strategy):
                 if isinstance(v, ContinuousVariable):
                     bounds.append(v.bounds)
                     input_var_names.append(v.name)
-                elif (isinstance(v, CategoricalVariable) and self.transform_descriptors is True):
+                elif isinstance(v, CategoricalVariable):
                     if v.ds is not None:
                         descriptor_names = v.ds.data_columns
                         descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
@@ -280,7 +280,7 @@ class NelderMead(Strategy):
         # Get previous results
         if prev_res is not None:
             initial_run = False
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, transform_descriptors=True)
 
             # Set up maximization and minimization
             for v in self.domain.variables:
@@ -542,7 +542,7 @@ class NelderMead(Strategy):
         # next_experiments = np.around(next_experiments, decimals=self._dx)
 
         # Do any necessary transformation back
-        next_experiments = self.transform.un_transform(next_experiments)
+        next_experiments = self.transform.un_transform(next_experiments, transform_descriptors=True)
 
         return next_experiments, x_best, f_best, param
 

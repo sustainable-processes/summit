@@ -532,12 +532,10 @@ class Strategy(ABC):
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
-        self.transform_descriptors = kwargs.get("transform_descriptors", True)
         if transform is None:
-            self.transform = Transform(domain, transform_descriptors=self.transform_descriptors)
+            self.transform = Transform(domain)
         elif isinstance(transform, Transform):
             self.transform = transform
-            self.transform.transform_descriptors = self.transform_descriptors
         else:
             raise TypeError("transform must be a Transform class")
         self.domain = self.transform.transform_domain
