@@ -17,10 +17,11 @@ class SOBO(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The Summit domain describing the optimization problem.
-    transform_descriptors : bool, optional
     gp_model_type: string, optional
         The GPy Gaussian Process model type.
         By default, gaussian processes with the Matern 5.2 kernel will be used.
+    use_descriptors : bool, optional
+        Whether to use descriptors of categorical variables. Defaults to False.
     acquisition_type: string, optional
         The acquisition function type from GPyOpt.
         By default, Excpected Improvement (EI).
@@ -74,6 +75,7 @@ class SOBO(Strategy):
     def __init__(self, domain, transform=None, gp_model_type=None, acquisition_type=None, optimizer_type=None, evaluator_type=None, **kwargs):
         Strategy.__init__(self, domain, transform=transform, **kwargs)
 
+        self.use_descriptors = kwargs.get('use_descriptors', False)
         # TODO: notation - discrete in our model (e.g., catalyst type) = categorical?
         self.input_domain = []
         for v in self.domain.variables:
@@ -84,12 +86,12 @@ class SOBO(Strategy):
                         'type': v.variable_type,
                         'domain': (v.bounds[0], v.bounds[1])})
                 elif isinstance(v, CategoricalVariable):
-                    if v.ds is None:
+                    if v.ds is None or not self.use_descriptors:
                         self.input_domain.append(
                             {'name': v.name,
                             'type': 'categorical',
                             'domain': tuple(self.categorical_wrapper(v.levels))})
-                    else:
+                    elif v.ds is not None and self.use_descriptors:
                         if v.ds is None:
                             raise ValueError("No descriptors provided for variable: {}".format(v.name))
                         descriptor_names = v.ds.data_columns
@@ -218,14 +220,15 @@ class SOBO(Strategy):
             request = GPyOpt.experiment_design.initial_design('random', feasible_region, num_experiments)
         else:
             # Get inputs and outputs
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, 
+                            transform_descriptors=self.use_descriptors)
 
             # Set up maximization and minimization by converting maximization to minimization problem
             for v in self.domain.variables:
                 if v.is_objective and v.maximize:
                     outputs[v.name] = -1 * outputs[v.name]
                 if isinstance(v, CategoricalVariable):
-                    if not self.transform_descriptors:
+                    if not self.use_descriptors:
                         inputs[v.name] = self.categorical_wrapper(inputs[v.name], v.levels)
 
             inputs = inputs.to_numpy()
@@ -276,7 +279,7 @@ class SOBO(Strategy):
             for v in self.domain.variables:
                 if not v.is_objective:
                     if isinstance(v, CategoricalVariable):
-                        if v.ds is None:
+                        if v.ds is None or not self.use_descriptors:
                             cat_list = []
                             for j, entry in enumerate(request[:, i_inp]):
                                cat_list.append(self.categorical_unwrap(entry, v.levels))
@@ -300,7 +303,7 @@ class SOBO(Strategy):
 
         # Do any necessary transformation back
         next_experiments = self.transform.un_transform(next_experiments,
-                        transform_descriptors=transform_descriptors)
+                        transform_descriptors=self.use_descriptors)
 
         return next_experiments
 

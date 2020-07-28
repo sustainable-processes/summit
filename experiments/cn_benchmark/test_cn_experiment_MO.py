@@ -13,7 +13,7 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=20
+NUM_REPEATS=1
 MAX_EXPERIMENTS=50
 NEPTUNE_PROJECT="sustainable-processes/summit"
 BATCH_SIZE=1

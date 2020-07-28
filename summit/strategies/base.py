@@ -25,6 +25,7 @@ class Transform:
     ---------- 
     domain: `sumit.domain.Domain``
         A domain for that is being used in the strategy
+
     transform_descriptors: bool, optional
         Transform the descriptors into continuous variables. Default True.
 
@@ -237,8 +238,26 @@ class MultitoSingleObjective(Transform):
         )
         self.maximize = maximize
 
-    def transform_inputs_outputs(self, ds, copy=True):
-        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy)
+    def transform_inputs_outputs(self, ds, **kwargs):
+        """  Transform of data into inputs and outputs for a strategy
+        
+        This will do multi to single objective transform
+
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
+
+        Returns
+        -------
+        inputs, outputs
+            Datasets with the input and output datasets  
+        """
+        inputs, outputs = super().transform_inputs_outputs(ds,**kwargs)
         outputs = outputs.eval(self.expression, resolvers=[outputs])
         outputs = DataSet(outputs, columns=["scalar_objective"])
         return inputs, outputs
@@ -284,7 +303,7 @@ class LogSpaceObjectives(Transform):
         for i, v in objectives:
             v.name = "log_" + v.name
 
-    def transform_inputs_outputs(self, ds, copy=True):
+    def transform_inputs_outputs(self, ds, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
         
         This will do a log transform on the objectives (outputs).
@@ -295,13 +314,15 @@ class LogSpaceObjectives(Transform):
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
 
         Returns
         -------
         inputs, outputs
             Datasets with the input and output datasets  
         """
-        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy)
+        inputs, outputs = super().transform_inputs_outputs(ds, **kwargs)
         if (outputs.any() < 0).any():
             raise ValueError("Cannot complete log transform for values less than zero.")
         outputs = outputs.apply(np.log)
@@ -309,19 +330,19 @@ class LogSpaceObjectives(Transform):
         outputs = DataSet(outputs.data_to_numpy(), columns=columns)
         return inputs, outputs
 
-    def un_transform(self, ds):
-        """ Untransform objectives from log space to
+    def un_transform(self, ds, **kwargs):
+        """ Untransform objectives from log space
         
         Parameters
         ---------- 
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
-
-        Notes
-        -----
-        Override this class to achieve custom untransformations 
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
         """
-        ds = super().un_transform(ds)
+        ds = super().un_transform(ds, **kwargs)
         for v in self.domain.variables:
             if v.is_objective and ds.get("log_" + v.name):
                 ds[v.name] = np.exp(ds["log_" + v.name])
@@ -405,16 +426,34 @@ class Chimera(Transform):
             self.absolutes = np.zeros(len(self.tolerances)) + np.nan
         self.softness = softness
 
-    def transform_inputs_outputs(self, ds, copy=True):
+    def transform_inputs_outputs(self, ds, copy=True, **kwargs):
+        """  Transform of data into inputs and outptus for a strategy
+        
+        This will do a log transform on the objectives (outputs).
+
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
+
+        Returns
+        -------
+        inputs, outputs
+            Datasets with the input and output datasets  
+        """
         # Get inputs and outputs
-        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy)
+        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy, **kwargs)
 
         # Scalarize using Chimera
         outputs_arr = outputs[self.ordered_objective_names].to_numpy()
         outputs_arr = outputs_arr*self.directions #Change maximization to minimization
         scalarized_array = self._scalarize(outputs_arr)
 
-        # Write scalarized objective back to DataSEt
+        # Write scalarized objective back to DataSet
         outputs = DataSet(scalarized_array, columns=["chimera"])
         return inputs, outputs
 
