@@ -85,7 +85,7 @@ class GRYFFIN(Strategy):
     >>> domain += ContinuousVariable(name="temperature", description="reaction temperature in celsius", bounds=[50, 100])
     >>> domain += CategoricalVariable(name="flowrate_a", description="flow of reactant a in mL/min", levels=[1,2,3,4,5])
     >>> base_df = DataSet([[1,2,3],[2,3,4],[8,8,8]], index = ["solv1","solv2","solv3"], columns=["MP","mol_weight","area"])
-    >>> domain += DescriptorsVariable(name="solvent", description="solvent type - categorical", ds=base_df)
+    >>> domain += CategoricalVariable(name="solvent", description="solvent type - categorical", ds=base_df)
     >>> domain += ContinuousVariable(name="yield", description="yield of reaction", bounds=[0,100], is_objective=True)
     >>> strategy = GRYFFIN(domain, auto_desc_gen=True)
     >>> next_experiments = strategy.suggest_experiments()

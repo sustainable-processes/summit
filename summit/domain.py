@@ -361,72 +361,6 @@ class CategoricalVariable(Variable):
         return self._make_html_table_rows(f"{self.num_levels} levels")
 
 
-class DescriptorsVariable(Variable):
-    """Representation of a set of descriptors
-    
-    Parameters
-    ----------
-    name: str
-        The name of the variable
-    description: str
-        A short description of the variable 
-    ds: DataSet
-        A dataset object
-    is_objective: bool, optional
-        If True, this variable is an output. Defaults to False (i.e., an input variable)
-
-    Attributes
-    ---------
-    name
-    description
-    df
-    num_descriptors
-    num_examples
-
-    Notes
-    -----
-    In other places, this type of variable is called a bandit variable. 
-
-    Examples
-    --------
-    >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
-    >>> solvent = DescriptorsVariable('solvent', 'solvent descriptors', solvent_df)
-    """
-
-    def __init__(self, name: str, description: str, ds: DataSet, **kwargs):
-        Variable.__init__(self, name, description, "descriptors", **kwargs)
-        self.ds = ds
-
-    @property
-    def num_descriptors(self) -> int:
-        return len(self.ds.data_columns)
-
-    @property
-    def num_examples(self):
-        return self.ds.shape[0]
-
-    def to_dict(self):
-        """ Return json encoding of the variable"""
-        variable_dict = super().to_dict()
-        variable_dict.update({"ds": self.ds.to_dict()})
-        return variable_dict
-
-    @staticmethod
-    def from_dict(variable_dict):
-        ds = DataSet().from_dict(variable_dict["ds"])
-        return DescriptorsVariable(
-            name=variable_dict["name"],
-            description=variable_dict["description"],
-            ds=ds,
-            is_objective=variable_dict["is_objective"],
-        )
-
-    def _html_table_rows(self):
-        return self._make_html_table_rows(
-            f"{self.num_examples} examples of {self.num_descriptors} descriptors"
-        )
-
-
 class Constraint:
     """ A constraint for an optimization domain 
     
@@ -480,7 +414,7 @@ class Domain:
     Parameters
     ---------
     variables: `Variable` or list of `Variable` like objects, optional
-        list of variable objects (i.e., `ContinuousVariable`, `DiscreteVariable`, `DescriptorsVariable`)
+        list of variable objects (i.e., `ContinuousVariable`, `CategoricalVariable`)
     constraints: `Constraint` or  list of `Constraint` objects
         list of constraints on the problem
 

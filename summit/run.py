@@ -3,8 +3,7 @@ from summit.experiment import Experiment
 from summit.benchmarks import *
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit import get_summit_config_path
-
-from neptune.sessions import Session, HostedNeptuneBackend
+import pkg_resources
 
 from fastprogress.fastprogress import progress_bar
 import numpy as np
@@ -14,6 +13,10 @@ import uuid
 import json
 import pkg_resources
 import logging
+
+installed = {pkg.key for pkg in pkg_resources.working_set}
+if 'neptune-client' in installed:
+    from neptune.sessions import Session, HostedNeptuneBackend
 
 
 class Runner:
@@ -229,11 +232,9 @@ class NeptuneRunner(Runner):
 
         # Check that Neptune-client is installed
         installed = {pkg.key for pkg in pkg_resources.working_set}
-        if "neptune-client" in installed:
-            from neptune.sessions import Session, HostedNeptuneBackend
-        else:
+        if "neptune-client"  not in installed:
             raise RuntimeError(
-                "Neptune-client not installed. Use pip install summit[extras] to add extra dependencies."
+                "Neptune-client not installed. Use pip install summit[experiments] to add extra dependencies."
             )
 
         # Set up Neptune session

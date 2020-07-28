@@ -100,16 +100,6 @@ class SOBO(Strategy):
                                  'domain': (np.min(np.asarray(d)), np.max(np.asarray(d)))
                                 })
                     # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
-                elif isinstance(v, DescriptorsVariable):
-                    self.input_domain.append({'name': v.name,
-                        'type': 'bandit',
-                        'domain': [tuple(t) for t in v.ds.data_to_numpy().tolist()]})
-
-                    ''' possible workaround for mixed-type variable problems: treat descriptor as categorical variables
-                    self.input_domain.append({'name': v.name,
-                                            'type': 'categorical',
-                                            'domain': tuple(np.arange(v.ds.data_to_numpy().shape[0]).tolist())})
-                    '''
                 else:
                     raise TypeError('Unknown variable type.')
 

@@ -253,8 +253,7 @@ class NelderMead(Strategy):
                 if isinstance(v, ContinuousVariable):
                     bounds.append(v.bounds)
                     input_var_names.append(v.name)
-                elif (isinstance(v, CategoricalVariable) and self.transform_descriptors is True) \
-                        or isinstance(v, DescriptorsVariable):
+                elif (isinstance(v, CategoricalVariable) and self.transform_descriptors is True):
                     if v.ds is not None:
                         descriptor_names = v.ds.data_columns
                         descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])

@@ -447,7 +447,7 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
             index = ['tBuXPhos', 'tBuBrettPhos', 'AlPhos'],
             columns = ['area_cat', 'M2_cat', 'M3_cat', 'Macc3_cat', 'Mdon3_cat'] #,'mol_weight', 'sol']
         )
-        domain += DescriptorsVariable(
+        domain += CategoricalVariable(
             name="catalyst", description=des_1, ds = catalyst_df
         )
 
@@ -462,7 +462,7 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
             index = ["TEA", "TMG", "BTMG", "DBU"],
             columns = ['area', 'M2', 'M3', 'Macc3', 'Mdon3'], # 'mol_weight', 'sol']
         )
-        domain += DescriptorsVariable(
+        domain += CategoricalVariable(
             name="base", description=des_2, ds = base_df
         )
 

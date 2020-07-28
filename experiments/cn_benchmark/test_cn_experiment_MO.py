@@ -75,9 +75,9 @@ def test_cn_experiment_descriptors(strategy, transform):
     for i in range(NUM_REPEATS):
         experiment.reset()
         if strategy != GRYFFIN:
-            s = strategy(experiment.domain, transform=transform, transform_descriptors=True)
-        else:
             s = strategy(experiment.domain, transform=transform, transform_descriptors=False)
+        else:
+            s = strategy(experiment.domain, transform=transform, transform_descriptors=True)
 
         # Early stopping for local optimization strategies
         if strategy in [NelderMead]:
@@ -86,7 +86,7 @@ def test_cn_experiment_descriptors(strategy, transform):
             f_tol = None
 
         name=f"cn_experiment_MO_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = SlurmRunner(experiment=experiment, strategy=s, 
+        r = Runner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         docker_container="marcosfelt/summit:cn_benchmark",
                         neptune_experiment_name=name,
