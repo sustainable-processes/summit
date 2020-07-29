@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient
+from summit.benchmarks import *
 from summit.utils import jsonify_dict, unjsonify_dict
 import matplotlib.pyplot as plt
 import pandas as pd
