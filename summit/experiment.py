@@ -2,30 +2,12 @@ from abc import ABC, abstractmethod
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient
-from summit.benchmarks import *
 from summit.utils import jsonify_dict, unjsonify_dict
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import time
 
-def experiment_from_dict(d):
-    if d["name"] == "SnarBenchmark":
-        return SnarBenchmark.from_dict(d)
-    elif d["name"] == "Hartmann3D":
-        return Hartmann3D.from_dict(d)
-    elif d["name"] == "Himmelblau":
-        return Himmelblau.from_dict(d)
-    elif d["name"] == "DTLZ2":
-        return DTLZ2.from_dict(d)
-    elif d["name"] == "VLMOP2":
-        return VLMOP2.from_dict(d)
-    elif d["name"] == "ThreeHumpCamel":
-        return Himmelblau.from_dict(d)
-    elif d["name"] == "BaumgartnerCrossCouplingBenchmark":
-        return BaumgartnerCrossCouplingEmulator.from_dict(d)
-    elif d["name"] == "BaumgartnerCrossCouplingBenchmark_Yield_Cost":
-        return BaumgartnerCrossCouplingEmulator_Yield_Cost.from_dict(d)
 
 class Experiment(ABC):
     """Base class for experiments
