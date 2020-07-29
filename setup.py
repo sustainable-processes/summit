@@ -50,7 +50,7 @@ setup(
     package_data={
         'summit.benchmarks.experiment_emulator': [
             'trained_models/BNN/*.json','trained_models/BNN/*.pt',
-            'trained_models/data/*.csv'
+            'data/*.csv'
         ]
     },
     install_requires=requirements,
