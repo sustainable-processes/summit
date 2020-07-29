@@ -60,7 +60,7 @@ module load rhel7/default-peta4            # REQUIRED - loads the basic environm
 application="singularity exec"
 
 #! Run options for the application:
-options="-B $SLURM_SUBMIT_DIR:/summit_user docker://$1 python $2"
+options="-B $SLURM_SUBMIT_DIR:/summit_user docker://$1 python -m pytest $2"
 
 #! Work directory (i.e. where the job will run):
 workdir="$SLURM_SUBMIT_DIR"  # The value of SLURM_SUBMIT_DIR sets workdir to the directory
