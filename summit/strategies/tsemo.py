@@ -137,7 +137,7 @@ class TSEMO(Strategy):
             self.all_experiments = self.all_experiments.append(prev_res)
         
         # Get inputs (decision variables) and outputs (objectives)
-        inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments)
+        inputs, outputs = self.transform.transform_inputs_outputs(self.all_experiments, transform_descriptors=True)
         if inputs.shape[0] < self.domain.num_continuous_dimensions():
             self.logger.warning(
                 f"The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}."
@@ -275,7 +275,7 @@ class TSEMO(Strategy):
             
             # Do any necessary transformations back
             result[("strategy", "METADATA")] = "TSEMO"
-            result = self.transform.un_transform(result)
+            result = self.transform.un_transform(result, transform_descriptors=True)
             
             # Add model hyperparameters as metadata columns
             self.iterations += 1

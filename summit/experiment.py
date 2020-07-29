@@ -110,7 +110,7 @@ class Experiment(ABC):
         self._data = DataSet(columns=columns, metadata_columns=md_columns)
         self.extras = []
 
-    def to_dict(self):
+    def to_dict(self, **experiment_params):
         """Serialize the class to a dictionary
         
         Subclasses can add a experiment_params dictionary
@@ -129,13 +129,14 @@ class Experiment(ABC):
             domain=self.domain.to_dict(),
             name=self.__class__.__name__,
             data=self.data.to_dict(),
+            experiment_params=experiment_params,
             extras=extras,
         )
 
     @classmethod
-    def from_dict(cls, d, **kwargs):
+    def from_dict(cls, d):
         domain = Domain.from_dict(d["domain"])
-        exp = cls(domain=domain, **kwargs)
+        exp = cls(domain=domain, **d['experiment_params'])
         exp._data = DataSet.from_dict(d["data"])
         for e in d["extras"]:
             if type(e) == dict:

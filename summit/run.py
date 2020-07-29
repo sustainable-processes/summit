@@ -367,8 +367,6 @@ class NeptuneRunner(Runner):
             neptune_tags = self.neptune_tags
         ))
         return d
-        
-
 
 def experiment_from_dict(d):
     if d["name"] == "SnarBenchmark":
