@@ -6,16 +6,6 @@ from summit.utils.dataset import DataSet
 import numpy as np
 import os
 
-def test_experiment():
-    class MockStrategy(Strategy):
-        def suggest_experiments(self, num_experiments, previous_results):
-            inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
-            objectives = [v for v in self.domain.variables if v.is_objective]
-            assert len(objectives) == 1
-            assert objectives[0].name == "scalar_objective"
-            assert outputs["scalar_objective"].iloc[0] == 70.0
-            return self.transform.un_transform(inputs)
-
 
 def test_snar_benchmark():
     """Test the SnAr benchmark"""
@@ -64,6 +54,10 @@ def test_baumgartner_CC_emulator():
     assert float(results["t_res"]) == values["t_res", "DATA"]
     assert float(results["temperature"]) == values["temperature", "DATA"]
     assert np.isclose(float(results["yld"]), 0.173581)
+
+    # Test serialization
+    d = b.to_dict()
+    exp = BaumgartnerCrossCouplingEmulator.from_dict(d)
 
     return results
 

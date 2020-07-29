@@ -12,6 +12,15 @@ import numpy as np
 import os
 import warnings
 
+def test_strategy():
+    class MockStrategy(Strategy):
+        def suggest_experiments(self, num_experiments, previous_results):
+            inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
+            objectives = [v for v in self.domain.variables if v.is_objective]
+            assert len(objectives) == 1
+            assert objectives[0].name == "scalar_objective"
+            assert outputs["scalar_objective"].iloc[0] == 70.0
+            return self.transform.un_transform(inputs)
 
 def test_random():
     domain = Domain()

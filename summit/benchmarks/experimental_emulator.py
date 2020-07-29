@@ -97,6 +97,7 @@ class ExperimentalEmulator(Experiment):
         dataset = self._check_datasets(dataset, csv_dataset)
         self.emulator.set_training_hyperparameters(kwargs=kwargs)
         self.emulator.train_model(dataset=dataset, verbose=verbose, kwargs=kwargs)
+        self.extras = [self.emulator.output_models]
 
     def validate(
         self,
@@ -130,27 +131,27 @@ class ExperimentalEmulator(Experiment):
             dataset = DataSet.read_csv(csv_dataset, index_col=None)
         return dataset
 
-    def to_dict(self, **experiment_params):
+    def to_dict(self, **kwargs):
         """Serialize the class to a dictionary
 
         Subclasses can add a experiment_params dictionary
         key with custom parameters for the experiment
         """
-        experiment_params.update(dict(
+        kwargs.update(dict(
             model_name=self.emulator.model_name,
             dataset=self.emulator._dataset.to_dict()
-            if self.emulator._dataset
+            if self.emulator._dataset is not None
             else None,
             output_models=self.emulator.output_models,
         ))
-        return super().to_dict(**experiment_params)
+        return super().to_dict(**kwargs)
 
     @classmethod
-    def from_dict(cls, d, **kwargs):
+    def from_dict(cls, d):
         dataset = d["experiment_params"]["dataset"]
         d["experiment_params"]["dataset"] = DataSet.from_dict(dataset)
-        exp = super().to_dict(d)
-        exp.output_models = d["output_models"]
+        exp = super().from_dict(d)
+        exp.output_models = d["experiment_params"]["output_models"]
         return exp
 
 
@@ -257,6 +258,12 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
     similar to Baumgartner et al. (2019). Experimental outcomes are based on an
     emulator that is trained on the experimental data published by Baumgartner et al.
 
+    This is a five dimensional optimisation of temperature, residence time, base equivalents, 
+    catalyst and base.
+
+    The categorical variables (catalyst and base) contain descriptors 
+    calculated using COSMO-RS. Specifically, the descriptors are the first two sigma moments.
+
     Parameters
     ----------
 
@@ -358,6 +365,11 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
     Virtual experiments representing the Aniline Cross-Coupling reaction
     similar to Baumgartner et al. (2019). Experimental outcomes are based on an
     emulator that is trained on the experimental data published by Baumgartner et al.
+
+    The difference with this model is that it uses descriptors for the catalyst and base
+    instead of one-hot encoding the options. The descriptors are the first two
+    sigma moments from COSMO-RS.
+
 
     Parameters
     ----------

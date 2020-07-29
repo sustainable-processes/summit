@@ -1,5 +1,5 @@
 from summit.strategies import Strategy, strategy_from_dict
-from summit.experiment import Experiment
+from summit.experiment import Experiment, experiment_from_dict
 from summit.benchmarks import *
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit import get_summit_config_path
@@ -17,7 +17,6 @@ import logging
 installed = {pkg.key for pkg in pkg_resources.working_set}
 if 'neptune-client' in installed:
     from neptune.sessions import Session, HostedNeptuneBackend
-
 
 class Runner:
     """  Run a closed-loop strategy and experiment cycle
@@ -367,21 +366,3 @@ class NeptuneRunner(Runner):
             neptune_tags = self.neptune_tags
         ))
         return d
-
-def experiment_from_dict(d):
-    if d["name"] == "SnarBenchmark":
-        return SnarBenchmark.from_dict(d)
-    elif d["name"] == "Hartmann3D":
-        return Hartmann3D.from_dict(d)
-    elif d["name"] == "Himmelblau":
-        return Himmelblau.from_dict(d)
-    elif d["name"] == "DTLZ2":
-        return DTLZ2.from_dict(d)
-    elif d["name"] == "VLMOP2":
-        return VLMOP2.from_dict(d)
-    elif d["name"] == "ThreeHumpCamel":
-        return Himmelblau.from_dict(d)
-    elif d["name"] == "BaumgartnerCrossCouplingBenchmark":
-        return BaumgartnerCrossCouplingEmulator.from_dict(d)
-    elif d["name"] == "BaumgartnerCrossCouplingBenchmark_Yield_Cost":
-        return BaumgartnerCrossCouplingEmulator_Yield_Cost.from_dict(d)

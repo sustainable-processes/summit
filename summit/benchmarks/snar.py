@@ -163,3 +163,7 @@ class SnarBenchmark(Experiment):
         # Deltas
         dcdtau = r
         return dcdtau
+
+    def to_dict(self, **kwargs):
+        experiment_params = dict(noise_level=self.noise_level)
+        return super().to_dict(**experiment_params)

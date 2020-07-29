@@ -8,6 +8,23 @@ import pandas as pd
 import numpy as np
 import time
 
+def experiment_from_dict(d):
+    if d["name"] == "SnarBenchmark":
+        return SnarBenchmark.from_dict(d)
+    elif d["name"] == "Hartmann3D":
+        return Hartmann3D.from_dict(d)
+    elif d["name"] == "Himmelblau":
+        return Himmelblau.from_dict(d)
+    elif d["name"] == "DTLZ2":
+        return DTLZ2.from_dict(d)
+    elif d["name"] == "VLMOP2":
+        return VLMOP2.from_dict(d)
+    elif d["name"] == "ThreeHumpCamel":
+        return Himmelblau.from_dict(d)
+    elif d["name"] == "BaumgartnerCrossCouplingBenchmark":
+        return BaumgartnerCrossCouplingEmulator.from_dict(d)
+    elif d["name"] == "BaumgartnerCrossCouplingBenchmark_Yield_Cost":
+        return BaumgartnerCrossCouplingEmulator_Yield_Cost.from_dict(d)
 
 class Experiment(ABC):
     """Base class for experiments
@@ -95,7 +112,7 @@ class Experiment(ABC):
             The later can be an empty dictionary.
         """
 
-        raise NotImplementedError("_run be implemented by subclasses of Benchmark")
+        raise NotImplementedError("_run be implemented by subclasses of Experiment")
 
     def reset(self):
         """Reset the experiment
@@ -117,6 +134,7 @@ class Experiment(ABC):
         key with custom parameters for the experiment
         """
         extras = []
+
         for e in self.extras:
             if type(e) == dict:
                 extras.append(jsonify_dict(e))
@@ -130,7 +148,7 @@ class Experiment(ABC):
             name=self.__class__.__name__,
             data=self.data.to_dict(),
             experiment_params=experiment_params,
-            extras=extras,
+            extras=extras
         )
 
     @classmethod
