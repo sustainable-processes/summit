@@ -20,7 +20,7 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=20
+NUM_REPEATS=1
 MAX_EXPERIMENTS=50
 NEPTUNE_PROJECT="sustainable-processes/summit"
 BATCH_SIZE=1
@@ -55,15 +55,15 @@ transforms = [Chimera(experiment.domain, hierarchies[2]),
 def test_no_transform(strategy):
     for i in range(NUM_REPEATS):
         experiment.reset()
-        s = strategy(experiment.domain, transform=transform)
+        s = strategy(experiment.domain)
 
-        exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
+        exp_name=f"snar_experiment_{s.__class__.__name__}__repeat_{i}"
         r = SlurmRunner(experiment=experiment, strategy=s, 
                         neptune_project=NEPTUNE_PROJECT,
                         docker_container="marcosfelt/summit:cn_benchmark", 
                         neptune_experiment_name=exp_name,
                         neptune_files=["slurm_summit_snar_experiment.sh"],
-                        neptune_tags=["snar_experiment", s.__class__.__name__, transform.__class__.__name__],
+                        neptune_tags=["snar_experiment", s.__class__.__name__],
                         max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                         batch_size=BATCH_SIZE,
                         num_initial_experiments=1,
@@ -79,14 +79,18 @@ def test_snar_experiment(strategy, transform):
         experiment.reset()
         s = strategy(experiment.domain, transform=transform)
 
-        # Early stopping for local optimization strategies
-        if strategy in [NelderMead]:
+        # Special considerations for Neldermead
+        if strategy ==  NelderMead:
             f_tol = 1e-5
+            s.random_start=True
+            max_restarts=10
+            s.adaptive=True
         else:
+            restarts=0
             f_tol = None
 
         exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = SlurmRunner(experiment=experiment, strategy=s,
+        r = NeptuneRunner(experiment=experiment, strategy=s,
                         docker_container="marcosfelt/summit:cn_benchmark", 
                         neptune_project=NEPTUNE_PROJECT,
                         neptune_experiment_name=exp_name,
@@ -95,6 +99,7 @@ def test_snar_experiment(strategy, transform):
                         max_iterations=MAX_EXPERIMENTS//BATCH_SIZE,
                         batch_size=BATCH_SIZE,
                         f_tol=f_tol,
+                        max_restarts=max_restarts,
                         num_initial_experiments=1,
                         hypervolume_ref=[-2957,10.7])
         r.run(save_at_end=True)

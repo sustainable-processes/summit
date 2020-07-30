@@ -298,13 +298,14 @@ def test_snobfit(num_experiments, maximize, constraints):
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 
 
-@pytest.mark.parametrize("x_start", [[0, 0], [4, 6], [1, 2], [-2, 5]])
+@pytest.mark.parametrize("x_start", [[],[0, 0], [4, 6], [1, 2], [-2, 5]])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("constraint", [True, False])
 def test_nm2D(x_start, maximize, constraint, plot=False):
 
     himmelblau = Himmelblau(maximize=maximize, constraints=constraint)
-    strategy = NelderMead(himmelblau.domain, x_start=x_start, adaptive=False)
+    strategy = NelderMead(himmelblau.domain, x_start=x_start, 
+                          random_start=True, adaptive=False) # Will only random start if x_start is []
 
     initial_exp = None
     # Uncomment to create test case which results in reduction dimension and dimension recovery
@@ -374,6 +375,7 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
     strategy_2 = NelderMead.load('nm_2d.json')
 
     assert strategy._x_start == strategy_2._x_start
+    assert strategy.random_start == strategy_2.random_start
     assert strategy._dx == strategy_2._dx
     assert strategy._df == strategy_2._df
     assert strategy._adaptive == strategy_2._adaptive

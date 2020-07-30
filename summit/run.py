@@ -70,6 +70,8 @@ class Runner:
     f_tol : float, optional
         How much difference between successive best objective values will be tolerated before stopping.
         This is generally useful for nonglobal algorithms like Nelder-Mead. Default is None.
+    max_restarts : int, optional
+        Number of restarts if f_tol is violated. Default is 0.
     Examples
     --------    
     
@@ -83,6 +85,7 @@ class Runner:
         max_iterations=100,
         batch_size=1,
         f_tol = None,
+        max_restarts = 0,
         **kwargs
     ):
         self.strategy = strategy
@@ -91,6 +94,7 @@ class Runner:
         self.max_iterations = max_iterations
         self.batch_size = batch_size
         self.f_tol = f_tol
+        self.max_restarts = max_restarts
 
         #Set up logging
         self.logger = logging.getLogger(__name__)
@@ -120,6 +124,7 @@ class Runner:
         fbest_old = np.zeros(n_objs)
         fbest = np.zeros(n_objs)
         prev_res = None
+        restarts = 0
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
             if i==0:
@@ -149,9 +154,13 @@ class Runner:
             # Stop if no improvement
             if self.f_tol is not None and i >1:
                 compare = np.abs(fbest-fbest_old) < self.f_tol
-                if all(compare):
+                if all(compare) and restarts >= self.max_restarts:
                     self.logger.info(f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objective(s) (less than f_tol={self.f_tol}).")
                     break
+                elif all(compare) and restarts <= self.max_restarts:
+                    prev_res = None
+                    self.strategy.reset()
+                    restarts += 1
             
         # Save at end
         if save_at_end:
@@ -222,6 +231,8 @@ class NeptuneRunner(Runner):
     f_tol : float, optional
         How much difference between successive best objective values will be tolerated before stopping.
         This is generally useful for nonglobal algorithms like Nelder-Mead. Default is None.
+    max_restarts : int, optional
+        Number of restarts if f_tol is violated. Default is 0.
     hypervolume_ref : array-like, optional
         The reference for the hypervolume calculation if it is a multiobjective problem.
         Should be an array of length the number of objectives. Default is at the origin.
@@ -242,20 +253,21 @@ class NeptuneRunner(Runner):
         num_initial_experiments=1,
         batch_size=1,
         f_tol = None,
+        max_restarts = 0,
         hypervolume_ref=None,
-        logger = None,
         **kwargs
     ):
 
         super().__init__(strategy, experiment,
                          num_initial_experiments=num_initial_experiments,
                          max_iterations=max_iterations, 
-                         batch_size=batch_size)
+                         batch_size=batch_size,
+                         f_tol=f_tol,
+                         max_restarts=max_restarts)
 
         # Hypervolume reference for multiobjective experiments
         n_objs = len(self.experiment.domain.output_variables)
         self.ref =  hypervolume_ref if hypervolume_ref is not None else n_objs*[0]
-        self.f_tol = f_tol
 
         # Check that Neptune-client is installed
         installed = {pkg.key for pkg in pkg_resources.working_set}
@@ -264,7 +276,7 @@ class NeptuneRunner(Runner):
                 "Neptune-client not installed. Use pip install summit[experiments] to add extra dependencies."
             )
 
-        # Set up Neptune session
+        # Set up Neptune variables
         self.neptune_project = neptune_project
         self.neptune_experiment_name = neptune_experiment_name
         self.neptune_description = neptune_description
@@ -294,6 +306,7 @@ class NeptuneRunner(Runner):
         """
         # Set parameters
         prev_res = None
+        self.restarts = 0
         n_objs = len(self.experiment.domain.output_variables)
         fbest_old = np.zeros(n_objs)
         fbest = np.zeros(n_objs)
@@ -366,9 +379,13 @@ class NeptuneRunner(Runner):
             # TODO: maybe we should at a <max_stop> parameter, such that the algorithm is stopped after #max_stop iterations w/o improvement
             if self.f_tol is not None and i >1:
                 compare = np.abs(fbest-fbest_old) < self.f_tol
-                if all(compare):
+                if all(compare) and self.restarts > self.max_restarts:
                     self.logger.info(f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objective(s) (less than f_tol={self.f_tol}).")
                     break
+                elif all(compare) and self.restarts <= self.max_restarts:
+                    prev_res = None
+                    self.strategy.reset()
+                    self.restarts += 1
         
         # Save at end
         if save_at_end:

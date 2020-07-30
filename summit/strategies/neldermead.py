@@ -22,6 +22,11 @@ class NelderMead(Strategy):
         A transform class (i.e, not the object itself). By default
         no transformation will be done the input variables or
         objectives.
+    random_start : bool, optional
+        Whether to start at a random point or the value specified by x_start
+    adaptive : bool, optional
+        Adapt algorithm parameters to dimensionality of problem. Useful for
+        high-dimensional minimization [1]. Default is False.
     x_start: array_like of shape (1, N), optional
         Initial center point of simplex
         Default: empty list that will initialize generation of x_start as geoemetrical center point of bounds
@@ -74,6 +79,7 @@ class NelderMead(Strategy):
         Strategy.__init__(self, domain, transform, **kwargs)
 
         self._x_start = kwargs.get("x_start", [])
+        self.random_start = kwargs.get("random_start", False)
         self._dx = kwargs.get("dx", 1e-5)
         self._df = kwargs.get("df", 1e-5)
         self._adaptive = kwargs.get("adaptive", False)
@@ -197,6 +203,7 @@ class NelderMead(Strategy):
             prev_param = None
         strategy_params = dict(
             x_start=self._x_start,
+            random_start=self.random_start,
             dx=self._dx,
             df=self._df,
             adaptive=self._adaptive,
@@ -297,8 +304,11 @@ class NelderMead(Strategy):
             )
 
         # if no previous results are given initialize center point as geometrical middle point of bounds
-        if not len(x0[0]):
-            x0 = np.ones((1, len(bounds))) * 1 / 2 * ((bounds[:, 1] + bounds[:, 0]).T)
+        if len(x0[0]) == 0 and not self.random_start:
+            x0 = np.ones((1, len(bounds))) * 0.5 * ((bounds[:, 1] + bounds[:, 0]).T)
+        elif len(x0[0]) == 0 and self.random_start:
+            weight = np.random.rand() 
+            x0 = np.ones((1, len(bounds)))*(weight*(bounds[:, 1] + (1-weight)*bounds[:, 0]).T)
 
         """ Set Nelder-Mead parameters, i.e., initialize or include data from previous iterations
             --------
