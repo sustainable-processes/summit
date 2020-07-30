@@ -20,7 +20,7 @@ token = os.environ.get('NEPTUNE_API_TOKEN')
 if token is None:
     raise ValueError("Neptune_API_TOKEN needs to be an environmental variable")
 
-NUM_REPEATS=1
+NUM_REPEATS=20
 MAX_EXPERIMENTS=50
 NEPTUNE_PROJECT="sustainable-processes/summit"
 BATCH_SIZE=1
@@ -86,11 +86,11 @@ def test_snar_experiment(strategy, transform):
             max_restarts=10
             s.adaptive=True
         else:
-            restarts=0
             f_tol = None
+            max_restarts=0
 
         exp_name=f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = NeptuneRunner(experiment=experiment, strategy=s,
+        r = SlurmRunner(experiment=experiment, strategy=s,
                         docker_container="marcosfelt/summit:cn_benchmark", 
                         neptune_project=NEPTUNE_PROJECT,
                         neptune_experiment_name=exp_name,

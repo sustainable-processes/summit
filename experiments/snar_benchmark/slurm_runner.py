@@ -4,6 +4,7 @@ from scp import SCPClient
 import uuid
 import pathlib
 import os
+import time
 
 class SlurmRunner(NeptuneRunner):
     """  Run an experiment on a remote server (e.g., HPC) using SLURM.
@@ -92,8 +93,9 @@ class SlurmRunner(NeptuneRunner):
         ssh.connect(self.hostname, username=username, password=password)
 
         # Make the .snar_benchmark folder on the remote server if it doesn't exist
-        remote_path = f".snar_benchmark/{uuid_val}"
+        remote_path = f"~/.snar_benchmark/{uuid_val}"
         ssh.exec_command(f"mkdir -p {remote_path}")
+        time.sleep(0.2)
 
         # Copy files onto remote server
         scp = SCPClient(ssh.get_transport())
