@@ -86,11 +86,16 @@ class DomainWrapper(Problem):
 
 
 class PlotExperiments:
-    def __init__(self, project: str, experiment_ids: list):
+    def __init__(self, project: str,
+                 experiment_ids: list,
+                 tag : list=None,
+                 state : list=None):
         self.session = Session(backend=HostedNeptuneBackend())
         self.proj = self.session.get_project(project)
         self.runners = {}
         self.experiment_ids = experiment_ids
+        self.tag = tag
+        self.state = state
         self._restore_runners()
         self._create_param_df()
 
@@ -102,18 +107,26 @@ class PlotExperiments:
         if n_experiments > 100:
             for i in range(n_experiments // 100):
                 experiments += self.proj.get_experiments(
-                    id=self.experiment_ids[i * 100: (i + 1) * 100]
+                    id=self.experiment_ids[i * 100 : (i + 1) * 100],
+                    tag=self.tag,
+                    state=self.state
                 )
             remainder = n_experiments % 100
             experiments += self.proj.get_experiments(
-                id=self.experiment_ids[(i + 1) * 100: (i + 1) * 100 + remainder]
+                id=self.experiment_ids[(i + 1) * 100 : (i + 1) * 100 + remainder],
+                tag=self.tag,
+                state=self.state
             )
         else:
-            experiments = self.proj.get_experiments(id=self.experiment_ids)
+            experiments = self.proj.get_experiments(
+                id=self.experiment_ids,
+                tag=self.tag,
+                state=self.state
+            )
         for experiment in experiments:
             path = f"data/{experiment.id}"
             try:
-                os.mkdir(path, )
+                os.mkdir(path,)
             except FileExistsError:
                 pass
             experiment.download_artifacts(destination_dir=path)
@@ -133,7 +146,6 @@ class PlotExperiments:
             self.runners[experiment.id] = r
 
             # Remove file
-
             shutil.rmtree(f"data/{experiment.id}")
 
     def _create_param_df(self):
@@ -165,13 +177,150 @@ class PlotExperiments:
             # Batch size
             record["batch_size"] = r.batch_size
 
+            # Number of initial experiments
+            try:
+                record["num_initial_experiments"] = r.num_initial_experiments
+            except AttributeError:
+                pass
+
             records.append(record)
 
         # Make pandas dataframe
         self.df = pd.DataFrame.from_records(records)
         return self.df
+    
+    def plot_hv_trajectories(self, trajectory_length, 
+                             reference=[-2957,10.7],
+                             plot_type='matplotlib',
+                             include_experiment_ids=False):
+        """ Plot the hypervolume trajectories with repeats as 95% confidence interval
+        
+        Parameters
+        ----------
+        reference : array-like, optional
+            Reference for the hypervolume calculation. Defaults to -2957, 10.7
+        plot_type : str, optional
+            Plotting backend to use: matplotlib or plotly. Defaults to matplotlib.
+        include_experiment_ids : bool, optional
+            Whether to include experiment ids in the plot labels
+        """
+        # Create figure
+        if plot_type == 'matplotlib':
+            fig, ax = plt.subplots(1)
+        elif plot_type == 'plotly':
+            fig = go.Figure()
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type. Must be matplotlib or plotly.")
 
-    def iterations_to_threshold(self, yld_threshold=1):
+        # Group experiment repeats
+        df = self.df.copy()
+        df = df.set_index("experiment_id")
+        uniques = df.drop_duplicates(keep="last")  # This actually groups them
+        df_new = self.df.copy()
+
+        colors = px.colors.qualitative.Plotly
+        cycle = len(colors)
+        c_num = 0
+        for index, unique in uniques.iterrows():
+            # Find number of matching rows to this unique row
+            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
+            ids = temp_df["experiment_id"].values
+
+            # Calculate hypervolume trajectories
+            hv_trajectories = np.zeros([trajectory_length, len(ids)])
+            for j, experiment_id in enumerate(ids):
+                r = self.runners[experiment_id]
+                data = r.experiment.data[['sty', 'e_factor']].to_numpy()
+                data[:, 0] *= -1 # make it a minimzation problem
+                for i in range(trajectory_length):
+                    y_front, _ = pareto_efficient(data[0:i+1, :], maximize=False)
+                    hv_trajectories[i, j] = hypervolume(y_front,ref=reference)
+            
+            # Mean and standard deviation
+            hv_mean_trajectory = np.mean(hv_trajectories, axis=1)
+            hv_std_trajectory = np.std(hv_trajectories, axis=1)
+
+            # Update plot
+            t = np.arange(1, trajectory_length+1)
+            label=self._create_label(unique) + f"Experiment {ids[0]}-{ids[-1]}"
+            
+            if plot_type == 'matplotlib':
+                ax.plot(t, hv_mean_trajectory, label=label)
+                ax.fill_between(t, 
+                        hv_mean_trajectory-1.96*hv_std_trajectory,
+                        hv_mean_trajectory+1.96*hv_std_trajectory,
+                        alpha=0.1)
+            elif plot_type == 'plotly':
+                r, g, b = hex_to_rgb(colors[c_num])
+                color = lambda alpha: f"rgba({r},{g},{b},{alpha})"
+                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory,
+                                         mode='lines', name=label, 
+                                         line=dict(color=color(1)),
+                                         legendgroup=label))
+                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory-1.96*hv_std_trajectory,
+                                         mode='lines', fill='tonexty', 
+                                         line=dict(width=0),
+                                         fillcolor=color(0.1),
+                                         showlegend=False,
+                                         legendgroup=label))
+                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory+1.96*hv_std_trajectory,
+                                         mode='lines', fill='tonexty', 
+                                         line=dict(width=0),
+                                         fillcolor=color(0.1),
+                                         showlegend=False,
+                                         legendgroup=label))
+            if cycle == c_num+1:
+                c_num=0
+            else:
+                c_num+=1
+
+        # Plot formattting
+        if plot_type == 'matplotlib':
+            ax.set_xlabel('Iterrations')
+            ax.set_ylabel('Hypervolume')
+            ax.legend(loc=(1.2,0.5))
+            return fig, ax
+        elif plot_type == 'plotly':
+            fig.update_layout(xaxis=dict(title='Iterations'), yaxis=dict(title='Hypervolume'))
+            return fig
+
+    def _create_label(self, unique):
+        transform_text = unique['transform_name']
+        chimera_params = f" (STY tol.={unique['sty_tolerance']}, E-factor tol.={unique['e_factor_tolerance']})"
+        transform_text += chimera_params if unique['transform_name'] == "Chimera" else ""
+
+        return f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
+
+    def time_distribution(self,plot_type='matplotlib'):
+        # Create figure
+        if plot_type == 'matplotlib':
+            fig, ax = plt.subplots(1)
+        elif plot_type == 'plotly':
+            fig = go.Figure()
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type. Must be matplotlib or plotly.")
+
+        # Group experiment repeats
+        df = self.df.copy()
+        df = df.set_index("experiment_id")
+        uniques = df.drop_duplicates(keep="last")  # This actually groups them
+        df_new = self.df.copy()
+
+
+        for index, unique in uniques.iterrows():
+            # Find number of matching rows to this unique row
+            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
+            ids = temp_df["experiment_id"].values
+
+            times = np.zeros(len(ids))
+            for i, experiment_id in enumerate(ids):
+                r = self.runners[experiment_id]
+                times[i] = r.experiment.data['computation_t'].to_numpy()
+
+            mean_time = np.mean(times)
+            std_time = np.std(times)
+
+    def iterations_to_threshold(self, sty_threshold=1e4, e_factor_threshold=10.0):
         # Group experiment repeats
         df = self.df.copy()
         df = df.set_index("experiment_id")
@@ -179,7 +328,7 @@ class PlotExperiments:
         df_new = self.df.copy()
         experiments = {}
         results = []
-        uniques['mean_iterations'] = None
+        uniques['mean_iterations']  = None
         uniques['std_iterations'] = None
         uniques['num_repeats'] = None
         # Find iterations to threshold
@@ -187,22 +336,17 @@ class PlotExperiments:
             # Find number of matching rows to each unique row
             temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
             ids = temp_df["experiment_id"].values
-
-            # name = f"{unique['strategy_name']}, {unique['transform_name']}, batch size={unique['batch_size']}"
-            # if unique["transform_name"] == "Chimera":
-            #     name += f", sty_tolerance={unique['sty_tolerance']}, e_factor_tolerance={unique['e_factor_tolerance']}"
-            # Create dictionary with experiment names as keys and array of repeats of experiment_id as values
-
+            
             # Number of iterations calculation
             num_iterations = []
             something_happens = False
-            # TODO: add in costs here
             for experiment_id in ids:
-                data = self.runners[experiment_id].experiment.data[["yld"]]
+                data = self.runners[experiment_id].experiment.data[["sty", "e_factor"]]
                 # Check if repeat matches threshold requirements
                 meets_threshold = data[
-                    (data["yld"] >= yld_threshold)
-                    ]
+                    (data["sty"] >= sty_threshold)
+                    & (data["e_factor"] <= e_factor_threshold)
+                ]
                 # Calculate iterations to meet threshold
                 if len(meets_threshold.index) > 0:
                     num_iterations.append(meets_threshold.index[0])
@@ -214,42 +358,14 @@ class PlotExperiments:
                 uniques['mean_iterations'][index] = mean
                 uniques['std_iterations'][index] = std
                 uniques['num_repeats'][index] = len(num_iterations)
-                # results.append(
-                #     dict(
-                #         name=name,
-                #         mean_iterations=mean,
-                #         std_iterations=std,
-                #         num_repeats=len(num_iterations),
-                #     )
-                # )
-            # else:
-            #     # results.append(
-            #     #     dict(name=name, mean_iterations="None", std_iterations="None")
-            #     # )
-
-            #     warnings.warn("Cannot find any iterations that achieve threshold")
-
+    
         return uniques
 
-        # data_to_plot = []
-        # j = 0
-        # for name, ids in experiments.items():
-        #     data = np.empty([len(ids), max_iterations])
-        #     for i, expriment_id in enumerate(ids):
-        #         datum = self.runners[expriment_id].experiment.data[data_column].values
-        #         for d in datum:
-        #             pass
-        #         data[i, 0:len(datum)] = datum
-
-        #     #Calculate means
-        #     means = np.nanmean(data, axis=0)
-        #     stds = np.nanstd(data, axis=0)
-
-        #     #plots
-        #     x = np.arange(1, data.shape[1]+1)
-        #     ax.plot(x, means, label=name, color=colors[j])
-        #     ax.fill_between(x,means-stds, means+stds,
-        #                     alpha=0.1, color=colors[j])
-        #     j+= 1
-        # ax.legend()
-        # return ax
+def hex_to_rgb(hex_color: str) -> tuple:
+    """Convert hex to RGA
+    From https://community.plotly.com/t/scatter-plot-fill-with-color-how-to-set-opacity-of-fill/29591
+    """
+    hex_color = hex_color.lstrip("#")
+    if len(hex_color) == 3:
+        hex_color = hex_color * 2
+    return int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)

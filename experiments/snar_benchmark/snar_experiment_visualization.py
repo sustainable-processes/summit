@@ -12,7 +12,7 @@ import os
 import zipfile
 import shutil
 import warnings
-
+from textwrap import wrap
 import collections
 
 
@@ -89,11 +89,15 @@ class PlotExperiments:
             # Remove file
             shutil.rmtree(f"data/{experiment.id}")
 
-    def _create_param_df(self):
-        """Create a parameters dictionary"""
-        # Transform
-        # Strategy
-        # Batch Size
+    def _create_param_df(self, reference=[-2957,10.7]):
+        """Create a parameters dictionary
+        
+        Parameters
+        ----------
+        reference : array-like, optional
+            Reference for the hypervolume calculatio
+
+        """
         records = []
         for experiment_id, r in self.runners.items():
             record = {}
@@ -108,7 +112,6 @@ class PlotExperiments:
                 for objective_name, v in hierarchy.items():
                     key = f"{objective_name}_tolerance"
                     record[key] = v["tolerance"]
-                # record.update(transform_params[''])
             elif transform_name == "MultitoSingleObjective":
                 record.update(transform_params)
 
@@ -120,20 +123,83 @@ class PlotExperiments:
 
             # Number of initial experiments
             try:
-                record["num_initial_experiments"] = r.num_initial_experiments
+                record["num_initial_experiments"] = r.n_init
             except AttributeError:
                 pass
+
+            # Terminal hypervolume
+            data = r.experiment.data[['sty', 'e_factor']].to_numpy()
+            data[:, 0] *= -1 # make it a minimzation problem
+            y_front, _ = pareto_efficient(data, maximize=False)
+            hv = hypervolume(y_front,ref=reference)
+            record['terminal_hypervolume'] = hv
 
             records.append(record)
 
         # Make pandas dataframe
         self.df = pd.DataFrame.from_records(records)
         return self.df
-    
+
+    def best_pareto_grid(self, ncols=3, figsize=(20,40)):
+        """Make a grid of pareto plots
+
+        Only includes the run with the maximum terminal hypervolume for each 
+        unique combination.
+
+        Parameters
+        ----------
+        ncols : int, optional
+            The number of columns in the grid. Defaults to 3
+        figsize : tuple, optional
+            The figure size. Defaults to 20 wide x 40 high
+
+        """
+        # Group experiment repeats
+        df = self.df.copy()
+        df = df.set_index("experiment_id")
+        df = df.drop(columns=['terminal_hypervolume'])
+        uniques = df.drop_duplicates(keep="last")  # This actually groups them
+        uniques = uniques.sort_values(by=["strategy_name", "transform_name"])
+        df_new = self.df.copy()
+
+        nrows = len(uniques)//ncols
+        nrows += 1 if len(uniques)%ncols != 0 else 0
+
+        fig = plt.figure(figsize=figsize)
+        fig.subplots_adjust(wspace=0.2, hspace=0.5)
+        i = 1
+        # Loop through groups of repeatss
+        for index, unique in uniques.iterrows():
+            # Find number of matching rows to this unique row
+            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
+
+            # Find experiment with maximum hypervolume
+            max_hv_index = temp_df['terminal_hypervolume'].argmax()
+            experiment_id = temp_df.iloc[max_hv_index]['experiment_id']
+
+            # Get runner
+            r = self.runners[experiment_id]
+
+            # Create pareto plot
+            ax = plt.subplot(nrows, ncols, i)
+            r.experiment.pareto_plot(ax=ax)
+            title = self._create_label(unique)
+            title = "\n".join(wrap(title, 30))
+            ax.set_title(title)
+            ax.set_xlabel(r'Space Time Yield ($kg \; m^{-3} h^{-1}$)')
+            ax.set_ylabel('E-factor')
+            ax.set_xlim(0, 1.2e4)
+            ax.set_ylim(0, 70)
+            i += 1
+
+        return fig
+
+
     def plot_hv_trajectories(self, trajectory_length, 
                              reference=[-2957,10.7],
                              plot_type='matplotlib',
-                             include_experiment_ids=False):
+                             include_experiment_ids=False,
+                             min_terminal_hv_avg=0):
         """ Plot the hypervolume trajectories with repeats as 95% confidence interval
         
         Parameters
@@ -144,6 +210,8 @@ class PlotExperiments:
             Plotting backend to use: matplotlib or plotly. Defaults to matplotlib.
         include_experiment_ids : bool, optional
             Whether to include experiment ids in the plot labels
+        min_terminal_hv_avg : float, optional`
+            Minimum terminal average hypervolume cutoff for inclusion in the plot. Defaults to 0.
         """
         # Create figure
         if plot_type == 'matplotlib':
@@ -156,12 +224,14 @@ class PlotExperiments:
         # Group experiment repeats
         df = self.df.copy()
         df = df.set_index("experiment_id")
+        df = df.drop(columns=['terminal_hypervolume'])
         uniques = df.drop_duplicates(keep="last")  # This actually groups them
         df_new = self.df.copy()
 
         colors = px.colors.qualitative.Plotly
         cycle = len(colors)
         c_num = 0
+        self.hv = {}
         for index, unique in uniques.iterrows():
             # Find number of matching rows to this unique row
             temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
@@ -181,16 +251,21 @@ class PlotExperiments:
             hv_mean_trajectory = np.mean(hv_trajectories, axis=1)
             hv_std_trajectory = np.std(hv_trajectories, axis=1)
 
+            if hv_mean_trajectory[-1] < min_terminal_hv_avg:
+                continue
+
             # Update plot
             t = np.arange(1, trajectory_length+1)
-            label=self._create_label(unique) + f"Experiment {ids[0]}-{ids[-1]}"
+            label=self._create_label(unique)
+            if include_experiment_ids:
+                label +=  f" ({ids[0]}-{ids[-1]})"
             
+            lower=hv_mean_trajectory-1.96*hv_std_trajectory
+            lower = np.clip(lower, 0, None)
+            upper = hv_mean_trajectory+1.96*hv_std_trajectory
             if plot_type == 'matplotlib':
                 ax.plot(t, hv_mean_trajectory, label=label)
-                ax.fill_between(t, 
-                        hv_mean_trajectory-1.96*hv_std_trajectory,
-                        hv_mean_trajectory+1.96*hv_std_trajectory,
-                        alpha=0.1)
+                ax.fill_between(t, lower, upper,alpha=0.1)
             elif plot_type == 'plotly':
                 r, g, b = hex_to_rgb(colors[c_num])
                 color = lambda alpha: f"rgba({r},{g},{b},{alpha})"
@@ -198,14 +273,14 @@ class PlotExperiments:
                                          mode='lines', name=label, 
                                          line=dict(color=color(1)),
                                          legendgroup=label))
-                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory-1.96*hv_std_trajectory,
+                fig.add_trace(go.Scatter(x=t, y=lower,
                                          mode='lines', fill='tonexty', 
                                          line=dict(width=0),
                                          fillcolor=color(0.1),
                                          showlegend=False,
                                          legendgroup=label))
-                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory+1.96*hv_std_trajectory,
-                                         mode='lines', fill='tonexty', 
+                fig.add_trace(go.Scatter(x=t, y=upper,
+                                         mode='lines', fill='tozeroy', 
                                          line=dict(width=0),
                                          fillcolor=color(0.1),
                                          showlegend=False,
@@ -217,20 +292,25 @@ class PlotExperiments:
 
         # Plot formattting
         if plot_type == 'matplotlib':
-            ax.set_xlabel('Iterrations')
+            ax.set_xlabel('Experiments')
             ax.set_ylabel('Hypervolume')
-            ax.legend(loc=(1.2,0.5))
-            return fig, ax
+            legend = ax.legend(loc=(1.2,0.5))
+            ax.tick_params(direction='in')
+            ax.set_xlim(1, trajectory_length)
+            return fig, ax, legend
         elif plot_type == 'plotly':
-            fig.update_layout(xaxis=dict(title='Iterations'), yaxis=dict(title='Hypervolume'))
+            fig.update_layout(xaxis=dict(title='Experiments'), yaxis=dict(title='Hypervolume'))
+            fig.show()
             return fig
 
     def _create_label(self, unique):
-        transform_text = unique['transform_name']
+        transform_text = unique['transform_name'] if unique['transform_name']!="Transform" else "No transform"
         chimera_params = f" (STY tol.={unique['sty_tolerance']}, E-factor tol.={unique['e_factor_tolerance']})"
         transform_text += chimera_params if unique['transform_name'] == "Chimera" else ""
-
-        return f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
+        final_text = f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
+        if unique['num_initial_experiments'] ==1:
+            final_text = final_text.rstrip('s')
+        return final_text
 
     def time_distribution(self,plot_type='matplotlib'):
         # Create figure

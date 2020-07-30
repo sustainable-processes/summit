@@ -137,7 +137,8 @@ class Experiment(ABC):
     @classmethod
     def from_dict(cls, d):
         domain = Domain.from_dict(d["domain"])
-        exp = cls(domain=domain, **d['experiment_params'])
+        experiment_params = d.get("experiment_params", {})
+        exp = cls(domain=domain, **experiment_params)
         exp._data = DataSet.from_dict(d["data"])
         for e in d["extras"]:
             if type(e) == dict:
