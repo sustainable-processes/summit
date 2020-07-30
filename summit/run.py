@@ -31,10 +31,20 @@ def experiment_from_dict(d):
         return VLMOP2.from_dict(d)
     elif d["name"] == "ThreeHumpCamel":
         return Himmelblau.from_dict(d)
+    elif d["name"] == "ExperimentalEmulator":
+        return ExperimentalEmulator.from_dict(d)
+    elif d["name"] ==  "ReizmanSuzukiEmulator":
+        return ReizmanSuzukiEmulator.from_dict(d)
+    elif d["name"] == "BaumgartnerCrossCouplingEmulator":
+        return BaumgartnerCrossCouplingEmulator.from_dict(d)
+    elif d["name"] == "BaumgartnerCrossCouplingDescriptorEmulator":
+        BaumgartnerCrossCouplingDescriptorEmulator.from_dict(d)
+    elif d["name"] == "BaumgartnerCrossCouplingEmulator_Yield_Cost":
+        return BaumgartnerCrossCouplingEmulator_Yield_Cost.from_dict(d)
     elif d["name"] == "BaumgartnerCrossCouplingBenchmark":
         return BaumgartnerCrossCouplingEmulator.from_dict(d)
-    elif d["name"] == "BaumgartnerCrossCouplingBenchmark_Yield_Cost":
-        return BaumgartnerCrossCouplingEmulator_Yield_Cost.from_dict(d)
+    else:
+        raise ValueError(f"""Experiment {d["name"]} not found.""")
 
 class Runner:
     """  Run a closed-loop strategy and experiment cycle
@@ -282,7 +292,6 @@ class NeptuneRunner(Runner):
             Delete the local files once they are uploaded to Neptune.
             Defaults to True.
         """
-
         # Set parameters
         prev_res = None
         n_objs = len(self.experiment.domain.output_variables)
@@ -303,7 +312,6 @@ class NeptuneRunner(Runner):
         neptune_exp = proj.create_experiment(
             name=self.neptune_experiment_name,
             description=self.neptune_description,
-            params=self.to_dict(),
             upload_source_files=self.neptune_files,
             logger=self.logger,
             tags=self.neptune_tags
