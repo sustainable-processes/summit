@@ -14,8 +14,8 @@ class SnarBenchmark(Experiment):
     
     Parameters
     ----------
-    noise_level_percent: float, optional
-        The mean of the random noise added to the concentration measurments in terms of 
+    noise_level: float, optional
+        The mean of the random noise added to the concentration measurements in terms of 
         percent of the signal. Default is 0.
 
 
@@ -35,11 +35,11 @@ class SnarBenchmark(Experiment):
     
     """
 
-    def __init__(self, noise_level_percent=0, **kwargs):
+    def __init__(self, noise_level=0, **kwargs):
         domain = self._setup_domain()
         super().__init__(domain)
         self.rng = np.random.default_rng()
-        self.noise_level = noise_level_percent
+        self.noise_level = noise_level
 
     def _setup_domain(self):
         domain = Domain()

@@ -6,10 +6,10 @@ from summit.utils.dataset import DataSet
 import numpy as np
 import os
 
-
-def test_snar_benchmark():
+@pytest.mark.parametrize('noise_level', [0.0, 2.5])
+def test_snar_benchmark(noise_level):
     """Test the SnAr benchmark"""
-    b = SnarBenchmark()
+    b = SnarBenchmark(noise_level=noise_level)
     columns = [v.name for v in b.domain.variables]
     values = {
         ("tau", "DATA"): 1.5,  # minutes
@@ -25,11 +25,14 @@ def test_snar_benchmark():
     assert float(results["equiv_pldn"]) == values[("equiv_pldn", "DATA")]
     assert float(results["conc_dfnb"]) == values[("conc_dfnb", "DATA")]
     assert float(results["temperature"]) == values[("temperature", "DATA")]
-    assert np.isclose(float(results["sty"]), 168.958672)
-    assert np.isclose(float(results["e_factor"]), 191.260294)
+    if noise_level == 0.0:
+        assert np.isclose(results["sty"].values[0], 168.958672)
+        assert np.isclose(results["e_factor"].values[0], 191.260294)
 
+    # Test serialization
     d = b.to_dict()
-    SnarBenchmark.from_dict(d)
+    new_b = SnarBenchmark.from_dict(d)
+    assert b.noise_level == noise_level
 
     return results
 
