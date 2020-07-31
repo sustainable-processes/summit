@@ -51,27 +51,54 @@ def test_runner_unit():
     assert r.experiment.data.shape[0] == int(batch_size * max_iterations)
 
 
-@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, TSEMO, NelderMead, Random, LHS])
+@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS])
+@pytest.mark.parametrize(
+    "experiment",
+    [
+        Himmelblau,
+        Hartmann3D,
+        ThreeHumpCamel,
+        BaumgartnerCrossCouplingEmulator,
+        BaumgartnerCrossCouplingDescriptorEmulator,
+    ],
+)
+def test_runner_so_integration(strategy, experiment):
+    exp = experiment()
+    s = strategy(exp.domain)
+
+    r = Runner(strategy=s, experiment=exp, max_iterations=1, batch_size=1)
+    r.run()
+
+    # Try saving and loading
+    r.save("test_save.json")
+    r.load("test_save.json")
+    os.remove("test_save.json")
+
+@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS, TSEMO])
 @pytest.mark.parametrize(
     "experiment",
     [
         SnarBenchmark,
-        Himmelblau,
-        Hartmann3D,
-        ThreeHumpCamel,
-        DTLZ2,
-        VLMOP2,
         ReizmanSuzukiEmulator,
-        BaumgartnerCrossCouplingEmulator,
-        BaumgartnerCrossCouplingDescriptorEmulator,
         BaumgartnerCrossCouplingEmulator_Yield_Cost,
+        DTLZ2,
+        VLMOP2
     ],
 )
-def test_runner_integration(strategy, experiment):
+def test_runner_so_integration(strategy, experiment):
     exp = experiment()
-    strategy = strategy(exp.domain)
 
-    r = Runner(strategy=strategy, experiment=exp, max_iterations=1, batch_size=1)
+    if experiment == ReizmanSuzukiEmulator and strategy not in [SOBO, GRYFFIN]:
+        # only run on strategies that work with categorical variables deireclty
+        return
+    elif strategy == TSEMO:
+        s = strategy(exp.domain)
+    else:
+        hierarchy = {v.name: {'hierarchy': 0, 'tolerance': 1} for v in exp.domain.output_variables}
+        transform = Chimera(exp.domain, hierarchy)
+        s = strategy(exp.domain, transform=transform)
+
+    r = Runner(strategy=s, experiment=exp, max_iterations=1, batch_size=1)
     r.run()
 
     # Try saving and loading
