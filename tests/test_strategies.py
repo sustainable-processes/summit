@@ -421,6 +421,9 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
 
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = NelderMead(hartmann3D.domain, x_start=x_start)
+    
+    strategy.save('nm_3d.json')
+    strategy_2 = NelderMead.load('nm_3d.json')
 
     initial_exp = None
     # Uncomment to create test case which results in reduction dimension and dimension recovery

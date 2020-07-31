@@ -215,10 +215,11 @@ class NelderMead(Strategy):
     def from_dict(cls, d):
         nm = super().from_dict(d)
         prev_param = d["strategy_params"]["prev_param"]
-        nm.prev_param = [
-            unjsonify_dict(prev_param[0]),
-            DataSet.from_dict(prev_param[1]),
-        ]
+        if prev_param is not None:
+            nm.prev_param = [
+                unjsonify_dict(prev_param[0]),
+                DataSet.from_dict(prev_param[1]),
+            ]
         return nm
 
     def inner_suggest_experiments(self, prev_res: DataSet = None, prev_param=None):
