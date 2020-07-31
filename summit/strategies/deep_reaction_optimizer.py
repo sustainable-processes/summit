@@ -73,6 +73,10 @@ class DRO(Strategy):
     def __init__(self, domain: Domain, transform: Transform=None, save_dir=None, pretrained_model_config_path=None, model_size="standard", **kwargs):
         Strategy.__init__(self, domain, transform)
 
+        import tensorflow as tf
+        if tf.__version__ != "1.13.1":
+            raise ImportError("Tensorflow version 1.13.1 needed for DRO, which is different than the versions needed for other strategies. We suggest using the docker container marcosfelt/summit:dro.")
+
         # Create directories to store temporary files
         summit_config_path = get_summit_config_path()
         self.uuid_val = uuid.uuid4()  # Unique identifier for this run
