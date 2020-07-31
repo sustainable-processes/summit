@@ -194,7 +194,6 @@ class PlotExperiments:
 
         return fig
 
-
     def plot_hv_trajectories(self, trajectory_length, 
                              reference=[-2957,10.7],
                              plot_type='matplotlib',
@@ -312,34 +311,83 @@ class PlotExperiments:
             final_text = final_text.rstrip('s')
         return final_text
 
-    def time_distribution(self,plot_type='matplotlib'):
-        # Create figure
-        if plot_type == 'matplotlib':
-            fig, ax = plt.subplots(1)
-        elif plot_type == 'plotly':
-            fig = go.Figure()
-        else:
-            raise ValueError(f"{plot_type} is not a valid plot type. Must be matplotlib or plotly.")
+    def averge_hv_bar_plot(self):
+        # Create figures
+        fig, ax = plt.subplots(1)
 
-        # Group experiment repeats
-        df = self.df.copy()
-        df = df.set_index("experiment_id")
-        uniques = df.drop_duplicates(keep="last")  # This actually groups them
+        # Get all strategies
+        strategies = self.df['strategy_name'].drop_duplicates()
+        strategies = strategies.sort_values(ascending=True)
         df_new = self.df.copy()
 
-
-        for index, unique in uniques.iterrows():
+        avg_times = []
+        std_times = []
+        labels = []
+        for strategy in strategies:
             # Find number of matching rows to this unique row
-            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
+            temp_df = df_new[df_new['strategy_name'] == strategy]
             ids = temp_df["experiment_id"].values
 
             times = np.zeros(len(ids))
+
             for i, experiment_id in enumerate(ids):
                 r = self.runners[experiment_id]
-                times[i] = r.experiment.data['computation_t'].to_numpy()
-
-            mean_time = np.mean(times)
+                times[i] = r.experiment.data['computation_t'].sum()
+            
+            times = np.array(times)/60 #convert to minutes
+            avg_time = np.mean(times)
             std_time = np.std(times)
+
+            avg_times.append(avg_time)
+            std_times.append(std_time)
+            labels.append(r.strategy.__class__.__name__)
+        
+        x = np.arange(0, len(avg_times))
+        c = hex_to_rgb("#a50026")
+        ax.bar(x, avg_times, yerr=std_times, tick_label=labels, color="#a50026")
+        ax.set_ylabel("Average Optimisation Time (minutes)")
+        ax.set_yscale('log')
+        plt.xticks(rotation=45)
+        return fig, ax
+
+    def averge_time_bar_plot(self):
+        # Create figures
+        fig, ax = plt.subplots(1)
+
+        # Get all strategies
+        strategies = self.df['strategy_name'].drop_duplicates()
+        strategies = strategies.sort_values(ascending=True)
+        df_new = self.df.copy()
+
+        avg_times = []
+        std_times = []
+        labels = []
+        for strategy in strategies:
+            # Find number of matching rows to this unique row
+            temp_df = df_new[df_new['strategy_name'] == strategy]
+            ids = temp_df["experiment_id"].values
+
+            times = np.zeros(len(ids))
+
+            for i, experiment_id in enumerate(ids):
+                r = self.runners[experiment_id]
+                times[i] = r.experiment.data['computation_t'].sum()
+            
+            times = np.array(times)/60 #convert to minutes
+            avg_time = np.mean(times)
+            std_time = np.std(times)
+
+            avg_times.append(avg_time)
+            std_times.append(std_time)
+            labels.append(r.strategy.__class__.__name__)
+        
+        x = np.arange(0, len(avg_times))
+        c = hex_to_rgb("#a50026")
+        ax.bar(x, avg_times, yerr=std_times, tick_label=labels, color="#a50026")
+        ax.set_ylabel("Average Optimisation Time (minutes)")
+        ax.set_yscale('log')
+        plt.xticks(rotation=45)
+        return fig, ax
 
     def iterations_to_threshold(self, sty_threshold=1e4, e_factor_threshold=10.0):
         # Group experiment repeats
