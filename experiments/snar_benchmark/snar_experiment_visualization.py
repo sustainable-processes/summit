@@ -134,6 +134,10 @@ class PlotExperiments:
             hv = hypervolume(y_front,ref=reference)
             record['terminal_hypervolume'] = hv
 
+            # Computation time
+            time = r.experiment.data['computation_t'].sum()
+            record['computation_t'] = time
+
             records.append(record)
 
         # Make pandas dataframe
@@ -311,83 +315,59 @@ class PlotExperiments:
             final_text = final_text.rstrip('s')
         return final_text
 
-    def averge_hv_bar_plot(self):
-        # Create figures
-        fig, ax = plt.subplots(1)
+    # def time_hv_bar_plot(self):
+    #     # Create figures
+    #     fig, ax = plt.subplots(1)
 
-        # Get all strategies
-        strategies = self.df['strategy_name'].drop_duplicates()
-        strategies = strategies.sort_values(ascending=True)
-        df_new = self.df.copy()
+    #     # Group experiment repeats
+    #     df = self.df.copy()
+    #     df = df.set_index("experiment_id")
+    #     df = df.drop(columns=['terminal_hypervolume'])
+    #     uniques = df.drop_duplicates(keep="last")  # This actually groups them
+    #     uniques = uniques.sort_values(["strategy_name", "transform_name"])
+    #     df_new = self.df.copy()
 
-        avg_times = []
-        std_times = []
-        labels = []
-        for strategy in strategies:
-            # Find number of matching rows to this unique row
-            temp_df = df_new[df_new['strategy_name'] == strategy]
-            ids = temp_df["experiment_id"].values
+    #     # Get all strategies
+    #     strategies = self.df["strategy_name"].drop_duplicates()
+    #     strategies = strategies.sort_values(ascending=True)
+    #     df_new = self.df.copy()
 
-            times = np.zeros(len(ids))
-
-            for i, experiment_id in enumerate(ids):
-                r = self.runners[experiment_id]
-                times[i] = r.experiment.data['computation_t'].sum()
+    #     avg_times = []
+    #     std_times = []
+    #     labels = []
+    #     for strategy in strategies:
+    #         # Find all unique combinations for this strategy
+    #         strategy_matches = uniques[uniques['strategy_name'] == strategy]
             
-            times = np.array(times)/60 #convert to minutes
-            avg_time = np.mean(times)
-            std_time = np.std(times)
+    #         # Find combination with maximum average terminal hyperovlume
+    #         for i, combo in strategy_matches.iterrows():
+                
+    #         ids = temp_df["experiment_id"].values
 
-            avg_times.append(avg_time)
-            std_times.append(std_time)
-            labels.append(r.strategy.__class__.__name__)
-        
-        x = np.arange(0, len(avg_times))
-        c = hex_to_rgb("#a50026")
-        ax.bar(x, avg_times, yerr=std_times, tick_label=labels, color="#a50026")
-        ax.set_ylabel("Average Optimisation Time (minutes)")
-        ax.set_yscale('log')
-        plt.xticks(rotation=45)
-        return fig, ax
-
-    def averge_time_bar_plot(self):
-        # Create figures
-        fig, ax = plt.subplots(1)
-
-        # Get all strategies
-        strategies = self.df['strategy_name'].drop_duplicates()
-        strategies = strategies.sort_values(ascending=True)
-        df_new = self.df.copy()
-
-        avg_times = []
-        std_times = []
-        labels = []
-        for strategy in strategies:
-            # Find number of matching rows to this unique row
-            temp_df = df_new[df_new['strategy_name'] == strategy]
-            ids = temp_df["experiment_id"].values
-
-            times = np.zeros(len(ids))
-
-            for i, experiment_id in enumerate(ids):
-                r = self.runners[experiment_id]
-                times[i] = r.experiment.data['computation_t'].sum()
+    #         hv_df = df.set_index('experiment_id')
             
-            times = np.array(times)/60 #convert to minutes
-            avg_time = np.mean(times)
-            std_time = np.std(times)
 
-            avg_times.append(avg_time)
-            std_times.append(std_time)
-            labels.append(r.strategy.__class__.__name__)
+    #         times = np.zeros(len(ids))
+
+    #         for i, experiment_id in enumerate(ids):
+    #             r = self.runners[experiment_id]
+    #             times[i] = r.experiment.data['computation_t'].sum()
+            
+    #         times = np.array(times)/60 #convert to minutes
+    #         avg_time = np.mean(times)
+    #         std_time = np.std(times)
+
+    #         avg_times.append(avg_time)
+    #         std_times.append(std_time)
+    #         labels.append(r.strategy.__class__.__name__)
         
-        x = np.arange(0, len(avg_times))
-        c = hex_to_rgb("#a50026")
-        ax.bar(x, avg_times, yerr=std_times, tick_label=labels, color="#a50026")
-        ax.set_ylabel("Average Optimisation Time (minutes)")
-        ax.set_yscale('log')
-        plt.xticks(rotation=45)
-        return fig, ax
+    #     x = np.arange(0, len(avg_times))
+    #     c = hex_to_rgb("#a50026")
+    #     ax.bar(x, avg_times, yerr=std_times, tick_label=labels, color="#a50026")
+    #     ax.set_ylabel("Average Optimisation Time (minutes)")
+    #     ax.set_yscale('log')
+    #     plt.xticks(rotation=45)
+    #     return fig, ax
 
     def iterations_to_threshold(self, sty_threshold=1e4, e_factor_threshold=10.0):
         # Group experiment repeats

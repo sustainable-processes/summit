@@ -10,7 +10,7 @@ homepage = "https://pypi.org/project/summit"
 keywords = []
 
 [tool.poetry.dependencies]
-pandas = "1.0.3"
+pandas = "^1.1.0"
 python = "^3.6.1"
 GPy = "^1.9"
 numpy = "1.18.0"
