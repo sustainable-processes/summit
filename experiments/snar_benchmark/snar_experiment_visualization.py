@@ -5,6 +5,8 @@ from neptune.sessions import Session, HostedNeptuneBackend
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import plotly.graph_objects as go
 import plotly.express as px
 
@@ -25,6 +27,24 @@ def flatten(d, parent_key="", sep="_"):
         else:
             items.append((new_key, v))
     return dict(items)
+
+
+colors = [
+    (165, 0, 38),
+    (215, 48, 39),
+    (244, 109, 67),
+    (253, 174, 97),
+    (254, 224, 144),
+    (255, 255, 191),
+    (224, 243, 248),
+    (171, 217, 233),
+    (116, 173, 209),
+    (69, 117, 180),
+    (49, 54, 149),
+]
+colors = np.array(colors)
+colors = colors / 256
+cmap = ListedColormap(colors)
 
 
 class PlotExperiments:
@@ -344,58 +364,74 @@ class PlotExperiments:
             final_text = final_text.rstrip("s")
         return final_text
 
-    # def time_hv_bar_plot(self):
-    #     # Create figures
-    #     fig, ax = plt.subplots(1)
+    def time_hv_bar_plot(self, ax=None):
+        df = self.df
 
-    #     # Group experiment repeats
-    #     df = self.df.copy()
-    #     df = df.set_index("experiment_id")
-    #     df = df.drop(columns=['terminal_hypervolume'])
-    #     uniques = df.drop_duplicates(keep="last")  # This actually groups them
-    #     uniques = uniques.sort_values(["strategy_name", "transform_name"])
-    #     df_new = self.df.copy()
-    #     df_new = df_new.set_index("experiment_id")
+        # Group repeats and take average
+        grouped_df = df.groupby(
+            by=[
+                "strategy_name",
+                "transform_name",
+                "sty_tolerance",
+                "e_factor_tolerance",
+                "batch_size",
+                "num_initial_experiments",
+            ],
+            dropna=False,
+        )
 
-    #     # Get all strategies
-    #     strategies = self.df["strategy_name"].drop_duplicates()
-    #     strategies = strategies.sort_values(ascending=True)
+        # Mean and std deviation
+        means = grouped_df.mean()
+        stds = grouped_df.std()
 
-    #     avg_times = []
-    #     std_times = []
-    #     labels = []
-    #     for strategy in strategies:
-    #         # Find all unique combinations for this strategy
-    #         strategy_matches = uniques[uniques['strategy_name'] == strategy]
+        # Find the maximum terminal hypervolume for each strategy
+        indices = means.groupby(by=["strategy_name"]).idxmax()["terminal_hypervolume"]
+        means = means.loc[indices]
+        stds = stds.loc[indices]
 
-    #         # Find combination with maximum average terminal hyperovlume
-    #         for i, combo in strategy_matches.iterrows():
-    #             df_new.
-    #         ids = temp_df["experiment_id"].values
+        # Ascending hypervolume
+        ordered_indices = means["terminal_hypervolume"].argsort()
+        means = means.iloc[ordered_indices]
+        stds = stds.iloc[ordered_indices]
 
-    #         hv_df = df.set_index('experiment_id')
+        # Convert to minutes
+        means["computation_t"] = means["computation_t"] / 60
+        stds["computation_t"] = stds["computation_t"] / 60
 
-    #         times = np.zeros(len(ids))
+        # Clip std deviations
+        stds["terminal_hypervolume"] = stds["terminal_hypervolume"].clip(
+            0, means["terminal_hypervolume"]
+        )
+        stds["computation_t"] = stds["computation_t"].clip(0, means["computation_t"])
 
-    #         for i, experiment_id in enumerate(ids):
-    #             r = self.runners[experiment_id]
-    #             times[i] = r.experiment.data['computation_t'].sum()
+        # Rename
+        rename = {
+            "terminal_hypervolume": "Terminal Hypervolume",
+            "computation_t": "Computation Time",
+        }
+        means = means.rename(columns=rename)
+        stds = stds.rename(columns=rename)
 
-    #         times = np.array(times)/60 #convert to minutes
-    #         avg_time = np.mean(times)
-    #         std_time = np.std(times)
+        # Bar plot
+        ax = means.plot(
+            kind="bar",
+            colormap=cmap,
+            y=["Terminal Hypervolume", "Computation Time"],
+            secondary_y="Computation Time",
+            yerr=stds,
+            capsize=4,
+            ax=ax,
+        )
+        ax.set_xticklabels(means.index.to_frame()["strategy_name"].values)
+        ax.set_xlabel("")
+        ax.right_ax.set_ylabel("Time (minutes)")
+        ax.right_ax.set_yscale("log")
+        ax.set_ylabel("Hypervolume")
+        plt.minorticks_off()
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45)
 
-    #         avg_times.append(avg_time)
-    #         std_times.append(std_time)
-    #         labels.append(r.strategy.__class__.__name__)
-
-    #     x = np.arange(0, len(avg_times))
-    #     c = hex_to_rgb("#a50026")
-    #     ax.bar(x, avg_times, yerr=std_times, tick_label=labels, color="#a50026")
-    #     ax.set_ylabel("Average Optimisation Time (minutes)")
-    #     ax.set_yscale('log')
-    #     plt.xticks(rotation=45)
-    #     return fig, ax
+        return ax
 
     def iterations_to_threshold(self, sty_threshold=1e4, e_factor_threshold=10.0):
         # Group experiment repeats
