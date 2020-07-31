@@ -151,7 +151,7 @@ class ExperimentalEmulator(Experiment):
         dataset = d["experiment_params"]["dataset"]
         d["experiment_params"]["dataset"] = DataSet.from_dict(dataset)
         exp = super().from_dict(d)
-        exp.output_models = d["experiment_params"]["output_models"]
+        exp.emulator.output_models = d["experiment_params"]["output_models"]
         return exp
 
 

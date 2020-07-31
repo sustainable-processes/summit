@@ -1,6 +1,7 @@
 import pytest
 from summit import NeptuneRunner, Runner, Strategy, Experiment
 from summit.strategies import *
+from summit.benchmarks import *
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
@@ -49,26 +50,25 @@ def test_runner_unit():
     assert r.strategy.iterations == max_iterations
     assert r.experiment.data.shape[0] == int(batch_size * max_iterations)
 
+
 @pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, TSEMO, NelderMead, Random, LHS])
-def test_runner_integration(strategy):
-    class MockExperiment(Experiment):
-        def __init__(self):
-            super().__init__(self.create_domain())
-
-        def create_domain(self):
-            domain = Domain()
-            domain += ContinuousVariable("x_1", description="", bounds=[0, 1])
-            domain += ContinuousVariable("x_2", description="", bounds=[0, 1])
-            domain += ContinuousVariable(
-                "y_1", description="", bounds=[0, 1], is_objective=True, maximize=True
-            )
-            return domain
-
-        def _run(self, conditions, **kwargs):
-            conditions[("y_1", "DATA")] = 0.5
-            return conditions, {}
-
-    exp = MockExperiment()
+@pytest.mark.parametrize(
+    "experiment",
+    [
+        SnarBenchmark,
+        Himmelblau,
+        Hartmann3D,
+        ThreeHumpCamel,
+        DTLZ2,
+        VLMOP2,
+        ReizmanSuzukiEmulator,
+        BaumgartnerCrossCouplingEmulator,
+        BaumgartnerCrossCouplingDescriptorEmulator,
+        BaumgartnerCrossCouplingEmulator_Yield_Cost,
+    ],
+)
+def test_runner_integration(strategy, experiment):
+    exp = experiment()
     strategy = strategy(exp.domain)
 
     r = Runner(strategy=strategy, experiment=exp, max_iterations=1, batch_size=1)

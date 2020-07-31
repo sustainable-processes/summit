@@ -37,7 +37,7 @@ class Himmelblau(Experiment):
     
     """
 
-    def __init__(self, constraints=False, maximize=False):
+    def __init__(self, constraints=False, maximize=False, **kwargs):
         self.constraints = constraints
         self.evaluated_points = []
         self.maximize = maximize
@@ -215,7 +215,7 @@ class Hartmann3D(Experiment):
 
     """
 
-    def __init__(self, constraints=False, maximize=False):
+    def __init__(self, constraints=False, maximize=False, **kwargs):
         self.constraints = constraints
         self.evaluated_points = []
 
@@ -419,7 +419,7 @@ class ThreeHumpCamel(Experiment):
 
     '''
 
-    def __init__(self, constraints=False, maximize=False):
+    def __init__(self, constraints=False, maximize=False, **kwargs):
         self.constraints = constraints
         self.evaluated_points = []
         self.maximize = maximize
@@ -569,7 +569,7 @@ class ThreeHumpCamel(Experiment):
             return ax
 
 class DTLZ2(Experiment):
-    def __init__(self, num_inputs=6, num_objectives=2):
+    def __init__(self, num_inputs=6, num_objectives=2, **kwargs):
         if num_objectives >= num_inputs:
             raise ValueError('Number of inputs must be greater than number of objectives.')
         self.nobjs = num_objectives
@@ -611,8 +611,9 @@ class DTLZ2(Experiment):
             conditions[(f'y_{i}', 'DATA')] = f[i]
         return conditions, {}
 
+
 class VLMOP2(Experiment):
-    def __init__(self,):
+    def __init__(self, **kwargs):
         domain = self._setup_domain(2, 2)
         self.nvars = 2
         self.nobjs = 2
