@@ -6,9 +6,11 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import matplotlib as mpl
 from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import plotly.graph_objects as go
 import plotly.express as px
+from pandas.plotting import parallel_coordinates
 
 import os
 import zipfile
@@ -29,7 +31,7 @@ def flatten(d, parent_key="", sep="_"):
     return dict(items)
 
 
-colors = [
+COLORS = [
     (165, 0, 38),
     (215, 48, 39),
     (244, 109, 67),
@@ -42,14 +44,18 @@ colors = [
     (69, 117, 180),
     (49, 54, 149),
 ]
-colors = np.array(colors)
-colors = colors / 256
-cmap = ListedColormap(colors)
+COLORS = np.array(COLORS) / 256
+CMAP = ListedColormap(COLORS)
 
 
 class PlotExperiments:
     def __init__(
-        self, project: str, experiment_ids: list, tag: list = None, state: list = None
+        self,
+        project: str,
+        experiment_ids: list,
+        tag: list = None,
+        state: list = None,
+        trajectory_length=50,
     ):
         self.session = Session(backend=HostedNeptuneBackend())
         self.proj = self.session.get_project(project)
@@ -57,6 +63,7 @@ class PlotExperiments:
         self.experiment_ids = experiment_ids
         self.tag = tag
         self.state = state
+        self.trajectory_length = trajectory_length
         self._restore_runners()
         self._create_param_df()
 
@@ -99,6 +106,9 @@ class PlotExperiments:
             path += "/output"
             files = os.listdir(path)
             files_json = [f for f in files if ".json" in f]
+            if len(files_json) == 0:
+                warnings.warn(f"{experiment.id} has no file attached.")
+                continue
 
             # Restore runner
             r = Runner.load(path + "/" + files_json[0])
@@ -148,12 +158,18 @@ class PlotExperiments:
             # Terminal hypervolume
             data = r.experiment.data[["sty", "e_factor"]].to_numpy()
             data[:, 0] *= -1  # make it a minimzation problem
-            y_front, _ = pareto_efficient(data, maximize=False)
+            y_front, _ = pareto_efficient(
+                data[: self.trajectory_length, :], maximize=False
+            )
             hv = hypervolume(y_front, ref=reference)
             record["terminal_hypervolume"] = hv
 
             # Computation time
-            time = r.experiment.data["computation_t"].sum()
+            time = (
+                r.experiment.data["computation_t"]
+                .iloc[0 : self.trajectory_length]
+                .sum()
+            )
             record["computation_t"] = time
 
             records.append(record)
@@ -179,7 +195,7 @@ class PlotExperiments:
         # Group experiment repeats
         df = self.df.copy()
         df = df.set_index("experiment_id")
-        df = df.drop(columns=["terminal_hypervolume"])
+        df = df.drop(columns=["terminal_hypervolume", "computation_t"])
         uniques = df.drop_duplicates(keep="last")  # This actually groups them
         uniques = uniques.sort_values(by=["strategy_name", "transform_name"])
         df_new = self.df.copy()
@@ -190,7 +206,7 @@ class PlotExperiments:
         fig = plt.figure(figsize=figsize)
         fig.subplots_adjust(wspace=0.2, hspace=0.5)
         i = 1
-        # Loop through groups of repeatss
+        # Loop through groups of repeats
         for index, unique in uniques.iterrows():
             # Find number of matching rows to this unique row
             temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
@@ -204,25 +220,28 @@ class PlotExperiments:
 
             # Create pareto plot
             ax = plt.subplot(nrows, ncols, i)
+            old_data = r.experiment._data.copy()
+            r.experiment._data = r.experiment.data.iloc[: self.trajectory_length, :]
             r.experiment.pareto_plot(ax=ax)
+            r.experiment._data = old_data
             title = self._create_label(unique)
             title = "\n".join(wrap(title, 30))
             ax.set_title(title)
             ax.set_xlabel(r"Space Time Yield ($kg \; m^{-3} h^{-1}$)")
             ax.set_ylabel("E-factor")
             ax.set_xlim(0, 1.2e4)
-            ax.set_ylim(0, 70)
+            ax.set_ylim(0, 300)
             i += 1
 
         return fig
 
     def plot_hv_trajectories(
         self,
-        trajectory_length,
         reference=[-2957, 10.7],
         plot_type="matplotlib",
         include_experiment_ids=False,
         min_terminal_hv_avg=0,
+        ax=None,
     ):
         """ Plot the hypervolume trajectories with repeats as 95% confidence interval
         
@@ -239,7 +258,10 @@ class PlotExperiments:
         """
         # Create figure
         if plot_type == "matplotlib":
-            fig, ax = plt.subplots(1)
+            if ax is not None:
+                fig = None
+            else:
+                fig, ax = plt.subplots(1)
         elif plot_type == "plotly":
             fig = go.Figure()
         else:
@@ -250,11 +272,14 @@ class PlotExperiments:
         # Group experiment repeats
         df = self.df.copy()
         df = df.set_index("experiment_id")
-        df = df.drop(columns=["terminal_hypervolume"])
+        df = df.drop(columns=["terminal_hypervolume", "computation_t"])
         uniques = df.drop_duplicates(keep="last")  # This actually groups them
         df_new = self.df.copy()
 
-        colors = px.colors.qualitative.Plotly
+        if plot_type == "plotly":
+            colors = px.colors.qualitative.Plotly
+        else:
+            colors = COLORS
         cycle = len(colors)
         c_num = 0
         self.hv = {}
@@ -264,12 +289,12 @@ class PlotExperiments:
             ids = temp_df["experiment_id"].values
 
             # Calculate hypervolume trajectories
-            hv_trajectories = np.zeros([trajectory_length, len(ids)])
+            hv_trajectories = np.zeros([self.trajectory_length, len(ids)])
             for j, experiment_id in enumerate(ids):
                 r = self.runners[experiment_id]
                 data = r.experiment.data[["sty", "e_factor"]].to_numpy()
                 data[:, 0] *= -1  # make it a minimzation problem
-                for i in range(trajectory_length):
+                for i in range(self.trajectory_length):
                     y_front, _ = pareto_efficient(data[0 : i + 1, :], maximize=False)
                     hv_trajectories[i, j] = hypervolume(y_front, ref=reference)
 
@@ -281,8 +306,9 @@ class PlotExperiments:
                 continue
 
             # Update plot
-            t = np.arange(1, trajectory_length + 1)
-            label = self._create_label(unique)
+            t = np.arange(1, self.trajectory_length + 1)
+            # label = self._create_label(unique)
+            label = unique["strategy_name"]
             if include_experiment_ids:
                 label += f" ({ids[0]}-{ids[-1]})"
 
@@ -290,8 +316,8 @@ class PlotExperiments:
             lower = np.clip(lower, 0, None)
             upper = hv_mean_trajectory + 1.96 * hv_std_trajectory
             if plot_type == "matplotlib":
-                ax.plot(t, hv_mean_trajectory, label=label)
-                ax.fill_between(t, lower, upper, alpha=0.1)
+                ax.plot(t, hv_mean_trajectory, label=label, color=colors[c_num])
+                ax.fill_between(t, lower, upper, alpha=0.1, color=colors[c_num])
             elif plot_type == "plotly":
                 r, g, b = hex_to_rgb(colors[c_num])
                 color = lambda alpha: f"rgba({r},{g},{b},{alpha})"
@@ -331,17 +357,22 @@ class PlotExperiments:
                 )
             if cycle == c_num + 1:
                 c_num = 0
-            else:
+            elif plot_type == "plotly":
                 c_num += 1
+            elif plot_type == "matplotlib":
+                c_num += 2
 
         # Plot formattting
         if plot_type == "matplotlib":
             ax.set_xlabel("Experiments")
             ax.set_ylabel("Hypervolume")
-            legend = ax.legend(loc=(1.2, 0.5))
+            legend = ax.legend(loc="upper left")
             ax.tick_params(direction="in")
-            ax.set_xlim(1, trajectory_length)
-            return fig, ax, legend
+            ax.set_xlim(1, self.trajectory_length)
+            if fig is None:
+                return ax, legend
+            else:
+                return fig, ax, legend
         elif plot_type == "plotly":
             fig.update_layout(
                 xaxis=dict(title="Experiments"), yaxis=dict(title="Hypervolume")
@@ -394,20 +425,22 @@ class PlotExperiments:
         means = means.iloc[ordered_indices]
         stds = stds.iloc[ordered_indices]
 
-        # Convert to minutes
-        means["computation_t"] = means["computation_t"] / 60
-        stds["computation_t"] = stds["computation_t"] / 60
+        # Convert to per iteration
+        means["computation_t_iter"] = means["computation_t"] / self.trajectory_length
+        stds["computation_t_iter"] = stds["computation_t"] / self.trajectory_length
 
         # Clip std deviations
         stds["terminal_hypervolume"] = stds["terminal_hypervolume"].clip(
             0, means["terminal_hypervolume"]
         )
-        stds["computation_t"] = stds["computation_t"].clip(0, means["computation_t"])
+        stds["computation_t_iter"] = stds["computation_t_iter"].clip(
+            0, means["computation_t_iter"]
+        )
 
         # Rename
         rename = {
-            "terminal_hypervolume": "Terminal Hypervolume",
-            "computation_t": "Computation Time",
+            "terminal_hypervolume": "Terminal hypervolume",
+            "computation_t_iter": "Computation time per iteration",
         }
         means = means.rename(columns=rename)
         stds = stds.rename(columns=rename)
@@ -415,16 +448,18 @@ class PlotExperiments:
         # Bar plot
         ax = means.plot(
             kind="bar",
-            colormap=cmap,
-            y=["Terminal Hypervolume", "Computation Time"],
-            secondary_y="Computation Time",
+            colormap=CMAP,
+            y=["Terminal hypervolume", "Computation time per iteration"],
+            secondary_y="Computation time per iteration",
             yerr=stds,
             capsize=4,
+            mark_right=False,
             ax=ax,
+            alpha=0.9,
         )
         ax.set_xticklabels(means.index.to_frame()["strategy_name"].values)
         ax.set_xlabel("")
-        ax.right_ax.set_ylabel("Time (minutes)")
+        ax.right_ax.set_ylabel("Time (seconds)")
         ax.right_ax.set_yscale("log")
         ax.set_ylabel("Hypervolume")
         plt.minorticks_off()
@@ -432,6 +467,82 @@ class PlotExperiments:
             tick.set_rotation(45)
 
         return ax
+
+    def parallel_plot(self, experiment_id, ax=None):
+        # Get data
+        r = self.runners[experiment_id]
+        data = r.experiment.data
+        labels = [
+            "Conc. 4",
+            "Equiv. 5",
+            "Temperature",
+            r"$\tau$",
+            "E-factor",
+            "STY",
+        ]
+        columns = [
+            "conc_dfnb",
+            "equiv_pldn",
+            "temperature",
+            "tau",
+            "e_factor",
+            "sty",
+        ]
+        data = data[columns]
+
+        # Standardize data
+        mins = data.min().to_numpy()
+        maxs = data.max().to_numpy()
+        data_std = (data - mins) / (maxs - mins)
+        data_std["experiments"] = np.arange(1, data_std.shape[0] + 1)
+
+        # Creat plot
+        if ax is not None:
+            fig = None
+        else:
+            fig, ax = plt.subplots(1, figsize=(10, 5))
+
+        # color map
+        new_colors = np.flip(COLORS, axis=0)
+        new_cmap = ListedColormap(new_colors[5:])
+
+        # Plot data
+        parallel_coordinates(
+            data_std,
+            "experiments",
+            cols=columns,
+            colormap=new_cmap,
+            axvlines=False,
+            alpha=0.4,
+        )
+
+        # Format plot (colorbar, labels, etc.)
+        bounds = np.linspace(1, data_std.shape[0] + 1, 6)
+        bounds = bounds.astype(int)
+        cax, _ = mpl.colorbar.make_axes(ax)
+        cb = mpl.colorbar.ColorbarBase(
+            cax,
+            cmap=new_cmap,
+            spacing="proportional",
+            ticks=bounds,
+            boundaries=bounds,
+            label="Number of Experiments",
+        )
+        title = r.strategy.__class__.__name__
+        ax.set_title(title)
+        ax.set_xticklabels(labels)
+        for side in ["left", "right", "top", "bottom"]:
+            ax.spines[side].set_visible(False)
+        ax.grid(alpha=0.5, axis="both")
+        ax.tick_params(length=0)
+        ax.get_legend().remove()
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45)
+
+        if fig is None:
+            return ax
+        else:
+            return fig, ax
 
     def iterations_to_threshold(self, sty_threshold=1e4, e_factor_threshold=10.0):
         # Group experiment repeats
