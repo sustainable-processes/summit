@@ -65,7 +65,7 @@ class Himmelblau(Experiment):
         domain += ContinuousVariable(
             name="y",
             description=des_3,
-            bounds=[-1000, 1000],
+            bounds=[-1000, 0],
             is_objective=True,
             maximize=self.maximize,
         )
@@ -194,6 +194,7 @@ class Himmelblau(Experiment):
         else:
             return ax
 
+
 class Hartmann3D(Experiment):
     """ Hartmann test function (3D) for testing optimization algorithms
 
@@ -245,7 +246,7 @@ class Hartmann3D(Experiment):
         domain += ContinuousVariable(
             name="y",
             description=des_4,
-            bounds=[-1000, 1000],
+            bounds=[-3.9, 0],
             is_objective=True,
             maximize=self.maximize,
         )
@@ -399,7 +400,7 @@ class Hartmann3D(Experiment):
 
 
 class ThreeHumpCamel(Experiment):
-    ''' Three-Hump Camel function (2D) for testing optimization algorithms
+    """ Three-Hump Camel function (2D) for testing optimization algorithms
 
     Virtual experiment corresponds to a function evaluation.
 
@@ -417,7 +418,7 @@ class ThreeHumpCamel(Experiment):
     -----
     This function is taken from https://www.sfu.ca/~ssurjano/camel3.html.
 
-    '''
+    """
 
     def __init__(self, constraints=False, maximize=False, **kwargs):
         self.constraints = constraints
@@ -425,9 +426,9 @@ class ThreeHumpCamel(Experiment):
         self.maximize = maximize
 
         if self.maximize:
-            self.equation = '-(2*x_1**2 - 1.05*x_1**4 + (x_1**6)/6 + x_1*x_2 + x_2**2)'
+            self.equation = "-(2*x_1**2 - 1.05*x_1**4 + (x_1**6)/6 + x_1*x_2 + x_2**2)"
         else:
-            self.equation = '2*x_1**2 - 1.05*x_1**4 + (x_1**6)/6 + x_1*x_2 + x_2**2'
+            self.equation = "2*x_1**2 - 1.05*x_1**4 + (x_1**6)/6 + x_1*x_2 + x_2**2"
 
         domain = self._setup_domain()
         super().__init__(domain)
@@ -437,22 +438,20 @@ class ThreeHumpCamel(Experiment):
 
         # Decision variables
         des_1 = "Input 1"
-        domain += ContinuousVariable(name='x_1',
-                                     description=des_1,
-                                     bounds=[-2, 2])
+        domain += ContinuousVariable(name="x_1", description=des_1, bounds=[-2, 2])
 
         des_2 = "Input 2"
-        domain += ContinuousVariable(name='x_2',
-                                     description=des_2,
-                                     bounds=[-2, 2])
+        domain += ContinuousVariable(name="x_2", description=des_2, bounds=[-2, 2])
 
         # Objectives
-        des_3 = 'Function value'
-        domain += ContinuousVariable(name='y',
-                                     description=des_3,
-                                     bounds=[-1000, 1000],
-                                     is_objective=True,
-                                     maximize=self.maximize)
+        des_3 = "Function value"
+        domain += ContinuousVariable(
+            name="y",
+            description=des_3,
+            bounds=[-1000, 1000],
+            is_objective=True,
+            maximize=self.maximize,
+        )
 
         if self.constraints:
             domain += Constraint(lhs="x_1+x_2+7", constraint_type=">=")
@@ -461,10 +460,10 @@ class ThreeHumpCamel(Experiment):
         return domain
 
     def _run(self, conditions, **kwargs):
-        x_1 = float(conditions['x_1'])
-        x_2 = float(conditions['x_2'])
+        x_1 = float(conditions["x_1"])
+        x_2 = float(conditions["x_2"])
         y = eval(self.equation)
-        conditions[('y', 'DATA')] = y
+        conditions[("y", "DATA")] = y
 
         # save evaluated points for plotting
         self.evaluated_points.append([x_1, x_2])
@@ -520,29 +519,47 @@ class ThreeHumpCamel(Experiment):
         bounds_x_1 = self.domain.__getitem__("x_1").bounds
         bounds_x_2 = self.domain.__getitem__("x_2").bounds
         expand_bounds = 1
-        plt.axis([bounds_x_1[0] - expand_bounds, bounds_x_1[1] + expand_bounds,
-                  bounds_x_2[0] - expand_bounds, bounds_x_2[1] + expand_bounds])
+        plt.axis(
+            [
+                bounds_x_1[0] - expand_bounds,
+                bounds_x_1[1] + expand_bounds,
+                bounds_x_2[0] - expand_bounds,
+                bounds_x_2[1] + expand_bounds,
+            ]
+        )
 
-        ax.axvline(x=bounds_x_1[0], color='k', linestyle='--')
-        ax.axhline(y=bounds_x_2[0], color='k', linestyle='--')
-        ax.axvline(x=bounds_x_1[1], color='k', linestyle='--')
-        ax.axhline(y=bounds_x_2[1], color='k', linestyle='--')
+        ax.axvline(x=bounds_x_1[0], color="k", linestyle="--")
+        ax.axhline(y=bounds_x_2[0], color="k", linestyle="--")
+        ax.axvline(x=bounds_x_1[1], color="k", linestyle="--")
+        ax.axhline(y=bounds_x_2[1], color="k", linestyle="--")
 
         # plot contour
-        xlist = np.linspace(bounds_x_1[0] - expand_bounds, bounds_x_1[1] + expand_bounds, 1000)
-        ylist = np.linspace(bounds_x_2[0] - expand_bounds, bounds_x_2[1] + expand_bounds, 1000)
+        xlist = np.linspace(
+            bounds_x_1[0] - expand_bounds, bounds_x_1[1] + expand_bounds, 1000
+        )
+        ylist = np.linspace(
+            bounds_x_2[0] - expand_bounds, bounds_x_2[1] + expand_bounds, 1000
+        )
         x_1, x_2 = np.meshgrid(xlist, ylist)
         if self.maximize:
-            z = eval('-' + self.equation)
+            z = eval("-" + self.equation)
         else:
             z = eval(self.equation)
-        ax.contour(x_1, x_2, z, levels=np.logspace(-2, 1, 20, base=10), cmap='Spectral', norm=Colors.LogNorm(), alpha=0.6)
+        ax.contour(
+            x_1,
+            x_2,
+            z,
+            levels=np.logspace(-2, 1, 20, base=10),
+            cmap="Spectral",
+            norm=Colors.LogNorm(),
+            alpha=0.6,
+        )
 
         # plot evaluated and extra points with enumeration
         for c in range(len(points)):
             tmp_x_1, tmp_x_2 = points[c][0], points[c][1]
             ax.scatter(tmp_x_1, tmp_x_2)
-            ax.text(tmp_x_1 + .01, tmp_x_2 + .01, c + 1, fontsize=7)
+            ax.text(tmp_x_1 + 0.01, tmp_x_2 + 0.01, c + 1, fontsize=7)
 
         # plot constraints
         if len(self.domain.constraints) > 0:
@@ -551,16 +568,16 @@ class ThreeHumpCamel(Experiment):
             x_1, x_2 = np.meshgrid(x, y)
             for c in self.domain.constraints:
                 z = eval(c.lhs)
-                ax.contour(x_1, x_2, z, [0], colors='grey', linestyles='dashed')
+                ax.contour(x_1, x_2, z, [0], colors="grey", linestyles="dashed")
 
         # plot polygons
         if polygons:
             patches = []
             for i in range(len(polygons)):
-                polygon_obj = Polygon(polygons[i], True, hatch='x')
+                polygon_obj = Polygon(polygons[i], True, hatch="x")
                 patches.append(polygon_obj)
 
-            p = PatchCollection(patches, facecolors="None", edgecolors='grey', alpha=1)
+            p = PatchCollection(patches, facecolors="None", edgecolors="grey", alpha=1)
             ax.add_collection(p)
 
         if return_fig:
@@ -568,47 +585,59 @@ class ThreeHumpCamel(Experiment):
         else:
             return ax
 
+
 class DTLZ2(Experiment):
     def __init__(self, num_inputs=6, num_objectives=2, **kwargs):
         if num_objectives >= num_inputs:
-            raise ValueError('Number of inputs must be greater than number of objectives.')
+            raise ValueError(
+                "Number of inputs must be greater than number of objectives."
+            )
         self.nobjs = num_objectives
         self.nvars = num_inputs
         domain = self._setup_domain(self.nobjs, self.nvars)
         super().__init__(domain)
 
     def _setup_domain(self, nobjs, nvars):
-        variables = [ContinuousVariable(f'x_{i}', 
-                                        f'Decision variable {i}', 
-                                        bounds=[0, 1.0])
-                      for i in range(nvars)]
-        variables += [ContinuousVariable(f'y_{i}', 
-                                         f'Objective {i}', 
-                                         bounds=[0, 1.0],
-                                         is_objective=True,
-                                         maximize=False)
-                      for i in range(nobjs)]
+        variables = [
+            ContinuousVariable(f"x_{i}", f"Decision variable {i}", bounds=[0, 1.0])
+            for i in range(nvars)
+        ]
+        variables += [
+            ContinuousVariable(
+                f"y_{i}",
+                f"Objective {i}",
+                bounds=[0, 1.0],
+                is_objective=True,
+                maximize=False,
+            )
+            for i in range(nobjs)
+        ]
         return Domain(variables)
 
     def _run(self, conditions, **kwargs):
-        #Convert from dataframe
-        x = conditions[[f'x_{i}' for i in range(self.nvars)]]
+        # Convert from dataframe
+        x = conditions[[f"x_{i}" for i in range(self.nvars)]]
         x = x.to_numpy().astype(np.float64)
         x = np.atleast_2d(x)
 
-        nobjs=self.nobjs
+        nobjs = self.nobjs
         """Copied from DEAP"""
         """https://github.com/DEAP/deap/blob/master/deap/benchmarks/__init__.py"""
         for individual in x:
-            xc = individual[:nobjs-1]
-            xm = individual[nobjs-1:]
-            g = sum((xi-0.5)**2 for xi in xm)
-            f = [(1.0+g) *  reduce(mul, (cos(0.5*xi*pi) for xi in xc), 1.0)]
-            f.extend((1.0+g) * reduce(mul, (cos(0.5*xi*pi) for xi in xc[:m]), 1) * sin(0.5*xc[m]*pi) for m in range(nobjs-2, -1, -1))
-        
-        #Convert to dataset
+            xc = individual[: nobjs - 1]
+            xm = individual[nobjs - 1 :]
+            g = sum((xi - 0.5) ** 2 for xi in xm)
+            f = [(1.0 + g) * reduce(mul, (cos(0.5 * xi * pi) for xi in xc), 1.0)]
+            f.extend(
+                (1.0 + g)
+                * reduce(mul, (cos(0.5 * xi * pi) for xi in xc[:m]), 1)
+                * sin(0.5 * xc[m] * pi)
+                for m in range(nobjs - 2, -1, -1)
+            )
+
+        # Convert to dataset
         for i in range(nobjs):
-            conditions[(f'y_{i}', 'DATA')] = f[i]
+            conditions[(f"y_{i}", "DATA")] = f[i]
         return conditions, {}
 
 
@@ -620,24 +649,28 @@ class VLMOP2(Experiment):
         super().__init__(domain)
 
     def _setup_domain(self, nobjs, nvars):
-        variables = [ContinuousVariable(f'x_{i}', 
-                                        f'Decision variable {i}', 
-                                        bounds=[-2, 2])
-                      for i in range(nvars)]
-        variables += [ContinuousVariable(f'y_{i}', 
-                                         f'Objective {i}', 
-                                         bounds=[-2, 2],
-                                         is_objective=True,
-                                         maximize=False)
-                      for i in range(nobjs)]
+        variables = [
+            ContinuousVariable(f"x_{i}", f"Decision variable {i}", bounds=[-2, 2])
+            for i in range(nvars)
+        ]
+        variables += [
+            ContinuousVariable(
+                f"y_{i}",
+                f"Objective {i}",
+                bounds=[-2, 2],
+                is_objective=True,
+                maximize=False,
+            )
+            for i in range(nobjs)
+        ]
         return Domain(variables)
 
     def _run(self, conditions, **kwargs):
-        #Convert from dataframe
-        x = conditions[[f'x_{i}' for i in range(self.nvars)]]
+        # Convert from dataframe
+        x = conditions[[f"x_{i}" for i in range(self.nvars)]]
         x = x.to_numpy().astype(np.float64)
         x = np.atleast_2d(x)
-        
+
         transl = 1 / np.sqrt(2)
         part1 = (x[:, [0]] - transl) ** 2 + (x[:, [1]] - transl) ** 2
         part2 = (x[:, [0]] + transl) ** 2 + (x[:, [1]] + transl) ** 2
@@ -645,7 +678,7 @@ class VLMOP2(Experiment):
         y2 = 1 - np.exp(-1 * part2)
         f = np.hstack((y1, y2))
 
-        #Convert to dataset
+        # Convert to dataset
         for i in range(self.nobjs):
-            conditions[(f'y_{i}', 'DATA')] = f[:, i][0]
+            conditions[(f"y_{i}", "DATA")] = f[:, i][0]
         return conditions, {}

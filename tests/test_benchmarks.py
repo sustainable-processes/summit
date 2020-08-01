@@ -1,12 +1,21 @@
 import pytest
 from summit.strategies import Strategy
 from summit.experiment import Experiment
-from summit.benchmarks import SnarBenchmark,DTLZ2, Hartmann3D, Himmelblau, ThreeHumpCamel, ReizmanSuzukiEmulator, BaumgartnerCrossCouplingEmulator
+from summit.benchmarks import (
+    SnarBenchmark,
+    DTLZ2,
+    Hartmann3D,
+    Himmelblau,
+    ThreeHumpCamel,
+    ReizmanSuzukiEmulator,
+    BaumgartnerCrossCouplingEmulator,
+)
 from summit.utils.dataset import DataSet
 import numpy as np
 import os
 
-@pytest.mark.parametrize('noise_level', [0.0, 2.5])
+
+@pytest.mark.parametrize("noise_level", [0.0, 2.5])
 def test_snar_benchmark(noise_level):
     """Test the SnAr benchmark"""
     b = SnarBenchmark(noise_level=noise_level)
@@ -64,15 +73,15 @@ def test_baumgartner_CC_emulator():
 
     return results
 
-@pytest.mark.parametrize('num_inputs', [6])
+
+@pytest.mark.parametrize("num_inputs", [6])
 def test_dltz2_benchmark(num_inputs):
     """Test the DTLZ2 benchmark"""
-    b = DTLZ2(num_inputs=num_inputs,
-              num_objectives=2)
-    values = {(f'x_{i}', 'DATA'): [0.5] for  i in range(num_inputs)}
+    b = DTLZ2(num_inputs=num_inputs, num_objectives=2)
+    values = {(f"x_{i}", "DATA"): [0.5] for i in range(num_inputs)}
     ds = DataSet(values)
     b.run_experiments(ds)
     data = b.data
-    assert np.isclose(data['y_0'].iloc[0], 0.7071)
-    assert np.isclose(data['y_1'].iloc[0], 0.7071)
+    assert np.isclose(data["y_0"].iloc[0], 0.7071)
+    assert np.isclose(data["y_1"].iloc[0], 0.7071)
 

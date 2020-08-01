@@ -226,13 +226,14 @@ class MultitoSingleObjective(Transform):
         self.expression = expression
 
         # Replace objectives in transform domain
+        # TODO: maybe there should be an option to define the bounds (important for DRO)
         for v in objectives:
             i = self.transform_domain.variables.index(v)
             self.transform_domain.variables.pop(i)
         self.transform_domain += ContinuousVariable(
             "scalar_objective",
             description=expression,
-            bounds=[-np.inf, np.inf],
+            bounds=[0, 1],
             is_objective=True,
             maximize=maximize,
         )

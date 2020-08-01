@@ -177,6 +177,137 @@ class PlotExperiments:
         # Make pandas dataframe
         self.df = pd.DataFrame.from_records(records)
         return self.df
+    
+    def plot_hv_trajectories(self, trajectory_length, 
+                             reference=[-2957,10.7],
+                             plot_type='matplotlib',
+                             include_experiment_ids=False):
+        """ Plot the hypervolume trajectories with repeats as 95% confidence interval
+        
+        Parameters
+        ----------
+        reference : array-like, optional
+            Reference for the hypervolume calculation. Defaults to -2957, 10.7
+        plot_type : str, optional
+            Plotting backend to use: matplotlib or plotly. Defaults to matplotlib.
+        include_experiment_ids : bool, optional
+            Whether to include experiment ids in the plot labels
+        """
+        # Create figure
+        if plot_type == 'matplotlib':
+            fig, ax = plt.subplots(1)
+        elif plot_type == 'plotly':
+            fig = go.Figure()
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type. Must be matplotlib or plotly.")
+
+        # Group experiment repeats
+        df = self.df.copy()
+        df = df.set_index("experiment_id")
+        uniques = df.drop_duplicates(keep="last")  # This actually groups them
+        df_new = self.df.copy()
+
+        colors = px.colors.qualitative.Plotly
+        cycle = len(colors)
+        c_num = 0
+        for index, unique in uniques.iterrows():
+            # Find number of matching rows to this unique row
+            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
+            ids = temp_df["experiment_id"].values
+
+            # Calculate hypervolume trajectories
+            hv_trajectories = np.zeros([trajectory_length, len(ids)])
+            for j, experiment_id in enumerate(ids):
+                r = self.runners[experiment_id]
+                data = r.experiment.data[['sty', 'e_factor']].to_numpy()
+                data[:, 0] *= -1 # make it a minimzation problem
+                for i in range(trajectory_length):
+                    y_front, _ = pareto_efficient(data[0:i+1, :], maximize=False)
+                    hv_trajectories[i, j] = hypervolume(y_front,ref=reference)
+            
+            # Mean and standard deviation
+            hv_mean_trajectory = np.mean(hv_trajectories, axis=1)
+            hv_std_trajectory = np.std(hv_trajectories, axis=1)
+
+            # Update plot
+            t = np.arange(1, trajectory_length+1)
+            label=self._create_label(unique) + f"Experiment {ids[0]}-{ids[-1]}"
+            
+            if plot_type == 'matplotlib':
+                ax.plot(t, hv_mean_trajectory, label=label)
+                ax.fill_between(t, 
+                        hv_mean_trajectory-1.96*hv_std_trajectory,
+                        hv_mean_trajectory+1.96*hv_std_trajectory,
+                        alpha=0.1)
+            elif plot_type == 'plotly':
+                r, g, b = hex_to_rgb(colors[c_num])
+                color = lambda alpha: f"rgba({r},{g},{b},{alpha})"
+                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory,
+                                         mode='lines', name=label, 
+                                         line=dict(color=color(1)),
+                                         legendgroup=label))
+                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory-1.96*hv_std_trajectory,
+                                         mode='lines', fill='tonexty', 
+                                         line=dict(width=0),
+                                         fillcolor=color(0.1),
+                                         showlegend=False,
+                                         legendgroup=label))
+                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory+1.96*hv_std_trajectory,
+                                         mode='lines', fill='tonexty', 
+                                         line=dict(width=0),
+                                         fillcolor=color(0.1),
+                                         showlegend=False,
+                                         legendgroup=label))
+            if cycle == c_num+1:
+                c_num=0
+            else:
+                c_num+=1
+
+        # Plot formattting
+        if plot_type == 'matplotlib':
+            ax.set_xlabel('Iterrations')
+            ax.set_ylabel('Hypervolume')
+            ax.legend(loc=(1.2,0.5))
+            return fig, ax
+        elif plot_type == 'plotly':
+            fig.update_layout(xaxis=dict(title='Iterations'), yaxis=dict(title='Hypervolume'))
+            return fig
+
+    def _create_label(self, unique):
+        transform_text = unique['transform_name']
+        chimera_params = f" (STY tol.={unique['sty_tolerance']}, E-factor tol.={unique['e_factor_tolerance']})"
+        transform_text += chimera_params if unique['transform_name'] == "Chimera" else ""
+
+        return f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
+
+    def time_distribution(self,plot_type='matplotlib'):
+        # Create figure
+        if plot_type == 'matplotlib':
+            fig, ax = plt.subplots(1)
+        elif plot_type == 'plotly':
+            fig = go.Figure()
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type. Must be matplotlib or plotly.")
+
+        # Group experiment repeats
+        df = self.df.copy()
+        df = df.set_index("experiment_id")
+        uniques = df.drop_duplicates(keep="last")  # This actually groups them
+        df_new = self.df.copy()
+
+
+        for index, unique in uniques.iterrows():
+            # Find number of matching rows to this unique row
+            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
+            ids = temp_df["experiment_id"].values
+
+            times = np.zeros(len(ids))
+            for i, experiment_id in enumerate(ids):
+                r = self.runners[experiment_id]
+                times[i] = r.experiment.data['computation_t'].to_numpy()
+
+            mean_time = np.mean(times)
+            std_time = np.std(times)
 
     def best_pareto_grid(self, ncols=3, figsize=(20, 40)):
         """Make a grid of pareto plots
@@ -560,7 +691,6 @@ class PlotExperiments:
             # Find number of matching rows to each unique row
             temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
             ids = temp_df["experiment_id"].values
-
             # Number of iterations calculation
             num_iterations = []
             something_happens = False

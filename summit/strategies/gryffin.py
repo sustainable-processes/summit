@@ -14,7 +14,8 @@ import copy
 import pickle
 import uuid
 import pathlib
-        
+
+
 class GRYFFIN(Strategy):
     """ Gryffin strategy
     
@@ -92,10 +93,25 @@ class GRYFFIN(Strategy):
 
     """
 
-    def __init__(self, domain, transform=None, save_dir=None, auto_desc_gen=False, sampling_strategies=4,
-                 batches=1, logging=-1, parallel=True, boosted=True, sampler="uniform", softness=0.001,
-                 continuous_optimizer="adam", categorical_optimizer="naive", discrete_optimizer="naive", **kwargs):
-        kwargs.update({'transform_descriptors':False})
+    def __init__(
+        self,
+        domain,
+        transform=None,
+        save_dir=None,
+        auto_desc_gen=False,
+        sampling_strategies=4,
+        batches=1,
+        logging=-1,
+        parallel=True,
+        boosted=True,
+        sampler="uniform",
+        softness=0.001,
+        continuous_optimizer="adam",
+        categorical_optimizer="naive",
+        discrete_optimizer="naive",
+        **kwargs,
+    ):
+        kwargs.update({"transform_descriptors": False})
         Strategy.__init__(self, domain, transform=transform, **kwargs)
 
         self.domain_inputs = []
@@ -123,7 +139,11 @@ class GRYFFIN(Strategy):
                         }
                     )
                 elif v.variable_type == "categorical":
-                    descriptors = [v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index] if v.ds is not None else None
+                    descriptors = (
+                        [v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index]
+                        if v.ds is not None
+                        else None
+                    )
                     self.domain_inputs.append(
                         {
                             "name": v.name,
@@ -131,7 +151,9 @@ class GRYFFIN(Strategy):
                             "size": 1,
                             "levels": v.levels,
                             "descriptors": descriptors,
-                            "category_details": str(tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"),
+                            "category_details": str(
+                                tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"
+                            ),
                         }
                     )
                 elif v.variable_type == "descriptors":
@@ -141,26 +163,29 @@ class GRYFFIN(Strategy):
                             "type": "categorical",
                             "size": 1,
                             "levels": [l for l in v.ds.index],
-                            "descriptors": [v.ds.loc[[l],:].values[0].tolist() for l in v.ds.index],
-                            "category_details": str(tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"),
+                            "descriptors": [
+                                v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index
+                            ],
+                            "category_details": str(
+                                tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"
+                            ),
                         }
                     )
                 else:
-                    raise TypeError("Unknown variable type: {}.".format(v.variable_type))
+                    raise TypeError(
+                        "Unknown variable type: {}.".format(v.variable_type)
+                    )
             else:
                 self.domain_objectives.append(
-                    {
-                        "name": v.name,
-                        "goal": "minimize",
-                    }
+                    {"name": v.name, "goal": "minimize",}
                 )
 
         # TODO: how does GRYFFIN handle constraints?
         if self.domain.constraints != []:
             raise NotImplementedError("Gryffin can not handle constraints yet.")
             # keep SOBO constraint wrapping for later application when gryffin adds constraint handling
-            #constraints = self.constr_wrapper(self.domain)
-            #self.constraints = [{"name": "constr_" + str(i),
+            # constraints = self.constr_wrapper(self.domain)
+            # self.constraints = [{"name": "constr_" + str(i),
             #                     "constraint": c[0] if c[1] in ["<=", "<"] else "(" + c[0] + ")*(-1)"}
             #                    for i,c in enumerate(constraints) if not (c[1] == "==")]
         else:
@@ -180,23 +205,20 @@ class GRYFFIN(Strategy):
                 "continuous_optimizer": continuous_optimizer,
                 "categorical_optimizer": categorical_optimizer,
                 "discrete_optimizer": discrete_optimizer,
-                'verbosity': {
-                    'default': logging,
-                    'bayesian_network': logging,
-                    'random_sampler': logging,
-                }
+                "verbosity": {
+                    "default": logging,
+                    "bayesian_network": logging,
+                    "random_sampler": logging,
+                },
             },
-            "database": {
-                'format': 'pickle',
-                "path": str(tmp_dir / "SearchProgress"),
-            },
+            "database": {"format": "pickle", "path": str(tmp_dir / "SearchProgress"),},
             "parameters": self.domain_inputs,
             "objectives": self.domain_objectives,
         }
 
         config_file = "config.json"
         config_file_path = tmp_dir / config_file
-        with open(config_file_path, 'w') as configfile:
+        with open(config_file_path, "w") as configfile:
             json.dump(config_dict, configfile, indent=2)
 
         # write categories
@@ -206,9 +228,7 @@ class GRYFFIN(Strategy):
         # initialize gryffin
         self.gryffin = Gryffin(config_file_path)
 
-
-    def suggest_experiments(self,
-                            prev_res: DataSet=None, **kwargs):
+    def suggest_experiments(self, prev_res: DataSet = None, **kwargs):
         """ Suggest experiments using Gryffin optimization strategy
         
         Parameters
@@ -239,22 +259,29 @@ class GRYFFIN(Strategy):
         obj = self.domain.output_variables[0]
         fbest = float("inf")
 
-
         # Suggest random initial design
         if prev_res is None:
-            request = self.gryffin.recommend(observations = [])
+            request = self.gryffin.recommend(observations=[])
         else:
             # Get inputs and outputs
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, transform_descriptors=False)
+            inputs, outputs = self.transform.transform_inputs_outputs(
+                prev_res, transform_descriptors=False
+            )
 
             # Set up maximization and minimization by converting maximization to minimization problem
             for v in self.domain.variables:
                 if v.is_objective and v.maximize:
                     outputs[v.name] = -1 * outputs[v.name]
 
-            inputs_dict = inputs.to_dict(orient='records')
-            outputs_dict = outputs.to_dict(orient='records')
-            prev_samples = [{**{k1[0]: [v1] for k1, v1 in inputs_dict[i].items()}, **{k2[0]: v2 for k2, v2 in outputs_dict[i].items()}} for i in range(len(inputs_dict))]
+            inputs_dict = inputs.to_dict(orient="records")
+            outputs_dict = outputs.to_dict(orient="records")
+            prev_samples = [
+                {
+                    **{k1[0]: [v1] for k1, v1 in inputs_dict[i].items()},
+                    **{k2[0]: v2 for k2, v2 in outputs_dict[i].items()},
+                }
+                for i in range(len(inputs_dict))
+            ]
 
             observations = []
             if self.prev_param is not None:
@@ -267,12 +294,11 @@ class GRYFFIN(Strategy):
             for obs in observations:
                 if obs[obj.name] < fbest:
                     fbest = obs[obj.name]
-                    xbest = np.asarray([v[0] for k, v in obs.items() if k!=obj.name])
-
+                    xbest = np.asarray([v[0] for k, v in obs.items() if k != obj.name])
 
         # Generate DataSet object with variable values of next
         next_experiments = None
-        if request is not None and len(request)!=0:
+        if request is not None and len(request) != 0:
             next_experiments = {}
             for k in request[0].keys():
                 next_experiments[k] = [r[k][0] for r in request]
@@ -287,7 +313,9 @@ class GRYFFIN(Strategy):
         self.prev_param = param
 
         # Do any necessary transformation back
-        next_experiments = self.transform.un_transform(next_experiments, transform_descriptors=False)
+        next_experiments = self.transform.un_transform(
+            next_experiments, transform_descriptors=False
+        )
 
         return next_experiments
 
@@ -312,7 +340,7 @@ class GRYFFIN(Strategy):
         return gryffin
 
     # TODO: update constraint wrapper when Gryffin can handle constraints
-    ''' 
+    """ 
     def constr_wrapper(self, summit_domain):
         v_input_names = [v.name for v in summit_domain.variables if not v.is_objective]
         gpyopt_constraints = []
@@ -323,7 +351,8 @@ class GRYFFIN(Strategy):
                 tmp_c = tmp_c.replace(v_input_name, v_gpyopt_name)
             gpyopt_constraints.append([tmp_c, c.constraint_type])
         return gpyopt_constraints
-    '''
+    """
+
 
 class CategoryWriter(object):
     """ Category Writer for Gryffin (adapted from https://github.com/aspuru-guzik-group/gryffin)
@@ -344,7 +373,11 @@ class CategoryWriter(object):
     """
 
     def __init__(self, inputs):
-        self.cat_inputs = [[ent["name"], ent["levels"], ent["descriptors"]] for ent in inputs if ent["type"] == "categorical"]
+        self.cat_inputs = [
+            [ent["name"], ent["levels"], ent["descriptors"]]
+            for ent in inputs
+            if ent["type"] == "categorical"
+        ]
 
     def write_categories(self, save_dir):
         """ Writes categories to pkl file
@@ -358,18 +391,21 @@ class CategoryWriter(object):
 
             opt_list = []
             for opt in range(len(param_opt)):
-                #TODO: descriptors all the same?
+                # TODO: descriptors all the same?
                 if param_descr is not None:
                     descriptors = np.array(param_descr[opt])
-                    opt_dict = {'name': param_opt[opt], 'descriptors': descriptors}
+                    opt_dict = {"name": param_opt[opt], "descriptors": descriptors}
                 else:
-                    opt_dict = {'name': param_opt[opt]}
+                    opt_dict = {"name": param_opt[opt]}
                 opt_list.append(copy.deepcopy(opt_dict))
 
             # create cat_details dir if necessary
-            if not os.path.isdir('%s/CatDetails' % save_dir):
-                os.mkdir('%s/CatDetails' % save_dir)
+            if not os.path.isdir("%s/CatDetails" % save_dir):
+                os.mkdir("%s/CatDetails" % save_dir)
 
-            cat_details_file = '%s/CatDetails/cat_details_%s.pkl' % (save_dir, param_name)
-            pickle.dump(opt_list, open(cat_details_file, 'wb'))
+            cat_details_file = "%s/CatDetails/cat_details_%s.pkl" % (
+                save_dir,
+                param_name,
+            )
+            pickle.dump(opt_list, open(cat_details_file, "wb"))
 

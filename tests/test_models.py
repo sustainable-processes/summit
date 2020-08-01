@@ -1,7 +1,7 @@
-#import pytest
-#from summit.utils.models import GPyModel
-#import matplotlib.pyplot as plt
-#import numpy as np
+# import pytest
+# from summit.utils.models import GPyModel
+# import matplotlib.pyplot as plt
+# import numpy as np
 
 # Add back in once fixed GPyModel
 
@@ -17,5 +17,4 @@
 #     mae_pred = np.mean(np.abs(predict_Y[:,0]-Y[:,0]))
 #     assert mae_sample < 0.1
 #     assert mae_pred < 0.1
-
 

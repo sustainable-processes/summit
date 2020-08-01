@@ -46,10 +46,13 @@ class Random(Strategy):
     
     """
 
-    def __init__(self, domain: Domain, 
-                 transform: Transform = None,
-                 random_state: np.random.RandomState = None,
-                 **kwargs):
+    def __init__(
+        self,
+        domain: Domain,
+        transform: Transform = None,
+        random_state: np.random.RandomState = None,
+        **kwargs,
+    ):
         super().__init__(domain, transform, **kwargs)
         self._rstate = random_state if random_state else np.random.RandomState()
 
@@ -107,6 +110,7 @@ class Random(Strategy):
         indices.shape = (num_samples, 1)
         return indices, values
 
+
 class LHS(Strategy):
     """ Latin hypercube sampling (LHS) strategy for experiment suggestion
 
@@ -137,9 +141,12 @@ class LHS(Strategy):
     4           75.0       0.38       0.22      LHS
     """
 
-    def __init__(self, domain: Domain, 
-                transform: Transform = None,
-                random_state: np.random.RandomState = None):
+    def __init__(
+        self,
+        domain: Domain,
+        transform: Transform = None,
+        random_state: np.random.RandomState = None,
+    ):
         super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
 
@@ -207,12 +214,17 @@ class LHS(Strategy):
                 k += 1
 
             # For categorical variable with no descriptors, randomly choose
-            elif isinstance(variable, CategoricalVariable) and variable.name in categoricals:
-                indices, values = rdesigner._random_categorical(variable, num_experiments)
+            elif (
+                isinstance(variable, CategoricalVariable)
+                and variable.name in categoricals
+            ):
+                indices, values = rdesigner._random_categorical(
+                    variable, num_experiments
+                )
                 design.insert(design.shape[1], variable.name, values)
 
             # For categorical variable with descriptors, look in descriptors space
-            # The untransform method at the end should find the closest point by euclidean distance. 
+            # The untransform method at the end should find the closest point by euclidean distance.
             elif isinstance(variable, CategoricalVariable) and variable.ds is not None:
                 num_descriptors = variable.num_descriptors
                 values = samples[:, k : k + num_descriptors]
@@ -237,7 +249,7 @@ class LHS(Strategy):
                 # Add each descriptors
                 names = variable.ds.columns.levels[0].to_list()
                 for i in range(num_descriptors):
-                    design.insert(design.shape[1], names[i], values_scaled[:,i])
+                    design.insert(design.shape[1], names[i], values_scaled[:, i])
             else:
                 raise DomainError(
                     f"Variable {variable} is not one of the possible variable types (continuous or categorical)."
@@ -247,6 +259,7 @@ class LHS(Strategy):
         design = DataSet.from_df(design)
         design[("strategy", "METADATA")] = "LHS"
         return self.transform.un_transform(design, transform_descriptors=True)
+
 
 """
 The lhs code was copied from pyDoE and was originally published by 

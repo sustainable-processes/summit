@@ -11,46 +11,50 @@ except ImportError:
 
 import os.path
 
-readme = ''
+readme = ""
 here = os.path.abspath(os.path.dirname(__file__))
-readme_path = os.path.join(here, 'README.md')
+readme_path = os.path.join(here, "README.md")
 if os.path.exists(readme_path):
-    with open(readme_path, 'r', encoding='utf8') as stream:
+    with open(readme_path, "r", encoding="utf8") as stream:
         readme = stream.read()
 
 requirements = []
-requirements_path = os.path.join(here, 'requirements.txt')
+requirements_path = os.path.join(here, "requirements.txt")
 if os.path.exists(requirements_path):
-    with open(requirements_path, 'r', encoding='utf8') as stream:
+    with open(requirements_path, "r", encoding="utf8") as stream:
         requirements = stream.read().splitlines()
 
 extras_requiremetns = []
 extras_requirements = []
-requirements_path = os.path.join(here, 'experiments_requirements.txt')
+requirements_path = os.path.join(here, "experiments_requirements.txt")
 if os.path.exists(requirements_path):
-    with open(requirements_path, 'r', encoding='utf8') as stream:
+    with open(requirements_path, "r", encoding="utf8") as stream:
         extras_requirements = stream.read().splitlines()
 
 setup(
     long_description=readme,
-    name='summit',
-    version='0.4.0',
-    description='Tools for optimizing chemical processes',
-    python_requires='==3.*,>=3.6.1',
+    name="summit",
+    version="0.4.0",
+    description="Tools for optimizing chemical processes",
+    python_requires="==3.*,>=3.6.1",
     project_urls={
-        'homepage': 'https://pypi.org/project/summit',
-        'repository': 'https://github.com/sustainable-processes/summit'
+        "homepage": "https://pypi.org/project/summit",
+        "repository": "https://github.com/sustainable-processes/summit",
     },
-    author='Kobi Felton, Jan Rittig',
-    author_email='kobi.c.f@gmail.com',
+    author="Kobi Felton, Jan Rittig",
+    author_email="kobi.c.f@gmail.com",
     packages=[
-        'summit', 'summit.benchmarks', 'summit.benchmarks.experiment_emulator',
-        'summit.strategies', 'summit.utils'
+        "summit",
+        "summit.benchmarks",
+        "summit.benchmarks.experiment_emulator",
+        "summit.strategies",
+        "summit.utils",
     ],
     package_data={
-        'summit.benchmarks.experiment_emulator': [
-            'trained_models/BNN/*.json','trained_models/BNN/*.pt',
-            'data/*.csv'
+        "summit.benchmarks.experiment_emulator": [
+            "trained_models/BNN/*.json",
+            "trained_models/BNN/*.pt",
+            "data/*.csv",
         ]
     },
     install_requires=requirements,

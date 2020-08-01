@@ -74,7 +74,10 @@ def test_runner_so_integration(strategy, experiment):
     r.load("test_save.json")
     os.remove("test_save.json")
 
-@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS, TSEMO])
+
+@pytest.mark.parametrize(
+    "strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS, TSEMO]
+)
 @pytest.mark.parametrize(
     "experiment",
     [
@@ -82,7 +85,7 @@ def test_runner_so_integration(strategy, experiment):
         ReizmanSuzukiEmulator,
         BaumgartnerCrossCouplingEmulator_Yield_Cost,
         DTLZ2,
-        VLMOP2
+        VLMOP2,
     ],
 )
 def test_runner_so_integration(strategy, experiment):
@@ -94,7 +97,10 @@ def test_runner_so_integration(strategy, experiment):
     elif strategy == TSEMO:
         s = strategy(exp.domain)
     else:
-        hierarchy = {v.name: {'hierarchy': 0, 'tolerance': 1} for v in exp.domain.output_variables}
+        hierarchy = {
+            v.name: {"hierarchy": 0, "tolerance": 1}
+            for v in exp.domain.output_variables
+        }
         transform = Chimera(exp.domain, hierarchy)
         s = strategy(exp.domain, transform=transform)
 
