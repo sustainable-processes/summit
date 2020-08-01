@@ -1,8 +1,9 @@
 """ SnAr Experiment Base Script
 
-Run this with pytest: `pytest snar_experiment_base.py``
+Run this with pytest: `pytest test_snar_experiment.py``
 
-You need to have your Neptune API token as an environmental variable.
+You need to have your Neptune API token as an environmental variable,
+SSH_USER and SSH_PASSWORD should be set if you want to use SlurmRunner.
 
 """
 import pytest
@@ -102,7 +103,7 @@ def test_snar_experiment(strategy, transform):
             max_restarts = 0
 
         exp_name = f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = NeptuneRunner(
+        r = SlurmRunner(
             experiment=experiment,
             strategy=s,
             docker_container="marcosfelt/summit:cn_benchmark",

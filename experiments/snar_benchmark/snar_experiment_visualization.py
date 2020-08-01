@@ -177,11 +177,14 @@ class PlotExperiments:
         # Make pandas dataframe
         self.df = pd.DataFrame.from_records(records)
         return self.df
-    
-    def plot_hv_trajectories(self, trajectory_length, 
-                             reference=[-2957,10.7],
-                             plot_type='matplotlib',
-                             include_experiment_ids=False):
+
+    def plot_hv_trajectories(
+        self,
+        trajectory_length,
+        reference=[-2957, 10.7],
+        plot_type="matplotlib",
+        include_experiment_ids=False,
+    ):
         """ Plot the hypervolume trajectories with repeats as 95% confidence interval
         
         Parameters
@@ -194,12 +197,14 @@ class PlotExperiments:
             Whether to include experiment ids in the plot labels
         """
         # Create figure
-        if plot_type == 'matplotlib':
+        if plot_type == "matplotlib":
             fig, ax = plt.subplots(1)
-        elif plot_type == 'plotly':
+        elif plot_type == "plotly":
             fig = go.Figure()
         else:
-            raise ValueError(f"{plot_type} is not a valid plot type. Must be matplotlib or plotly.")
+            raise ValueError(
+                f"{plot_type} is not a valid plot type. Must be matplotlib or plotly."
+            )
 
         # Group experiment repeats
         df = self.df.copy()
@@ -219,82 +224,107 @@ class PlotExperiments:
             hv_trajectories = np.zeros([trajectory_length, len(ids)])
             for j, experiment_id in enumerate(ids):
                 r = self.runners[experiment_id]
-                data = r.experiment.data[['sty', 'e_factor']].to_numpy()
-                data[:, 0] *= -1 # make it a minimzation problem
+                data = r.experiment.data[["sty", "e_factor"]].to_numpy()
+                data[:, 0] *= -1  # make it a minimzation problem
                 for i in range(trajectory_length):
-                    y_front, _ = pareto_efficient(data[0:i+1, :], maximize=False)
-                    hv_trajectories[i, j] = hypervolume(y_front,ref=reference)
-            
+                    y_front, _ = pareto_efficient(data[0 : i + 1, :], maximize=False)
+                    hv_trajectories[i, j] = hypervolume(y_front, ref=reference)
+
             # Mean and standard deviation
             hv_mean_trajectory = np.mean(hv_trajectories, axis=1)
             hv_std_trajectory = np.std(hv_trajectories, axis=1)
 
             # Update plot
-            t = np.arange(1, trajectory_length+1)
-            label=self._create_label(unique) + f"Experiment {ids[0]}-{ids[-1]}"
-            
-            if plot_type == 'matplotlib':
+            t = np.arange(1, trajectory_length + 1)
+            label = self._create_label(unique) + f"Experiment {ids[0]}-{ids[-1]}"
+
+            if plot_type == "matplotlib":
                 ax.plot(t, hv_mean_trajectory, label=label)
-                ax.fill_between(t, 
-                        hv_mean_trajectory-1.96*hv_std_trajectory,
-                        hv_mean_trajectory+1.96*hv_std_trajectory,
-                        alpha=0.1)
-            elif plot_type == 'plotly':
+                ax.fill_between(
+                    t,
+                    hv_mean_trajectory - 1.96 * hv_std_trajectory,
+                    hv_mean_trajectory + 1.96 * hv_std_trajectory,
+                    alpha=0.1,
+                )
+            elif plot_type == "plotly":
                 r, g, b = hex_to_rgb(colors[c_num])
                 color = lambda alpha: f"rgba({r},{g},{b},{alpha})"
-                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory,
-                                         mode='lines', name=label, 
-                                         line=dict(color=color(1)),
-                                         legendgroup=label))
-                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory-1.96*hv_std_trajectory,
-                                         mode='lines', fill='tonexty', 
-                                         line=dict(width=0),
-                                         fillcolor=color(0.1),
-                                         showlegend=False,
-                                         legendgroup=label))
-                fig.add_trace(go.Scatter(x=t, y=hv_mean_trajectory+1.96*hv_std_trajectory,
-                                         mode='lines', fill='tonexty', 
-                                         line=dict(width=0),
-                                         fillcolor=color(0.1),
-                                         showlegend=False,
-                                         legendgroup=label))
-            if cycle == c_num+1:
-                c_num=0
+                fig.add_trace(
+                    go.Scatter(
+                        x=t,
+                        y=hv_mean_trajectory,
+                        mode="lines",
+                        name=label,
+                        line=dict(color=color(1)),
+                        legendgroup=label,
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=t,
+                        y=hv_mean_trajectory - 1.96 * hv_std_trajectory,
+                        mode="lines",
+                        fill="tonexty",
+                        line=dict(width=0),
+                        fillcolor=color(0.1),
+                        showlegend=False,
+                        legendgroup=label,
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=t,
+                        y=hv_mean_trajectory + 1.96 * hv_std_trajectory,
+                        mode="lines",
+                        fill="tonexty",
+                        line=dict(width=0),
+                        fillcolor=color(0.1),
+                        showlegend=False,
+                        legendgroup=label,
+                    )
+                )
+            if cycle == c_num + 1:
+                c_num = 0
             else:
-                c_num+=1
+                c_num += 1
 
         # Plot formattting
-        if plot_type == 'matplotlib':
-            ax.set_xlabel('Iterrations')
-            ax.set_ylabel('Hypervolume')
-            ax.legend(loc=(1.2,0.5))
+        if plot_type == "matplotlib":
+            ax.set_xlabel("Iterrations")
+            ax.set_ylabel("Hypervolume")
+            ax.legend(loc=(1.2, 0.5))
             return fig, ax
-        elif plot_type == 'plotly':
-            fig.update_layout(xaxis=dict(title='Iterations'), yaxis=dict(title='Hypervolume'))
+        elif plot_type == "plotly":
+            fig.update_layout(
+                xaxis=dict(title="Iterations"), yaxis=dict(title="Hypervolume")
+            )
             return fig
 
     def _create_label(self, unique):
-        transform_text = unique['transform_name']
+        transform_text = unique["transform_name"]
         chimera_params = f" (STY tol.={unique['sty_tolerance']}, E-factor tol.={unique['e_factor_tolerance']})"
-        transform_text += chimera_params if unique['transform_name'] == "Chimera" else ""
+        transform_text += (
+            chimera_params if unique["transform_name"] == "Chimera" else ""
+        )
 
         return f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
 
-    def time_distribution(self,plot_type='matplotlib'):
+    def time_distribution(self, plot_type="matplotlib"):
         # Create figure
-        if plot_type == 'matplotlib':
+        if plot_type == "matplotlib":
             fig, ax = plt.subplots(1)
-        elif plot_type == 'plotly':
+        elif plot_type == "plotly":
             fig = go.Figure()
         else:
-            raise ValueError(f"{plot_type} is not a valid plot type. Must be matplotlib or plotly.")
+            raise ValueError(
+                f"{plot_type} is not a valid plot type. Must be matplotlib or plotly."
+            )
 
         # Group experiment repeats
         df = self.df.copy()
         df = df.set_index("experiment_id")
         uniques = df.drop_duplicates(keep="last")  # This actually groups them
         df_new = self.df.copy()
-
 
         for index, unique in uniques.iterrows():
             # Find number of matching rows to this unique row
@@ -304,7 +334,7 @@ class PlotExperiments:
             times = np.zeros(len(ids))
             for i, experiment_id in enumerate(ids):
                 r = self.runners[experiment_id]
-                times[i] = r.experiment.data['computation_t'].to_numpy()
+                times[i] = r.experiment.data["computation_t"].to_numpy()
 
             mean_time = np.mean(times)
             std_time = np.std(times)
@@ -360,8 +390,9 @@ class PlotExperiments:
             ax.set_title(title)
             ax.set_xlabel(r"Space Time Yield ($kg \; m^{-3} h^{-1}$)")
             ax.set_ylabel("E-factor")
-            ax.set_xlim(0, 1.2e4)
-            ax.set_ylim(0, 300)
+            ax.set_xlim(0.0, float(1.2e4))
+            ax.set_ylim(0.0, 300.0)
+            ax.ticklabel_format(axis="x", style="scientific")
             i += 1
 
         return fig
@@ -439,7 +470,16 @@ class PlotExperiments:
             # Update plot
             t = np.arange(1, self.trajectory_length + 1)
             # label = self._create_label(unique)
-            label = unique["strategy_name"]
+            transform = unique["transform_name"]
+            if transform == "MultitoSingleObjective":
+                transform = "Custom"
+
+            label = (
+                f"""{unique["strategy_name"]} ({transform})"""
+                if transform is not "Transform"
+                else f"""{unique["strategy_name"]}"""
+            )
+
             if include_experiment_ids:
                 label += f" ({ids[0]}-{ids[-1]})"
 
@@ -588,7 +628,19 @@ class PlotExperiments:
             ax=ax,
             alpha=0.9,
         )
-        ax.set_xticklabels(means.index.to_frame()["strategy_name"].values)
+        strategy_names = means.index.to_frame()["strategy_name"].values
+        transform_names = means.index.to_frame()["transform_name"].values
+        for i, t in enumerate(transform_names):
+            if t == "Transform":
+                transform_names[i] = ""
+            elif t == "MultitoSingleObjective":
+                transform_names[i] = "Custom"
+        ax.set_xticklabels(
+            [
+                f"{s} \n ({t})" if t is not "" else f"{s}"
+                for s, t in zip(strategy_names, transform_names)
+            ]
+        )
         ax.set_xlabel("")
         ax.right_ax.set_ylabel("Time (seconds)")
         ax.right_ax.set_yscale("log")

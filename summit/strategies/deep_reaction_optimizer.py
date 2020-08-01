@@ -83,7 +83,7 @@ class DRO(Strategy):
 
         import tensorflow as tf
 
-        if tf.__version__ != "1.13.1" and not IGNORE_TF:
+        if tf.__version__ != "1.13.1" and not IGNORE_CHEMOPT:
             raise ImportError(
                 "Tensorflow version 1.13.1 needed for DRO, which is different than the versions needed for other strategies. We suggest using the docker container marcosfelt/summit:dro."
             )
