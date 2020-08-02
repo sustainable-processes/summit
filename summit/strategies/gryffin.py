@@ -23,6 +23,10 @@ class GRYFFIN(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The Summit domain describing the optimization problem.
+    use_descriptors: bool, optional
+        Whether descriptors of categorical variables are used. If not,
+        auto_desc_gen must be True when categorical variables are used.
+        Default is True.
     auto_desc_gen: Boolean, optional
         Whether Dynamic Gryffin is used if descriptors are provided,
         i.e., Gryffin applies automatic descriptor generation,
@@ -126,6 +130,7 @@ class GRYFFIN(Strategy):
             os.makedirs(tmp_dir)
 
         # Parse Summit domain to Gryffin domain
+        self.use_descriptors = kwargs.get("use_descriptors", True)
         for v in self.domain.variables:
             if not v.is_objective:
                 if v.variable_type == "continuous":
@@ -139,11 +144,12 @@ class GRYFFIN(Strategy):
                         }
                     )
                 elif v.variable_type == "categorical":
-                    descriptors = (
-                        [v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index]
-                        if v.ds is not None
-                        else None
-                    )
+                    if v.ds is not None and self.use_descriptors:
+                        descriptors = [
+                            v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index
+                        ]
+                    else:
+                        descriptors = None
                     self.domain_inputs.append(
                         {
                             "name": v.name,
@@ -151,21 +157,6 @@ class GRYFFIN(Strategy):
                             "size": 1,
                             "levels": v.levels,
                             "descriptors": descriptors,
-                            "category_details": str(
-                                tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"
-                            ),
-                        }
-                    )
-                elif v.variable_type == "descriptors":
-                    self.domain_inputs.append(
-                        {
-                            "name": v.name,
-                            "type": "categorical",
-                            "size": 1,
-                            "levels": [l for l in v.ds.index],
-                            "descriptors": [
-                                v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index
-                            ],
                             "category_details": str(
                                 tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"
                             ),
