@@ -46,11 +46,14 @@ class Random(Strategy):
     
     """
 
-    def __init__(self, domain: Domain, 
-                 transform: Transform = None,
-                 random_state: np.random.RandomState = None,
-                 ):
-        super().__init__(domain, transform)
+    def __init__(
+        self,
+        domain: Domain,
+        transform: Transform = None,
+        random_state: np.random.RandomState = None,
+        **kwargs,
+    ):
+        super().__init__(domain, transform, **kwargs)
         self._rstate = random_state if random_state else np.random.RandomState()
 
     def suggest_experiments(self, num_experiments: int, **kwargs) -> DataSet:
@@ -85,7 +88,8 @@ class Random(Strategy):
 
         ds = design.to_dataset()
         ds[("strategy", "METADATA")] = "Random"
-        return ds
+
+        return self.transform.un_transform(ds, transform_descriptors=False)
 
     def _random_continuous(
         self, variable: ContinuousVariable, num_samples: int
@@ -105,6 +109,7 @@ class Random(Strategy):
         values.shape = (num_samples, 1)
         indices.shape = (num_samples, 1)
         return indices, values
+
 
 class LHS(Strategy):
     """ Latin hypercube sampling (LHS) strategy for experiment suggestion
@@ -136,9 +141,12 @@ class LHS(Strategy):
     4           75.0       0.38       0.22      LHS
     """
 
-    def __init__(self, domain: Domain, 
-                transform: Transform = None,
-                random_state: np.random.RandomState = None):
+    def __init__(
+        self,
+        domain: Domain,
+        transform: Transform = None,
+        random_state: np.random.RandomState = None,
+    ):
         super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
 
@@ -165,16 +173,20 @@ class LHS(Strategy):
         ds
             A `Dataset` object with the random design
         """
-        design = Design(self.domain, num_experiments, "Latin design", exclude=exclude)
+        # design = Design(self.domain, num_experiments, "Latin design", exclude=exclude)
+        design = pd.DataFrame()
 
         # Instantiate the random design class to be used with categorical variables with no descriptors
         rdesigner = Random(self.domain, random_state=self._rstate)
 
+        # Get categorical variables without descriptors
         categoricals = []
         for v in self.domain.input_variables:
             if isinstance(v, CategoricalVariable):
                 if v.ds is None:
                     categoricals.append(v.name)
+
+        # Sampling
         n = self.domain.num_continuous_dimensions(include_descriptors=True)
         if len(categoricals) < n:
             samples = lhs(
@@ -183,9 +195,11 @@ class LHS(Strategy):
                 criterion=criterion,
                 random_state=self._rstate,
             )
+        else:
+            raise ValueError("Need sufficient number of variables")
 
-        design.lhs = samples
         k = 0
+        columns = []
         for variable in self.domain.input_variables:
             if variable.name in exclude:
                 continue
@@ -196,23 +210,26 @@ class LHS(Strategy):
                 values = b + samples[:, k] * (
                     variable.upper_bound - variable.lower_bound
                 )
-                values = np.atleast_2d(values)
-                indices = None
+                design.insert(design.shape[1], variable.name, values)
                 k += 1
 
             # For categorical variable with no descriptors, randomly choose
-            elif isinstance(variable, CategoricalVariable) and variable.name in categoricals:
-                indices, values = rdesigner._random_categorical(variable, num_experiments)
+            elif (
+                isinstance(variable, CategoricalVariable)
+                and variable.name in categoricals
+            ):
+                indices, values = rdesigner._random_categorical(
+                    variable, num_experiments
+                )
+                design.insert(design.shape[1], variable.name, values)
 
-            # For categorical variable with descriptors, choose closest point by euclidean distance
+            # For categorical variable with descriptors, look in descriptors space
+            # The untransform method at the end should find the closest point by euclidean distance.
             elif isinstance(variable, CategoricalVariable) and variable.ds is not None:
                 num_descriptors = variable.num_descriptors
-                normal_arr = variable.ds.zero_to_one()
-                indices = _closest_point_indices(
-                    samples[:, k : k + num_descriptors], normal_arr, unique=unique
-                )
+                values = samples[:, k : k + num_descriptors]
 
-                values = normal_arr[indices[:, 0], :]
+                # Scaling
                 var_min = (
                     variable.ds.loc[:, variable.ds.data_columns].min(axis=0).to_numpy()
                 )
@@ -222,20 +239,27 @@ class LHS(Strategy):
                 )
                 var_max = np.atleast_2d(var_max)
                 var_range = var_max - var_min
+
+                # Rescale
                 values_scaled = var_min + values * var_range
                 values = values_scaled
                 values.shape = (num_experiments, num_descriptors)
                 k += num_descriptors
 
+                # Add each descriptors
+                names = variable.ds.columns.levels[0].to_list()
+                for i in range(num_descriptors):
+                    design.insert(design.shape[1], names[i], values_scaled[:, i])
             else:
                 raise DomainError(
                     f"Variable {variable} is not one of the possible variable types (continuous or categorical)."
                 )
 
-            design.add_variable(variable.name, values, indices=indices)
-        ds = design.to_dataset()
-        ds[("strategy", "METADATA")] = "LHS"
-        return ds
+            # design.add_variable(variable.name, values, indices=indices)
+        design = DataSet.from_df(design)
+        design[("strategy", "METADATA")] = "LHS"
+        return self.transform.un_transform(design, transform_descriptors=True)
+
 
 """
 The lhs code was copied from pyDoE and was originally published by 

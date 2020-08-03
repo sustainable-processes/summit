@@ -5,4 +5,5 @@ from .experimental_emulator import (
     ReizmanSuzukiEmulator,
     BaumgartnerCrossCouplingEmulator,
     BaumgartnerCrossCouplingDescriptorEmulator,
+    BaumgartnerCrossCouplingEmulator_Yield_Cost,
 )

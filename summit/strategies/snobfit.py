@@ -1,5 +1,5 @@
 from .base import Strategy, Transform
-from summit.domain import Domain
+from summit.domain import *
 from summit.utils.dataset import DataSet
 
 from SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
@@ -106,7 +106,9 @@ class SNOBFIT(Strategy):
             A `Dataset` object with the suggested experiments by SNOBFIT algorithm
             
         """
-
+        silence_warnings = kwargs.get('silence_warnings', True)
+        if silence_warnings:
+            warnings.filterwarnings('ignore', category=DeprecationWarning)
         # get objective name and whether optimization is maximization problem
         obj_name = None
         obj_maximize = False
@@ -248,9 +250,26 @@ class SNOBFIT(Strategy):
 
         # Get bounds of input variables
         bounds = []
+        input_var_names = []
+        output_var_names = []
         for v in self.domain.variables:
             if not v.is_objective:
-                bounds.append(v.bounds)
+                if isinstance(v, ContinuousVariable):
+                    bounds.append(v.bounds)
+                    input_var_names.append(v.name)
+                elif isinstance(v, CategoricalVariable):
+                    if v.ds is not None:
+                        descriptor_names = v.ds.data_columns
+                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                    else:
+                        raise ValueError("No descriptors given for {}".format(v.name))
+                    for d in descriptors:
+                        bounds.append([np.min(np.asarray(d)), np.max(np.asarray(d))])
+                    input_var_names.extend(descriptor_names)
+                else:
+                    raise TypeError("SNOBFIT can not handle variable type: {}".format(v.type))
+            else:
+                output_var_names.extend(v.name)
         bounds = np.asarray(bounds, dtype=float)
 
         # Initialization
@@ -259,7 +278,11 @@ class SNOBFIT(Strategy):
 
         # Get previous results
         if prev_res is not None:
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
+            # get always the same order according to the ordering in the domain -> this is actually done within transform
+            #ordered_var_names = input_var_names + output_var_names
+            #prev_res = prev_res[ordered_var_names]
+            # transform
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, transform_descriptors=True)
 
             # Set up maximization and minimization
             for v in self.domain.variables:
@@ -308,11 +331,8 @@ class SNOBFIT(Strategy):
 
         # Generate DataSet object with variable values of next experiments
         next_experiments = {}
-        i_inp = 0
-        for v in self.domain.variables:
-            if not v.is_objective:
-                next_experiments[v.name] = request[:, i_inp]
-                i_inp += 1
+        for i, v in enumerate(input_var_names):
+            next_experiments[v] = request[:, i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
 
         # Violate constraint
@@ -327,6 +347,9 @@ class SNOBFIT(Strategy):
             # add optimization strategy
             next_experiments[("constraint", "DATA")] = mask_valid_next_experiments
             next_experiments[("strategy", "METADATA")] = ["SNOBFIT"] * len(request)
+
+        # Do any necessary transformation back
+        next_experiments = self.transform.un_transform(next_experiments, transform_descriptors=True)
 
         return next_experiments, xbest, fbest, param
 

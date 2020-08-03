@@ -1,6 +1,7 @@
 import pytest
 from summit import NeptuneRunner, Runner, Strategy, Experiment
 from summit.strategies import *
+from summit.benchmarks import *
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
@@ -49,29 +50,61 @@ def test_runner_unit():
     assert r.strategy.iterations == max_iterations
     assert r.experiment.data.shape[0] == int(batch_size * max_iterations)
 
-@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, TSEMO, NelderMead, Random, LHS])
-def test_runner_integration(strategy):
-    class MockExperiment(Experiment):
-        def __init__(self):
-            super().__init__(self.create_domain())
 
-        def create_domain(self):
-            domain = Domain()
-            domain += ContinuousVariable("x_1", description="", bounds=[0, 1])
-            domain += ContinuousVariable("x_2", description="", bounds=[0, 1])
-            domain += ContinuousVariable(
-                "y_1", description="", bounds=[0, 1], is_objective=True, maximize=True
-            )
-            return domain
+@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS])
+@pytest.mark.parametrize(
+    "experiment",
+    [
+        Himmelblau,
+        Hartmann3D,
+        ThreeHumpCamel,
+        BaumgartnerCrossCouplingEmulator,
+        BaumgartnerCrossCouplingDescriptorEmulator,
+    ],
+)
+def test_runner_so_integration(strategy, experiment):
+    exp = experiment()
+    s = strategy(exp.domain)
 
-        def _run(self, conditions, **kwargs):
-            conditions[("y_1", "DATA")] = 0.5
-            return conditions, {}
+    r = Runner(strategy=s, experiment=exp, max_iterations=1, batch_size=1)
+    r.run()
 
-    exp = MockExperiment()
-    strategy = strategy(exp.domain)
+    # Try saving and loading
+    r.save("test_save.json")
+    r.load("test_save.json")
+    os.remove("test_save.json")
 
-    r = Runner(strategy=strategy, experiment=exp, max_iterations=1, batch_size=1)
+
+@pytest.mark.parametrize(
+    "strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS, TSEMO]
+)
+@pytest.mark.parametrize(
+    "experiment",
+    [
+        SnarBenchmark,
+        ReizmanSuzukiEmulator,
+        BaumgartnerCrossCouplingEmulator_Yield_Cost,
+        DTLZ2,
+        VLMOP2,
+    ],
+)
+def test_runner_so_integration(strategy, experiment):
+    exp = experiment()
+
+    if experiment == ReizmanSuzukiEmulator and strategy not in [SOBO, GRYFFIN]:
+        # only run on strategies that work with categorical variables deireclty
+        return
+    elif strategy == TSEMO:
+        s = strategy(exp.domain)
+    else:
+        hierarchy = {
+            v.name: {"hierarchy": 0, "tolerance": 1}
+            for v in exp.domain.output_variables
+        }
+        transform = Chimera(exp.domain, hierarchy)
+        s = strategy(exp.domain, transform=transform)
+
+    r = Runner(strategy=s, experiment=exp, max_iterations=1, batch_size=1)
     r.run()
 
     # Try saving and loading

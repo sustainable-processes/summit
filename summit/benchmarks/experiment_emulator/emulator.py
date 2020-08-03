@@ -224,6 +224,8 @@ class Emulator(ABC):
                                     v.name))
                         else:
                             raise TypeError("Unknown variable type: {}.".format(v.variable_type))
+                elif inference and v.is_objective:
+                    v_in_dataset = True
             if v_in_dataset == False:
                 raise ValueError("Variable {} defined in the domain is missing in the given dataset.".format(v.name))
 

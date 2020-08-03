@@ -26,16 +26,19 @@ class Transform:
     domain: `sumit.domain.Domain``
         A domain for that is being used in the strategy
 
+    transform_descriptors: bool, optional
+        Transform the descriptors into continuous variables. Default True.
+
     Notes
     ------
     This class can be overridden to create custom transformations as necessary.    
     
     """
 
-    def __init__(self, domain):
+    def __init__(self, domain, **kwargs):
         self.transform_domain = domain.copy()
         self.domain = domain
-
+    
     def transform_inputs_outputs(self, ds: DataSet, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
         
@@ -46,15 +49,14 @@ class Transform:
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
         transform_descriptors: bool, optional
-            Transform the descriptors into continuous variables. Default False.
-
+            Transform the descriptors into continuous variables. Default True.
         Returns
         -------
         inputs, outputs
             Datasets with the input and output datasets  
         """
         copy = kwargs.get("copy", True)
-        transform_descriptors = kwargs.get("transform_descriptors", False)
+        transform_descriptors = kwargs.get("transform_descriptors", True)
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -66,24 +68,31 @@ class Transform:
         for variable in self.domain.input_variables:
             if isinstance(variable, CategoricalVariable) and transform_descriptors:
                 # Add descriptors to the dataset
-                indices = new_ds[variable.name].values
-                descriptors = variable.ds.loc[indices]
-                new_metadata_name = descriptors.index.name
-                descriptors.index = new_ds.index
-                new_ds = new_ds.join(descriptors, how="inner")
+                var_descriptor_names = variable.ds.data_columns
+                if all(np.isin(var_descriptor_names, new_ds.columns.levels[0].to_list())):
+                    # Make the descriptors columns a metadata column
+                    column_list_1 = new_ds.columns.levels[0].to_list()
+                    ix = [column_list_1.index(d_name) for d_name in var_descriptor_names]
+                    column_codes_2 = list(new_ds.columns.codes[1])
+                    ix_code = [np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix]
+                    for ixc in ix_code: column_codes_2[ixc] = 0
+                    new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+                else:
+                    indices = new_ds[variable.name].values
+                    descriptors = variable.ds.loc[indices]
+                    descriptors.index = new_ds.index
+                    new_ds = new_ds.join(descriptors, how="inner")
 
                 # Make the original descriptors column a metadata column
                 column_list_1 = new_ds.columns.levels[0].to_list()
                 ix = column_list_1.index(variable.name)
-                column_list_1[ix] = new_metadata_name
-                new_ds.columns.set_levels(column_list_1, level=0, inplace=True)
                 column_codes_2 = list(new_ds.columns.codes[1])
                 ix_code = np.where(new_ds.columns.codes[0] == ix)[0][0]
                 column_codes_2[ix_code] = 1
                 new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
 
                 # add descriptors data columns to inputs
-                input_columns += descriptors.data_columns
+                input_columns.extend(var_descriptor_names)
             elif isinstance(variable, Variable):
                 input_columns.append(variable.name)            
             else:
@@ -107,7 +116,7 @@ class Transform:
         # Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
 
-    def un_transform(self, ds):
+    def un_transform(self, ds, **kwargs):
         """ Transform data back into its original represetnation
             after strategy is finished 
         
@@ -115,12 +124,45 @@ class Transform:
         ---------- 
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
 
         Notes
         -----
         Override this class to achieve custom untransformations 
         """
-        return ds
+        transform_descriptors = kwargs.get("transform_descriptors", True)
+        # Determine input and output columns in dataset
+        new_ds = ds
+        if transform_descriptors:
+            for i, variable in enumerate(self.domain.input_variables):
+                if isinstance(variable, CategoricalVariable) and transform_descriptors:
+                    # Add original categorical variable to the dataset
+                    var_descriptor_names = variable.ds.data_columns
+                    var_descriptor_conditions = ds[var_descriptor_names]
+                    var_descriptor_orig_data = np.asarray([variable.ds.loc[[level], :].values[0].tolist() for level in variable.ds.index])
+                    var_categorical_transformed = []
+                    for _, dc in var_descriptor_conditions.iterrows():
+                        eucl_distance_squ = np.sum(np.square(np.subtract(var_descriptor_orig_data, dc.to_numpy())), axis=1)
+                        cat_level_index = np.where(eucl_distance_squ == np.min(eucl_distance_squ))[0][0]
+                        cat_level = variable.ds.index[cat_level_index]
+                        var_categorical_transformed.append(cat_level)
+                    dt = {variable.name: var_categorical_transformed}
+                    new_ds.insert(loc=i, column=variable.name, value=var_categorical_transformed)
+
+                    # Make the descriptors columns a metadata column
+                    column_list_1 = new_ds.columns.levels[0].to_list() # all variables
+                    ix = [column_list_1.index(d_name) for d_name in var_descriptor_names] # just descriptors variables
+                    column_codes_2 = list(new_ds.columns.codes[1]) # codes for the variable type 
+                    ix_code = [np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix]
+                    for ixc in ix_code: column_codes_2[ixc] = 1
+                    new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+                elif isinstance(variable, Variable):
+                    continue
+                else:
+                    raise DomainError(f"Variable {variable.name} is not in the dataset.")
+
+        return new_ds
 
     def to_dict(self, **kwargs):
         """ Output a dictionary representation of the transform"""
@@ -184,20 +226,39 @@ class MultitoSingleObjective(Transform):
         self.expression = expression
 
         # Replace objectives in transform domain
+        # TODO: maybe there should be an option to define the bounds (important for DRO)
         for v in objectives:
             i = self.transform_domain.variables.index(v)
             self.transform_domain.variables.pop(i)
         self.transform_domain += ContinuousVariable(
             "scalar_objective",
             description=expression,
-            bounds=[-np.inf, np.inf],
+            bounds=[0, 1],
             is_objective=True,
             maximize=maximize,
         )
         self.maximize = maximize
 
-    def transform_inputs_outputs(self, ds, copy=True):
-        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy)
+    def transform_inputs_outputs(self, ds, **kwargs):
+        """  Transform of data into inputs and outputs for a strategy
+        
+        This will do multi to single objective transform
+
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
+
+        Returns
+        -------
+        inputs, outputs
+            Datasets with the input and output datasets  
+        """
+        inputs, outputs = super().transform_inputs_outputs(ds,**kwargs)
         outputs = outputs.eval(self.expression, resolvers=[outputs])
         outputs = DataSet(outputs, columns=["scalar_objective"])
         return inputs, outputs
@@ -243,7 +304,7 @@ class LogSpaceObjectives(Transform):
         for i, v in objectives:
             v.name = "log_" + v.name
 
-    def transform_inputs_outputs(self, ds, copy=True):
+    def transform_inputs_outputs(self, ds, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
         
         This will do a log transform on the objectives (outputs).
@@ -254,13 +315,15 @@ class LogSpaceObjectives(Transform):
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
 
         Returns
         -------
         inputs, outputs
             Datasets with the input and output datasets  
         """
-        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy)
+        inputs, outputs = super().transform_inputs_outputs(ds, **kwargs)
         if (outputs.any() < 0).any():
             raise ValueError("Cannot complete log transform for values less than zero.")
         outputs = outputs.apply(np.log)
@@ -268,19 +331,19 @@ class LogSpaceObjectives(Transform):
         outputs = DataSet(outputs.data_to_numpy(), columns=columns)
         return inputs, outputs
 
-    def un_transform(self, ds):
-        """ Untransform objectives from log space to
+    def un_transform(self, ds, **kwargs):
+        """ Untransform objectives from log space
         
         Parameters
         ---------- 
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
-
-        Notes
-        -----
-        Override this class to achieve custom untransformations 
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
         """
-        ds = super().un_transform(ds)
+        ds = super().un_transform(ds, **kwargs)
         for v in self.domain.variables:
             if v.is_objective and ds.get("log_" + v.name):
                 ds[v.name] = np.exp(ds["log_" + v.name])
@@ -364,16 +427,34 @@ class Chimera(Transform):
             self.absolutes = np.zeros(len(self.tolerances)) + np.nan
         self.softness = softness
 
-    def transform_inputs_outputs(self, ds, copy=True):
+    def transform_inputs_outputs(self, ds, copy=True, **kwargs):
+        """  Transform of data into inputs and outptus for a strategy
+        
+        This will do a log transform on the objectives (outputs).
+
+        Parameters
+        ---------- 
+        ds: `DataSet`
+            Dataset with columns corresponding to the inputs and objectives of the domain.
+        copy: bool, optional
+            Copy the dataset internally. Defaults to True.
+        transform_descriptors: bool, optional
+            Transform the descriptors into continuous variables. Default True.
+
+        Returns
+        -------
+        inputs, outputs
+            Datasets with the input and output datasets  
+        """
         # Get inputs and outputs
-        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy)
+        inputs, outputs = super().transform_inputs_outputs(ds, copy=copy, **kwargs)
 
         # Scalarize using Chimera
         outputs_arr = outputs[self.ordered_objective_names].to_numpy()
         outputs_arr = outputs_arr*self.directions #Change maximization to minimization
         scalarized_array = self._scalarize(outputs_arr)
 
-        # Write scalarized objective back to DataSEt
+        # Write scalarized objective back to DataSet
         outputs = DataSet(scalarized_array, columns=["chimera"])
         return inputs, outputs
 

@@ -1,10 +1,10 @@
-#import pytest
+# import pytest
 
-#from summit.utils.models import GPyModel
+# from summit.utils.models import GPyModel
 
-#import numpy as np
-#import matplotlib.pyplot as plt
-#import warnings
+# import numpy as np
+# import matplotlib.pyplot as plt
+# import warnings
 
 # @pytest.mark.parametrize('n_dim', [1,6])
 # def test_gpy_model(n_dim, n_points=100, n_repeats=5, plot=False):

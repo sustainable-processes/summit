@@ -1,4 +1,5 @@
 from .base import Strategy, Transform
+from summit.domain import *
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 from summit.utils import jsonify_dict, unjsonify_dict
@@ -21,6 +22,11 @@ class NelderMead(Strategy):
         A transform class (i.e, not the object itself). By default
         no transformation will be done the input variables or
         objectives.
+    random_start : bool, optional
+        Whether to start at a random point or the value specified by x_start
+    adaptive : bool, optional
+        Adapt algorithm parameters to dimensionality of problem. Useful for
+        high-dimensional minimization [1]. Default is False.
     x_start: array_like of shape (1, N), optional
         Initial center point of simplex
         Default: empty list that will initialize generation of x_start as geoemetrical center point of bounds
@@ -70,9 +76,10 @@ class NelderMead(Strategy):
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
-        Strategy.__init__(self, domain, transform)
+        Strategy.__init__(self, domain, transform, **kwargs)
 
         self._x_start = kwargs.get("x_start", [])
+        self.random_start = kwargs.get("random_start", False)
         self._dx = kwargs.get("dx", 1e-5)
         self._df = kwargs.get("df", 1e-5)
         self._adaptive = kwargs.get("adaptive", False)
@@ -196,6 +203,7 @@ class NelderMead(Strategy):
             prev_param = None
         strategy_params = dict(
             x_start=self._x_start,
+            random_start=self.random_start,
             dx=self._dx,
             df=self._df,
             adaptive=self._adaptive,
@@ -207,10 +215,11 @@ class NelderMead(Strategy):
     def from_dict(cls, d):
         nm = super().from_dict(d)
         prev_param = d["strategy_params"]["prev_param"]
-        nm.prev_param = [
-            unjsonify_dict(prev_param[0]),
-            DataSet.from_dict(prev_param[1]),
-        ]
+        if prev_param is not None:
+            nm.prev_param = [
+                unjsonify_dict(prev_param[0]),
+                DataSet.from_dict(prev_param[1]),
+            ]
         return nm
 
     def inner_suggest_experiments(self, prev_res: DataSet = None, prev_param=None):
@@ -240,18 +249,36 @@ class NelderMead(Strategy):
             List with parameters and prev_param of Nelder-Mead Simplex algorithm (required for next iteration)
         """
 
-        # Extract dimension of input domain
-        dim = self.domain.num_continuous_dimensions()
-
         # intern
         stay_inner = False
 
         # Get bounds of input variables
         bounds = []
+        input_var_names = []
+        output_var_names = []
         for v in self.domain.variables:
             if not v.is_objective:
-                bounds.append(v.bounds)
+                if isinstance(v, ContinuousVariable):
+                    bounds.append(v.bounds)
+                    input_var_names.append(v.name)
+                elif isinstance(v, CategoricalVariable):
+                    if v.ds is not None:
+                        descriptor_names = v.ds.data_columns
+                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                    else:
+                        raise ValueError("No descriptors given for {}".format(v.name))
+                    for d in descriptors:
+                        bounds.append([np.min(np.asarray(d)), np.max(np.asarray(d))])
+                    input_var_names.extend(descriptor_names)
+                else:
+                    raise TypeError("Nelder-Mead can not handle variable type: {}".format(v.type))
+            else:
+                output_var_names.extend(v.name)
         bounds = np.asarray(bounds, dtype=float)
+
+
+        # Extract dimension of input domain
+        dim = len(bounds[:,0])
 
         # Initialization
         initial_run = True
@@ -261,7 +288,7 @@ class NelderMead(Strategy):
         # Get previous results
         if prev_res is not None:
             initial_run = False
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, transform_descriptors=True)
 
             # Set up maximization and minimization
             for v in self.domain.variables:
@@ -278,8 +305,11 @@ class NelderMead(Strategy):
             )
 
         # if no previous results are given initialize center point as geometrical middle point of bounds
-        if not len(x0[0]):
-            x0 = np.ones((1, len(bounds))) * 1 / 2 * ((bounds[:, 1] + bounds[:, 0]).T)
+        if len(x0[0]) == 0 and not self.random_start:
+            x0 = np.ones((1, len(bounds))) * 0.5 * ((bounds[:, 1] + bounds[:, 0]).T)
+        elif len(x0[0]) == 0 and self.random_start:
+            weight = np.random.rand() 
+            x0 = np.ones((1, len(bounds)))*(weight*(bounds[:, 1] + (1-weight)*bounds[:, 0]).T)
 
         """ Set Nelder-Mead parameters, i.e., initialize or include data from previous iterations
             --------
@@ -434,7 +464,7 @@ class NelderMead(Strategy):
             red_dim = False
 
         # Circle (suggested point that already has been investigated)
-        if any((memory == x).all(1).any() for x in request):
+        if any(np.array([np.array(memory == x).all(1).any() for x in request])):
             ## if dimension is reduced and requested point has already been evaluated, recover dimension with
             # reflected and translated simplex before dimension reduction
             if red_dim:
@@ -488,11 +518,8 @@ class NelderMead(Strategy):
 
         # Generate DataSet object with variable values of next experiments
         next_experiments = {}
-        i_inp = 0
-        for v in self.domain.variables:
-            if not v.is_objective:
-                next_experiments[v.name] = request[:, i_inp]
-                i_inp += 1
+        for i, v in enumerate(input_var_names):
+            next_experiments[v] = request[:, i]
         next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
 
         # Violate constraint
@@ -526,7 +553,7 @@ class NelderMead(Strategy):
         # next_experiments = np.around(next_experiments, decimals=self._dx)
 
         # Do any necessary transformation back
-        next_experiments = self.transform.un_transform(next_experiments)
+        next_experiments = self.transform.un_transform(next_experiments, transform_descriptors=True)
 
         return next_experiments, x_best, f_best, param
 

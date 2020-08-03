@@ -13,6 +13,17 @@ import os
 import warnings
 
 
+def test_strategy():
+    class MockStrategy(Strategy):
+        def suggest_experiments(self, num_experiments, previous_results):
+            inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
+            objectives = [v for v in self.domain.variables if v.is_objective]
+            assert len(objectives) == 1
+            assert objectives[0].name == "scalar_objective"
+            assert outputs["scalar_objective"].iloc[0] == 70.0
+            return self.transform.un_transform(inputs)
+
+
 def test_random():
     domain = Domain()
     domain += ContinuousVariable(
@@ -42,13 +53,14 @@ def test_random():
     results_arr = results.data_to_numpy().astype(np.float32)
     assert np.isclose(results_arr.all(), arr.all())
 
-    
     solvent_ds = DataSet(
         [[5, 81], [-93, 111]],
         index=["benzene", "toluene"],
         columns=["melting_point", "boiling_point"],
     )
-    domain += CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
+    domain += CategoricalVariable(
+        "solvent", "solvent descriptors", descriptors=solvent_ds
+    )
     strategy = Random(domain, random_state=np.random.RandomState(3))
     results = strategy.suggest_experiments(5)
     return results
@@ -86,11 +98,13 @@ def test_lhs():
         index=["benzene", "toluene"],
         columns=["melting_point", "boiling_point"],
     )
-    domain += CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
+    domain += CategoricalVariable(
+        "solvent", "solvent descriptors", descriptors=solvent_ds
+    )
     strategy = LHS(domain, random_state=np.random.RandomState(3))
     results = strategy.suggest_experiments(5)
-
     return results
+
 
 def test_doe():
     domain = Domain()
@@ -117,8 +131,7 @@ def test_doe():
     )
 
     strategy = FullFactorial(domain)
-    levels = dict(temperature=[50,100], flowrate_a=[0.1,0.5],
-                  flowrate_b=[0.1,0.5])
+    levels = dict(temperature=[50, 100], flowrate_a=[0.1, 0.5], flowrate_b=[0.1, 0.5])
     experiments = strategy.suggest_experiments(levels)
     return experiments
 
@@ -216,6 +229,7 @@ def test_logspaceobjectives_transform():
     strategy = MockStrategy(domain, transform=transform)
     strategy.suggest_experiments(5, previous_results)
 
+
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("constraints", [True, False])
@@ -272,10 +286,10 @@ def test_snobfit(num_experiments, maximize, constraints):
     assert fbest <= -3.85 and fbest >= -3.87
 
     # Test saving and loading
-    strategy.save('snobfit_test.json')
-    strategy_2 = SNOBFIT.load('snobfit_test.json')
-    
-    for a,b in zip(strategy.prev_param[0], strategy_2.prev_param[0]):
+    strategy.save("snobfit_test.json")
+    strategy_2 = SNOBFIT.load("snobfit_test.json")
+
+    for a, b in zip(strategy.prev_param[0], strategy_2.prev_param[0]):
         if type(a) == list:
             assert all(a) == all(b)
         elif type(a) == np.ndarray:
@@ -283,20 +297,22 @@ def test_snobfit(num_experiments, maximize, constraints):
         elif np.isnan(a):
             assert np.isnan(b)
         else:
-            assert a == b 
+            assert a == b
     assert all(strategy.prev_param[1][0]) == all(strategy_2.prev_param[1][0])
-    os.remove('snobfit_test.json')
+    os.remove("snobfit_test.json")
 
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
 
 
-@pytest.mark.parametrize("x_start", [[0, 0], [4, 6], [1, 2], [-2, 5]])
+@pytest.mark.parametrize("x_start", [[], [0, 0], [4, 6], [1, 2], [-2, 5]])
 @pytest.mark.parametrize("maximize", [True, False])
 @pytest.mark.parametrize("constraint", [True, False])
 def test_nm2D(x_start, maximize, constraint, plot=False):
 
     himmelblau = Himmelblau(maximize=maximize, constraints=constraint)
-    strategy = NelderMead(himmelblau.domain, x_start=x_start, adaptive=False)
+    strategy = NelderMead(
+        himmelblau.domain, x_start=x_start, random_start=True, adaptive=False
+    )  # Will only random start if x_start is []
 
     initial_exp = None
     # Uncomment to create test case which results in reduction dimension and dimension recovery
@@ -331,16 +347,16 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
 
     param = None
     for i in range(num_iter):
-        next_experiments = strategy.suggest_experiments(
-            prev_res=next_experiments
-        )
+        next_experiments = strategy.suggest_experiments(prev_res=next_experiments)
         # This is the part where experiments take place
         next_experiments = himmelblau.run_experiments(next_experiments)
 
         # save polygon points for plotting
         param = strategy.prev_param
         polygons_points.append(
-            np.asarray([param[0]['sim'][i].tolist() for i in range(len(param[0]['sim']))])
+            np.asarray(
+                [param[0]["sim"][i].tolist() for i in range(len(param[0]["sim"]))]
+            )
         )
 
         fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
@@ -362,26 +378,27 @@ def test_nm2D(x_start, maximize, constraint, plot=False):
     # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
 
     # Test saving and loading
-    strategy.save('nm_2d.json')
-    strategy_2 = NelderMead.load('nm_2d.json')
+    strategy.save("nm_2d.json")
+    strategy_2 = NelderMead.load("nm_2d.json")
 
     assert strategy._x_start == strategy_2._x_start
+    assert strategy.random_start == strategy_2.random_start
     assert strategy._dx == strategy_2._dx
     assert strategy._df == strategy_2._df
     assert strategy._adaptive == strategy_2._adaptive
     p = strategy.prev_param[0]
     p2 = strategy.prev_param[0]
-    for k,v in p.items():
+    for k, v in p.items():
         if type(v) not in [list, np.ndarray]:
             assert v == p2[k]
         elif type(v) == list:
-            for i,l in enumerate(v):
+            for i, l in enumerate(v):
                 if type(l) in [np.ndarray, DataSet]:
                     assert l.all() == p2[k][i].all()
                 else:
                     assert l == p2[k][i]
     assert all(strategy.prev_param[1]) == all(strategy_2.prev_param[1])
-    os.remove('nm_2d.json')
+    os.remove("nm_2d.json")
 
     # plot
     if plot:
@@ -411,6 +428,9 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
 
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = NelderMead(hartmann3D.domain, x_start=x_start)
+
+    strategy.save("nm_3d.json")
+    strategy_2 = NelderMead.load("nm_3d.json")
 
     initial_exp = None
     # Uncomment to create test case which results in reduction dimension and dimension recovery
@@ -445,16 +465,16 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
 
     param = None
     for i in range(num_iter):
-        next_experiments = strategy.suggest_experiments(
-            prev_res=next_experiments
-        )
+        next_experiments = strategy.suggest_experiments(prev_res=next_experiments)
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
 
         # save polygon points for plotting
         param = strategy.prev_param
         polygons_points.append(
-            np.asarray([param[0]['sim'][i].tolist() for i in range(len(param[0]['sim']))])
+            np.asarray(
+                [param[0]["sim"][i].tolist() for i in range(len(param[0]["sim"]))]
+            )
         )
         fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
         xbest = strategy.xbest
@@ -475,8 +495,8 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
     #        (xbest[2] >= 0.851 and xbest[2] <= 0.853) and (fbest <= -3.85 and fbest >= -3.87)
 
     # Test saving and loading
-    strategy.save('nm_3d.json')
-    strategy_2 = NelderMead.load('nm_3d.json')
+    strategy.save("nm_3d.json")
+    strategy_2 = NelderMead.load("nm_3d.json")
 
     assert strategy._x_start == strategy_2._x_start
     assert strategy._dx == strategy_2._dx
@@ -484,21 +504,20 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
     assert strategy._adaptive == strategy_2._adaptive
     p = strategy.prev_param[0]
     p2 = strategy.prev_param[0]
-    for k,v in p.items():
+    for k, v in p.items():
         if type(v) not in [list, np.ndarray]:
             assert v == p2[k]
         elif type(v) == list:
-            for i,l in enumerate(v):
+            for i, l in enumerate(v):
                 if type(l) in [np.ndarray, DataSet]:
                     assert l.all() == p2[k][i].all()
                 else:
                     assert l == p2[k][i]
     assert all(strategy.prev_param[1]) == all(strategy_2.prev_param[1])
-    os.remove('nm_3d.json')
+    os.remove("nm_3d.json")
 
     if plot:
         fig, ax = hartmann3D.plot(polygons=polygons_points)
-
 
 
 @pytest.mark.parametrize(
@@ -509,16 +528,22 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
         [4, 200, False, True],
         [1, 200, True, False],
         [4, 200, False, False],
-    ]
+    ],
 )
-def test_sobo(batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False):
+def test_sobo(
+    batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False
+):
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
-    strategy = SOBO(domain=hartmann3D.domain)
+    strategy = SOBO(domain=hartmann3D.domain, kernel=GPy.kern.Matern32(3))
 
     # run SOBO loop for fixed <num_iter> number of iteration
-    num_iter = max_num_exp//batch_size   # maximum number of iterations
-    max_stop = 80//batch_size   # allowed number of consecutive iterations w/o improvement
-    min_stop = 20//batch_size   # minimum number of iterations before algorithm is stopped
+    num_iter = max_num_exp // batch_size  # maximum number of iterations
+    max_stop = (
+        80 // batch_size
+    )  # allowed number of consecutive iterations w/o improvement
+    min_stop = (
+        20 // batch_size
+    )  # minimum number of iterations before algorithm is stopped
     nstop = 0
 
     num_improve_iter = 0
@@ -526,8 +551,9 @@ def test_sobo(batch_size, max_num_exp, maximize, constraint, test_num_improve_it
     next_experiments = None
     pb = progress_bar(range(num_iter))
     for i in pb:
-        next_experiments = \
-            strategy.suggest_experiments(num_experiments=batch_size, prev_res=next_experiments)
+        next_experiments = strategy.suggest_experiments(
+            num_experiments=batch_size, prev_res=next_experiments
+        )
 
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
@@ -535,7 +561,7 @@ def test_sobo(batch_size, max_num_exp, maximize, constraint, test_num_improve_it
         fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
         xbest = strategy.xbest
         if fbest < fbestold:
-            if fbest < 0.99*fbestold or i < min_stop:
+            if fbest < 0.99 * fbestold or i < min_stop:
                 nstop = 0
                 num_improve_iter += 1
             else:
@@ -546,50 +572,73 @@ def test_sobo(batch_size, max_num_exp, maximize, constraint, test_num_improve_it
         else:
             nstop += 1
         if nstop >= max_stop:
-            print("Stopping criterion reached. No improvement in last " + str(max_stop) + " iterations.")
+            print(
+                "Stopping criterion reached. No improvement in last "
+                + str(max_stop)
+                + " iterations."
+            )
             break
         if fbest < -3.85:
             print("Stopping criterion reached. Function value below -3.85.")
             break
         if num_improve_iter >= test_num_improve_iter:
-            print("Requirement to improve fbest in at least {} satisfied, test stopped.".format(test_num_improve_iter))
+            print(
+                "Requirement to improve fbest in at least {} satisfied, test stopped.".format(
+                    test_num_improve_iter
+                )
+            )
             break
 
-    #xbest = np.around(xbest, decimals=3)
-    #fbest = np.around(fbest, decimals=3)
-    #print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # xbest = np.around(xbest, decimals=3)
+    # fbest = np.around(fbest, decimals=3)
+    # print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-    #if check_convergence:
+    # if check_convergence:
     #    assert (fbest <= -3.85 and fbest >= -3.87)
 
     # Test saving and loading
-    strategy.save('sobo_test.json')
-    strategy_2 = SOBO.load('sobo_test.json')
-    os.remove('sobo_test.json')
+    strategy.save("sobo_test.json")
+    strategy_2 = SOBO.load("sobo_test.json")
+    os.remove("sobo_test.json")
 
-    if strategy.prev_param is not None: 
+    if strategy.prev_param is not None:
         assert strategy.prev_param[0].all() == strategy_2.prev_param[0].all()
         assert strategy.prev_param[1].all() == strategy_2.prev_param[1].all()
-
+        assert strategy.use_descriptors == strategy_2.use_descriptors
+        assert strategy.gp_model_type == strategy_2.gp_model_type
+        assert strategy.acquisition_type == strategy_2.acquisition_type
+        assert strategy.optimizer_type == strategy_2.optimizer_type
+        assert strategy.evaluator_type == strategy_2.evaluator_type
+        assert strategy.kernel.to_dict() == strategy_2.kernel.to_dict()
+        assert strategy.exact_feval == strategy_2.exact_feval
+        assert strategy.ARD == strategy_2.ARD
+        assert strategy.standardize_outputs == strategy_2.standardize_outputs
     if plot:
         fig, ax = hartmann3D.plot()
 
+
 @pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint, test_id",
-    [
-        [1, 1, True, False, 0],
-        [1, 200, True, False, 1],
-        [4, 200, False, False, 2]
-    ]
+    [[1, 1, True, False, 0], [1, 200, True, False, 1], [4, 200, False, False, 2]],
 )
-def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, test_id, test_num_improve_iter=2, plot=False):
+def test_gryffin_himmelblau(
+    batch_size,
+    max_num_exp,
+    maximize,
+    constraint,
+    test_id,
+    test_num_improve_iter=2,
+    plot=False,
+):
     himmelblau = Himmelblau(maximize=maximize, constraints=constraint)
     strategy = GRYFFIN(domain=himmelblau.domain, sampling_strategies=batch_size)
 
     # run Gryffin loop for fixed <num_iter> number of iteration
-    num_iter = max_num_exp//batch_size  # maximum number of iterations
-    max_stop = 60//batch_size  # allowed number of consecutive iterations w/o improvement
-    min_stop = 20//batch_size
+    num_iter = max_num_exp // batch_size  # maximum number of iterations
+    max_stop = (
+        60 // batch_size
+    )  # allowed number of consecutive iterations w/o improvement
+    min_stop = 20 // batch_size
     nstop = 0
 
     num_improve_iter = 0
@@ -597,8 +646,7 @@ def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, test_
     next_experiments = None
     pb = progress_bar(range(num_iter))
     for i in pb:
-        next_experiments = \
-            strategy.suggest_experiments(prev_res=next_experiments)
+        next_experiments = strategy.suggest_experiments(prev_res=next_experiments)
 
         # This is the part where experiments take place
         next_experiments = himmelblau.run_experiments(next_experiments)
@@ -606,7 +654,7 @@ def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, test_
         fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
         xbest = strategy.xbest
         if fbest < fbestold:
-            if fbest < 0.99*fbestold or i < min_stop:
+            if fbest < 0.99 * fbestold or i < min_stop:
                 nstop = 0
                 num_improve_iter += 1
             else:
@@ -621,45 +669,56 @@ def test_gryffin_himmelblau(batch_size, max_num_exp, maximize, constraint, test_
             print("Stopping criterion reached. Function value below 0.5.")
             break
         if num_improve_iter >= test_num_improve_iter:
-            print("Requirement to improve fbest in at least {} satisfied, test stopped.".format(test_num_improve_iter))
+            print(
+                "Requirement to improve fbest in at least {} satisfied, test stopped.".format(
+                    test_num_improve_iter
+                )
+            )
             break
 
-    #xbest = np.around(xbest, decimals=3)
-    #fbest = np.around(fbest, decimals=3)
-    #print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # xbest = np.around(xbest, decimals=3)
+    # fbest = np.around(fbest, decimals=3)
+    # print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraints: four identical local minima f = 0 at x1 = (3.000, 2.000),
     # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
-    #assert (fbest <= 2)
+    # assert (fbest <= 2)
 
     # Test saving and loading
-    save_name = 'gryffin_test_himmelblau_' + str(test_id) + '.json'
+    save_name = "gryffin_test_himmelblau_" + str(test_id) + ".json"
     strategy.save(save_name)
     strategy_2 = GRYFFIN.load(save_name)
     os.remove(save_name)
 
     if strategy.prev_param is not None:
+        assert strategy.config_dict == strategy_2.config_dict
         assert strategy.prev_param == strategy_2.prev_param
-
+        assert strategy.use_descriptors == strategy_2.use_descriptors
     if plot:
         fig, ax = himmelblau.plot()
 
 
 @pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint, test_id",
-    [
-        [1, 1, True, False, 0],
-        [1, 200, True, False, 1],
-        [4, 200, False, False, 2]
-    ]
+    [[1, 1, True, False, 0], [1, 200, True, False, 1], [4, 200, False, False, 2]],
 )
-def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint, test_id, test_num_improve_iter=2, plot=False):
+def test_gryffin_hartmann(
+    batch_size,
+    max_num_exp,
+    maximize,
+    constraint,
+    test_id,
+    test_num_improve_iter=2,
+    plot=False,
+):
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = GRYFFIN(domain=hartmann3D.domain, sampling_strategies=batch_size)
 
     # run GRYFFIN loop for fixed <num_iter> number of iteration
-    num_iter = max_num_exp//batch_size   # maximum number of iterations
-    max_stop = 60//batch_size   # allowed number of consecutive iterations w/o improvement
-    min_stop = 20//batch_size
+    num_iter = max_num_exp // batch_size  # maximum number of iterations
+    max_stop = (
+        60 // batch_size
+    )  # allowed number of consecutive iterations w/o improvement
+    min_stop = 20 // batch_size
     nstop = 0
 
     num_improve_iter = 0
@@ -667,8 +726,7 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint, test_id
     next_experiments = None
     pb = progress_bar(range(num_iter))
     for i in pb:
-        next_experiments = \
-            strategy.suggest_experiments(prev_res=next_experiments)
+        next_experiments = strategy.suggest_experiments(prev_res=next_experiments)
 
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
@@ -677,7 +735,7 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint, test_id
         xbest = strategy.xbest
 
         if fbest < fbestold:
-            if fbest < 0.99*fbestold or i < min_stop:
+            if fbest < 0.99 * fbestold or i < min_stop:
                 nstop = 0
                 num_improve_iter += 1
             else:
@@ -692,26 +750,32 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint, test_id
             print("Stopping criterion reached. Function value below -3.85.")
             break
         if num_improve_iter >= test_num_improve_iter:
-            print("Requirement to improve fbest in at least {} satisfied, test stopped.".format(test_num_improve_iter))
+            print(
+                "Requirement to improve fbest in at least {} satisfied, test stopped.".format(
+                    test_num_improve_iter
+                )
+            )
             break
-    
+
         pb.comment = f"Best f value: {fbest}"
         print("\n")
 
-    #xbest = np.around(xbest, decimals=3)
-    #fbest = np.around(fbest, decimals=3)
-    #print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # xbest = np.around(xbest, decimals=3)
+    # fbest = np.around(fbest, decimals=3)
+    # print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-    #assert (fbest <= -3.5 and fbest >= -3.87)
+    # assert (fbest <= -3.5 and fbest >= -3.87)
 
     # Test saving and loading
-    save_name = 'gryffin_test_hartmann3D_' + str(test_id) + '.json'
+    save_name = "gryffin_test_hartmann3D_" + str(test_id) + ".json"
     strategy.save(save_name)
     strategy_2 = GRYFFIN.load(save_name)
     os.remove(save_name)
 
     if strategy.prev_param is not None:
+        assert strategy.config_dict == strategy_2.config_dict
         assert strategy.prev_param == strategy_2.prev_param
+        assert strategy.use_descriptors == strategy_2.use_descriptors
 
     if plot:
         fig, ax = hartmann3D.plot()
@@ -719,12 +783,12 @@ def test_gryffin_hartmann(batch_size, max_num_exp, maximize, constraint, test_id
 
 def test_tsemo(test_num_improve_iter=2, save=False):
     num_inputs = 2
-    num_objectives= 2
+    num_objectives = 2
     lab = VLMOP2()
     strategy = TSEMO(lab.domain)
-    experiments = strategy.suggest_experiments(5*num_inputs)
-    warnings.filterwarnings('ignore',category=RuntimeWarning)
-    warnings.filterwarnings('ignore',category=DeprecationWarning)
+    experiments = strategy.suggest_experiments(5 * num_inputs)
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
+    warnings.filterwarnings("ignore", category=DeprecationWarning)
 
     num_improve_iter = 0
     best_hv = None
@@ -732,15 +796,16 @@ def test_tsemo(test_num_improve_iter=2, save=False):
     for i in pb:
         # Run experiments
         experiments = lab.run_experiments(experiments)
-        
+
         # Get suggestions
         experiments = strategy.suggest_experiments(1, experiments)
 
         if save:
-            strategy.save('tsemo_settings.json')
-        y_pareto, _ = pareto_efficient(lab.data[['y_0', 'y_1']].to_numpy(),
-                                       maximize=False)  
-        hv = hypervolume(y_pareto, [11,11])
+            strategy.save("tsemo_settings.json")
+        y_pareto, _ = pareto_efficient(
+            lab.data[["y_0", "y_1"]].to_numpy(), maximize=False
+        )
+        hv = hypervolume(y_pareto, [11, 11])
         if best_hv == None:
             best_hv = hv
         elif hv > best_hv:
@@ -748,7 +813,11 @@ def test_tsemo(test_num_improve_iter=2, save=False):
             num_improve_iter += 1
         pb.comment = f"Hypervolume: {hv}"
         if num_improve_iter >= test_num_improve_iter:
-            print("Requirement to improve fbest in at least {} satisfied, test stopped.".format(test_num_improve_iter))
+            print(
+                "Requirement to improve fbest in at least {} satisfied, test stopped.".format(
+                    test_num_improve_iter
+                )
+            )
             break
-    #assert hv > 117.0
+    # assert hv > 117.0
 

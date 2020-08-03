@@ -1,25 +1,24 @@
 import pytest
 from summit.strategies import Strategy
 from summit.experiment import Experiment
-from summit.benchmarks import SnarBenchmark,DTLZ2, Hartmann3D, Himmelblau, ThreeHumpCamel, ReizmanSuzukiEmulator, BaumgartnerCrossCouplingEmulator
+from summit.benchmarks import (
+    SnarBenchmark,
+    DTLZ2,
+    Hartmann3D,
+    Himmelblau,
+    ThreeHumpCamel,
+    ReizmanSuzukiEmulator,
+    BaumgartnerCrossCouplingEmulator,
+)
 from summit.utils.dataset import DataSet
 import numpy as np
 import os
 
-def test_experiment():
-    class MockStrategy(Strategy):
-        def suggest_experiments(self, num_experiments, previous_results):
-            inputs, outputs = self.transform.transform_inputs_outputs(previous_results)
-            objectives = [v for v in self.domain.variables if v.is_objective]
-            assert len(objectives) == 1
-            assert objectives[0].name == "scalar_objective"
-            assert outputs["scalar_objective"].iloc[0] == 70.0
-            return self.transform.un_transform(inputs)
 
-
-def test_snar_benchmark():
+@pytest.mark.parametrize("noise_level", [0.0, 2.5])
+def test_snar_benchmark(noise_level):
     """Test the SnAr benchmark"""
-    b = SnarBenchmark()
+    b = SnarBenchmark(noise_level=noise_level)
     columns = [v.name for v in b.domain.variables]
     values = {
         ("tau", "DATA"): 1.5,  # minutes
@@ -35,11 +34,14 @@ def test_snar_benchmark():
     assert float(results["equiv_pldn"]) == values[("equiv_pldn", "DATA")]
     assert float(results["conc_dfnb"]) == values[("conc_dfnb", "DATA")]
     assert float(results["temperature"]) == values[("temperature", "DATA")]
-    assert np.isclose(float(results["sty"]), 168.958672)
-    assert np.isclose(float(results["e_factor"]), 191.260294)
+    if noise_level == 0.0:
+        assert np.isclose(results["sty"].values[0], 168.958672)
+        assert np.isclose(results["e_factor"].values[0], 191.260294)
 
+    # Test serialization
     d = b.to_dict()
-    SnarBenchmark.from_dict(d)
+    new_b = SnarBenchmark.from_dict(d)
+    assert b.noise_level == noise_level
 
     return results
 
@@ -63,20 +65,23 @@ def test_baumgartner_CC_emulator():
     assert str(results["base", "DATA"].iloc[0]) == values["base", "DATA"]
     assert float(results["t_res"]) == values["t_res", "DATA"]
     assert float(results["temperature"]) == values["temperature", "DATA"]
-    print(float(results["yield"]))
-    assert np.isclose(float(results["yield"]), 0.173581)
+    assert np.isclose(float(results["yld"]), 0.173581)
+
+    # Test serialization
+    d = b.to_dict()
+    exp = BaumgartnerCrossCouplingEmulator.from_dict(d)
 
     return results
 
-@pytest.mark.parametrize('num_inputs', [6])
+
+@pytest.mark.parametrize("num_inputs", [6])
 def test_dltz2_benchmark(num_inputs):
     """Test the DTLZ2 benchmark"""
-    b = DTLZ2(num_inputs=num_inputs,
-              num_objectives=2)
-    values = {(f'x_{i}', 'DATA'): [0.5] for  i in range(num_inputs)}
+    b = DTLZ2(num_inputs=num_inputs, num_objectives=2)
+    values = {(f"x_{i}", "DATA"): [0.5] for i in range(num_inputs)}
     ds = DataSet(values)
     b.run_experiments(ds)
     data = b.data
-    assert np.isclose(data['y_0'].iloc[0], 0.7071)
-    assert np.isclose(data['y_1'].iloc[0], 0.7071)
+    assert np.isclose(data["y_0"].iloc[0], 0.7071)
+    assert np.isclose(data["y_1"].iloc[0], 0.7071)
 

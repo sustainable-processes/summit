@@ -43,18 +43,18 @@ class FullFactorial(Strategy):
     """
 
     def __init__(
-        self, domain: Domain, transform: Transform = None,
+        self, domain: Domain, transform: Transform = None, **kwargs
     ):
-        super().__init__(domain, transform)
+        super().__init__(domain, transform, **kwargs)
 
     def suggest_experiments(self, levels_dict, **kwargs) -> DataSet:
         """ Suggest experiments for a full factorial experimental design 
         
         Parameters
         ---------- 
-        levels: dict
+        levels_dict : dict
             A dictionary with the number of levels for each variable. Keys are 
-            the variable names and values are arrays witht the values of each level.
+            the variable names and values are arrays with the values of each level.
         
         Returns
         -------

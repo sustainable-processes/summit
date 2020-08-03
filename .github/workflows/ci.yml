@@ -7,19 +7,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.7.8
-    - name: Cache poetry environment
-      uses: actions/cache@v1
-      env:
-        cache-name: cache-poetry
-      with:
-        path: /github/home/.cache/pypoetry/virtualenvs
-        key: ${{ runner.os }}-poetry-${{ hashFiles('**/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-poetry-
     - name: Install
       uses: abatilo/actions-poetry@v1.5.0
       with:

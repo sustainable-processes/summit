@@ -62,8 +62,8 @@ You can change the tag from `latest` to whatever is most appropriate (e.g., the 
 Then, to run a container, here is an example with the SnAr experiment code. The home directory of the container is called `summit_user`, hence we mount the current working directory into that folder.  We remove the container upon finishing using `--rm` and make it interactive using `--it` (remove this if you just want the container to run in the background). [Neptune.ai](https://neptune.ai/) is used for the experiments so the API token is passed in. Finally, I specify the image name and the tag and before referencing the python file I want to run. 
 
 ```
-export token= #place your neptune token here
-sudo docker run -v `pwd`/:/summit_user --rm -it --env NEPTUNE_API_TOKEN=$token summit:snar_benchmark snar_experiment_2.py
+export NEPTUNE_API_TOKEN= #place your neptune token here
+sudo docker run -v `pwd`/:/summit_user --rm -it --env NEPTUNE_API_TOKEN=$NEPTUNE_API_TOKEN summit:snar_benchmark snar_experiment_2.py
 ```
 
 Singularity (for running Docker containers on the HPC):

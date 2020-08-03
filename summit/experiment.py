@@ -4,9 +4,27 @@ from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient
 from summit.utils import jsonify_dict, unjsonify_dict
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 import pandas as pd
 import numpy as np
 import time
+
+COLORS = [
+    (165, 0, 38),
+    (215, 48, 39),
+    (244, 109, 67),
+    (253, 174, 97),
+    (254, 224, 144),
+    (255, 255, 191),
+    (224, 243, 248),
+    (171, 217, 233),
+    (116, 173, 209),
+    (69, 117, 180),
+    (49, 54, 149),
+]
+COLORS = np.array(COLORS) / 256
+CMAP = ListedColormap(COLORS)
 
 
 class Experiment(ABC):
@@ -95,7 +113,7 @@ class Experiment(ABC):
             The later can be an empty dictionary.
         """
 
-        raise NotImplementedError("_run be implemented by subclasses of Benchmark")
+        raise NotImplementedError("_run be implemented by subclasses of Experiment")
 
     def reset(self):
         """Reset the experiment
@@ -110,13 +128,14 @@ class Experiment(ABC):
         self._data = DataSet(columns=columns, metadata_columns=md_columns)
         self.extras = []
 
-    def to_dict(self):
+    def to_dict(self, **experiment_params):
         """Serialize the class to a dictionary
         
         Subclasses can add a experiment_params dictionary
         key with custom parameters for the experiment
         """
         extras = []
+
         for e in self.extras:
             if type(e) == dict:
                 extras.append(jsonify_dict(e))
@@ -129,13 +148,15 @@ class Experiment(ABC):
             domain=self.domain.to_dict(),
             name=self.__class__.__name__,
             data=self.data.to_dict(),
+            experiment_params=experiment_params,
             extras=extras,
         )
 
     @classmethod
-    def from_dict(cls, d, **kwargs):
+    def from_dict(cls, d):
         domain = Domain.from_dict(d["domain"])
-        exp = cls(domain=domain, **kwargs)
+        experiment_params = d.get("experiment_params", {})
+        exp = cls(domain=domain, **experiment_params)
         exp._data = DataSet.from_dict(d["data"])
         for e in d["extras"]:
             if type(e) == dict:
@@ -146,7 +167,7 @@ class Experiment(ABC):
                 exp.extras.append(e)
         return exp
 
-    def pareto_plot(self, objectives=None, ax=None):
+    def pareto_plot(self, objectives=None, colorbar=False, ax=None):
         """  Make a 2D pareto plot of the experiments thus far
         
         Parameters
@@ -199,12 +220,15 @@ class Experiment(ABC):
             markers = ["o", "x"]
             for strategy, marker in zip(strategies, markers):
                 strat_data = self.data[self.data["strategy"] == strategy]
-                ax.scatter(
+                c = strat_data.index.values if colorbar else "k"
+                im = ax.scatter(
                     strat_data[objectives[0]],
                     strat_data[objectives[1]],
-                    c="k",
-                    alpha=0.1,
+                    cmap=CMAP,
+                    c=c,
+                    alpha=1 if colorbar else 0.5,
                     marker=marker,
+                    s=100,
                     label=strategy,
                 )
 
@@ -214,21 +238,28 @@ class Experiment(ABC):
             ax.plot(
                 self.pareto_data[objectives[0]],
                 self.pareto_data[objectives[1]],
-                c="g",
+                c=(165 / 256, 0, 38 / 256),
                 label="Pareto Front",
-                linewidth=3
+                linewidth=3,
             )
             ax.set_xlabel(objectives[0])
             ax.set_ylabel(objectives[1])
+            if return_fig and colorbar:
+                fig.colorbar(im)
             ax.tick_params(direction="in")
             ax.legend()
 
         if return_fig:
             return fig, ax
+        elif return_fig and colorbar:
+            return fig, ax, im
+        elif not return_fig and colorbar:
+            return ax, im
         else:
             return ax
 
+
 def add_metadata_columns(df, metadata_df):
     for column in metadata_df.metadata_columns:
-        df[(column, 'METADATA')] = metadata_df[column]
+        df[(column, "METADATA")] = metadata_df[column]
     return df
