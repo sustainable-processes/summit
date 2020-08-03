@@ -310,7 +310,7 @@ class GRYFFIN(Strategy):
         config_file = "config.json"
         config_file_path = tmp_dir / config_file
         with open(config_file_path, "w") as configfile:
-            json.dump(self.config_dict, configfile, indent=2)
+            json.dump(config_dict, configfile, indent=2)
 
         # write categories
         category_writer = CategoryWriter(inputs=self.domain_inputs)
