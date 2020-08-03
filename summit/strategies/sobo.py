@@ -9,9 +9,10 @@ import GPyOpt
 import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
-        
+
+
 class SOBO(Strategy):
-    ''' Single-objective Bayesian Optimization (SOBO)
+    """ Single-objective Bayesian Optimization (SOBO)
     
     Parameters
     ---------- 
@@ -37,7 +38,7 @@ class SOBO(Strategy):
     exact_feval: boolean, optional
         Whether the function evaluations are exact (True) or noisy (False).
         By default: False.
-    ard: boolean, optional
+    ARD: boolean, optional
         Whether automatic relevance determination should be applied (True).
         By default: True.
     standardize_outputs: boolean, optional
@@ -70,49 +71,85 @@ class SOBO(Strategy):
     >>> strategy = SOBO(domain)
     >>> next_experiments = strategy.suggest_experiments(5)
 
-    '''
+    """
 
-    def __init__(self, domain, transform=None, gp_model_type=None, acquisition_type=None, optimizer_type=None, evaluator_type=None, **kwargs):
+    def __init__(
+        self,
+        domain,
+        transform=None,
+        gp_model_type=None,
+        acquisition_type=None,
+        optimizer_type=None,
+        evaluator_type=None,
+        **kwargs
+    ):
         Strategy.__init__(self, domain, transform=transform, **kwargs)
 
-        self.use_descriptors = kwargs.get('use_descriptors', False)
+        self.use_descriptors = kwargs.get("use_descriptors", False)
         # TODO: notation - discrete in our model (e.g., catalyst type) = categorical?
         self.input_domain = []
         for v in self.domain.variables:
             if not v.is_objective:
                 if isinstance(v, ContinuousVariable):
                     self.input_domain.append(
-                        {'name': v.name,
-                        'type': v.variable_type,
-                        'domain': (v.bounds[0], v.bounds[1])})
+                        {
+                            "name": v.name,
+                            "type": v.variable_type,
+                            "domain": (v.bounds[0], v.bounds[1]),
+                        }
+                    )
                 elif isinstance(v, CategoricalVariable):
                     if v.ds is None or not self.use_descriptors:
                         self.input_domain.append(
-                            {'name': v.name,
-                            'type': 'categorical',
-                            'domain': tuple(self.categorical_wrapper(v.levels))})
+                            {
+                                "name": v.name,
+                                "type": "categorical",
+                                "domain": tuple(self.categorical_wrapper(v.levels)),
+                            }
+                        )
                     elif v.ds is not None and self.use_descriptors:
                         if v.ds is None:
-                            raise ValueError("No descriptors provided for variable: {}".format(v.name))
+                            raise ValueError(
+                                "No descriptors provided for variable: {}".format(
+                                    v.name
+                                )
+                            )
                         descriptor_names = v.ds.data_columns
-                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                        descriptors = np.asarray(
+                            [
+                                v.ds.loc[:, [l]].values.tolist()
+                                for l in v.ds.data_columns
+                            ]
+                        )
                         for j, d in enumerate(descriptors):
                             self.input_domain.append(
-                                {'name': descriptor_names[j],
-                                 'type': 'continuous',
-                                 'domain': (np.min(np.asarray(d)), np.max(np.asarray(d)))
-                                })
+                                {
+                                    "name": descriptor_names[j],
+                                    "type": "continuous",
+                                    "domain": (
+                                        np.min(np.asarray(d)),
+                                        np.max(np.asarray(d)),
+                                    ),
+                                }
+                            )
                     # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
                 else:
-                    raise TypeError('Unknown variable type.')
+                    raise TypeError("Unknown variable type.")
 
         # TODO: how to handle equality constraints? Could we remove '==' from constraint types as each equality
         #  constraint reduces the degrees of freedom?
         if self.domain.constraints is not None:
             constraints = self.constr_wrapper(self.domain)
-            self.constraints = [{'name': 'constr_' + str(i),
-                                 'constraint': c[0] if c[1] in ['<=', '<'] else '(' + c[0] + ')*(-1)'}
-                                for i,c in enumerate(constraints) if not (c[1] == '==')]
+            self.constraints = [
+                {
+                    "name": "constr_" + str(i),
+                    "constraint": c[0]
+                    if c[1] in ["<=", "<"]
+                    else "(" + c[0] + ")*(-1)",
+                }
+                for i, c in enumerate(constraints)
+                if not (c[1] == "==")
+            ]
         else:
             self.constraints = None
 
@@ -128,10 +165,17 @@ class SOBO(Strategy):
             RF: random forest (scikit-learn)
         """
 
-        if gp_model_type in ['GP', 'GP_MCMC', 'sparseGP', 'warpedGP', 'InputWarpedGP', 'RF']:
+        if gp_model_type in [
+            "GP",
+            "GP_MCMC",
+            "sparseGP",
+            "warpedGP",
+            "InputWarpedGP",
+            "RF",
+        ]:
             self.gp_model_type = gp_model_type
         else:
-            self.gp_model_type = 'GP'   # default model type is a standard Gaussian Process (from GPy package)
+            self.gp_model_type = "GP"  # default model type is a standard Gaussian Process (from GPy package)
 
         """
         Acquisition function type
@@ -144,10 +188,21 @@ class SOBO(Strategy):
             LP: local penalization
             ES: entropy search 
         """
-        if acquisition_type in ['EI', 'EI_MCMC', 'LCB', 'LCB_MCMC', 'MPI', 'MPI_MCMC', 'LP', 'ES']:
+        if acquisition_type in [
+            "EI",
+            "EI_MCMC",
+            "LCB",
+            "LCB_MCMC",
+            "MPI",
+            "MPI_MCMC",
+            "LP",
+            "ES",
+        ]:
             self.acquisition_type = acquisition_type
         else:
-            self.acquisition_type = 'EI'  # default acquisition function is expected utility improvement
+            self.acquisition_type = (
+                "EI"  # default acquisition function is expected utility improvement
+            )
 
         """ 
         Method for optimization of acquisition function
@@ -155,28 +210,34 @@ class SOBO(Strategy):
            DIRECT: Dividing Rectangles,
            CMA: covariance matrix adaption
         """
-        if optimizer_type in ['lbfgs', 'DIRECT', 'CMA']:
+        if optimizer_type in ["lbfgs", "DIRECT", "CMA"]:
             self.optimizer_type = optimizer_type
         else:
-            self.optimizer_type = 'lbfgs'   # default optimizer: lbfgs
+            self.optimizer_type = "lbfgs"  # default optimizer: lbfgs
 
-        if evaluator_type in ['sequential', 'random', 'local_penalization', 'thompson_sampling']:
+        if evaluator_type in [
+            "sequential",
+            "random",
+            "local_penalization",
+            "thompson_sampling",
+        ]:
             self.evaluator_type = evaluator_type
         else:
-            self.evaluator_type = 'random'
+            self.evaluator_type = "random"
 
         # specify GPy kernel: # https://gpy.readthedocs.io/en/deploy/GPy.kern.html#subpackages
-        self.kernel = kwargs.get('kernel', GPy.kern.Matern52(self.input_dim))   
+        self.kernel = kwargs.get("kernel", GPy.kern.Matern52(self.input_dim))
         # Are function values exact (w/o noise)?
-        self.exact_feval = kwargs.get('exact_feval', False)
+        self.exact_feval = kwargs.get("exact_feval", False)
         # automatic relevance determination
-        self.ARD = kwargs.get('ARD', True)
+        self.ARD = kwargs.get("ARD", True)
         # Standardization of outputs?
-        self.standardize_outputs = kwargs.get('standardize_outputs', True)
+        self.standardize_outputs = kwargs.get("standardize_outputs", True)
         self.prev_param = None
 
-    def suggest_experiments(self, num_experiments=1, 
-                            prev_res: DataSet=None, **kwargs):
+    def suggest_experiments(
+        self, num_experiments=1, prev_res: DataSet = None, **kwargs
+    ):
         """ Suggest experiments using GPyOpt single-objective Bayesian Optimization
         
         Parameters
@@ -211,17 +272,22 @@ class SOBO(Strategy):
 
         # Suggest random initial design
         if prev_res is None:
-            '''lhs design does not consider constraints
+            """lhs design does not consider constraints
             lhs = LHS(self.domain)
             next_experiments = lhs.suggest_experiments((num_experiments))
             return next_experiments, None, float("inf"), None
-            '''
-            feasible_region = GPyOpt.Design_space(space=self.input_domain, constraints=self.constraints)
-            request = GPyOpt.experiment_design.initial_design('random', feasible_region, num_experiments)
+            """
+            feasible_region = GPyOpt.Design_space(
+                space=self.input_domain, constraints=self.constraints
+            )
+            request = GPyOpt.experiment_design.initial_design(
+                "random", feasible_region, num_experiments
+            )
         else:
             # Get inputs and outputs
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, 
-                            transform_descriptors=self.use_descriptors)
+            inputs, outputs = self.transform.transform_inputs_outputs(
+                prev_res, transform_descriptors=self.use_descriptors
+            )
 
             # Set up maximization and minimization by converting maximization to minimization problem
             for v in self.domain.variables:
@@ -229,7 +295,9 @@ class SOBO(Strategy):
                     outputs[v.name] = -1 * outputs[v.name]
                 if isinstance(v, CategoricalVariable):
                     if not self.use_descriptors:
-                        inputs[v.name] = self.categorical_wrapper(inputs[v.name], v.levels)
+                        inputs[v.name] = self.categorical_wrapper(
+                            inputs[v.name], v.levels
+                        )
 
             inputs = inputs.to_numpy()
             outputs = outputs.to_numpy()
@@ -245,23 +313,24 @@ class SOBO(Strategy):
                 X_step = inputs
                 Y_step = outputs
 
-            sobo_model = GPyOpt.methods.BayesianOptimization(f=None,
-                                                             domain=self.input_domain,
-                                                             constraints=self.constraints,
-                                                             model_type=self.gp_model_type,
-                                                             kernel=self.kernel,
-                                                             acquisition_type=self.acquisition_type,
-                                                             acquisition_optimizer_type=self.optimizer_type,
-                                                             normalize_Y=self.standardize_outputs,
-                                                             batch_size=num_experiments,
-                                                             evaluator_type=self.evaluator_type,
-                                                             maximize=False,
-                                                             ARD=self.ARD,
-                                                             exact_feval=self.exact_feval,
-                                                             X=X_step,
-                                                             Y=Y_step)
+            sobo_model = GPyOpt.methods.BayesianOptimization(
+                f=None,
+                domain=self.input_domain,
+                constraints=self.constraints,
+                model_type=self.gp_model_type,
+                kernel=self.kernel,
+                acquisition_type=self.acquisition_type,
+                acquisition_optimizer_type=self.optimizer_type,
+                normalize_Y=self.standardize_outputs,
+                batch_size=num_experiments,
+                evaluator_type=self.evaluator_type,
+                maximize=False,
+                ARD=self.ARD,
+                exact_feval=self.exact_feval,
+                X=X_step,
+                Y=Y_step,
+            )
             request = sobo_model.suggest_next_locations()
-
 
             # Store parameters (history of suggested points and function evaluations)
             param = [X_step, Y_step]
@@ -269,11 +338,10 @@ class SOBO(Strategy):
             fbest = np.min(Y_step)
             xbest = X_step[np.argmin(Y_step)]
 
-
         # Generate DataSet object with variable values of next
         next_experiments = None
         transform_descriptors = False
-        if request is not None and len(request)!=0:
+        if request is not None and len(request) != 0:
             next_experiments = {}
             i_inp = 0
             for v in self.domain.variables:
@@ -282,7 +350,9 @@ class SOBO(Strategy):
                         if v.ds is None or not self.use_descriptors:
                             cat_list = []
                             for j, entry in enumerate(request[:, i_inp]):
-                               cat_list.append(self.categorical_unwrap(entry, v.levels))
+                                cat_list.append(
+                                    self.categorical_unwrap(entry, v.levels)
+                                )
                             next_experiments[v.name] = np.asarray(cat_list)
                             i_inp += 1
                         else:
@@ -290,20 +360,21 @@ class SOBO(Strategy):
                             for d in descriptor_names:
                                 next_experiments[d] = request[:, i_inp]
                                 i_inp += 1
-                            transform_descriptors =True
+                            transform_descriptors = True
                     else:
                         next_experiments[v.name] = request[:, i_inp]
                         i_inp += 1
             next_experiments = DataSet.from_df(pd.DataFrame(data=next_experiments))
-            next_experiments[('strategy', 'METADATA')] = 'Single-objective BayOpt'
-        
-        self.fbest= objective_dir * fbest
+            next_experiments[("strategy", "METADATA")] = "Single-objective BayOpt"
+
+        self.fbest = objective_dir * fbest
         self.xbest = xbest
         self.prev_param = param
 
         # Do any necessary transformation back
-        next_experiments = self.transform.un_transform(next_experiments,
-                        transform_descriptors=self.use_descriptors)
+        next_experiments = self.transform.un_transform(
+            next_experiments, transform_descriptors=self.use_descriptors
+        )
 
         return next_experiments
 
@@ -313,17 +384,35 @@ class SOBO(Strategy):
 
     def to_dict(self):
         if self.prev_param is not None:
-            param = [self.prev_param[0].tolist(), 
-                    self.prev_param[1].tolist()]
-            strategy_params = dict(prev_param=param)
+            param = [self.prev_param[0].tolist(), self.prev_param[1].tolist()]
         else:
-            strategy_params = dict(prev_param=None)
+            param = None
+
+        strategy_params = dict(
+            prev_param=param,
+            use_descriptors=self.use_descriptors,
+            gp_model_type=self.gp_model_type,
+            acquisition_type=self.acquisition_type,
+            optimizer_type=self.optimizer_type,
+            evaluator_type=self.evaluator_type,
+            kernel=self.kernel.to_dict(),
+            exact_feval=self.exact_feval,
+            ARD=self.ARD,
+            standardize_outputs=self.standardize_outputs,
+        )
+
         return super().to_dict(**strategy_params)
 
     @classmethod
     def from_dict(cls, d):
+        # Get kernel
+        kernel = d["strategy_params"]["kernel"]
+        kernel = GPy.kern.Kern.from_dict(kernel)
+        d["strategy_params"]["kernel"] = kernel
+
+        # Setup SOBO
         sobo = super().from_dict(d)
-        param = d['strategy_params']['prev_param']
+        param = d["strategy_params"]["prev_param"]
         if param is not None:
             param = [np.array(param[0]), np.array(param[1])]
             sobo.prev_param = param
@@ -335,7 +424,7 @@ class SOBO(Strategy):
         for c in summit_domain.constraints:
             tmp_c = c.lhs
             for v_input_index, v_input_name in enumerate(v_input_names):
-                v_gpyopt_name = 'x[:,'+str(v_input_index)+']'
+                v_gpyopt_name = "x[:," + str(v_input_index) + "]"
                 tmp_c = tmp_c.replace(v_input_name, v_gpyopt_name)
             gpyopt_constraints.append([tmp_c, c.constraint_type])
         return gpyopt_constraints

@@ -534,7 +534,7 @@ def test_sobo(
     batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False
 ):
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
-    strategy = SOBO(domain=hartmann3D.domain)
+    strategy = SOBO(domain=hartmann3D.domain, kernel=GPy.kern.Matern32(3))
 
     # run SOBO loop for fixed <num_iter> number of iteration
     num_iter = max_num_exp // batch_size  # maximum number of iterations
@@ -604,7 +604,15 @@ def test_sobo(
     if strategy.prev_param is not None:
         assert strategy.prev_param[0].all() == strategy_2.prev_param[0].all()
         assert strategy.prev_param[1].all() == strategy_2.prev_param[1].all()
-
+        assert strategy.use_descriptors == strategy_2.use_descriptors
+        assert strategy.gp_model_type == strategy_2.gp_model_type
+        assert strategy.acquisition_type == strategy_2.acquisition_type
+        assert strategy.optimizer_type == strategy_2.optimizer_type
+        assert strategy.evaluator_type == strategy_2.evaluator_type
+        assert strategy.kernel.to_dict() == strategy_2.kernel.to_dict()
+        assert strategy.exact_feval == strategy_2.exact_feval
+        assert strategy.ARD == strategy_2.ARD
+        assert strategy.standardize_outputs == strategy_2.standardize_outputs
     if plot:
         fig, ax = hartmann3D.plot()
 
