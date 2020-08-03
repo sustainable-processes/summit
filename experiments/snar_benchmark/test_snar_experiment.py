@@ -90,7 +90,7 @@ def test_snar_experiment(strategy, transform):
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     for i in range(NUM_REPEATS):
         experiment.reset()
-        s = strategy(experiment.domain, transform=transform)
+        s = strategy(experiment.domain, transform=transform, sampling_strategies=1)
 
         # Special considerations for Neldermead
         if strategy == NelderMead:
@@ -114,6 +114,7 @@ def test_snar_experiment(strategy, transform):
                 "snar_experiment",
                 s.__class__.__name__,
                 transform.__class__.__name__,
+                "sampling_strategies=1",
             ],
             max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
             batch_size=BATCH_SIZE,

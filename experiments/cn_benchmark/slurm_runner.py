@@ -5,6 +5,7 @@ import uuid
 import pathlib
 import os
 
+
 class SlurmRunner(NeptuneRunner):
     """  Run an experiment on a remote server (e.g., HPC) using SLURM.
     
@@ -52,39 +53,41 @@ class SlurmRunner(NeptuneRunner):
     --------    
     
     """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.docker_container = kwargs.get('docker_container', 
-                            "marcosfelt/summit:snar_benchmark")
-        self.hostname = kwargs.get('hostname',"login-cpu.hpc.cam.ac.uk")
+        self.docker_container = kwargs.get(
+            "docker_container", "marcosfelt/summit:snar_benchmark"
+        )
+        self.hostname = kwargs.get("hostname", "login-cpu.hpc.cam.ac.uk")
 
     def run(self, **kwargs):
         # Set up file structure
         base = pathlib.Path(".cn_benchmark")
         uuid_val = str(uuid.uuid4())
-        save_file_dir = base /  uuid_val
+        save_file_dir = base / uuid_val
         os.makedirs(save_file_dir, exist_ok=True)
 
         # Save json
         json_file_path = save_file_dir / "slurm_runner.json"
         self.save(json_file_path)
 
-        # Create python file        
+        # Create python file
         python_file_path = save_file_dir / "run.py"
-        with open(python_file_path, 'w') as f:
+        with open(python_file_path, "w") as f:
             f.write("from summit import NeptuneRunner\n")
             f.write(f"""r = NeptuneRunner.load("slurm_runner.json")\n""")
             f.write("r.run(save_at_end=True)")
-        
+
         # SSH into remote server
-        username = os.getenv('SSH_USER')
+        username = os.getenv("SSH_USER")
         if username is None:
             raise ValueError("SSH_USER must be set")
-        password = os.getenv('SSH_PASSWORD')
+        password = os.getenv("SSH_PASSWORD")
         if password is None:
             raise ValueError("SSH_PASSWORD must be set")
-        neptune_api_token = os.getenv('NEPTUNE_API_TOKEN')
+        neptune_api_token = os.getenv("NEPTUNE_API_TOKEN")
         if neptune_api_token is None:
             raise ValueError("NEPTUNE_API_TOKEN must be set")
         ssh = SSHClient()
@@ -97,13 +100,21 @@ class SlurmRunner(NeptuneRunner):
 
         # Copy files onto remote server
         scp = SCPClient(ssh.get_transport())
-        scp.put([str(python_file_path), str(json_file_path), "slurm_summit_cn_experiment.sh"], 
-                remote_path=remote_path)
+        scp.put(
+            [
+                str(python_file_path),
+                str(json_file_path),
+                "slurm_summit_cn_experiment.sh",
+            ],
+            remote_path=remote_path,
+        )
 
         # Set the Neptune api token as an environmental variable in the remote environment
         # Singularity automatically passes environmental variables to the Docker containers
-        # Run the experiment        
-        ssh.exec_command(f"export NEPTUNE_API_TOKEN={neptune_api_token} && cd {remote_path} && sbatch slurm_summit_cn_experiment.sh {self.docker_container} run.py")
+        # Run the experiment
+        ssh.exec_command(
+            f"export NEPTUNE_API_TOKEN={neptune_api_token} && cd {remote_path} && sbatch slurm_summit_cn_experiment.sh {self.docker_container} run.py"
+        )
 
         # Close the ssh connection
         scp.close()

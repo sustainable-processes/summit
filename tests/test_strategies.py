@@ -682,8 +682,9 @@ def test_gryffin_himmelblau(
     os.remove(save_name)
 
     if strategy.prev_param is not None:
+        assert strategy.config_dict == strategy_2.config_dict
         assert strategy.prev_param == strategy_2.prev_param
-
+        assert strategy.use_descriptors == strategy_2.use_descriptors
     if plot:
         fig, ax = himmelblau.plot()
 
@@ -764,7 +765,9 @@ def test_gryffin_hartmann(
     os.remove(save_name)
 
     if strategy.prev_param is not None:
+        assert strategy.config_dict == strategy_2.config_dict
         assert strategy.prev_param == strategy_2.prev_param
+        assert strategy.use_descriptors == strategy_2.use_descriptors
 
     if plot:
         fig, ax = hartmann3D.plot()

@@ -23,6 +23,8 @@ class GRYFFIN(Strategy):
     ---------- 
     domain: summit.domain.Domain
         The Summit domain describing the optimization problem.
+    transform : summit.strategies.base.Transform
+        Transform to use on the strategy
     use_descriptors: bool, optional
         Whether descriptors of categorical variables are used. If not,
         auto_desc_gen must be True when categorical variables are used.
@@ -101,7 +103,7 @@ class GRYFFIN(Strategy):
         self,
         domain,
         transform=None,
-        save_dir=None,
+        use_descriptors=True,
         auto_desc_gen=False,
         sampling_strategies=4,
         batches=1,
@@ -122,15 +124,10 @@ class GRYFFIN(Strategy):
         self.domain_objectives = []
         self.prev_param = None
 
-        # Create directories to store temporary files
-        summit_config_path = get_summit_config_path()
-        self.uuid_val = uuid.uuid4()  # Unique identifier for this run
-        tmp_dir = summit_config_path / "gryffin" / str(self.uuid_val)
-        if not os.path.isdir(tmp_dir):
-            os.makedirs(tmp_dir)
+        tmp_dir = self._get_tmp_dir()
 
         # Parse Summit domain to Gryffin domain
-        self.use_descriptors = kwargs.get("use_descriptors", True)
+        self.use_descriptors = use_descriptors
         for v in self.domain.variables:
             if not v.is_objective:
                 if v.variable_type == "continuous":
@@ -190,7 +187,6 @@ class GRYFFIN(Strategy):
                 "boosted": boosted,
                 "sampling_strategies": sampling_strategies,
                 "batches": batches,
-                "scratch_dir": str(tmp_dir / "scratch"),
                 "sampler": sampler,
                 "softness": softness,
                 "continuous_optimizer": continuous_optimizer,
@@ -202,22 +198,11 @@ class GRYFFIN(Strategy):
                     "random_sampler": logging,
                 },
             },
-            "database": {"format": "pickle", "path": str(tmp_dir / "SearchProgress"),},
             "parameters": self.domain_inputs,
             "objectives": self.domain_objectives,
         }
 
-        config_file = "config.json"
-        config_file_path = tmp_dir / config_file
-        with open(config_file_path, "w") as configfile:
-            json.dump(config_dict, configfile, indent=2)
-
-        # write categories
-        category_writer = CategoryWriter(inputs=self.domain_inputs)
-        category_writer.write_categories(save_dir=tmp_dir)
-
-        # initialize gryffin
-        self.gryffin = Gryffin(config_file_path)
+        self._setup_gryffin(config_dict, tmp_dir)
 
     def suggest_experiments(self, prev_res: DataSet = None, **kwargs):
         """ Suggest experiments using Gryffin optimization strategy
@@ -310,6 +295,39 @@ class GRYFFIN(Strategy):
 
         return next_experiments
 
+    def _setup_gryffin(self, config_dict: dict, tmp_dir: pathlib.Path):
+        # Create class attribute
+        self.config_dict = copy.deepcopy(config_dict)
+
+        # Update paramters
+        config_dict["general"]["scratch_dir"] = str(tmp_dir / "scratch")
+        config_dict["database"] = {
+            "format": "pickle",
+            "path": str(tmp_dir / "SearchProgress"),
+        }
+
+        # Save config file
+        config_file = "config.json"
+        config_file_path = tmp_dir / config_file
+        with open(config_file_path, "w") as configfile:
+            json.dump(self.config_dict, configfile, indent=2)
+
+        # write categories
+        category_writer = CategoryWriter(inputs=self.domain_inputs)
+        category_writer.write_categories(save_dir=tmp_dir)
+
+        # initialize gryffin
+        self.gryffin = Gryffin(config_file_path)
+
+    def _get_tmp_dir(self):
+        # Create directories to store temporary files
+        summit_config_path = get_summit_config_path()
+        self.uuid_val = uuid.uuid4()  # Unique identifier for this run
+        tmp_dir = summit_config_path / "gryffin" / str(self.uuid_val)
+        if not os.path.isdir(tmp_dir):
+            os.makedirs(tmp_dir)
+        return tmp_dir
+
     def reset(self):
         """Reset the internal parameters"""
         self.prev_param = None
@@ -317,17 +335,26 @@ class GRYFFIN(Strategy):
     def to_dict(self):
         if self.prev_param is not None:
             param = self.prev_param
-            strategy_params = dict(prev_param=param)
         else:
-            strategy_params = dict(prev_param=None)
+            param = None
+        strategy_params = dict(
+            config_dict=self.config_dict,
+            use_descriptors=self.use_descriptors,
+            prev_param=param,
+        )
         return super().to_dict(**strategy_params)
 
     @classmethod
     def from_dict(cls, d):
+        # Gather parameters
+        strategy_params = d["strategy_params"]
+        param = strategy_params["prev_param"]
+
+        # Setup gryffin
         gryffin = super().from_dict(d)
-        param = d["strategy_params"]["prev_param"]
-        if param is not None:
-            gryffin.prev_param = param
+        tmp_dir = gryffin._get_tmp_dir()
+        gryffin._setup_gryffin(strategy_params["config_dict"], tmp_dir)
+        gryffin.prev_param = param
         return gryffin
 
     # TODO: update constraint wrapper when Gryffin can handle constraints
