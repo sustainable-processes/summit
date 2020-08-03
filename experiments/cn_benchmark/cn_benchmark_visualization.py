@@ -235,6 +235,13 @@ class PlotExperiments:
             )
             record["computation_t"] = time
 
+            # Use descriptors
+            try:
+                descriptors = r.strategy.use_descriptors
+            except AttributeError:
+                descriptors = None
+            record["use_descriptors"] = descriptors
+
             records.append(record)
 
         # Make pandas dataframe

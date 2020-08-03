@@ -91,13 +91,17 @@ def test_cn_experiment_descriptors(strategy, transform):
         )
 
         # Early stopping for local optimization strategies
-        if strategy in [NelderMead]:
+        if strategy == NelderMead:
             f_tol = 1e-5
+            s.random_start = True
+            max_restarts = 10
+            s.adaptive = True
         else:
             f_tol = None
+            max_restarts = 0
 
         name = f"cn_experiment_MO_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = SlurmRunner(
+        r = NeptuneRunner(
             experiment=experiment,
             strategy=s,
             neptune_project=NEPTUNE_PROJECT,
@@ -113,6 +117,7 @@ def test_cn_experiment_descriptors(strategy, transform):
             neptune_files=["slurm_summit_cn_experiment.sh"],
             max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
             batch_size=BATCH_SIZE,
+            max_restarts=max_restarts,
             hypervolume_ref=HYPERVOLUME_REF,
             f_tol=f_tol,
         )
