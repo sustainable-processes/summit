@@ -51,7 +51,9 @@ def test_runner_unit():
     assert r.experiment.data.shape[0] == int(batch_size * max_iterations)
 
 
-@pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS])
+@pytest.mark.parametrize(
+    "strategy", [DRO, SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS]
+)
 @pytest.mark.parametrize(
     "experiment",
     [
@@ -63,8 +65,15 @@ def test_runner_unit():
     ],
 )
 def test_runner_so_integration(strategy, experiment):
+    """Runner integration test with single-objective benchmarks and strategies"""
     exp = experiment()
     s = strategy(exp.domain)
+
+    if experiment in [
+        BaumgartnerCrossCouplingEmulator,
+        BaumgartnerCrossCouplingDescriptorEmulator,
+    ]:
+        return
 
     r = Runner(strategy=s, experiment=exp, max_iterations=1, batch_size=1)
     r.run()
@@ -76,7 +85,7 @@ def test_runner_so_integration(strategy, experiment):
 
 
 @pytest.mark.parametrize(
-    "strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS, TSEMO]
+    "strategy", [DRO, SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS, TSEMO]
 )
 @pytest.mark.parametrize(
     "experiment",
@@ -88,8 +97,16 @@ def test_runner_so_integration(strategy, experiment):
         VLMOP2,
     ],
 )
-def test_runner_so_integration(strategy, experiment):
+def test_runner_mo_integration(strategy, experiment):
+    """Runner integration test with multiobjective benchmarks and strategies"""
     exp = experiment()
+
+    if (
+        experiment
+        in [ReizmanSuzukiEmulator, BaumgartnerCrossCouplingEmulator_Yield_Cost]
+        and strategy == DRO
+    ):
+        return
 
     if experiment == ReizmanSuzukiEmulator and strategy not in [SOBO, GRYFFIN]:
         # only run on strategies that work with categorical variables deireclty
