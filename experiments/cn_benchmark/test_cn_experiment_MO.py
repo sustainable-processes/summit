@@ -161,7 +161,7 @@ def test_cn_experiment_dro():
             experiment=experiment,
             strategy=s,
             neptune_project=NEPTUNE_PROJECT,
-            docker_container="marcosfelt/summit:add_dro",
+            docker_container="marcosfelt/summit:dro",
             neptune_experiment_name=name,
             neptune_tags=["cn_experiment", "descriptors", s.__class__.__name__],
             neptune_files=["slurm_summit_cn_experiment.sh"],
