@@ -84,7 +84,7 @@ def test_no_transform(strategy):
 
 
 # Run experiments
-@pytest.mark.parametrize("strategy", [NelderMead, SNOBFIT, SOBO, GRYFFIN])
+@pytest.mark.parametrize("strategy", [DRO, NelderMead, SNOBFIT, SOBO, GRYFFIN])
 @pytest.mark.parametrize("transform", transforms)
 def test_snar_experiment(strategy, transform):
     warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -102,11 +102,16 @@ def test_snar_experiment(strategy, transform):
             f_tol = None
             max_restarts = 0
 
+        container = "marcosfelt/summit:cn_benchmark"
+        if strategy == DRO:
+            container = "marcosfelt/summit:dro"
+            strategy._model_size = "bigger"
+
         exp_name = f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
         r = SlurmRunner(
             experiment=experiment,
             strategy=s,
-            docker_container="marcosfelt/summit:cn_benchmark",
+            docker_container=container,
             neptune_project=NEPTUNE_PROJECT,
             neptune_experiment_name=exp_name,
             neptune_files=["slurm_summit_snar_experiment.sh"],
@@ -114,7 +119,7 @@ def test_snar_experiment(strategy, transform):
                 "snar_experiment",
                 s.__class__.__name__,
                 transform.__class__.__name__,
-                "sampling_strategies=1",
+                "bigger_model",
             ],
             max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
             batch_size=BATCH_SIZE,

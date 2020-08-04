@@ -137,31 +137,7 @@ def test_cn_experiment_tsemo():
             experiment=experiment,
             strategy=s,
             neptune_project=NEPTUNE_PROJECT,
-            docker_container="marcosfelt/summit:cn_benchmark",
-            neptune_experiment_name=name,
-            neptune_tags=["cn_experiment", "descriptors", s.__class__.__name__],
-            neptune_files=["slurm_summit_cn_experiment.sh"],
-            max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
-            batch_size=BATCH_SIZE,
-            hypervolume_ref=HYPERVOLUME_REF,
-        )
-        r.run(save_at_end=True)
-
-
-def test_cn_experiment_dro():
-    """Test multiobjective CN benchmark with descriptors and TSEMO (multiobjective strategy)."""
-    warnings.filterwarnings("ignore", category=RuntimeWarning)
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    for i in range(NUM_REPEATS):
-        experiment.reset()
-        s = DRO(experiment.domain)
-
-        name = f"cn_experiment_MO_{s.__class__.__name__}_repeat_{i}"
-        r = SlurmRunner(
-            experiment=experiment,
-            strategy=s,
-            neptune_project=NEPTUNE_PROJECT,
-            docker_container="marcosfelt/summit:dro",
+            zocker_container="marcosfelt/summit:cn_benchmark",
             neptune_experiment_name=name,
             neptune_tags=["cn_experiment", "descriptors", s.__class__.__name__],
             neptune_files=["slurm_summit_cn_experiment.sh"],
