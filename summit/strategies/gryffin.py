@@ -353,7 +353,8 @@ class GRYFFIN(Strategy):
         # Setup gryffin
         gryffin = super().from_dict(d)
         tmp_dir = gryffin._get_tmp_dir()
-        gryffin._setup_gryffin(strategy_params["config_dict"], tmp_dir)
+        if strategy_params.get("config_dict") is not None:
+            gryffin._setup_gryffin(strategy_params["config_dict"], tmp_dir)
         gryffin.prev_param = param
         return gryffin
 

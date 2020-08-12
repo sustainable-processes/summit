@@ -101,7 +101,7 @@ def test_cn_experiment_descriptors(strategy, transform):
             max_restarts = 0
 
         name = f"cn_experiment_MO_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = NeptuneRunner(
+        r = SlurmRunner(
             experiment=experiment,
             strategy=s,
             neptune_project=NEPTUNE_PROJECT,

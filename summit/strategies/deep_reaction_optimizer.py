@@ -45,9 +45,6 @@ class DRO(Strategy):
         A transform class (i.e, not the object itself). By default
         no transformation will be done the input variables or
         objectives.
-    save_dir: string, optional
-        Name of subfolder where temporary files during Gryffin execution are stored, i.e., summit/strategies/tmp_files/dro/<save_dir>.
-        By default: None (i.e. no subfolder created, files stored in summit/strategies/tmp_files/dro)
     pretrained_model_config_path: string, optional
         Path to the config file of a pretrained DRO model (note that the number of inputs parameters should match the domain inputs)
         By default: a pretrained model (from chemopt/chemopt/config_<#inputs>_inputs_standard.json) will be used
@@ -74,7 +71,6 @@ class DRO(Strategy):
         self,
         domain: Domain,
         transform: Transform = None,
-        save_dir=None,
         pretrained_model_config_path=None,
         model_size="standard",
         **kwargs
@@ -219,7 +215,11 @@ class DRO(Strategy):
             params["last_requested_point"] = params["last_requested_point"].tolist()
         else:
             params = None
-        strategy_params = dict(prev_param=params)
+        strategy_params = dict(
+            prev_param=params,
+            pretrained_model_config_path=self._pretrained_model_config_path,
+            model_size=self._model_size,
+        )
         return super().to_dict(**strategy_params)
 
     @classmethod

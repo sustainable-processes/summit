@@ -406,9 +406,10 @@ class SOBO(Strategy):
     @classmethod
     def from_dict(cls, d):
         # Get kernel
-        kernel = d["strategy_params"]["kernel"]
-        kernel = GPy.kern.Kern.from_dict(kernel)
-        d["strategy_params"]["kernel"] = kernel
+        kernel = d["strategy_params"].get("kernel")
+        if kernel is not None:
+            kernel = GPy.kern.Kern.from_dict(kernel)
+            d["strategy_params"]["kernel"] = kernel
 
         # Setup SOBO
         sobo = super().from_dict(d)
