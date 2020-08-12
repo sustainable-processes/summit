@@ -617,6 +617,123 @@ def test_sobo(
         fig, ax = hartmann3D.plot()
 
 
+@pytest.mark.parametrize("max_num_exp, maximize", [[1, True], [50, True], [50, False]])
+def test_dro2D(max_num_exp, maximize, constraint=False, plot=False):
+
+    himmelblau = test_functions.Himmelblau(maximize=maximize, constraints=constraint)
+    strategy = DRO(himmelblau.domain)
+
+    # run DRO loop for fixed <num_iter> number of iteration
+    num_iter = max_num_exp  # maximum number of iterations
+    max_stop = 20  # allowed number of consecutive iterations w/o improvement
+    nstop = 0
+    fbestold = float("inf")
+    polygons_points = []
+
+    next_experiments = None
+    param = None
+    for i in range(num_iter):
+        next_experiments = strategy.suggest_experiments(prev_res=next_experiments)
+        # This is the part where experiments take place
+        next_experiments = himmelblau.run_experiments(next_experiments)
+
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
+        xbest = strategy.xbest
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+        print(next_experiments)  # show next experiments
+
+    xbest = np.around(xbest, decimals=3)
+    fbest = np.around(fbest, decimals=3)
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # Extrema of test function without constraints: four identical local minima f = 0 at x1 = (3.000, 2.000),
+    # x2 = (-2.810, 3.131), x3 = (-3.779, -3.283), x4 = (3.584, -1.848)
+
+    # Test saving and loading
+    strategy.save("dro_2d.json")
+    strategy_2 = DRO.load("dro_2d.json")
+    os.remove("dro_2d.json")
+
+    if strategy.prev_param is not None:
+        assert np.array_equal(
+            np.array(list(strategy.prev_param["state"])),
+            np.array(list(strategy_2.prev_param["state"])),
+        )
+        assert np.array_equal(
+            strategy.prev_param["xbest"], strategy_2.prev_param["xbest"]
+        )
+        assert strategy.prev_param["fbest"] == strategy_2.prev_param["fbest"]
+        assert np.array_equal(
+            strategy.prev_param["last_requested_point"],
+            strategy_2.prev_param["last_requested_point"],
+        )
+        assert strategy.prev_param["iteration"] == strategy_2.prev_param["iteration"]
+
+
+@pytest.mark.parametrize("max_num_exp, maximize", [[1, True], [50, True], [50, False]])
+def test_dro3D(max_num_exp, maximize, constraint=False, plot=False):
+    hartmann3D = test_functions.Hartmann3D(maximize=maximize, constraints=constraint)
+    strategy = DRO(hartmann3D.domain)
+
+    # run DRO loop for fixed <num_iter> number of iteration
+    num_iter = max_num_exp  # maximum number of iterations
+    max_stop = 20  # allowed number of consecutive iterations w/o improvement
+    nstop = 0
+    fbestold = float("inf")
+
+    next_experiments = None
+    param = None
+    for i in range(num_iter):
+        next_experiments = strategy.suggest_experiments(prev_res=next_experiments)
+
+        # This is the part where experiments take place
+        next_experiments = hartmann3D.run_experiments(next_experiments)
+
+        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
+        xbest = strategy.xbest
+        if fbest < fbestold:
+            fbestold = fbest
+            nstop = 0
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print("No improvement in last " + str(max_stop) + " iterations.")
+            break
+        print(next_experiments)  # show next experiments
+        print("\n")
+
+    xbest = np.around(xbest, decimals=3)
+    fbestold = np.around(fbestold, decimals=3)
+
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbestold))
+
+    # Test saving and loading
+    strategy.save("dro_3d.json")
+    strategy_2 = DRO.load("dro_3d.json")
+    os.remove("dro_3d.json")
+
+    if strategy.prev_param is not None:
+        assert np.array_equal(
+            np.array(list(strategy.prev_param["state"])),
+            np.array(list(strategy_2.prev_param["state"])),
+        )
+        assert np.array_equal(
+            strategy.prev_param["xbest"], strategy_2.prev_param["xbest"]
+        )
+        assert strategy.prev_param["fbest"] == strategy_2.prev_param["fbest"]
+        assert np.array_equal(
+            strategy.prev_param["last_requested_point"],
+            strategy_2.prev_param["last_requested_point"],
+        )
+        assert strategy.prev_param["iteration"] == strategy_2.prev_param["iteration"]
+
+
 @pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint, test_id",
     [[1, 1, True, False, 0], [1, 200, True, False, 1], [4, 200, False, False, 2]],
