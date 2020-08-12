@@ -660,6 +660,12 @@ def test_dro2D(max_num_exp, maximize, constraint=False, plot=False):
     strategy_2 = DRO.load("dro_2d.json")
     os.remove("dro_2d.json")
 
+    assert strategy._model_size == strategy_2._model_size
+    assert (
+        strategy._pretrained_model_config_path
+        == strategy_2._pretrained_model_config_path
+    )
+
     if strategy.prev_param is not None:
         assert np.array_equal(
             np.array(list(strategy.prev_param["state"])),
@@ -717,6 +723,12 @@ def test_dro3D(max_num_exp, maximize, constraint=False, plot=False):
     strategy.save("dro_3d.json")
     strategy_2 = DRO.load("dro_3d.json")
     os.remove("dro_3d.json")
+
+    assert strategy._model_size == strategy_2._model_size
+    assert (
+        strategy._pretrained_model_config_path
+        == strategy_2._pretrained_model_config_path
+    )
 
     if strategy.prev_param is not None:
         assert np.array_equal(
