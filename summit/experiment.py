@@ -24,7 +24,6 @@ COLORS = [
     (49, 54, 149),
 ]
 COLORS = np.array(COLORS) / 256
-CMAP = ListedColormap(COLORS)
 
 
 class Experiment(ABC):
@@ -221,10 +220,11 @@ class Experiment(ABC):
             for strategy, marker in zip(strategies, markers):
                 strat_data = self.data[self.data["strategy"] == strategy]
                 c = strat_data.index.values if colorbar else "k"
+                cmap = ListedColormap(COLORS[: len(c)])
                 im = ax.scatter(
                     strat_data[objectives[0]],
                     strat_data[objectives[1]],
-                    cmap=CMAP,
+                    cmap=cmap,
                     c=c,
                     alpha=1 if colorbar else 0.5,
                     marker=marker,
@@ -235,18 +235,19 @@ class Experiment(ABC):
             # Sort data so get nice pareto plot
             self.pareto_data = self.data.iloc[indices].copy()
             self.pareto_data = self.pareto_data.sort_values(by=objectives[0])
-            ax.plot(
-                self.pareto_data[objectives[0]],
-                self.pareto_data[objectives[1]],
-                c=(165 / 256, 0, 38 / 256),
-                label="Pareto Front",
-                linewidth=3,
-            )
-            ax.set_xlabel(objectives[0])
-            ax.set_ylabel(objectives[1])
-            if return_fig and colorbar:
-                fig.colorbar(im)
-            ax.tick_params(direction="in")
+            if len(self.pareto_data) > 2:
+                ax.plot(
+                    self.pareto_data[objectives[0]],
+                    self.pareto_data[objectives[1]],
+                    c=(165 / 256, 0, 38 / 256),
+                    label="Pareto Front",
+                    linewidth=3,
+                )
+                ax.set_xlabel(objectives[0])
+                ax.set_ylabel(objectives[1])
+                if return_fig and colorbar:
+                    fig.colorbar(im)
+                ax.tick_params(direction="in")
             ax.legend()
 
         if return_fig:
