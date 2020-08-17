@@ -266,26 +266,11 @@ class NeptuneRunner(Runner):
         neptune_tags: list = None,
         neptune_description: str = None,
         neptune_files: list = None,
-        max_iterations=100,
-        num_initial_experiments=1,
-        batch_size=1,
-        max_same=None,
-        f_tol=1e-5,
-        max_restarts=0,
         hypervolume_ref=None,
         **kwargs,
     ):
 
-        super().__init__(
-            strategy,
-            experiment,
-            num_initial_experiments=num_initial_experiments,
-            max_iterations=max_iterations,
-            batch_size=batch_size,
-            f_tol=f_tol,
-            max_same=max_same,
-            max_restarts=max_restarts,
-        )
+        super().__init__(strategy, experiment, **kwargs)
 
         # Hypervolume reference for multiobjective experiments
         n_objs = len(self.experiment.domain.output_variables)
@@ -304,6 +289,7 @@ class NeptuneRunner(Runner):
         self.neptune_description = neptune_description
         self.neptune_files = neptune_files
         self.neptune_tags = neptune_tags
+        self.neptune_exp = kwargs.get("neptune_exp")
 
         # Set up logging
         self.logger = logging.getLogger(__name__)
@@ -327,6 +313,8 @@ class NeptuneRunner(Runner):
         n_objs = len(self.experiment.domain.output_variables)
         fbest_old = np.zeros(n_objs)
         fbest = np.zeros(n_objs)
+
+        # Serialization
         save_freq = kwargs.get("save_freq")
         save_dir = kwargs.get("save_dir", str(get_summit_config_path()))
         self.uuid_val = uuid.uuid4()
@@ -338,13 +326,16 @@ class NeptuneRunner(Runner):
         # Create neptune experiment
         session = Session(backend=HostedNeptuneBackend())
         proj = session.get_project(self.neptune_project)
-        neptune_exp = proj.create_experiment(
-            name=self.neptune_experiment_name,
-            description=self.neptune_description,
-            upload_source_files=self.neptune_files,
-            logger=self.logger,
-            tags=self.neptune_tags,
-        )
+        if self.neptune_exp is None:
+            neptune_exp = proj.create_experiment(
+                name=self.neptune_experiment_name,
+                description=self.neptune_description,
+                upload_source_files=self.neptune_files,
+                logger=self.logger,
+                tags=self.neptune_tags,
+            )
+        else:
+            neptune_exp = self.neptune_exp
 
         # Run optimization loop
         for i in progress_bar(range(self.max_iterations)):
@@ -356,8 +347,6 @@ class NeptuneRunner(Runner):
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=self.batch_size, prev_res=prev_res
                 )
-
-            # Run experiment suggestions
             prev_res = self.experiment.run_experiments(next_experiments)
 
             # Send best objective values to Neptune
@@ -374,10 +363,10 @@ class NeptuneRunner(Runner):
             # Send hypervolume for multiobjective experiments
             if n_objs > 1:
                 output_names = [v.name for v in self.experiment.domain.output_variables]
-                data = self.experiment.data[output_names]
+                data = self.experiment.data[output_names].copy()
                 for v in self.experiment.domain.output_variables:
                     if v.maximize:
-                        data[(v.name, "DATA")] = -1.0 * data[v.name]
+                        data.apply(lambda x: -x, columns=[v.name])
                 y_pareto, _ = pareto_efficient(data.to_numpy(), maximize=False)
                 hv = hypervolume(y_pareto, self.ref)
                 neptune_exp.send_metric("hypervolume", hv)

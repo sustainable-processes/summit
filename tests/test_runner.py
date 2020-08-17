@@ -13,7 +13,8 @@ import os
 @pytest.mark.parametrize("batch_size", [1, 5])
 @pytest.mark.parametrize("max_same", [None, 5])
 @pytest.mark.parametrize("max_restarts", [1, 5])
-def test_runner_unit(max_iterations, batch_size, max_same, max_restarts):
+@pytest.mark.parametrize("runner", [Runner, NeptuneRunner])
+def test_runner_unit(max_iterations, batch_size, max_same, max_restarts, runner):
     class MockStrategy(Strategy):
         iterations = 0
 
@@ -42,14 +43,27 @@ def test_runner_unit(max_iterations, batch_size, max_same, max_restarts):
             conditions[("y_1", "DATA")] = 0.5
             return conditions, {}
 
+    class MockNeptuneExperiment:
+        def send_metric(self, metric, value):
+            pass
+
+        def send_artifact(self, filename):
+            pass
+
+        def stop(self):
+            pass
+
     exp = MockExperiment()
-    r = Runner(
+    r = runner(
         strategy=MockStrategy(exp.domain),
         experiment=exp,
         max_iterations=max_iterations,
         batch_size=batch_size,
         max_same=max_same,
         max_restarts=max_restarts,
+        neptune_project="sustainable-processes/summit",
+        neptune_experiment_name="test_experiment",
+        neptune_exp=MockNeptuneExperiment(),
     )
     r.run()
 
@@ -126,7 +140,7 @@ def test_runner_so_integration(strategy, experiment):
     os.remove("test_save.json")
 
 
-# def test_neptune_runner_integration():
+# def test_neptune_runner_unit():
 #     class MockExperiment(Experiment):
 #         def __init__(self):
 #             super().__init__(self.create_domain())
@@ -144,8 +158,19 @@ def test_runner_so_integration(strategy, experiment):
 #             conditions[("y_1", "DATA")] = 0.5
 #             return conditions, {}
 
+#     class MockNeptuneExperiment:
+#         def send_metric(self, metric, value):
+#             pass
+
+#         def send_artifact(self, filename):
+#             pass
+
+#         def stop(self):
+#             pass
+
 #     exp = MockExperiment()
 #     strategy = Random(exp.domain)
+#     neptune_exp = MockNeptuneExperiment()
 
 #     r = NeptuneRunner(
 #         neptune_project="sustainable-processes/summit",
@@ -154,5 +179,16 @@ def test_runner_so_integration(strategy, experiment):
 #         experiment=exp,
 #         max_iterations=1,
 #         batch_size=1,
+#         neptune_exp=neptune_exp,
 #     )
 #     r.run()
+
+#     # Check that correct number of iterations run
+#     if max_same is not None:
+#         iterations = (max_restarts + 1) * max_same
+#         iterations = iterations if iterations < max_iterations else max_iterations
+#     else:
+#         iterations = max_iterations
+
+#     assert r.strategy.iterations == iterations
+#     assert r.experiment.data.shape[0] == int(batch_size * iterations)
