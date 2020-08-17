@@ -9,7 +9,11 @@ import numpy as np
 import os
 
 
-def test_runner_unit():
+@pytest.mark.parametrize("max_iterations", [1, 10])
+@pytest.mark.parametrize("batch_size", [1, 5])
+@pytest.mark.parametrize("max_same", [None, 5])
+@pytest.mark.parametrize("max_restarts", [1, 5])
+def test_runner_unit(max_iterations, batch_size, max_same, max_restarts):
     class MockStrategy(Strategy):
         iterations = 0
 
@@ -17,6 +21,9 @@ def test_runner_unit():
             values = 0.5 * np.ones([num_experiments, 2])
             self.iterations += 1
             return DataSet(values, columns=["x_1", "x_2"])
+
+        def reset(self):
+            pass
 
     class MockExperiment(Experiment):
         def __init__(self):
@@ -35,20 +42,24 @@ def test_runner_unit():
             conditions[("y_1", "DATA")] = 0.5
             return conditions, {}
 
-    max_iterations = 10
-    batch_size = 5
     exp = MockExperiment()
     r = Runner(
         strategy=MockStrategy(exp.domain),
         experiment=exp,
         max_iterations=max_iterations,
         batch_size=batch_size,
+        max_same=max_same,
+        max_restarts=max_restarts,
     )
     r.run()
 
     # Check that correct number of iterations run
-    assert r.strategy.iterations == max_iterations
-    assert r.experiment.data.shape[0] == int(batch_size * max_iterations)
+    if max_same is not None:
+        iterations = max_restarts * max_same
+    else:
+        iterations = max_iterations
+    assert r.strategy.iterations == iterations
+    assert r.experiment.data.shape[0] == int(batch_size * iterations)
 
 
 @pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS])

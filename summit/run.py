@@ -72,8 +72,10 @@ class Runner:
     f_tol : float, optional
         How much difference between successive best objective values will be tolerated before stopping.
         This is generally useful for nonglobal algorithms like Nelder-Mead. Default is None.
+    max_same : int, optional
+        The number of allowed iterations where the objectives don't improve by more than f_tol. Default is None.
     max_restarts : int, optional
-        Number of restarts if f_tol is violated. Default is 0.
+        Number of restarts if max_same where is violated. Default is 0.
     Examples
     --------    
     
@@ -86,7 +88,8 @@ class Runner:
         num_initial_experiments=None,
         max_iterations=100,
         batch_size=1,
-        f_tol=None,
+        f_tol=1e-5,
+        max_same=None,
         max_restarts=0,
         **kwargs,
     ):
@@ -94,8 +97,9 @@ class Runner:
         self.experiment = experiment
         self.n_init = num_initial_experiments
         self.max_iterations = max_iterations
-        self.batch_size = batch_size
         self.f_tol = f_tol
+        self.batch_size = batch_size
+        self.max_same = max_same
         self.max_restarts = max_restarts
 
         # Set up logging
@@ -126,7 +130,8 @@ class Runner:
         fbest_old = np.zeros(n_objs)
         fbest = np.zeros(n_objs)
         prev_res = None
-        restarts = 0
+        self.restarts = 0
+
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
             if i == 0:
@@ -152,23 +157,32 @@ class Runner:
                 if i % save_freq == 0:
                     self.save(file)
 
-            # Stop if no improvement
-            if self.f_tol is not None and i > 1:
-                compare = np.abs(fbest - fbest_old) < self.f_tol
-                if all(compare) and restarts >= self.max_restarts:
+            compare = np.abs(fbest - fbest_old) > self.f_tol
+            if all(compare) or i <= 1:
+                nstop = 0
+            else:
+                nstop += 1
+
+            if self.max_same is not None:
+                if nstop >= self.max_same and self.restarts >= self.max_restarts:
                     self.logger.info(
-                        f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objective(s) (less than f_tol={self.f_tol})."
+                        f"{self.strategy.__class__.__name__} stopped after {i+1} iterations and {self.restarts} restarts."
                     )
                     break
-                elif all(compare) and restarts <= self.max_restarts:
+                elif nstop >= self.max_same:
+                    nstop = 0
                     prev_res = None
                     self.strategy.reset()
-                    restarts += 1
+                    self.restarts += 1
 
         # Save at end
         if save_at_end:
             file = save_dir / f"iteration_{i}.json"
             self.save(file)
+
+    def reset(self):
+        self.strategy.reset()
+        self.experiment.reset()
 
     def to_dict(self,):
         runner_params = dict(
@@ -231,6 +245,8 @@ class NeptuneRunner(Runner):
     f_tol : float, optional
         How much difference between successive best objective values will be tolerated before stopping.
         This is generally useful for nonglobal algorithms like Nelder-Mead. Default is None.
+    max_same : int, optional
+        The number of iterations where the objectives don't improve by more than f_tol. Default is max_iterations.
     max_restarts : int, optional
         Number of restarts if f_tol is violated. Default is 0.
     hypervolume_ref : array-like, optional
@@ -253,7 +269,8 @@ class NeptuneRunner(Runner):
         max_iterations=100,
         num_initial_experiments=1,
         batch_size=1,
-        f_tol=None,
+        max_same=None,
+        f_tol=1e-5,
         max_restarts=0,
         hypervolume_ref=None,
         **kwargs,
@@ -266,6 +283,7 @@ class NeptuneRunner(Runner):
             max_iterations=max_iterations,
             batch_size=batch_size,
             f_tol=f_tol,
+            max_same=max_same,
             max_restarts=max_restarts,
         )
 
@@ -295,8 +313,6 @@ class NeptuneRunner(Runner):
 
         Parameters
         ----------
-        num_initial_experiments : int, optional
-            Number of initial experiments to request before iterative experimentation.
         save_freq : int, optional
             The frequency with which to checkpoint the state of the optimization. Defaults to None.
         save_at_end : bool, optional
@@ -304,9 +320,6 @@ class NeptuneRunner(Runner):
             Default is True.
         save_dir : str, optional
             The directory to save checkpoints locally. Defaults to `~/.summit/runner`.
-        delete_local_files : bool, optional
-            Delete the local files once they are uploaded to Neptune.
-            Defaults to True.
         """
         # Set parameters
         prev_res = None
@@ -321,7 +334,6 @@ class NeptuneRunner(Runner):
         if not os.path.isdir(save_dir):
             os.makedirs(save_dir)
         save_at_end = kwargs.get("save_at_end", True)
-        delete_local_files = kwargs.get("delete_local_files", True)
 
         # Create neptune experiment
         session = Session(backend=HostedNeptuneBackend())
@@ -338,9 +350,8 @@ class NeptuneRunner(Runner):
         for i in progress_bar(range(self.max_iterations)):
             # Get experiment suggestions
             if i == 0:
-                next_experiments = self.strategy.suggest_experiments(
-                    num_experiments=self.n_init
-                )
+                k = self.n_init if self.n_init is not None else self.batch_size
+                next_experiments = self.strategy.suggest_experiments(num_experiments=k)
             else:
                 next_experiments = self.strategy.suggest_experiments(
                     num_experiments=self.batch_size, prev_res=prev_res
@@ -382,14 +393,19 @@ class NeptuneRunner(Runner):
 
             # Stop if no improvement
             # TODO: maybe we should at a <max_stop> parameter, such that the algorithm is stopped after #max_stop iterations w/o improvement
-            if self.f_tol is not None and i > 1:
-                compare = np.abs(fbest - fbest_old) < self.f_tol
-                if all(compare) and self.restarts > self.max_restarts:
+            compare = np.abs(fbest - fbest_old) > self.f_tol
+            if all(compare) or i <= 1:
+                nstop = 0
+            else:
+                nstop += 1
+
+            if nstop >= self.max_same:
+                if self.restarts >= self.max_restarts:
                     self.logger.info(
-                        f"{self.strategy.__class__.__name__} stopped after {i+1} iterations due to no improvement in the objective(s) (less than f_tol={self.f_tol})."
+                        f"{self.strategy.__class__.__name__} stopped after {i+1} iterations and {self.restarts} restarts."
                     )
                     break
-                elif all(compare) and self.restarts <= self.max_restarts:
+                else:
                     prev_res = None
                     self.strategy.reset()
                     self.restarts += 1

@@ -622,6 +622,10 @@ class Strategy(ABC):
             "Strategies should inhereit this class and impelemnt suggest_experiments"
         )
 
+    @abstractmethod
+    def reset(self):
+        pass
+
     def to_dict(self, **strategy_params):
         """Convert strategy to jsonable format
         
