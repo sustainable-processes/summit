@@ -55,9 +55,11 @@ def test_runner_unit(max_iterations, batch_size, max_same, max_restarts):
 
     # Check that correct number of iterations run
     if max_same is not None:
-        iterations = max_restarts * max_same
+        iterations = (max_restarts + 1) * max_same
+        iterations = iterations if iterations < max_iterations else max_iterations
     else:
         iterations = max_iterations
+
     assert r.strategy.iterations == iterations
     assert r.experiment.data.shape[0] == int(batch_size * iterations)
 

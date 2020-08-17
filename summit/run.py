@@ -406,6 +406,7 @@ class NeptuneRunner(Runner):
                     )
                     break
                 else:
+                    nstop = 0
                     prev_res = None
                     self.strategy.reset()
                     self.restarts += 1
