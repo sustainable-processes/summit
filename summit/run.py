@@ -366,7 +366,7 @@ class NeptuneRunner(Runner):
                 data = self.experiment.data[output_names].copy()
                 for v in self.experiment.domain.output_variables:
                     if v.maximize:
-                        data.apply(lambda x: -x, columns=[v.name])
+                        data[(v.name, "DATA")] = -1.0 * data[v.name]
                 y_pareto, _ = pareto_efficient(data.to_numpy(), maximize=False)
                 hv = hypervolume(y_pareto, self.ref)
                 neptune_exp.send_metric("hypervolume", hv)

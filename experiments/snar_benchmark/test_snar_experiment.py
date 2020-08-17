@@ -96,10 +96,12 @@ def test_snar_experiment(strategy, transform):
         if strategy == NelderMead:
             f_tol = 1e-5
             s.random_start = True
+            max_same = 2
             max_restarts = 10
             s.adaptive = True
         else:
             f_tol = None
+            max_same = None
             max_restarts = 0
 
         container = "marcosfelt/summit:cn_benchmark"
@@ -108,7 +110,7 @@ def test_snar_experiment(strategy, transform):
             strategy._model_size = "bigger"
 
         exp_name = f"snar_experiment_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = SlurmRunner(
+        r = NeptuneRunner(
             experiment=experiment,
             strategy=s,
             docker_container=container,
@@ -124,8 +126,8 @@ def test_snar_experiment(strategy, transform):
             max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
             batch_size=BATCH_SIZE,
             f_tol=f_tol,
+            max_same=max_same,
             max_restarts=max_restarts,
-            num_initial_experiments=1,
             hypervolume_ref=[-2957, 10.7],
         )
         r.run(save_at_end=True)
