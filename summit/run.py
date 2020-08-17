@@ -392,20 +392,19 @@ class NeptuneRunner(Runner):
                     os.remove(file)
 
             # Stop if no improvement
-            # TODO: maybe we should at a <max_stop> parameter, such that the algorithm is stopped after #max_stop iterations w/o improvement
             compare = np.abs(fbest - fbest_old) > self.f_tol
             if all(compare) or i <= 1:
                 nstop = 0
             else:
                 nstop += 1
 
-            if nstop >= self.max_same:
-                if self.restarts >= self.max_restarts:
+            if self.max_same is not None:
+                if nstop >= self.max_same and self.restarts >= self.max_restarts:
                     self.logger.info(
                         f"{self.strategy.__class__.__name__} stopped after {i+1} iterations and {self.restarts} restarts."
                     )
                     break
-                else:
+                elif nstop >= self.max_same:
                     nstop = 0
                     prev_res = None
                     self.strategy.reset()
