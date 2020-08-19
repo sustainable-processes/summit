@@ -115,7 +115,7 @@ def test_runner_so_integration(strategy, experiment):
         VLMOP2,
     ],
 )
-def test_runner_so_integration(strategy, experiment):
+def test_runner_mo_integration(strategy, experiment):
     exp = experiment()
 
     if experiment == ReizmanSuzukiEmulator and strategy not in [SOBO, GRYFFIN]:
@@ -138,57 +138,3 @@ def test_runner_so_integration(strategy, experiment):
     r.save("test_save.json")
     r.load("test_save.json")
     os.remove("test_save.json")
-
-
-# def test_neptune_runner_unit():
-#     class MockExperiment(Experiment):
-#         def __init__(self):
-#             super().__init__(self.create_domain())
-
-#         def create_domain(self):
-#             domain = Domain()
-#             domain += ContinuousVariable("x_1", description="", bounds=[0, 1])
-#             domain += ContinuousVariable("x_2", description="", bounds=[0, 1])
-#             domain += ContinuousVariable(
-#                 "y_1", description="", bounds=[0, 1], is_objective=True, maximize=True
-#             )
-#             return domain
-
-#         def _run(self, conditions, **kwargs):
-#             conditions[("y_1", "DATA")] = 0.5
-#             return conditions, {}
-
-#     class MockNeptuneExperiment:
-#         def send_metric(self, metric, value):
-#             pass
-
-#         def send_artifact(self, filename):
-#             pass
-
-#         def stop(self):
-#             pass
-
-#     exp = MockExperiment()
-#     strategy = Random(exp.domain)
-#     neptune_exp = MockNeptuneExperiment()
-
-#     r = NeptuneRunner(
-#         neptune_project="sustainable-processes/summit",
-#         neptune_experiment_name="test_experiment",
-#         strategy=strategy,
-#         experiment=exp,
-#         max_iterations=1,
-#         batch_size=1,
-#         neptune_exp=neptune_exp,
-#     )
-#     r.run()
-
-#     # Check that correct number of iterations run
-#     if max_same is not None:
-#         iterations = (max_restarts + 1) * max_same
-#         iterations = iterations if iterations < max_iterations else max_iterations
-#     else:
-#         iterations = max_iterations
-
-#     assert r.strategy.iterations == iterations
-#     assert r.experiment.data.shape[0] == int(batch_size * iterations)
