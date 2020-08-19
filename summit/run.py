@@ -324,9 +324,10 @@ class NeptuneRunner(Runner):
         save_at_end = kwargs.get("save_at_end", True)
 
         # Create neptune experiment
-        session = Session(backend=HostedNeptuneBackend())
-        proj = session.get_project(self.neptune_project)
+
         if self.neptune_exp is None:
+            session = Session(backend=HostedNeptuneBackend())
+            proj = session.get_project(self.neptune_project)
             neptune_exp = proj.create_experiment(
                 name=self.neptune_experiment_name,
                 description=self.neptune_description,
