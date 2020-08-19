@@ -54,59 +54,17 @@ transforms = [
 ]
 
 
-@pytest.mark.parametrize(
-    "transform",
-    12 * [transforms[0]]
-    + 14 * [transforms[1]]
-    + 17 * [transforms[2]]
-    + 7 * [transforms[3]]
-    + 17 * [transforms[4]],
-)
-def test_gryffin(transform):
+@pytest.mark.parametrize("transform", transforms)
+@pytest.mark.parametrize("use_descriptors", [False, True])
+def test_gryffin(transform, use_descriptors):
     experiment.reset()
-    s = GRYFFIN(experiment.domain, transform=transform, sampling_strategies=4)
-
-    name = f"cn_experiment_MO_baselines_{s.__class__.__name__}"
-    r = SlurmRunner(
-        experiment=experiment,
-        strategy=s,
-        docker_container="marcosfelt/summit:cn_benchmark",
-        neptune_project=NEPTUNE_PROJECT,
-        neptune_experiment_name=name,
-        neptune_tags=["cn_experiment_MO", s.__class__.__name__],
-        neptune_files=["slurm_summit_cn_experiment.sh"],
-        max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
-        batch_size=BATCH_SIZE,
-        hypervolume_ref=HYPERVOLUME_REF,
+    s = GRYFFIN(
+        experiment.domain,
+        transform=transform,
+        sampling_strategies=4,
+        use_descriptors=use_descriptors,
+        auto_desc_gen=True,
     )
-    r.run(save_at_end=True)
-
-
-@pytest.mark.parametrize("transform", [transforms[4]])
-def test_nelder_mead(transform):
-    experiment.reset()
-    s = NelderMead(experiment.domain, transform=transform)
-
-    name = f"cn_experiment_MO_baselines_{s.__class__.__name__}"
-    r = SlurmRunner(
-        experiment=experiment,
-        strategy=s,
-        docker_container="marcosfelt/summit:cn_benchmark",
-        neptune_project=NEPTUNE_PROJECT,
-        neptune_experiment_name=name,
-        neptune_tags=["cn_experiment_MO", s.__class__.__name__],
-        neptune_files=["slurm_summit_cn_experiment.sh"],
-        max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
-        batch_size=BATCH_SIZE,
-        hypervolume_ref=HYPERVOLUME_REF,
-    )
-    r.run(save_at_end=True)
-
-
-@pytest.mark.parametrize("transform", 9 * [transforms[4]])
-def test_snobfit(transform):
-    experiment.reset()
-    s = SNOBFIT(experiment.domain, transform=transform)
 
     name = f"cn_experiment_MO_baselines_{s.__class__.__name__}"
     r = SlurmRunner(

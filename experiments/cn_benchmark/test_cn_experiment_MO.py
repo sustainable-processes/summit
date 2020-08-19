@@ -1,6 +1,6 @@
 import pytest
 
-from slurm_runner import SlurmRunner
+from .slurm_runner import SlurmRunner
 from summit import *
 from summit.benchmarks import BaumgartnerCrossCouplingEmulator_Yield_Cost
 from summit.strategies import *
@@ -87,17 +87,19 @@ def test_cn_experiment_descriptors(strategy, transform):
             transform=transform,
             use_descriptors=True,
             auto_desc_gen=True,
-            sampling_strategies=1,
+            sampling_strategies=4,
         )
 
         # Early stopping for local optimization strategies
         if strategy == NelderMead:
             f_tol = 1e-5
             s.random_start = True
+            max_same = 2
             max_restarts = 10
             s.adaptive = True
         else:
             f_tol = None
+            max_same = None
             max_restarts = 0
 
         name = f"cn_experiment_MO_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
@@ -112,11 +114,11 @@ def test_cn_experiment_descriptors(strategy, transform):
                 "descriptors",
                 s.__class__.__name__,
                 transform.__class__.__name__,
-                "sampling_strategies=1",
             ],
             neptune_files=["slurm_summit_cn_experiment.sh"],
             max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
             batch_size=BATCH_SIZE,
+            max_same=max_same,
             max_restarts=max_restarts,
             hypervolume_ref=HYPERVOLUME_REF,
             f_tol=f_tol,
@@ -160,7 +162,7 @@ def test_cn_experiment_no_descriptors(strategy, transform):
             transform=transform,
             use_descriptors=False,
             auto_desc_gen=True,
-            sampling_strategies=1,
+            sampling_strategies=4,
         )
 
         name = f"cn_experiment_MO_no_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
@@ -175,7 +177,6 @@ def test_cn_experiment_no_descriptors(strategy, transform):
                 "no_descriptors",
                 s.__class__.__name__,
                 transform.__class__.__name__,
-                "sampling_strategies=1",
             ],
             neptune_files=["slurm_summit_cn_experiment.sh"],
             max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
