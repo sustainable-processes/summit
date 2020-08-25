@@ -126,60 +126,8 @@ class GRYFFIN(Strategy):
 
         tmp_dir = self._get_tmp_dir()
 
-        # Parse Summit domain to Gryffin domain
-        self.use_descriptors = use_descriptors
-        for v in self.domain.variables:
-            if not v.is_objective:
-                if v.variable_type == "continuous":
-                    self.domain_inputs.append(
-                        {
-                            "name": v.name,
-                            "type": v.variable_type,
-                            "low": float(v.bounds[0]),
-                            "high": float(v.bounds[1]),
-                            "size": 1,
-                        }
-                    )
-                elif v.variable_type == "categorical":
-                    if v.ds is not None and self.use_descriptors:
-                        descriptors = [
-                            v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index
-                        ]
-                    else:
-                        descriptors = None
-                    self.domain_inputs.append(
-                        {
-                            "name": v.name,
-                            "type": "categorical",
-                            "size": 1,
-                            "levels": v.levels,
-                            "descriptors": descriptors,
-                            "category_details": str(
-                                tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"
-                            ),
-                        }
-                    )
-                else:
-                    raise TypeError(
-                        "Unknown variable type: {}.".format(v.variable_type)
-                    )
-            else:
-                self.domain_objectives.append(
-                    {"name": v.name, "goal": "minimize",}
-                )
-
-        # TODO: how does GRYFFIN handle constraints?
-        if self.domain.constraints != []:
-            raise NotImplementedError("Gryffin can not handle constraints yet.")
-            # keep SOBO constraint wrapping for later application when gryffin adds constraint handling
-            # constraints = self.constr_wrapper(self.domain)
-            # self.constraints = [{"name": "constr_" + str(i),
-            #                     "constraint": c[0] if c[1] in ["<=", "<"] else "(" + c[0] + ")*(-1)"}
-            #                    for i,c in enumerate(constraints) if not (c[1] == "==")]
-        else:
-            self.constraints = None
-
         # create a temporary config.json file to initialize GRYFFIN
+        self.use_descriptors = use_descriptors
         config_dict = {
             "general": {
                 "auto_desc_gen": auto_desc_gen,
@@ -197,12 +145,12 @@ class GRYFFIN(Strategy):
                     "bayesian_network": logging,
                     "random_sampler": logging,
                 },
-            },
-            "parameters": self.domain_inputs,
-            "objectives": self.domain_objectives,
+            }
         }
 
-        self._setup_gryffin(config_dict, tmp_dir)
+        delay_setup = kwargs.get("delay_setup", False)
+        if not delay_setup:
+            self._setup_gryffin(config_dict, tmp_dir)
 
     def suggest_experiments(self, prev_res: DataSet = None, **kwargs):
         """ Suggest experiments using Gryffin optimization strategy
@@ -295,11 +243,71 @@ class GRYFFIN(Strategy):
 
         return next_experiments
 
+    def _create_gryffin_domain(self, tmp_dir):
+        for v in self.domain.variables:
+            if not v.is_objective:
+                if v.variable_type == "continuous":
+                    self.domain_inputs.append(
+                        {
+                            "name": v.name,
+                            "type": v.variable_type,
+                            "low": float(v.bounds[0]),
+                            "high": float(v.bounds[1]),
+                            "size": 1,
+                        }
+                    )
+                elif v.variable_type == "categorical":
+                    if v.ds is not None and self.use_descriptors:
+                        descriptors = [
+                            v.ds.loc[[l], :].values[0].tolist() for l in v.ds.index
+                        ]
+                    else:
+                        descriptors = None
+                    self.domain_inputs.append(
+                        {
+                            "name": v.name,
+                            "type": "categorical",
+                            "size": 1,
+                            "levels": v.levels,
+                            "descriptors": descriptors,
+                            "category_details": str(
+                                tmp_dir / "CatDetails" / f"cat_details_{v.name}.pkl"
+                            ),
+                        }
+                    )
+                else:
+                    raise TypeError(
+                        "Unknown variable type: {}.".format(v.variable_type)
+                    )
+            else:
+                self.domain_objectives.append(
+                    {"name": v.name, "goal": "minimize",}
+                )
+
+        if len(self.domain_objectives) > 1:
+            raise ValueError(
+                "Gryffin only works with single objective problems. Use a transform for multiobjective problems"
+            )
+
+        # TODO: how does GRYFFIN handle constraints?
+        if self.domain.constraints != []:
+            raise NotImplementedError("Gryffin can not handle constraints yet.")
+            # keep SOBO constraint wrapping for later application when gryffin adds constraint handling
+            # constraints = self.constr_wrapper(self.domain)
+            # self.constraints = [{"name": "constr_" + str(i),
+            #                     "constraint": c[0] if c[1] in ["<=", "<"] else "(" + c[0] + ")*(-1)"}
+            #                    for i,c in enumerate(constraints) if not (c[1] == "==")]
+        else:
+            self.constraints = None
+
     def _setup_gryffin(self, config_dict: dict, tmp_dir: pathlib.Path):
         # Create class attribute
         self.config_dict = copy.deepcopy(config_dict)
+        self._create_gryffin_domain(tmp_dir)
 
         # Update paramters
+        config_dict["parameters"] = self.domain_inputs
+        config_dict["objectives"] = self.domain_objectives
         config_dict["general"]["scratch_dir"] = str(tmp_dir / "scratch")
         config_dict["database"] = {
             "format": "pickle",
@@ -348,6 +356,7 @@ class GRYFFIN(Strategy):
     def from_dict(cls, d):
         # Gather parameters
         strategy_params = d["strategy_params"]
+        d["strategy_params"]["delay_setup"] = True
         param = strategy_params["prev_param"]
 
         # Setup gryffin
