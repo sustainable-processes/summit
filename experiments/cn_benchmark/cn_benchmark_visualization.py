@@ -42,7 +42,7 @@ def determine_pareto_front(n_points=5000, random_seed=100):
 
 
 class DomainWrapper(Problem):
-    """ Wrapper for NSGAII optimisation 
+    """ Wrapper for NSGAII optimisation of a `summit.experiment.Experiment` using pymoo
     
     Parameters
     ---------- 
@@ -112,13 +112,33 @@ CMAP = ListedColormap(COLORS)
 
 
 class PlotExperiments:
+    """  Make plots from benchmarks tracked on Neptune
+    
+    Parameters
+    ---------- 
+    project : str
+        The name of the Neptune.ai project
+    experiment_ids : list of str
+        A list of experiment ids to pull from Neptune.ai
+    tag : list  of str, optional
+        A list of tags used as filters 
+    state : str, optional
+        The state of the experiments. Must be succeeded, failed, running or aborted.
+    trajectory_length : int, optional
+        The maximum number of iterations for each experiment. Defaults to 50.
+    num_repeats : int, optional
+        The number of repeats required for each hyperparameter combination.s
+        
+    """
+
     def __init__(
         self,
         project: str,
         experiment_ids: list,
         tag: list = None,
-        state: list = None,
+        state: str = None,
         trajectory_length=50,
+        num_repeats=20,
     ):
         self.session = Session(backend=HostedNeptuneBackend())
         self.proj = self.session.get_project(project)
@@ -127,6 +147,7 @@ class PlotExperiments:
         self.tag = tag
         self.state = state
         self.trajectory_length = trajectory_length
+        self.num_repeats = num_repeats
         self._restore_runners()
         self._create_param_df()
 
@@ -248,128 +269,6 @@ class PlotExperiments:
         self.df = pd.DataFrame.from_records(records)
         return self.df
 
-    def plot_hv_trajectories(
-        self,
-        trajectory_length,
-        reference=[0, 1],
-        plot_type="matplotlib",
-        include_experiment_ids=False,
-    ):
-        """ Plot the hypervolume trajectories with repeats as 95% confidence interval
-        
-        Parameters
-        ----------
-        reference : array-like, optional
-            Reference for the hypervolume calculation. Defaults to -2957, 10.7
-        plot_type : str, optional
-            Plotting backend to use: matplotlib or plotly. Defaults to matplotlib.
-        include_experiment_ids : bool, optional
-            Whether to include experiment ids in the plot labels
-        """
-        # Create figure
-        if plot_type == "matplotlib":
-            fig, ax = plt.subplots(1)
-        elif plot_type == "plotly":
-            fig = go.Figure()
-        else:
-            raise ValueError(
-                f"{plot_type} is not a valid plot type. Must be matplotlib or plotly."
-            )
-
-        # Group experiment repeats
-        df = self.df.copy()
-        df = df.set_index("experiment_id")
-        uniques = df.drop_duplicates(keep="last")  # This actually groups them
-        df_new = self.df.copy()
-
-        colors = px.colors.qualitative.Plotly
-        cycle = len(colors)
-        c_num = 0
-        for index, unique in uniques.iterrows():
-            # Find number of matching rows to this unique row
-            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
-            ids = temp_df["experiment_id"].values
-
-            # Calculate hypervolume trajectories
-            hv_trajectories = np.zeros([trajectory_length, len(ids)])
-            for j, experiment_id in enumerate(ids):
-                r = self.runners[experiment_id]
-                data = r.experiment.data[["yld", "cost"]].to_numpy()
-                data[:, 0] *= -1  # make it a minimzation problem
-                for i in range(trajectory_length):
-                    y_front, _ = pareto_efficient(data[0 : i + 1, :], maximize=False)
-                    hv_trajectories[i, j] = hypervolume(y_front, ref=reference)
-
-            # Mean and standard deviation
-            hv_mean_trajectory = np.mean(hv_trajectories, axis=1)
-            hv_std_trajectory = np.std(hv_trajectories, axis=1)
-
-            # Update plot
-            t = np.arange(1, trajectory_length + 1)
-            label = self._create_label(unique) + f"Experiment {ids[0]}-{ids[-1]}"
-
-            if plot_type == "matplotlib":
-                ax.plot(t, hv_mean_trajectory, label=label)
-                ax.fill_between(
-                    t,
-                    hv_mean_trajectory - 1.96 * hv_std_trajectory,
-                    hv_mean_trajectory + 1.96 * hv_std_trajectory,
-                    alpha=0.1,
-                )
-            elif plot_type == "plotly":
-                r, g, b = hex_to_rgb(colors[c_num])
-                color = lambda alpha: f"rgba({r},{g},{b},{alpha})"
-                fig.add_trace(
-                    go.Scatter(
-                        x=t,
-                        y=hv_mean_trajectory,
-                        mode="lines",
-                        name=label,
-                        line=dict(color=color(1)),
-                        legendgroup=label,
-                    )
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        x=t,
-                        y=hv_mean_trajectory - 1.96 * hv_std_trajectory,
-                        mode="lines",
-                        fill="tonexty",
-                        line=dict(width=0),
-                        fillcolor=color(0.1),
-                        showlegend=False,
-                        legendgroup=label,
-                    )
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        x=t,
-                        y=hv_mean_trajectory + 1.96 * hv_std_trajectory,
-                        mode="lines",
-                        fill="tonexty",
-                        line=dict(width=0),
-                        fillcolor=color(0.1),
-                        showlegend=False,
-                        legendgroup=label,
-                    )
-                )
-            if cycle == c_num + 1:
-                c_num = 0
-            else:
-                c_num += 1
-
-        # Plot formattting
-        if plot_type == "matplotlib":
-            ax.set_xlabel("Iterrations")
-            ax.set_ylabel("Hypervolume")
-            ax.legend(loc=(1.2, 0.5))
-            return fig, ax
-        elif plot_type == "plotly":
-            fig.update_layout(
-                xaxis=dict(title="Iterations"), yaxis=dict(title="Hypervolume")
-            )
-            return fig
-
     def _create_label(self, unique):
         transform_text = unique["transform_name"]
         chimera_params = f" (yld tol.={unique['yld_tolerance']}, cost tol.={unique['cost_tolerance']})"
@@ -379,41 +278,11 @@ class PlotExperiments:
 
         return f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
 
-    def time_distribution(self, plot_type="matplotlib"):
-        # Create figure
-        if plot_type == "matplotlib":
-            fig, ax = plt.subplots(1)
-        elif plot_type == "plotly":
-            fig = go.Figure()
-        else:
-            raise ValueError(
-                f"{plot_type} is not a valid plot type. Must be matplotlib or plotly."
-            )
-
-        # Group experiment repeats
-        df = self.df.copy()
-        df = df.set_index("experiment_id")
-        uniques = df.drop_duplicates(keep="last")  # This actually groups them
-        df_new = self.df.copy()
-
-        for index, unique in uniques.iterrows():
-            # Find number of matching rows to this unique row
-            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
-            ids = temp_df["experiment_id"].values
-
-            times = np.zeros(len(ids))
-            for i, experiment_id in enumerate(ids):
-                r = self.runners[experiment_id]
-                times[i] = r.experiment.data["computation_t"].to_numpy()
-
-            mean_time = np.mean(times)
-            std_time = np.std(times)
-
     def best_pareto_grid(self, ncols=3, figsize=(20, 40)):
-        """Make a grid of pareto plots
+        """ Make a grid of pareto plots 
 
         Only includes the run with the maximum terminal hypervolume for each 
-        unique combination.
+        unique hyperparameter combination.
 
         Parameters
         ----------
@@ -427,17 +296,18 @@ class PlotExperiments:
         df = self.df.copy()
         df = df.set_index("experiment_id")
         df = df.drop(columns=["terminal_hypervolume", "computation_t"])
-        uniques = df.drop_duplicates(keep="last")  # This actually groups them
+        uniques = df.drop_duplicates(keep="last")  # This finds the unique combinations
         uniques = uniques.sort_values(by=["strategy_name", "transform_name"])
         df_new = self.df.copy()
 
+        # Make matplotlib figure
         nrows = len(uniques) // ncols
         nrows += 1 if len(uniques) % ncols != 0 else 0
-
         fig = plt.figure(figsize=figsize)
         fig.subplots_adjust(wspace=0.2, hspace=0.5)
+
+        # Loop through groups of repeats and create figures
         i = 1
-        # Loop through groups of repeats
         for index, unique in uniques.iterrows():
             # Find number of matching rows to this unique row
             temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
@@ -475,18 +345,20 @@ class PlotExperiments:
         min_terminal_hv_avg=0,
         ax=None,
     ):
-        """ Plot the hypervolume trajectories with repeats as 95% confidence interval
+        """ Plot hypervolume vs number of experiments with repeats as 95% confidence interval
         
         Parameters
         ----------
         reference : array-like, optional
-            Reference for the hypervolume calculation. Defaults to -2957, 10.7
+            Reference for the hypervolume calculation. Defaults to 0, 1
         plot_type : str, optional
             Plotting backend to use: matplotlib or plotly. Defaults to matplotlib.
         include_experiment_ids : bool, optional
             Whether to include experiment ids in the plot labels
         min_terminal_hv_avg : float, optional`
             Minimum terminal average hypervolume cutoff for inclusion in the plot. Defaults to 0.
+        ax : `matplotlib.pyplot.axes`, optional
+            Matplotlib axis for plotting
         """
         # Create figure
         if plot_type == "matplotlib":
@@ -503,18 +375,22 @@ class PlotExperiments:
 
         # Group experiment repeats
         df = self.df.copy()
+        df_new = self.df.copy()
         df = df.set_index("experiment_id")
         df = df.drop(columns=["terminal_hypervolume", "computation_t"])
-        uniques = df.drop_duplicates(keep="last")  # This actually groups them
-        df_new = self.df.copy()
+        uniques = df.drop_duplicates(
+            keep="last"
+        )  # This finds all the unique combinations
 
+        # Colors
         if plot_type == "plotly":
             colors = px.colors.qualitative.Plotly
         else:
             colors = COLORS
         cycle = len(colors)
         c_num = 0
-        self.hv = {}
+
+        # Plots for each unique hyperparameter combination
         for index, unique in uniques.iterrows():
             # Find number of matching rows to this unique row
             temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
@@ -522,6 +398,7 @@ class PlotExperiments:
 
             # Calculate hypervolume trajectories
             hv_trajectories = np.zeros([self.trajectory_length, len(ids)])
+            ids = ids if len(ids) <= self.num_repeats else ids[: self.num_repeats - 1]
             for j, experiment_id in enumerate(ids):
                 r = self.runners[experiment_id]
                 data = r.experiment.data[["yld", "cost"]].to_numpy()
@@ -637,6 +514,13 @@ class PlotExperiments:
         return final_text
 
     def time_hv_bar_plot(self, ax=None):
+        """Plot average CPU time and terminal hypervolume for hyperparameter combinations
+        
+        Parameters
+        ----------
+        ax : `matplotlib.pyplot.axes`, optional
+            Matplotlib axis for plotting
+        """
         df = self.df
 
         # Group repeats and take average
@@ -720,122 +604,6 @@ class PlotExperiments:
             tick.set_rotation(45)
 
         return ax
-
-    def parallel_plot(self, experiment_id, ax=None):
-        # Get data
-        r = self.runners[experiment_id]
-        data = r.experiment.data
-        labels = [
-            "Conc. 4",
-            "Equiv. 5",
-            "Temperature",
-            r"$\tau$",
-            "cost",
-            "yld",
-        ]
-        columns = [
-            "catalyst",
-            "base",
-            "base_equivalents",
-            "temperature",
-            "cost",
-            "yld",
-        ]
-        data = data[columns]
-
-        # Standardize data
-        # mins = data.min().to_numpy()
-        # maxs = data.max().to_numpy()
-        # data_std = (data - mins) / (maxs - mins)
-        data_std = data
-        data_std["experiments"] = np.arange(1, data_std.shape[0] + 1)
-
-        # Creat plot
-        if ax is not None:
-            fig = None
-        else:
-            fig, ax = plt.subplots(1, figsize=(10, 5))
-
-        # color map
-        new_colors = np.flip(COLORS, axis=0)
-        new_cmap = ListedColormap(new_colors[5:])
-
-        # Plot data
-        parallel_coordinates(
-            data_std,
-            "experiments",
-            cols=columns,
-            colormap=new_cmap,
-            axvlines=False,
-            alpha=0.4,
-        )
-
-        # Format plot (colorbar, labels, etc.)
-        bounds = np.linspace(1, data_std.shape[0] + 1, 6)
-        bounds = bounds.astype(int)
-        cax, _ = mpl.colorbar.make_axes(ax)
-        cb = mpl.colorbar.ColorbarBase(
-            cax,
-            cmap=new_cmap,
-            spacing="proportional",
-            ticks=bounds,
-            boundaries=bounds,
-            label="Number of Experiments",
-        )
-        title = r.strategy.__class__.__name__
-        ax.set_title(title)
-        ax.set_xticklabels(labels)
-        for side in ["left", "right", "top", "bottom"]:
-            ax.spines[side].set_visible(False)
-        ax.grid(alpha=0.5, axis="both")
-        ax.tick_params(length=0)
-        ax.get_legend().remove()
-        for tick in ax.get_xticklabels():
-            tick.set_rotation(45)
-
-        if fig is None:
-            return ax
-        else:
-            return fig, ax
-
-    def iterations_to_threshold(self, yld_threshold=1e4, cost_threshold=10.0):
-        # Group experiment repeats
-        df = self.df.copy()
-        df = df.set_index("experiment_id")
-        uniques = df.drop_duplicates(keep="last")  # This actually groups them
-        df_new = self.df.copy()
-        experiments = {}
-        results = []
-        uniques["mean_iterations"] = None
-        uniques["std_iterations"] = None
-        uniques["num_repeats"] = None
-        # Find iterations to threshold
-        for index, unique in uniques.iterrows():
-            # Find number of matching rows to each unique row
-            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
-            ids = temp_df["experiment_id"].values
-            # Number of iterations calculation
-            num_iterations = []
-            something_happens = False
-            for experiment_id in ids:
-                data = self.runners[experiment_id].experiment.data[["yld", "cost"]]
-                # Check if repeat matches threshold requirements
-                meets_threshold = data[
-                    (data["yld"] >= yld_threshold) & (data["cost"] <= cost_threshold)
-                ]
-                # Calculate iterations to meet threshold
-                if len(meets_threshold.index) > 0:
-                    num_iterations.append(meets_threshold.index[0])
-                    something_happens = True
-
-            if something_happens:
-                mean = np.mean(num_iterations)
-                std = np.std(num_iterations)
-                uniques["mean_iterations"][index] = mean
-                uniques["std_iterations"][index] = std
-                uniques["num_repeats"][index] = len(num_iterations)
-
-        return uniques
 
 
 def hex_to_rgb(hex_color: str) -> tuple:
