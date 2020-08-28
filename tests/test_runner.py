@@ -81,13 +81,7 @@ def test_runner_unit(max_iterations, batch_size, max_same, max_restarts, runner)
 @pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, GRYFFIN, NelderMead, Random, LHS])
 @pytest.mark.parametrize(
     "experiment",
-    [
-        Himmelblau,
-        Hartmann3D,
-        ThreeHumpCamel,
-        BaumgartnerCrossCouplingEmulator,
-        BaumgartnerCrossCouplingDescriptorEmulator,
-    ],
+    [Himmelblau, Hartmann3D, ThreeHumpCamel, BaumgartnerCrossCouplingEmulator,],
 )
 def test_runner_so_integration(strategy, experiment):
     exp = experiment()
