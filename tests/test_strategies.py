@@ -23,6 +23,9 @@ def test_strategy():
             assert outputs["scalar_objective"].iloc[0] == 70.0
             return self.transform.un_transform(inputs)
 
+        def reset(self):
+            pass
+
 
 def test_random():
     domain = Domain()
@@ -146,6 +149,9 @@ def test_multitosingleobjective_transform():
             assert outputs["scalar_objective"].iloc[0] == 70.0
             return self.transform.un_transform(inputs)
 
+        def reset(self):
+            pass
+
     domain = Domain()
     domain += ContinuousVariable(
         name="temperature",
@@ -193,6 +199,9 @@ def test_logspaceobjectives_transform():
             assert np.isclose(outputs["log_yield_"].iloc[0], np.log(50))
             assert np.isclose(outputs["log_de"].iloc[0], np.log(90))
             return self.transform.un_transform(inputs)
+
+        def reset(self):
+            pass
 
     domain = Domain()
     domain += ContinuousVariable(

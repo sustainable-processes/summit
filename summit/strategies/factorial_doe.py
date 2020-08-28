@@ -42,9 +42,7 @@ class FullFactorial(Strategy):
     7          100.0        0.5        0.5  FullFactorial
     """
 
-    def __init__(
-        self, domain: Domain, transform: Transform = None, **kwargs
-    ):
+    def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
         super().__init__(domain, transform, **kwargs)
 
     def suggest_experiments(self, levels_dict, **kwargs) -> DataSet:
@@ -82,6 +80,9 @@ class FullFactorial(Strategy):
         ds = design.to_dataset()
         ds[("strategy", "METADATA")] = "FullFactorial"
         return ds
+
+    def reset(self):
+        pass
 
 
 def fullfact(levels):
