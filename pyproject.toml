@@ -43,6 +43,7 @@ black = "^19.10b0"
 plotly = "^4.8.2"
 rope = "^0.17.0"
 python-dotenv = "^0.13.0"
+sphinx = "^3.2.1"
 
 [build-system]
 requires = ["poetry>=0.12"]
