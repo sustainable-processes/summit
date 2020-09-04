@@ -234,10 +234,10 @@ class PlotExperiments:
             record["batch_size"] = r.batch_size
 
             # Number of initial experiments
-            try:
-                record["num_initial_experiments"] = r.n_init
-            except AttributeError:
-                pass
+            # try:
+            #     record["num_initial_experiments"] = r.n_init
+            # except AttributeError:
+            #     pass
 
             # Terminal hypervolume
             data = r.experiment.data[["yld", "cost"]].to_numpy()
@@ -268,15 +268,6 @@ class PlotExperiments:
         # Make pandas dataframe
         self.df = pd.DataFrame.from_records(records)
         return self.df
-
-    def _create_label(self, unique):
-        transform_text = unique["transform_name"]
-        chimera_params = f" (yld tol.={unique['yld_tolerance']}, cost tol.={unique['cost_tolerance']})"
-        transform_text += (
-            chimera_params if unique["transform_name"] == "Chimera" else ""
-        )
-
-        return f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
 
     def best_pareto_grid(self, ncols=3, figsize=(20, 40)):
         """ Make a grid of pareto plots 
@@ -328,10 +319,10 @@ class PlotExperiments:
             title = self._create_label(unique)
             title = "\n".join(wrap(title, 30))
             ax.set_title(title)
-            ax.set_xlabel(r"Space Time Yield ($kg \; m^{-3} h^{-1}$)")
-            ax.set_ylabel("cost")
-            ax.set_xlim(0.0, float(1.2e4))
-            ax.set_ylim(0.0, 300.0)
+            ax.set_xlabel("Yield")
+            ax.set_ylabel("Cost")
+            ax.set_xlim(0.0, 1)
+            ax.set_ylim(0.0, 1)
             ax.ticklabel_format(axis="x", style="scientific")
             i += 1
 
@@ -397,8 +388,8 @@ class PlotExperiments:
             ids = temp_df["experiment_id"].values
 
             # Calculate hypervolume trajectories
-            hv_trajectories = np.zeros([self.trajectory_length, len(ids)])
             ids = ids if len(ids) <= self.num_repeats else ids[: self.num_repeats - 1]
+            hv_trajectories = np.zeros([self.trajectory_length, len(ids)])
             for j, experiment_id in enumerate(ids):
                 r = self.runners[experiment_id]
                 data = r.experiment.data[["yld", "cost"]].to_numpy()
@@ -508,9 +499,9 @@ class PlotExperiments:
         transform_text += (
             chimera_params if unique["transform_name"] == "Chimera" else ""
         )
-        final_text = f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
-        if unique["num_initial_experiments"] == 1:
-            final_text = final_text.rstrip("s")
+        final_text = f"{unique['strategy_name']}, {transform_text}"
+        # if unique["num_initial_experiments"] == 1:
+        #     final_text = final_text.rstrip("s")
         return final_text
 
     def time_hv_bar_plot(self, ax=None):
@@ -522,18 +513,19 @@ class PlotExperiments:
             Matplotlib axis for plotting
         """
         df = self.df
-
-        # Group repeats and take average
-        grouped_df = df.groupby(
-            by=[
-                "strategy_name",
-                "transform_name",
-                "yld_tolerance",
-                "cost_tolerance",
-                "batch_size",
-                "num_initial_experiments",
-            ],
-            dropna=False,
+        by = [
+            "strategy_name",
+            "transform_name",
+            "yld_tolerance",
+            "cost_tolerance",
+            "use_descriptors",
+            "batch_size",
+        ]
+        # Group repeats and take average.
+        grouped_df = (
+            df.groupby(by=by, dropna=False,)
+            .head(self.num_repeats)
+            .groupby(by=by, dropna=False)
         )
 
         # Mean and std deviation
