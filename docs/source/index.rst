@@ -17,7 +17,10 @@ For a more academic treatment of Summit, check out "Benchmarking Machine Learnin
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-
+   
+   installation
+   tutorial
+   new_benchmarks
 
 
 Indices and tables
