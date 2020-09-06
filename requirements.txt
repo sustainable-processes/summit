@@ -2,15 +2,16 @@ blitz-bayesian-pytorch==0.2.3
 fastprogress==0.*,>=0.2.3
 gpy==1.*,>=1.9.0
 gpyopt==1.*,>=1.2.6
-gryffin @ git+https://github.com/sustainable-processes/gryffin@0.1.0#egg=gryffin
+git+https://github.com/sustainable-processes/gryffin@0.1.0#egg=gryffin
 hiplot==0.*,>=0.1.12
 ipdb==0.*,>=0.13.2
 ipywidgets==7.*,>=7.5.1
 matplotlib==3.*,>=3.2.2
+nbsphinx==0.*,>=0.7.1
 neptune-client==0.*,>=0.4.115
 neptune-contrib[viz]==0.*,>=0.22.0
 numpy==1.18.0
-pandas==1.0.3
+pandas==1.*,>=1.1.0
 paramiko==2.*,>=2.7.1
 plotly==4.*,>=4.8.2
 pymoo==0.*,>=0.4.1
@@ -18,8 +19,10 @@ pyrff==1.*,>=1.0.1
 pytest==3.*,>=3.0.0
 python-dotenv==0.*,>=0.13.0
 rope==0.*,>=0.17.0
-scp @ git+https://github.com/jbardin/scp.py@v0.13.2#egg=scp.py
+git+https://github.com/jbardin/scp.py@v0.13.2#egg=scp.py
+sphinx==3.*,>=3.2.1
 sqsnobfit==0.*,>=0.4.3
 tensorflow==2.*,>=2.2.0
+tensorflow-estimator<2.3.0,>=2.2.0
 tensorflow-probability==0.*,>=0.10.1
-torch
+torch==1.*,>=1.4.0
