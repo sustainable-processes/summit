@@ -1,24 +1,23 @@
 # Summit
 
-Summit is a set of tools for optimizing chemical processes. 
+Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions.
+
+Currently, reaction optimisation in the fine chemicals industry is done by intuition or design of experiments, which both scale poorly with the complexity of the problem. Summit applies recent advances in machine learning to make the process of reaction optimisation faster. Essentially, it applies algorithms that learn which conditions (e.g., temperature, stoichiometry, etc.) are important to maximising one or more objectives (e.g., yield, enantiomeric excess). This is achieved through an iterative cycle.
+
+For a more academic treatment of Summit, check out “Benchmarking Machine Learning for Reaction Optimisation.” If you just want to try it, out, check out our [tutorial](https://gosummit.readthedocs.io/en/latest/tutorial.html).
 
 ## Installation
 
-If you want to use summit immediately without installing python on your computer, go to our [Jupyterhub](hub.rxns.io), which already has it installed. You can find a description of Jupyterhub [here](https://github.com/sustainable-processes/server/blob/master/notes/session_1.md).
-
-To install locally:
-
-```pip install git+https://github.com/sustainable-processes/summit_private.git@0.3.0#egg=summit```
-
-You might need to enter your username and password for Github. 
+```pip install git+https://github.com/sustainable-processes/summit.git@0.5.0#egg=summit```
 
 ## Documentation
 
-The documentation for summit can be found on the [wiki](https://github.com/sustainable-processes/summit/wiki).
+The documentation for summit can be found [here](https://gosummit.readthedocs.io/en/latest/index.html).
 <!-- It would be great to add a "Quick Start" here.-->
 
 ## Development
 
+Some instructions for people contributing back.
 
 ### Downloading the code
 
