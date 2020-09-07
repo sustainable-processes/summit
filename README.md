@@ -1,19 +1,47 @@
 # Summit
+![summit_banner](docs/source/_static/banner_4.png)
 
 Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions.
 
-Currently, reaction optimisation in the fine chemicals industry is done by intuition or design of experiments, which both scale poorly with the complexity of the problem. Summit applies recent advances in machine learning to make the process of reaction optimisation faster. Essentially, it applies algorithms that learn which conditions (e.g., temperature, stoichiometry, etc.) are important to maximising one or more objectives (e.g., yield, enantiomeric excess). This is achieved through an iterative cycle.
+## What is Summit?
+Currently, reaction optimisation in the fine chemicals industry is done by intuition or design of experiments,  Both scale poorly with the complexity of the problem. 
 
-For a more academic treatment of Summit, check out “Benchmarking Machine Learning for Reaction Optimisation.” If you just want to try it, out, check out our [tutorial](https://gosummit.readthedocs.io/en/latest/tutorial.html).
+Summit using recent advances in machine learning to make the process of reaction optimisation faster. Essentially, it applies algorithms that learn which conditions (e.g., temperature, stoichiometry, etc.) are important to maximising one or more objectives (e.g., yield, enantiomeric excess). This is achieved through an iterative cycle.
+
+For a more academic treatment of Summit, check out our paper “Benchmarking Machine Learning for Reaction Optimisation.” If you just want to try it out, check out our [tutorial](https://gosummit.readthedocs.io/en/latest/tutorial.html).
 
 ## Installation
 
 ```pip install git+https://github.com/sustainable-processes/summit.git@0.5.0#egg=summit```
 
+## Quick Start
+
+Below, we show how to use the Nelder-Mead  strategy against to optimise the Hartmann 3-dimensional test function.
+```python
+# Import summit
+from summit.benchmarks import SnarBenchmark, MultitoSingleObjective
+from summit.strategies import NelderMead
+from summit.run import Runner
+
+# Establish the benchmark. 
+exp = SnarBenchmark()
+
+# Since the Snar benchmark is multiobjective, we need a transform
+transform = MultitoSingleObjective(
+    exp.domain, expression="-sty/1e4+e_factor/100", maximize=False
+)
+
+# Set up the strategy, passing in the experimental domain and transform
+nm = NelderMead(exp.domain, transform=transform)
+
+# Use the runner to run closed loop experiments
+r = Runner(strategy=nm, experiment=exp, max_iterations=50)
+r.run()
+```
+
 ## Documentation
 
 The documentation for summit can be found [here](https://gosummit.readthedocs.io/en/latest/index.html).
-<!-- It would be great to add a "Quick Start" here.-->
 
 ## Development
 
