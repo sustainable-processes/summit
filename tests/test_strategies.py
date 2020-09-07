@@ -241,7 +241,7 @@ def test_logspaceobjectives_transform():
 
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])
 @pytest.mark.parametrize("maximize", [True, False])
-@pytest.mark.parametrize("constraints", [True, False])
+@pytest.mark.parametrize("constraints", [False])
 def test_snobfit(num_experiments, maximize, constraints):
 
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraints)
