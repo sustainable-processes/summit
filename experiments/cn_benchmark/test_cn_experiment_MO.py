@@ -1,6 +1,6 @@
 import pytest
 
-from slurm_runner import SlurmRunner
+from .slurm_runner import SlurmRunner
 from summit import *
 from summit.benchmarks import BaumgartnerCrossCouplingEmulator_Yield_Cost
 from summit.strategies import *
@@ -92,16 +92,16 @@ def test_cn_experiment_descriptors(strategy, transform):
 
         # Early stopping for local optimization strategies
         if strategy == NelderMead:
-            f_tol = 1e-5
             s.random_start = True
+            max_same = 2
             max_restarts = 10
             s.adaptive = True
         else:
-            f_tol = None
+            max_same = None
             max_restarts = 0
 
         name = f"cn_experiment_MO_descriptors_{s.__class__.__name__}_{transform.__class__.__name__}_repeat_{i}"
-        r = NeptuneRunner(
+        r = SlurmRunner(
             experiment=experiment,
             strategy=s,
             neptune_project=NEPTUNE_PROJECT,
@@ -112,14 +112,13 @@ def test_cn_experiment_descriptors(strategy, transform):
                 "descriptors",
                 s.__class__.__name__,
                 transform.__class__.__name__,
-                "sampling_strategies=1",
             ],
             neptune_files=["slurm_summit_cn_experiment.sh"],
             max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
             batch_size=BATCH_SIZE,
+            max_same=max_same,
             max_restarts=max_restarts,
             hypervolume_ref=HYPERVOLUME_REF,
-            f_tol=f_tol,
         )
         r.run(save_at_end=True)
 
@@ -128,7 +127,7 @@ def test_cn_experiment_tsemo():
     """Test multiobjective CN benchmark with descriptors and TSEMO (multiobjective strategy)."""
     warnings.filterwarnings("ignore", category=RuntimeWarning)
     warnings.filterwarnings("ignore", category=DeprecationWarning)
-    for i in range(NUM_REPEATS):
+    for i in range(1):
         experiment.reset()
         s = TSEMO(experiment.domain, n_spectral_points=4000)
 
@@ -138,30 +137,6 @@ def test_cn_experiment_tsemo():
             strategy=s,
             neptune_project=NEPTUNE_PROJECT,
             docker_container="marcosfelt/summit:cn_benchmark",
-            neptune_experiment_name=name,
-            neptune_tags=["cn_experiment", "descriptors", s.__class__.__name__],
-            neptune_files=["slurm_summit_cn_experiment.sh"],
-            max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,
-            batch_size=BATCH_SIZE,
-            hypervolume_ref=HYPERVOLUME_REF,
-        )
-        r.run(save_at_end=True)
-
-
-def test_cn_experiment_dro():
-    """Test multiobjective CN benchmark with descriptors and TSEMO (multiobjective strategy)."""
-    warnings.filterwarnings("ignore", category=RuntimeWarning)
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
-    for i in range(NUM_REPEATS):
-        experiment.reset()
-        s = DRO(experiment.domain)
-
-        name = f"cn_experiment_MO_{s.__class__.__name__}_repeat_{i}"
-        r = SlurmRunner(
-            experiment=experiment,
-            strategy=s,
-            neptune_project=NEPTUNE_PROJECT,
-            docker_container="marcosfelt/summit:add_dro",
             neptune_experiment_name=name,
             neptune_tags=["cn_experiment", "descriptors", s.__class__.__name__],
             neptune_files=["slurm_summit_cn_experiment.sh"],
@@ -199,7 +174,6 @@ def test_cn_experiment_no_descriptors(strategy, transform):
                 "no_descriptors",
                 s.__class__.__name__,
                 transform.__class__.__name__,
-                "sampling_strategies=1",
             ],
             neptune_files=["slurm_summit_cn_experiment.sh"],
             max_iterations=MAX_EXPERIMENTS // BATCH_SIZE,

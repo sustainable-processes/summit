@@ -198,7 +198,10 @@ class NelderMead(Strategy):
         # Previous param first element is a dictionary of internal parameters
         # Second element is a dataset with invalid experiments
         if self.prev_param is not None:
-            prev_param = [jsonify_dict(self.prev_param[0]), self.prev_param[1].to_dict()]
+            prev_param = [
+                jsonify_dict(self.prev_param[0]),
+                self.prev_param[1].to_dict(),
+            ]
         else:
             prev_param = None
         strategy_params = dict(
@@ -264,21 +267,27 @@ class NelderMead(Strategy):
                 elif isinstance(v, CategoricalVariable):
                     if v.ds is not None:
                         descriptor_names = v.ds.data_columns
-                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                        descriptors = np.asarray(
+                            [
+                                v.ds.loc[:, [l]].values.tolist()
+                                for l in v.ds.data_columns
+                            ]
+                        )
                     else:
                         raise ValueError("No descriptors given for {}".format(v.name))
                     for d in descriptors:
                         bounds.append([np.min(np.asarray(d)), np.max(np.asarray(d))])
                     input_var_names.extend(descriptor_names)
                 else:
-                    raise TypeError("Nelder-Mead can not handle variable type: {}".format(v.type))
+                    raise TypeError(
+                        "Nelder-Mead can not handle variable type: {}".format(v.type)
+                    )
             else:
                 output_var_names.extend(v.name)
         bounds = np.asarray(bounds, dtype=float)
 
-
         # Extract dimension of input domain
-        dim = len(bounds[:,0])
+        dim = len(bounds[:, 0])
 
         # Initialization
         initial_run = True
@@ -288,7 +297,9 @@ class NelderMead(Strategy):
         # Get previous results
         if prev_res is not None:
             initial_run = False
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, transform_descriptors=True)
+            inputs, outputs = self.transform.transform_inputs_outputs(
+                prev_res, transform_descriptors=True
+            )
 
             # Set up maximization and minimization
             for v in self.domain.variables:
@@ -308,8 +319,10 @@ class NelderMead(Strategy):
         if len(x0[0]) == 0 and not self.random_start:
             x0 = np.ones((1, len(bounds))) * 0.5 * ((bounds[:, 1] + bounds[:, 0]).T)
         elif len(x0[0]) == 0 and self.random_start:
-            weight = np.random.rand() 
-            x0 = np.ones((1, len(bounds)))*(weight*(bounds[:, 1] + (1-weight)*bounds[:, 0]).T)
+            weight = np.random.rand()
+            x0 = np.ones((1, len(bounds))) * (
+                weight * (bounds[:, 1] + (1 - weight) * bounds[:, 0]).T
+            )
 
         """ Set Nelder-Mead parameters, i.e., initialize or include data from previous iterations
             --------
@@ -359,7 +372,7 @@ class NelderMead(Strategy):
             # if dimension was recovered in last iteration, N functions evaluations were requested
             # that need to be assigned to the respective points in the simplex
             if rec_dim:
-                prev_fsim = prev_param['fsim']
+                prev_fsim = prev_param["fsim"]
                 for k in range(len(x0)):
                     for s in range(len(prev_sim)):
                         if np.array_equal(prev_sim[s], x0[k]):
@@ -509,7 +522,7 @@ class NelderMead(Strategy):
             sim=sim,
             fsim=fsim,
             x_iter=x_iter,
-            red_dim=red_dim,            
+            red_dim=red_dim,
             red_sim=red_sim,
             red_fsim=red_fsim,
             rec_dim=rec_dim,
@@ -553,7 +566,9 @@ class NelderMead(Strategy):
         # next_experiments = np.around(next_experiments, decimals=self._dx)
 
         # Do any necessary transformation back
-        next_experiments = self.transform.un_transform(next_experiments, transform_descriptors=True)
+        next_experiments = self.transform.un_transform(
+            next_experiments, transform_descriptors=True
+        )
 
         return next_experiments, x_best, f_best, param
 

@@ -49,13 +49,36 @@ CMAP = ListedColormap(COLORS)
 
 
 class PlotExperiments:
+    """  Make plots from benchmarks tracked on Neptune
+    
+    Parameters
+    ---------- 
+    project : str, optional
+        The name of the Neptune.ai project
+    experiment_ids : list of str, optional
+        A list of experiment ids to pull from Neptune.ai
+    csv_filename : str, optional
+        Name of the CSV filename
+    tag : list  of str, optional
+        A list of tags used as filters 
+    state : str, optional
+        The state of the experiments. Must be succeeded, failed, running or aborted.
+    trajectory_length : int, optional
+        The maximum number of iterations for each experiment. Defaults to 50.
+    num_repeats : int, optional
+        The number of repeats required for each hyperparameter combination.s
+        
+    """
+
     def __init__(
         self,
-        project: str,
-        experiment_ids: list,
+        project: str = None,
+        experiment_ids: list = None,
+        csv_filename: str = None,
         tag: list = None,
         state: list = None,
         trajectory_length=50,
+        num_repeats=20,
     ):
         self.session = Session(backend=HostedNeptuneBackend())
         self.proj = self.session.get_project(project)
@@ -64,6 +87,7 @@ class PlotExperiments:
         self.tag = tag
         self.state = state
         self.trajectory_length = trajectory_length
+        self.num_repeats = num_repeats
         self._restore_runners()
         self._create_param_df()
 
@@ -172,133 +196,13 @@ class PlotExperiments:
             )
             record["computation_t"] = time
 
+            record["noise_level"] = r.experiment.noise_level
+
             records.append(record)
 
         # Make pandas dataframe
         self.df = pd.DataFrame.from_records(records)
         return self.df
-
-    def plot_hv_trajectories(
-        self,
-        trajectory_length,
-        reference=[-2957, 10.7],
-        plot_type="matplotlib",
-        include_experiment_ids=False,
-    ):
-        """ Plot the hypervolume trajectories with repeats as 95% confidence interval
-        
-        Parameters
-        ----------
-        reference : array-like, optional
-            Reference for the hypervolume calculation. Defaults to -2957, 10.7
-        plot_type : str, optional
-            Plotting backend to use: matplotlib or plotly. Defaults to matplotlib.
-        include_experiment_ids : bool, optional
-            Whether to include experiment ids in the plot labels
-        """
-        # Create figure
-        if plot_type == "matplotlib":
-            fig, ax = plt.subplots(1)
-        elif plot_type == "plotly":
-            fig = go.Figure()
-        else:
-            raise ValueError(
-                f"{plot_type} is not a valid plot type. Must be matplotlib or plotly."
-            )
-
-        # Group experiment repeats
-        df = self.df.copy()
-        df = df.set_index("experiment_id")
-        uniques = df.drop_duplicates(keep="last")  # This actually groups them
-        df_new = self.df.copy()
-
-        colors = px.colors.qualitative.Plotly
-        cycle = len(colors)
-        c_num = 0
-        for index, unique in uniques.iterrows():
-            # Find number of matching rows to this unique row
-            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
-            ids = temp_df["experiment_id"].values
-
-            # Calculate hypervolume trajectories
-            hv_trajectories = np.zeros([trajectory_length, len(ids)])
-            for j, experiment_id in enumerate(ids):
-                r = self.runners[experiment_id]
-                data = r.experiment.data[["sty", "e_factor"]].to_numpy()
-                data[:, 0] *= -1  # make it a minimzation problem
-                for i in range(trajectory_length):
-                    y_front, _ = pareto_efficient(data[0 : i + 1, :], maximize=False)
-                    hv_trajectories[i, j] = hypervolume(y_front, ref=reference)
-
-            # Mean and standard deviation
-            hv_mean_trajectory = np.mean(hv_trajectories, axis=1)
-            hv_std_trajectory = np.std(hv_trajectories, axis=1)
-
-            # Update plot
-            t = np.arange(1, trajectory_length + 1)
-            label = self._create_label(unique) + f"Experiment {ids[0]}-{ids[-1]}"
-
-            if plot_type == "matplotlib":
-                ax.plot(t, hv_mean_trajectory, label=label)
-                ax.fill_between(
-                    t,
-                    hv_mean_trajectory - 1.96 * hv_std_trajectory,
-                    hv_mean_trajectory + 1.96 * hv_std_trajectory,
-                    alpha=0.1,
-                )
-            elif plot_type == "plotly":
-                r, g, b = hex_to_rgb(colors[c_num])
-                color = lambda alpha: f"rgba({r},{g},{b},{alpha})"
-                fig.add_trace(
-                    go.Scatter(
-                        x=t,
-                        y=hv_mean_trajectory,
-                        mode="lines",
-                        name=label,
-                        line=dict(color=color(1)),
-                        legendgroup=label,
-                    )
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        x=t,
-                        y=hv_mean_trajectory - 1.96 * hv_std_trajectory,
-                        mode="lines",
-                        fill="tonexty",
-                        line=dict(width=0),
-                        fillcolor=color(0.1),
-                        showlegend=False,
-                        legendgroup=label,
-                    )
-                )
-                fig.add_trace(
-                    go.Scatter(
-                        x=t,
-                        y=hv_mean_trajectory + 1.96 * hv_std_trajectory,
-                        mode="lines",
-                        fill="tonexty",
-                        line=dict(width=0),
-                        fillcolor=color(0.1),
-                        showlegend=False,
-                        legendgroup=label,
-                    )
-                )
-            if cycle == c_num + 1:
-                c_num = 0
-            else:
-                c_num += 1
-
-        # Plot formattting
-        if plot_type == "matplotlib":
-            ax.set_xlabel("Iterrations")
-            ax.set_ylabel("Hypervolume")
-            ax.legend(loc=(1.2, 0.5))
-            return fig, ax
-        elif plot_type == "plotly":
-            fig.update_layout(
-                xaxis=dict(title="Iterations"), yaxis=dict(title="Hypervolume")
-            )
-            return fig
 
     def _create_label(self, unique):
         transform_text = unique["transform_name"]
@@ -309,41 +213,11 @@ class PlotExperiments:
 
         return f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
 
-    def time_distribution(self, plot_type="matplotlib"):
-        # Create figure
-        if plot_type == "matplotlib":
-            fig, ax = plt.subplots(1)
-        elif plot_type == "plotly":
-            fig = go.Figure()
-        else:
-            raise ValueError(
-                f"{plot_type} is not a valid plot type. Must be matplotlib or plotly."
-            )
-
-        # Group experiment repeats
-        df = self.df.copy()
-        df = df.set_index("experiment_id")
-        uniques = df.drop_duplicates(keep="last")  # This actually groups them
-        df_new = self.df.copy()
-
-        for index, unique in uniques.iterrows():
-            # Find number of matching rows to this unique row
-            temp_df = df_new.merge(unique.to_frame().transpose(), how="inner")
-            ids = temp_df["experiment_id"].values
-
-            times = np.zeros(len(ids))
-            for i, experiment_id in enumerate(ids):
-                r = self.runners[experiment_id]
-                times[i] = r.experiment.data["computation_t"].to_numpy()
-
-            mean_time = np.mean(times)
-            std_time = np.std(times)
-
     def best_pareto_grid(self, ncols=3, figsize=(20, 40)):
-        """Make a grid of pareto plots
+        """ Make a grid of pareto plots 
 
         Only includes the run with the maximum terminal hypervolume for each 
-        unique combination.
+        unique hyperparameter combination.
 
         Parameters
         ----------
@@ -451,6 +325,7 @@ class PlotExperiments:
             ids = temp_df["experiment_id"].values
 
             # Calculate hypervolume trajectories
+            ids = ids if len(ids) < self.num_repeats else ids[: self.num_repeats]
             hv_trajectories = np.zeros([self.trajectory_length, len(ids)])
             for j, experiment_id in enumerate(ids):
                 r = self.runners[experiment_id]
@@ -567,19 +442,31 @@ class PlotExperiments:
         return final_text
 
     def time_hv_bar_plot(self, ax=None):
+        """Plot average CPU time and terminal hypervolume for hyperparameter combinations
+
+        Only shows the hyperparemter combination with the highest mean terminal hypervolume
+        for each strategy
+        
+        Parameters
+        ----------
+        ax : `matplotlib.pyplot.axes`, optional
+            Matplotlib axis for plotting
+        """
         df = self.df
 
-        # Group repeats and take average
-        grouped_df = df.groupby(
-            by=[
-                "strategy_name",
-                "transform_name",
-                "sty_tolerance",
-                "e_factor_tolerance",
-                "batch_size",
-                "num_initial_experiments",
-            ],
-            dropna=False,
+        # Group repeats
+        by = [
+            "strategy_name",
+            "transform_name",
+            "sty_tolerance",
+            "e_factor_tolerance",
+            "batch_size",
+            "num_initial_experiments",
+        ]
+        grouped_df = (
+            df.groupby(by=by, dropna=False,)
+            .head(self.num_repeats)
+            .groupby(by=by, dropna=False)
         )
 
         # Mean and std deviation
@@ -600,7 +487,7 @@ class PlotExperiments:
         means["computation_t_iter"] = means["computation_t"] / self.trajectory_length
         stds["computation_t_iter"] = stds["computation_t"] / self.trajectory_length
 
-        # Clip std deviations
+        # Clip std deviations to not be negative
         stds["terminal_hypervolume"] = stds["terminal_hypervolume"].clip(
             0, means["terminal_hypervolume"]
         )

@@ -10,12 +10,12 @@ jobs:
     - name: Install
       uses: abatilo/actions-poetry@v1.5.0
       with:
-        python_version: 3.7.8
+        python_version: 3.7.7
         poetry_version: 1.0.10
         args: install -E experiments
     - name: Run pytest
       uses: abatilo/actions-poetry@v1.5.0
       with:
-        python_version: 3.7.8
+        python_version: 3.7.7
         poetry_version: 1.0.10
         args: run python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
