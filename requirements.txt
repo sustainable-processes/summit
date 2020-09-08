@@ -19,7 +19,7 @@ pyrff==1.*,>=1.0.1
 pytest==3.*,>=3.0.0
 python-dotenv==0.*,>=0.13.0
 rope==0.*,>=0.17.0
-git+https://github.com/jbardin/scp.py@v0.13.2#egg=scp.py
+scp @ git+https://github.com/jbardin/scp.py@v0.13.2#egg=scp.py
 sphinx==3.*,>=3.2.1
 sqsnobfit==0.*,>=0.4.3
 tensorflow==2.*,>=2.2.0
