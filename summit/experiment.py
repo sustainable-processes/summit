@@ -245,7 +245,7 @@ class Experiment(ABC):
             ax.set_xlabel(objectives[0])
             ax.set_ylabel(objectives[1])
             if return_fig and colorbar:
-                fig.colorbar(im)
+                fig.colorbar(im, label="Number of iterations")
             ax.tick_params(direction="in")
             ax.legend()
 
