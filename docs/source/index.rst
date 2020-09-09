@@ -26,13 +26,14 @@ To get started, follow our tutorial_.
 
 .. _tutorial : tutorial.ipynb
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
    
    installation
    tutorial
    new_benchmarks
    strategies
+   transforms
 
 Indices and tables
 ==================

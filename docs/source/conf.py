@@ -23,7 +23,7 @@ copyright = "2020, Kobi Felton, Jan Rittig"
 author = "Kobi Felton, Jan Rittig"
 
 # The full version, including alpha/beta/rc tags
-release = "0.4.0"
+release = "0.5.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -32,11 +32,19 @@ release = "0.4.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    # enables use of jupyter notebooks
     "nbsphinx",
+    # enables use of math
     "sphinx.ext.mathjax",
+    # enables use of numpy docs strings
     "sphinx.ext.napoleon",
+    # enables automatic processing of docstrings
     "sphinx.ext.autodoc",
-    "sphinx.ext.viewcode",
+    # View the code
+    # "sphinx.ext.viewcode",
+    # enables to provide links alias in the project
+    "sphinx.ext.intersphinx",
+    # read the docs theme
     "sphinx_rtd_theme",
 ]
 
@@ -48,6 +56,9 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
+# -- Options for Numpydoc ----------------------------------------------------
+
+numpydoc_show_class_members = True
 
 # -- Options for HTML output -------------------------------------------------
 

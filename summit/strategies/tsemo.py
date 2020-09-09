@@ -27,11 +27,15 @@ import warnings
 class TSEMO(Strategy):
     """Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
 
+    TSEMO is a multiobjective Bayesian optimisation strategy. It is designed
+    to find optimal values in as few iterations as possible. This comes at the price
+    of higher computational time.
+
     Parameters
     ----------
-    domain : :class:~summit.domain.Domain
+    domain : :class:`~summit.domain.Domain`
         The domain of the optimization
-    transform : py: summit.strategies.base.Transform
+    transform : :class:`~summit.strategies.base.Transform`, optional
         A transform object. By default
         no transformation will be done the input variables or
         objectives.
@@ -43,7 +47,7 @@ class TSEMO(Strategy):
         Default is 1500. Note that the Matlab TSEMO version uses 4000
         which will improve accuracy but significantly slow down optimisation speed.
     n_retries : int, optional
-        Number of retries to use for spectral sampling in the singular value decomposition
+        Number of retries to use for spectral sampling iF the singular value decomposition
         fails. Retrying chooses a new Monte Carlo sampling which usually fixes the problem.
         Defualt is 10.
     generations : int, optional
@@ -65,6 +69,22 @@ class TSEMO(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> strategy = TSEMO(domain)
     >>> result = strategy.suggest_experiments(5)
+
+    Notes
+    -----
+    TSEMO trains a gaussian process (GP) to model each objective. Internally, we use
+    `GPy <https://github.com/SheffieldML/GPy>`_ for GPs, and we accept any kernel in the Matérn family, including the
+    exponential and squared exponential kernel. See [1]_ for more information about GPs.
+
+    A deterministic function is sampled via from each of the trained GPs. We use spectral sampling available in `pyrff <https://github.com/michaelosthege/pyrff>`_.
+    These sampled functions are optimised using NSGAII (via `pymoo <https://pymoo.org/>`_) to find a selection of potential conditions.
+    Each of these conditions are evaluated using the hypervolume improvement (HVI) criterion, and the one(s) that offer the best
+    HVI are suggested as the next experiments.
+
+    References
+    ----------
+    .. [1] C. E. Rasmussen et al., Gaussian Processes for Machine Learning, MIT Press, 2006. `Online <http://www.gaussianprocess.org/gpml/>`_
+    .. [2] E. Bradford et al. "Efficient multiobjective optimization employing Gaussian processes, spectral sampling and a genetic algorithm." J. Glob. Optim., 2018, 71, 407–438.
 
     """
 
