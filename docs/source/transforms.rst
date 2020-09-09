@@ -1,3 +1,4 @@
+.. _transforms:
 Transforms
 ==========
 

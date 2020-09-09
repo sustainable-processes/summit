@@ -4,9 +4,9 @@ Strategies
 
 Summit has several machine learning strategies available for optimisation, as well as some more naive ones. 
 
-All strategies have a similar API. They are instantiated by passing in a `Domain`. New reaction conditions are requested using the `suggest_experiments` method which, potentially, takes results from previous reactions.
+All strategies have a similar API. They are instantiated by passing in a :class:~`summit.domain.Domain`. New reaction conditions are requested using the `suggest_experiments` method which, potentially, takes results from previous reactions.
 
-It is also possible to pass a transform.
+It is also possible to pass a transforms_.
 
 Bayesian Optimisation
 ---------------------

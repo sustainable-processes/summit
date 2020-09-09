@@ -41,7 +41,7 @@ extensions = [
     # enables automatic processing of docstrings
     "sphinx.ext.autodoc",
     # View the code
-    # "sphinx.ext.viewcode",
+    "sphinx.ext.viewcode",
     # enables to provide links alias in the project
     "sphinx.ext.intersphinx",
     # read the docs theme
@@ -59,6 +59,18 @@ exclude_patterns = []
 # -- Options for Numpydoc ----------------------------------------------------
 
 numpydoc_show_class_members = True
+
+# -- Options for Numpydoc ----------------------------------------------------
+
+
+def linkcode_resolve(domain, info):
+    if domain != "py":
+        return None
+    if not info["module"]:
+        return None
+    filename = info["module"].replace(".", "/")
+    return "https://somesite/sourcerepo/%s.py" % filename
+
 
 # -- Options for HTML output -------------------------------------------------
 
