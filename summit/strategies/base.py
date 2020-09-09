@@ -38,7 +38,7 @@ class Transform:
     def __init__(self, domain, **kwargs):
         self.transform_domain = domain.copy()
         self.domain = domain
-    
+
     def transform_inputs_outputs(self, ds: DataSet, **kwargs):
         """  Transform of data into inputs and outptus for a strategy
         
@@ -69,13 +69,21 @@ class Transform:
             if isinstance(variable, CategoricalVariable) and transform_descriptors:
                 # Add descriptors to the dataset
                 var_descriptor_names = variable.ds.data_columns
-                if all(np.isin(var_descriptor_names, new_ds.columns.levels[0].to_list())):
+                if all(
+                    np.isin(var_descriptor_names, new_ds.columns.levels[0].to_list())
+                ):
                     # Make the descriptors columns a metadata column
                     column_list_1 = new_ds.columns.levels[0].to_list()
-                    ix = [column_list_1.index(d_name) for d_name in var_descriptor_names]
+                    ix = [
+                        column_list_1.index(d_name) for d_name in var_descriptor_names
+                    ]
                     column_codes_2 = list(new_ds.columns.codes[1])
-                    ix_code = [np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix]
-                    for ixc in ix_code: column_codes_2[ixc] = 0
+                    ix_code = [
+                        np.where(new_ds.columns.codes[0] == tmp_ix)[0][0]
+                        for tmp_ix in ix
+                    ]
+                    for ixc in ix_code:
+                        column_codes_2[ixc] = 0
                     new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
                 else:
                     indices = new_ds[variable.name].values
@@ -93,10 +101,14 @@ class Transform:
 
                 # add descriptors data columns to inputs
                 input_columns.extend(var_descriptor_names)
-            elif isinstance(variable, Variable):
-                input_columns.append(variable.name)            
+            elif isinstance(variable, ContinuousVariable):
+                input_columns.append(variable.name)
+                # Ensure continuous variables are floats
+                new_ds[variable.name] = new_ds[variable.name].astype(np.float)
             else:
-                raise DomainError(f"Variable {variable.name} is not in the dataset.")
+                raise DomainError(
+                    f"Variable {variable.name} is not a continuous or categorical variable."
+                )
 
         for variable in self.domain.output_variables:
             if variable.name in data_columns and variable.is_objective:
@@ -105,12 +117,14 @@ class Transform:
                         "Output variables cannot be categorical variables currently."
                     )
                 output_columns.append(variable.name)
+                # Ensure continuous variables are floats
+                new_ds[variable.name] = new_ds[variable.name].astype(np.float)
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 
         if output_columns is None:
             raise DomainError(
-                "No output columns in the domain.  Add at least one output column for optimization."
+                "No output columns in the domain.  Add at least one output column for optimisation."
             )
 
         # Return the inputs and outputs as separate datasets
@@ -133,34 +147,58 @@ class Transform:
         """
         transform_descriptors = kwargs.get("transform_descriptors", True)
         # Determine input and output columns in dataset
-        new_ds = ds
+        new_ds = ds.copy()
         if transform_descriptors:
             for i, variable in enumerate(self.domain.input_variables):
                 if isinstance(variable, CategoricalVariable) and transform_descriptors:
                     # Add original categorical variable to the dataset
                     var_descriptor_names = variable.ds.data_columns
                     var_descriptor_conditions = ds[var_descriptor_names]
-                    var_descriptor_orig_data = np.asarray([variable.ds.loc[[level], :].values[0].tolist() for level in variable.ds.index])
+                    var_descriptor_orig_data = np.asarray(
+                        [
+                            variable.ds.loc[[level], :].values[0].tolist()
+                            for level in variable.ds.index
+                        ]
+                    )
                     var_categorical_transformed = []
                     for _, dc in var_descriptor_conditions.iterrows():
-                        eucl_distance_squ = np.sum(np.square(np.subtract(var_descriptor_orig_data, dc.to_numpy())), axis=1)
-                        cat_level_index = np.where(eucl_distance_squ == np.min(eucl_distance_squ))[0][0]
+                        eucl_distance_squ = np.sum(
+                            np.square(
+                                np.subtract(var_descriptor_orig_data, dc.to_numpy())
+                            ),
+                            axis=1,
+                        )
+                        cat_level_index = np.where(
+                            eucl_distance_squ == np.min(eucl_distance_squ)
+                        )[0][0]
                         cat_level = variable.ds.index[cat_level_index]
                         var_categorical_transformed.append(cat_level)
                     dt = {variable.name: var_categorical_transformed}
-                    new_ds.insert(loc=i, column=variable.name, value=var_categorical_transformed)
+                    new_ds.insert(
+                        loc=i, column=variable.name, value=var_categorical_transformed
+                    )
 
                     # Make the descriptors columns a metadata column
-                    column_list_1 = new_ds.columns.levels[0].to_list() # all variables
-                    ix = [column_list_1.index(d_name) for d_name in var_descriptor_names] # just descriptors variables
-                    column_codes_2 = list(new_ds.columns.codes[1]) # codes for the variable type 
-                    ix_code = [np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix]
-                    for ixc in ix_code: column_codes_2[ixc] = 1
+                    column_list_1 = new_ds.columns.levels[0].to_list()  # all variables
+                    ix = [
+                        column_list_1.index(d_name) for d_name in var_descriptor_names
+                    ]  # just descriptors variables
+                    column_codes_2 = list(
+                        new_ds.columns.codes[1]
+                    )  # codes for the variable type
+                    ix_code = [
+                        np.where(new_ds.columns.codes[0] == tmp_ix)[0][0]
+                        for tmp_ix in ix
+                    ]
+                    for ixc in ix_code:
+                        column_codes_2[ixc] = 1
                     new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
-                elif isinstance(variable, Variable):
-                    continue
+                elif isinstance(variable, ContinuousVariable):
+                    new_ds[variable.name] = new_ds[variable.name].astype(np.float)
                 else:
-                    raise DomainError(f"Variable {variable.name} is not in the dataset.")
+                    raise DomainError(
+                        f"Variable {variable.name} is not in the dataset."
+                    )
 
         return new_ds
 
@@ -170,7 +208,7 @@ class Transform:
             transform_domain=self.transform_domain.to_dict(),
             name=self.__class__.__name__,
             domain=self.domain.to_dict(),
-            transform_params=kwargs
+            transform_params=kwargs,
         )
 
     @classmethod
@@ -258,7 +296,7 @@ class MultitoSingleObjective(Transform):
         inputs, outputs
             Datasets with the input and output datasets  
         """
-        inputs, outputs = super().transform_inputs_outputs(ds,**kwargs)
+        inputs, outputs = super().transform_inputs_outputs(ds, **kwargs)
         outputs = outputs.eval(self.expression, resolvers=[outputs])
         outputs = DataSet(outputs, columns=["scalar_objective"])
         return inputs, outputs
@@ -451,7 +489,9 @@ class Chimera(Transform):
 
         # Scalarize using Chimera
         outputs_arr = outputs[self.ordered_objective_names].to_numpy()
-        outputs_arr = outputs_arr*self.directions #Change maximization to minimization
+        outputs_arr = (
+            outputs_arr * self.directions
+        )  # Change maximization to minimization
         scalarized_array = self._scalarize(outputs_arr)
 
         # Write scalarized objective back to DataSet
@@ -543,13 +583,15 @@ class Chimera(Transform):
                 shift -= np.amax(transposed_objs[0][domain]) - tolerance
                 shifted_objs[obj_index + 1] = transposed_objs[0] + shift
         return shifted_objs, tols
-    
+
     def to_dict(self):
-        transform_params = dict(hierarchy=self.hierarchy,
-                                softness=self.softness,
-                                absolutes=self.absolutes.tolist())
+        transform_params = dict(
+            hierarchy=self.hierarchy,
+            softness=self.softness,
+            absolutes=self.absolutes.tolist(),
+        )
         return super().to_dict(**transform_params)
-    
+
     @classmethod
     def from_dict(cls, d):
         absolutes = d["transform_params"]["absolutes"]
@@ -737,10 +779,12 @@ class Design:
         for variable in self._domain.variables:
             if variable.is_objective or variable.name in self.exclude:
                 continue
-            elif isinstance(variable,ContinuousVariable):
+            elif isinstance(variable, ContinuousVariable):
                 values = self.get_values(variable.name)[:, 0]
             elif isinstance(variable, CategoricalVariable):
-                values = [variable.levels[i] for i in self.get_indices(variable.name)[:,0]]
+                values = [
+                    variable.levels[i] for i in self.get_indices(variable.name)[:, 0]
+                ]
             df.insert(i, variable.name, values)
             i += 1
 
