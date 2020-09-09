@@ -11,7 +11,7 @@ Summit uses recent advances in machine learning to make the process of reaction 
 Summit has two key features:
 
 - **Strategies**: Optimisation algorithms designed to find the best conditions with the least number of iterations. Summit has eight strategies implemented.
-- **Benchmarks**: Simulations of chemical reactions that can be used to test strategies. We have both mechnaistic and data-driven benchmarks.
+- **Benchmarks**: Simulations of chemical reactions that can be used to test strategies. We have both mechanistic and data-driven benchmarks.
 
 To get started, see the Quick Start below or follow our [tutorial](https://gosummit.readthedocs.io/en/latest/tutorial.html). 
 
