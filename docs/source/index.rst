@@ -32,7 +32,7 @@ To get started, follow our tutorial_.
    installation
    tutorial
    new_benchmarks
-
+   strategies
 
 Indices and tables
 ==================

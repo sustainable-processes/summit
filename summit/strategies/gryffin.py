@@ -29,7 +29,7 @@ class GRYFFIN(Strategy):
         Whether descriptors of categorical variables are used. If not,
         auto_desc_gen must be True when categorical variables are used.
         Default is True.
-    auto_desc_gen: Boolean, optional
+    auto_desc_gen: bool, optional
         Whether Dynamic Gryffin is used if descriptors are provided,
         i.e., Gryffin applies automatic descriptor generation,
         hence transforms the given descriptors with a non-linear transformation
