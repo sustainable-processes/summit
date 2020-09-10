@@ -221,12 +221,7 @@ class SNOBFIT(Strategy):
     def _inner_suggest_experiments(
         self, num_experiments, prev_res: DataSet = None, prev_param=None
     ):
-<<<<<<< HEAD
         """Inner loop for generation of suggested experiments using the SNOBFIT method
-
-=======
-        """ Inner loop for generation of suggested experiments using the SNOBFIT method
->>>>>>> master
         Parameters
         ----------
         num_experiments: int
