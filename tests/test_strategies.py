@@ -23,6 +23,9 @@ def test_strategy():
             assert outputs["scalar_objective"].iloc[0] == 70.0
             return self.transform.un_transform(inputs)
 
+        def reset(self):
+            pass
+
 
 def test_random():
     domain = Domain()
@@ -146,6 +149,9 @@ def test_multitosingleobjective_transform():
             assert outputs["scalar_objective"].iloc[0] == 70.0
             return self.transform.un_transform(inputs)
 
+        def reset(self):
+            pass
+
     domain = Domain()
     domain += ContinuousVariable(
         name="temperature",
@@ -194,6 +200,9 @@ def test_logspaceobjectives_transform():
             assert np.isclose(outputs["log_de"].iloc[0], np.log(90))
             return self.transform.un_transform(inputs)
 
+        def reset(self):
+            pass
+
     domain = Domain()
     domain += ContinuousVariable(
         name="temperature",
@@ -232,7 +241,7 @@ def test_logspaceobjectives_transform():
 
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])
 @pytest.mark.parametrize("maximize", [True, False])
-@pytest.mark.parametrize("constraints", [True, False])
+@pytest.mark.parametrize("constraints", [False])
 def test_snobfit(num_experiments, maximize, constraints):
 
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraints)

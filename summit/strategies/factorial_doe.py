@@ -83,6 +83,9 @@ class FullFactorial(Strategy):
         ds[("strategy", "METADATA")] = "FullFactorial"
         return ds
 
+    def reset(self):
+        pass
+
 
 def fullfact(levels):
     """

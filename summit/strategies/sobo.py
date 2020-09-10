@@ -130,7 +130,7 @@ class SOBO(Strategy):
                         }
                     )
                 elif isinstance(v, CategoricalVariable):
-                    if v.ds is None or not self.use_descriptors:
+                    if not self.use_descriptors:
                         self.input_domain.append(
                             {
                                 "name": v.name,
@@ -163,6 +163,10 @@ class SOBO(Strategy):
                                     ),
                                 }
                             )
+                    elif v.ds is None and self.use_descriptors:
+                        raise ValueError(
+                            "Cannot use descriptors because none are provided."
+                        )
                     # TODO: GPyOpt currently does not support mixed-domains w/ bandit inputs, there is a PR for this though
                 else:
                     raise TypeError("Unknown variable type.")
@@ -408,9 +412,10 @@ class SOBO(Strategy):
     @classmethod
     def from_dict(cls, d):
         # Get kernel
-        kernel = d["strategy_params"]["kernel"]
-        kernel = GPy.kern.Kern.from_dict(kernel)
-        d["strategy_params"]["kernel"] = kernel
+        kernel = d["strategy_params"].get("kernel")
+        if kernel is not None:
+            kernel = GPy.kern.Kern.from_dict(kernel)
+            d["strategy_params"]["kernel"] = kernel
 
         # Setup SOBO
         sobo = super().from_dict(d)

@@ -1,5 +1,5 @@
 from .base import Strategy, Transform
-from summit.domain import Domain, ContinuousVariable
+from summit.domain import *
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
 
@@ -166,21 +166,31 @@ class DRO(Strategy):
 
         # Get bounds of input variables
         bounds = []
+        for v in self.domain.input_variables:
+            if isinstance(v, ContinuousVariable):
+                bounds.append(v.bounds)
+            elif isinstance(v, CategoricalVariable):
+                if v.ds is not None:
+                    descriptor_names = v.ds.data_columns
+                    descriptors = np.asarray(
+                        [v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns]
+                    )
+                else:
+                    raise ValueError("No descriptors given for {}".format(v.name))
+                for d in descriptors:
+                    bounds.append([np.min(np.asarray(d)), np.max(np.asarray(d))])
+
+        # Get bounds of objective
         obj_maximize = False
         obj_bounds = None
-        for v in self.domain.variables:
-            if not isinstance(v, ContinuousVariable):
-                raise TypeError("DRO can only handle continuous variables.")
-            if not v.is_objective:
-                bounds.append(v.bounds)
-            if v.is_objective:
-                if obj_bounds is not None:
-                    raise ValueError(
-                        "DRO can not handle multiple objectives. Please use transform."
-                    )
-                obj_bounds = v.bounds
-                if v.maximize:
-                    obj_maximize = True
+        for v in self.domain.output_variables:
+            if obj_bounds is not None:
+                raise ValueError(
+                    "DRO can not handle multiple objectives. Please use transform."
+                )
+            obj_bounds = v.bounds
+            if v.maximize:
+                obj_maximize = True
         self.bounds = np.asarray(bounds, dtype=float)
 
         # Initialization
@@ -188,7 +198,9 @@ class DRO(Strategy):
         self.y0 = None
         # Get previous results
         if prev_res is not None:
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res)
+            inputs, outputs = self.transform.transform_inputs_outputs(
+                prev_res, transform_descriptors=True
+            )
             # Set up maximization and minimization and normalize inputs (x) and outputs (y)
             for v in self.domain.variables:
                 if v.is_objective:
@@ -228,7 +240,9 @@ class DRO(Strategy):
         self.prev_param = param
 
         # Do any necessary transformations back
-        next_experiments = self.transform.un_transform(next_experiments)
+        next_experiments = self.transform.un_transform(
+            next_experiments, transform_descriptors=True
+        )
 
         return next_experiments
 
@@ -252,7 +266,11 @@ class DRO(Strategy):
             params["last_requested_point"] = params["last_requested_point"].tolist()
         else:
             params = None
-        strategy_params = dict(prev_param=params)
+        strategy_params = dict(
+            prev_param=params,
+            pretrained_model_config_path=self._pretrained_model_config_path,
+            model_size=self._model_size,
+        )
         return super().to_dict(**strategy_params)
 
     @classmethod

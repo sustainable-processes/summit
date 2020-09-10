@@ -110,6 +110,9 @@ class Random(Strategy):
         indices.shape = (num_samples, 1)
         return indices, values
 
+    def reset(self):
+        pass
+
 
 class LHS(Strategy):
     """Latin hypercube sampling (LHS) strategy for experiment suggestion
@@ -275,6 +278,9 @@ class LHS(Strategy):
         design = DataSet.from_df(design)
         design[("strategy", "METADATA")] = "LHS"
         return self.transform.un_transform(design, transform_descriptors=True)
+
+    def reset(self):
+        pass
 
 
 """

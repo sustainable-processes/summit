@@ -101,10 +101,8 @@ class Transform:
 
                 # add descriptors data columns to inputs
                 input_columns.extend(var_descriptor_names)
-            elif isinstance(variable, ContinuousVariable):
+            elif isinstance(variable, Variable):
                 input_columns.append(variable.name)
-                # Ensure continuous variables are floats
-                new_ds[variable.name] = new_ds[variable.name].astype(np.float)
             else:
                 raise DomainError(
                     f"Variable {variable.name} is not a continuous or categorical variable."
@@ -698,6 +696,10 @@ class Strategy(ABC):
         raise NotImplementedError(
             "Strategies should inhereit this class and impelemnt suggest_experiments"
         )
+
+    @abstractmethod
+    def reset(self):
+        pass
 
     def to_dict(self, **strategy_params):
         """Convert strategy to a dictionary"""

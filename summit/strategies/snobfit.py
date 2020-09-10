@@ -107,7 +107,6 @@ class SNOBFIT(Strategy):
             Dataset with data from previous experiments.
             If no data is passed, the SNOBFIT optimization algorithm
             will be initialized and suggest initial experiments.
-
         Returns
         -------
         next_experiments: DataSet
@@ -222,8 +221,12 @@ class SNOBFIT(Strategy):
     def _inner_suggest_experiments(
         self, num_experiments, prev_res: DataSet = None, prev_param=None
     ):
+<<<<<<< HEAD
         """Inner loop for generation of suggested experiments using the SNOBFIT method
 
+=======
+        """ Inner loop for generation of suggested experiments using the SNOBFIT method
+>>>>>>> master
         Parameters
         ----------
         num_experiments: int
@@ -237,7 +240,6 @@ class SNOBFIT(Strategy):
             iterations of a optimization problem.
             If no data is passed, the SNOBFIT optimization algorithm
             will be initialized.
-
         Returns
         -------
         next_experiments: DataSet
@@ -386,21 +388,17 @@ class SNOBFIT(Strategy):
         UC Regents, Berkeley
         
         Website: https://pypi.org/project/SQSnobFit/
-
     """
 
     """
      request, xbest, fbest = snobfit(x, f, config, dx=None)
      minimization of a function over a box in R^n
-
      Input:
       file         name of file for input and output
                    if nargin < 5, the program continues a previous run and
                    reads from file.mat the output is (again) stored in file.mat
-
     ^^do not use file - store variables globally,
     or make them available to be passed in?
-
       x            the rows are a set of new points entering the
                    optimization algorithm together with their function
                    values
@@ -423,7 +421,6 @@ class SNOBFIT(Strategy):
                    if they differ by at least dx(i) in at least one
                    coordinate i
       prev_res     results of previous iterations
-
      Output:
       request      nreq x (n+3)-matrix
                    request[j,1:n] is the jth newly generated point,
