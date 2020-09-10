@@ -12,7 +12,7 @@ from summit.utils import jsonify_dict, unjsonify_dict
 
 
 class ExperimentalEmulator(Experiment):
-    """ Experimental Emulator
+    """Experimental Emulator
 
     Parameters
     ---------
@@ -35,7 +35,7 @@ class ExperimentalEmulator(Experiment):
         If True, transform categorical variable to one or more continuous variable(s)
         corresponding to the descriptors of the categorical variable (else do nothing).
         By default: False
-    
+
     Examples
     --------
     >>> test_domain = ReizmanSuzukiEmulator().domain
@@ -137,13 +137,15 @@ class ExperimentalEmulator(Experiment):
         Subclasses can add a experiment_params dictionary
         key with custom parameters for the experiment
         """
-        kwargs.update(dict(
-            model_name=self.emulator.model_name,
-            dataset=self.emulator._dataset.to_dict()
-            if self.emulator._dataset is not None
-            else None,
-            output_models=self.emulator.output_models,
-        ))
+        kwargs.update(
+            dict(
+                model_name=self.emulator.model_name,
+                dataset=self.emulator._dataset.to_dict()
+                if self.emulator._dataset is not None
+                else None,
+                output_models=self.emulator.output_models,
+            )
+        )
         return super().to_dict(**kwargs)
 
     @classmethod
@@ -156,7 +158,7 @@ class ExperimentalEmulator(Experiment):
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
-    """ Reizman Suzuki Emulator
+    """Reizman Suzuki Emulator
 
     Virtual experiments representing the Suzuki-Miyaura Cross-Coupling reaction
     similar to Reizman et al. (2016). Experimental outcomes are based on an
@@ -175,8 +177,12 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
     Notes
     -----
-    This benchmark is based on Reizman et al. React. Chem. Eng. 2016.
-    https://doi.org.1039/C6RE00153J
+    This benchmark is based on data from [Reizman]_ et al.
+
+    References
+    ----------
+    .. [Reizman] B. J. Reizman et al., React. Chem. Eng., 2016, 1, 658–666.
+       DOI: `10.1039/C6RE00153J <https://doi.org/10.1039/C6RE00153J>`_.
 
     """
 
@@ -247,34 +253,38 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
     def to_dict(self):
         """Serialize the class to a dictionary"""
-        experiment_params = dict(case=self.emulator.model_name[-1],)
+        experiment_params = dict(
+            case=self.emulator.model_name[-1],
+        )
         return super().to_dict(**experiment_params)
 
 
 class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
-    """ Baumgartner Cross Coupling Emulator
+    """Baumgartner Cross Coupling Emulator
 
     Virtual experiments representing the Aniline Cross-Coupling reaction
     similar to Baumgartner et al. (2019). Experimental outcomes are based on an
     emulator that is trained on the experimental data published by Baumgartner et al.
 
-    This is a five dimensional optimisation of temperature, residence time, base equivalents, 
+    This is a five dimensional optimisation of temperature, residence time, base equivalents,
     catalyst and base.
 
-    The categorical variables (catalyst and base) contain descriptors 
+    The categorical variables (catalyst and base) contain descriptors
     calculated using COSMO-RS. Specifically, the descriptors are the first two sigma moments.
-
-    Parameters
-    ----------
 
     Examples
     --------
-    >>> bemul = BaumgartnerCrossCouplingEmulator()
+    >>> bemul = BaumgartnerCrossCouplingDescriptorEmulator()
 
     Notes
     -----
-    This benchmark is based on Baumgartner et al. Org. Process Res. Dev. 2019, 23, 8, 1594–1601.
-    https://doi.org.1021/acs.oprd.9b00236
+    This benchmark is based on data from [Baumgartner]_ et al.
+
+    References
+    ----------
+
+    .. [Baumgartner] L. M. Baumgartner et al., Org. Process Res. Dev., 2019, 23, 1594–1601
+       DOI: `10.1021/acs.oprd.9b00236 <https://`doi.org/10.1021/acs.oprd.9b00236>`_
 
     """
 
@@ -359,8 +369,9 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         return domain
 
+
 class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
-    """ Baumgartner Cross Coupling Emulator
+    """Baumgartner Cross Coupling Emulator
 
     Virtual experiments representing the Aniline Cross-Coupling reaction
     similar to Baumgartner et al. (2019). Experimental outcomes are based on an
@@ -380,8 +391,13 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
 
     Notes
     -----
-    This benchmark is based on Baumgartner et al. Org. Process Res. Dev. 2019, 23, 8, 1594–1601.
-    https://doi.org.1021/acs.oprd.9b00236
+    This benchmark is based on data from [Baumgartner]_ et al.
+
+    References
+    ----------
+
+    .. [Baumgartner] L. M. Baumgartner et al., Org. Process Res. Dev., 2019, 23, 1594–1601
+       DOI: `10.1021/acs.oprd.9b00236 <https://doi.org/10.1021/acs.oprd.9b00236>`_
 
     """
 
@@ -462,8 +478,9 @@ class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
 
         return domain
 
+
 class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulator):
-    """ Baumgartner Cross Coupling Emulator
+    """Baumgartner Cross Coupling Emulator
 
     Virtual experiments representing the Aniline Cross-Coupling reaction
     similar to Baumgartner et al. (2019). Experimental outcomes are based on an
@@ -480,10 +497,16 @@ class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulat
 
     Notes
     -----
-    This benchmark is based on Baumgartner et al. Org. Process Res. Dev. 2019, 23, 8, 1594–1601.
-    https://doi.org.1021/acs.oprd.9b00236
+    This benchmark is based on data from [Baumgartner]_ et al.
+
+    References
+    ----------
+
+    .. [Baumgartner] L. M. Baumgartner et al., Org. Process Res. Dev., 2019, 23, 1594–1601
+       DOI: `10.1021/acs.oprd.9b00236 <https://doi.org/10.1021/acs.oprd.9b00236>`_
 
     """
+
     def __init__(self, **kwargs):
         super().__init__()
         self.init_domain = self._domain
