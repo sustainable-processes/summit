@@ -33,6 +33,7 @@ class TSEMO(Strategy):
 
     Parameters
     ----------
+
     domain : :class:`~summit.domain.Domain`
         The domain of the optimization
     transform : :class:`~summit.strategies.base.Transform`, optional
@@ -71,7 +72,7 @@ class TSEMO(Strategy):
 
     Notes
     -----
-    
+
     TSEMO trains a gaussian process (GP) to model each objective. Internally, we use
     `GPy <https://github.com/SheffieldML/GPy>`_ for GPs, and we accept any kernel in the Matérn family, including the
     exponential and squared exponential kernel. See [Rasmussen]_ for more information about GPs.

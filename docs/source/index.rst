@@ -1,8 +1,3 @@
-.. Summit documentation master file, created by
-   sphinx-quickstart on Fri Aug 28 21:25:06 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to Summit's documentation!
 ==================================
 
@@ -31,7 +26,7 @@ To get started, follow our tutorial_.
    
    installation
    tutorial
-   new_benchmarks
+   experiments_benchmarks/index
    strategies
    transforms
 

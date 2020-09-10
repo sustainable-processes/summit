@@ -44,18 +44,10 @@ class SNOBFIT(Strategy):
         coordinate i.
         Default is 1E-5.
 
-    Notes
-    ------
-    SNOBFIT was created by [Huyer]_ et al. This implementation is based on the python reimplementation [SQSnobFit]_
-    of the original MATLAB code by [Neumaier]_.
-
-
-    Note that SNOBFIT sometimes returns more experiments than requested when the number of experiments
-    request is small (i.e., 1 or 2). This seems to be a general issue with the algorithm
-    instead of the specific implementation used here.
 
     Examples
-    -------
+    --------
+
     >>> from summit.domain import Domain, ContinuousVariable
     >>> from summit.strategies import SNOBFIT
     >>> from summit.utils.dataset import DataSet
@@ -70,6 +62,17 @@ class SNOBFIT(Strategy):
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
     >>> next_experiments = strategy.suggest_experiments(5, initial)
+
+    Notes
+    ------
+
+    SNOBFIT was created by [Huyer]_ et al. This implementation is based on the python reimplementation [SQSnobFit]_
+    of the original MATLAB code by [Neumaier]_.
+
+
+    Note that SNOBFIT sometimes returns more experiments than requested when the number of experiments
+    request is small (i.e., 1 or 2). This seems to be a general issue with the algorithm
+    instead of the specific implementation used here.
 
 
     References

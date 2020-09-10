@@ -18,6 +18,7 @@ class NelderMead(Strategy):
 
     Parameters
     ----------
+
     domain : :class:`~summit.domain.Domain`
         The domain of the optimization
     transform : :class:`~summit.strategies.base.Transform`, optional
@@ -43,7 +44,7 @@ class NelderMead(Strategy):
         Default is 1E-5.
 
     Notes
-    ------
+    -----
 
     This is inspired by the work by [Cortés-Borda]_. Implementation partly follows the Nelder-Mead Simplex
     implementation in `scipy-optimize <https://github.com/scipy/scipy/blob/master/scipy/optimize/optimize.py>`_
@@ -61,7 +62,8 @@ class NelderMead(Strategy):
        Organic ProcessResearch & Development 2016,20, 1979–1987
 
     Examples
-    -------
+    --------
+
     >>> from summit.domain import Domain, ContinuousVariable
     >>> from summit.strategies import NelderMead
     >>> domain = Domain()
@@ -76,6 +78,7 @@ class NelderMead(Strategy):
     0          0.500      0.500  Nelder-Mead Simplex
     1          0.625      0.500  Nelder-Mead Simplex
     2          0.500      0.625  Nelder-Mead Simplex
+
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
@@ -93,6 +96,7 @@ class NelderMead(Strategy):
 
         Parameters
         ----------
+
         prev_res: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, the Nelder-Mead optimization algorithm
@@ -100,6 +104,7 @@ class NelderMead(Strategy):
 
         Returns
         -------
+
         next_experiments: DataSet
             A `Dataset` object with the suggested experiments by Nelder-Mead Simplex algorithm
 

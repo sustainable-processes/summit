@@ -1160,6 +1160,21 @@ python-versions = ">=3.5"
 version = "1.18.0"
 
 [[package]]
+category = "dev"
+description = "Sphinx extension to support docstrings in Numpy format"
+name = "numpydoc"
+optional = false
+python-versions = ">=3.5"
+version = "1.1.0"
+
+[package.dependencies]
+Jinja2 = ">=2.3"
+sphinx = ">=1.6.5"
+
+[package.extras]
+testing = ["matplotlib", "pytest", "pytest-cov"]
+
+[[package]]
 category = "main"
 description = "A generic, spec-compliant, thorough implementation of the OAuth request-signing logic"
 name = "oauthlib"
@@ -2231,7 +2246,7 @@ testing = ["jaraco.itertools", "func-timeout"]
 experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko", "scp"]
 
 [metadata]
-content-hash = "dac67b2279f1ba7dba01ba30cda6bb1124f847b5e1ab9c370580152da087d4ff"
+content-hash = "95d652267f189d4eb897d0f86713da389cbaefc72d4194a7287fcb10ca38a40f"
 python-versions = "^3.6.1"
 
 [metadata.files]
@@ -2867,6 +2882,10 @@ numpy = [
     {file = "numpy-1.18.0-cp38-cp38-win32.whl", hash = "sha256:03bbde29ac8fba860bb2c53a1525b3604a9b60417855ac3119d89868ec6041c3"},
     {file = "numpy-1.18.0-cp38-cp38-win_amd64.whl", hash = "sha256:712f0c32555132f4b641b918bdb1fd3c692909ae916a233ce7f50eac2de87e37"},
     {file = "numpy-1.18.0.zip", hash = "sha256:a9d72d9abaf65628f0f31bbb573b7d9304e43b1e6bbae43149c17737a42764c4"},
+]
+numpydoc = [
+    {file = "numpydoc-1.1.0-py3-none-any.whl", hash = "sha256:c53d6311190b9e3b9285bc979390ba0257ba9acde5eca1a7065fc8dfca9d46e8"},
+    {file = "numpydoc-1.1.0.tar.gz", hash = "sha256:c36fd6cb7ffdc9b4e165a43f67bf6271a7b024d0bb6b00ac468c9e2bfc76448e"},
 ]
 oauthlib = [
     {file = "oauthlib-3.1.0-py2.py3-none-any.whl", hash = "sha256:df884cd6cbe20e32633f1db1072e9356f53638e4361bef4e8b03c9127c9328ea"},

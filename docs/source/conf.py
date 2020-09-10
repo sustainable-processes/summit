@@ -56,9 +56,10 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
-# -- Options for Numpydoc ----------------------------------------------------
 
-numpydoc_show_class_members = True
+# -- Options for NBShpinx ----------------------------------------------------
+
+autoclass_content = "init"
 
 
 # -- Options for intersphinx output -------------------------------------------

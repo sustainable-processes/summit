@@ -29,17 +29,19 @@ CMAP = ListedColormap(COLORS)
 
 class Experiment(ABC):
     """Base class for experiments
-    
+
     Parameters
-    ---------
+    ----------
+
     domain: summit.domain.Domain
         The domain of the experiment
-    
+
     Notes
     -----
+
     Developers that subclass `Experiment` need to implement
     `_run`, which runs the experiments.
-    
+
     """
 
     def __init__(self, domain, **kwargs):
@@ -59,16 +61,17 @@ class Experiment(ABC):
 
     def run_experiments(self, conditions, computation_time=None, **kwargs):
         """Run the experiment(s) at the given conditions
-        
+
         Parameters
-        ---------
+        ----------
+
         conditions: summit.utils.dataset.Dataset
             A dataset with columns matching the variables in the domain
             of a experiment(s) to run.
         computation_time: float, optional
             The time used by the strategy in calculating the next experiments.
-            By default, the time since the last call to run_experiment is used. 
-               
+            By default, the time since the last call to run_experiment is used.
+
         """
         # Bookeeping for time used by strategy when suggesting next experiment
         if computation_time is not None:
@@ -96,8 +99,8 @@ class Experiment(ABC):
 
     @abstractmethod
     def _run(self, conditions, **kwargs):
-        """ Run experiments at the specified conditions. 
-        
+        """Run experiments at the specified conditions.
+
         Arguments
         ---------
         conditions: summit.utils.dataset.Dataset
@@ -107,7 +110,7 @@ class Experiment(ABC):
         Returns
         -------
         res, extras
-            Should return a tuple where the first element is the 
+            Should return a tuple where the first element is the
             DataSet with the conditions and results.  The second element
             is a dictionary with extra parameters to store about the run.
             The later can be an empty dictionary.
@@ -117,7 +120,7 @@ class Experiment(ABC):
 
     def reset(self):
         """Reset the experiment
-        
+
         This will clear all data.
 
         """
@@ -130,7 +133,7 @@ class Experiment(ABC):
 
     def to_dict(self, **experiment_params):
         """Serialize the class to a dictionary
-        
+
         Subclasses can add a experiment_params dictionary
         key with custom parameters for the experiment
         """
@@ -168,10 +171,10 @@ class Experiment(ABC):
         return exp
 
     def pareto_plot(self, objectives=None, colorbar=False, ax=None):
-        """  Make a 2D pareto plot of the experiments thus far
-        
+        """Make a 2D pareto plot of the experiments thus far
+
         Parameters
-        ---------- 
+        ----------
         objectives: array-like, optional
             List of names of objectives to plot.
             By default picks the first two objectives
@@ -184,13 +187,13 @@ class Experiment(ABC):
         as the a new figure and the second component the axis
 
         if ax is a matplotlib axis, returns only the axis
-        
+
         Raises
         ------
         ValueError
             If the number of objectives is not equal to two
-        
-        
+
+
         """
         if objectives is None:
             objectives = [v.name for v in self.domain.variables if v.is_objective]
