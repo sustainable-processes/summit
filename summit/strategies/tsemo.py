@@ -36,10 +36,9 @@ class TSEMO(Strategy):
     domain : :class:`~summit.domain.Domain`
         The domain of the optimization
     transform : :class:`~summit.strategies.base.Transform`, optional
-        A transform object. By default
-        no transformation will be done the input variables or
-        objectives.
-    kernel : :py: GPy.kern.Kern, optional
+        A transform object. By default no transformation will be done
+        on the input variables or objectives.
+    kernel : :class:`~GPy.kern.Kern`, optional
         A GPy kernel class (not instantiated). Must be Exponential,
         Matern32, Matern52 or RBF. Default Exponential.
     n_spectral_points : int, optional
@@ -59,10 +58,10 @@ class TSEMO(Strategy):
 
     Examples
     --------
+
     >>> from summit.domain import Domain, ContinuousVariable
     >>> from summit.strategies import TSEMO
     >>> from summit.utils.dataset import DataSet
-    >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
@@ -72,19 +71,25 @@ class TSEMO(Strategy):
 
     Notes
     -----
+    
     TSEMO trains a gaussian process (GP) to model each objective. Internally, we use
     `GPy <https://github.com/SheffieldML/GPy>`_ for GPs, and we accept any kernel in the Matérn family, including the
-    exponential and squared exponential kernel. See [1]_ for more information about GPs.
+    exponential and squared exponential kernel. See [Rasmussen]_ for more information about GPs.
 
-    A deterministic function is sampled via from each of the trained GPs. We use spectral sampling available in `pyrff <https://github.com/michaelosthege/pyrff>`_.
+    A deterministic function is sampled from each of the trained GPs. We use spectral sampling available in `pyrff <https://github.com/michaelosthege/pyrff>`_.
     These sampled functions are optimised using NSGAII (via `pymoo <https://pymoo.org/>`_) to find a selection of potential conditions.
     Each of these conditions are evaluated using the hypervolume improvement (HVI) criterion, and the one(s) that offer the best
-    HVI are suggested as the next experiments.
+    HVI are suggested as the next experiments. More details about TSEMO can be found in the original paper [Bradford]_.
 
     References
     ----------
-    .. [1] C. E. Rasmussen et al., Gaussian Processes for Machine Learning, MIT Press, 2006. `Online <http://www.gaussianprocess.org/gpml/>`_
-    .. [2] E. Bradford et al. "Efficient multiobjective optimization employing Gaussian processes, spectral sampling and a genetic algorithm." J. Glob. Optim., 2018, 71, 407–438.
+
+    .. [Rasmussen] C. E. Rasmussen et al.
+       Gaussian Processes for Machine Learning, MIT Press, 2006.
+
+    .. [Bradford] E. Bradford et al.
+       "Efficient multiobjective optimization employing Gaussian processes, spectral sampling and a genetic algorithm."
+       J. Glob. Optim., 2018, 71, 407–438.
 
     """
 
@@ -133,14 +138,15 @@ class TSEMO(Strategy):
         ----------
         num_experiments : int
             The number of experiments (i.e., samples) to generate
-        prev_res : summit.utils.data.DataSet, optional
+        prev_res : :class:`~summit.utils.data.DataSet`, optional
             Dataset with data from previous experiments.
             If no data is passed, then latin hypercube sampling will
             be used to suggest an initial design.
+
         Returns
         -------
-        ds
-            A `Dataset` object with the random design
+        next_experiments : :class:`~summit.utils.data.DataSet`
+            A Dataset object with the suggested experiments
         """
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
@@ -373,6 +379,7 @@ class TSEMO(Strategy):
 
     @classmethod
     def from_dict(cls, d):
+
         tsemo = super().from_dict(d)
         ae = d["strategy_params"]["all_experiments"]
         if ae is not None:

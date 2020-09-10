@@ -27,46 +27,78 @@ if not IGNORE_CHEMOPT:
 
 
 class DRO(Strategy):
-    """ Deep Reaction Optimizer from the paper:
-    "Optimizing Chemical Reactions with Deep Reinforcement Learning"
-    published by Zhenpeng Zhou, Xiaocheng Li, Richard N. Zare.
+    """Deep Reaction Optimizer (DRO)
 
-    Copyright (c) 2017 Zhenpeng Zhou
-
-    Code is adapted from: https://github.com/lightingghost/chemopt
-
-    Please cite their work, if you use this strategy.
+    The DRO relies on a pretrained RL policy that can predict a next set of experiments
+    given a set of past experiments. We suggest reading the notes below before using the DRO.
 
     Parameters
     ----------
-    domain: `summit.domain.Domain`
+
+    domain: :class:`~summit.domain.Domain`
         A summit domain object
-    transform: `summit.strategies.base.Transform`, optional
+    transform: :class:`~summit.strategies.base.Transform`, optional
         A transform class (i.e, not the object itself). By default
         no transformation will be done the input variables or
         objectives.
-    save_dir: string, optional
-        Name of subfolder where temporary files during Gryffin execution are stored, i.e., summit/strategies/tmp_files/dro/<save_dir>.
-        By default: None (i.e. no subfolder created, files stored in summit/strategies/tmp_files/dro)
     pretrained_model_config_path: string, optional
         Path to the config file of a pretrained DRO model (note that the number of inputs parameters should match the domain inputs)
-        By default: a pretrained model (from chemopt/chemopt/config_<#inputs>_inputs_standard.json) will be used
+        By default: a pretrained model will be used.
     model_size: string, optional
-        Whether the model has the same size as originally published by the developers of DRO ("standard"),
+        Whether the model (policy) has the same size as originally published by the developers of DRO ("standard"),
         or whether the model is bigger w.r.t. number of pretraining epochs, LSTM hidden size, unroll_length ("bigger").
         Note that the pretraining can increase exponentially when changing these hyperparameters and the number of input variables,
-        the number of epochs the each bigger model was trained can be found in the "checkpoint" file in the respective save directory
-        (chemopt/chemopt/save/<num_inputs>_inputs_<standard/bigger>/checkpoint).
-        By default: "standard" (these models were all pretrained for 50.000 epochs)
+        the number of epochs the each bigger model was trained can be found in the "checkpoint" file in the respective
+        `save directory <https://github.com/sustainable-processes/chemopt/tree/master/chemopt/save>`_.
+        By default: "standard" (these models were all pretrained for 50 epochs)
 
-    Notes
-    -------
-        For applying the DRO it is necessary to define reasonable bounds of the objective variable, e.g., yield in [0, 1],
-        since the DRO normalizes the objective function values to be between 0 and 1.
-
+    Attributes
+    ----------
+    xbest, internal state
+        Best point from all iterations.
+    fbest, internal state
+        Objective value at best point from all iterations.
+    param, internal state
+        A dict containing: state of LSTM of DRO, last requested point, xbest, fbest,
+        number of iterations (corresponding to the unroll length of the LSTM)
 
     Examples
     -------
+
+    >>> from summit.domain import Domain, ContinuousVariable
+    >>> from summit.strategies import DRO
+    >>> from summit.utils.dataset import DataSet
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
+    >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    >>> strategy = DRO(domain)
+    >>> result = strategy.suggest_experiments(5)
+
+
+    Notes
+    -------
+
+    The DRO requires Tensorflow version 1, while all other parts of Summit use Tensorflow version 2. Therefore,
+    we have created a Docker container for running DRO which has TFv1 installed. We also have an option in the pip
+    package to install TFv1.
+
+    However, if you simply want to analyse results from a DRO run (i.e., use from_dict), then you will not get a
+    tensorflow import error.
+
+    We have pretrained policies for domains with up to six continuous decision variables
+
+    For applying the DRO it is necessary to define reasonable bounds of the objective variable, e.g., yield in [0, 1],
+    since the DRO normalizes the objective function values to be between 0 and 1.
+
+    The DRO is based on the paper in ACS Central Science by [Zhou]_.
+
+    References
+    ----------
+
+    .. [Zhou] Z. Zhou et al., ACS Cent. Sci., 2017, 3, 1337–1344.
+       DOI: `10.1021/acscentsci.7b00492 <https://doi.org/10.1021/acscentsci.7b00492>`_
+
 
     """
 
@@ -74,7 +106,6 @@ class DRO(Strategy):
         self,
         domain: Domain,
         transform: Transform = None,
-        save_dir=None,
         pretrained_model_config_path=None,
         model_size="standard",
         **kwargs
@@ -101,32 +132,34 @@ class DRO(Strategy):
         self.prev_param = None
 
     def suggest_experiments(self, prev_res: DataSet = None, **kwargs):
-        """ Suggest experiments using the Deep Reaction Optimizer
+        """Suggest experiments using the Deep Reaction Optimizer
 
         Parameters
         ----------
         num_experiments: int, optional
             The number of experiments (i.e., samples) to generate. Default is 1.
-        prev_res: summit.utils.data.DataSet, optional
+        prev_res: :class:`~summit.utils.data.DataSet`, optional
             Dataset with data from previous experiments.
             If no data is passed, the DRO optimization algorithm
             will be initialized and suggest initial experiments.
 
         Returns
         -------
-        next_experiments: DataSet
-            A `Dataset` object with the suggested experiments by DRO algorithm
+        next_experiments : :class:`~summit.utils.data.DataSet`
+            A Dataset object with the suggested experiments
 
         Notes
         -------
-        xbest, internal state
-            Best point from all iterations.
-        fbest, internal state
-            Objective value at best point from all iterations.
-        param, internal state
-            A dict containing: state of LSTM of DRO, last requested point, xbest, fbest,
-            number of iterations (corresponding to the unroll length of the LSTM)
+
+
         """
+
+        if tf.__version__ != "1.13.1":
+            raise ImportError(
+                """Tensorflow version 1.13.1 needed for DRO, which is different than the versions 
+                needed for other strategies. We suggest using the docker container marcosfelt/summit:dro.
+                """
+            )
 
         # Extract dimension of input domain
         self.dim = self.domain.num_continuous_dimensions()
@@ -443,4 +476,3 @@ class DRO(Strategy):
                     x, state = self.step(sess, self.x, self.y, state)
                     self.saver.save(sess, self._infer_model_path)
             return x, state
-

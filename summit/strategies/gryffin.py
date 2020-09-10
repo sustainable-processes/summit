@@ -17,74 +17,68 @@ import pathlib
 
 
 class GRYFFIN(Strategy):
-    """ Gryffin strategy
-    
+    """Gryffin is a single objective Bayesian optimisation strategy.
+
+    It is designed to work well with mixed domains (i.e., categorical and continuous variables).
+
     Parameters
-    ---------- 
-    domain: summit.domain.Domain
+    ----------
+    domain: :class:`~summit.domain.Domain`
         The Summit domain describing the optimization problem.
-    transform : summit.strategies.base.Transform
-        Transform to use on the strategy
+    transform : :class:`~summit.strategies.base.Transform`, optional
+        A transform object. By default no transformation will be done
+        on the input variables or objectives.
     use_descriptors: bool, optional
-        Whether descriptors of categorical variables are used. If not,
-        auto_desc_gen must be True when categorical variables are used.
+        Whether descriptors of categorical variables are used.
+        If not,auto_desc_gen must be True when categorical variables are used.
         Default is True.
     auto_desc_gen: bool, optional
-        Whether Dynamic Gryffin is used if descriptors are provided,
-        i.e., Gryffin applies automatic descriptor generation,
-        hence transforms the given descriptors with a non-linear transformation
-        to new descriptors (more "meaningful" or higher-correlated ones).
-        By default: False (i.e., Static Gryffin with originally given descriptors is used).
+        Whether Dynamic Gryffin is used if descriptors are provided.
+        Gryffin applies automatic descriptor generation, hence transforms the given descriptors with a non-linear transformation to new descriptors (more "meaningful" or higher-correlated ones).
+        Defaults to False (i.e., Static Gryffin with originally given descriptors is used).
     sampling_strategies: int, optional
         Number of sampling strategies (similar to sampling of GPs).
         One factor (next to batches) for the number of suggested new points in one optimization step.
-        Total number of suggested points: sampling_strategies x batches
-        By default: 4
+        Total number of suggested points: sampling_strategies x batches.
+        Defaults to 4.
     batches: int, optional
         Number of suggested points within one sampling strategy.
         One factor (next to sampling_strategies) for the number of suggested new points in one optimization step.
-        Total number of suggested points: sampling_strategies x batches
-        By default: 1
+        Total number of suggested points: sampling_strategies x batches. Defaults to 1.
     logging: -1, optional
-        Corresponds to the verbosity level of logging of Gryffin
-	    verbosity_levels = -1: '', 0: ['INFO', 'FATAL'], 1: ['INFO', 'ERROR', 'FATAL'], 2: ['INFO', 'WARNING', 'ERROR', 'FATAL'], 3: ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL']
-        By default: -1
+        Corresponds to the verbosity level of logging of Gryffin. See the Notes for potential logging levels.
+        Defaults to -1
     parallel: Boolean, optional
-        Whether ... (no information found)
-        By default: True (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+        Run optimisation in parallel. Default True.
     boosted: Boolean, optional
-        Whether "pseudo-boosting" is applied (see original Paper).
-        By default: True (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+        Whether "pseudo-boosting" is applied See the original paper in references below for more details.
     sampler: string, optional
-        A priori distribution of categorical variables.
-        By default: 'uniform' (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+        A priori distribution of categorical variables. By default: 'uniform'
     softness: float, optional
-        ... (no information found)
-        By default: 0.001 (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+        Softness of Chimera. By default: 0.001
     continuous_optimizer: string, optional
         Optimizer type for continuous variables (available: "adam").
-        By default: 'adam' (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+        By default: 'adam'
     categorical_optimizer: string, optional
         Optimizer type for categorical variables (available: "naive").
-        By default: naive (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+        By default: naive
     discrete_optimizer: string, optional
         Optimizer type for discrete variables ((available: "naive").
-        By default: naive (cf. default settings in git repo of Gryffin at gryffin/src/gryffin/utilities/defaults.py)
+        By default: naive
 
-    Notes
+    Attributes
     ----------
-    This implementation uses the software package Gryffin provided by
-    the Aspuru-Guzik Group and published by Haese et al. (2020), arXiv:2003.12127.
 
-    Copyright (C) 2020, Harvard University.
-    All rights reserved.
-
-    Github repository: https://github.com/aspuru-guzik-group/gryffin
-
-    Please cite their work, when using this strategy.
+    xbest : internal state
+        Best point from all iterations.
+    fbest : internal state
+        Objective value at best point from all iterations.
+    param : internal state
+        A list containing all evaluated X and corresponding Y values.
 
     Examples
     --------
+
     >>> from summit.domain import *
     >>> from summit.strategies import GRYFFIN
     >>> import numpy as np
@@ -96,6 +90,26 @@ class GRYFFIN(Strategy):
     >>> domain += ContinuousVariable(name="yield", description="yield of reaction", bounds=[0,100], is_objective=True)
     >>> strategy = GRYFFIN(domain, auto_desc_gen=True)
     >>> next_experiments = strategy.suggest_experiments()
+
+    Notes
+    -----
+
+    verbosity_levels:
+    * -1= ''
+    * 0= ['INFO', 'FATAL']
+    * 1= ['INFO', 'ERROR', 'FATAL']
+    * 2= ['INFO', 'WARNING', 'ERROR', 'FATAL']
+    * 3= ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'FATAL']
+
+    Gryffin was created by the Aspuru-Guzik group. See the paper by [Hase]_ or the
+    `Github repository <https://github.com/aspuru-guzik-group/gryffin>`_.
+
+    References
+    ----------
+
+    .. [Hase] Häse, F., Roch, L.M. and Aspuru-Guzik, A., 2020. Gryffin: An algorithm for Bayesian
+           optimization for categorical variables informed by physical intuition with applications to chemistry.
+           arXiv preprint `arXiv:2003.12127 <https://arxiv.org/pdf/2003.12127.pdf>`_.
 
     """
 
@@ -165,7 +179,10 @@ class GRYFFIN(Strategy):
                     )
             else:
                 self.domain_objectives.append(
-                    {"name": v.name, "goal": "minimize",}
+                    {
+                        "name": v.name,
+                        "goal": "minimize",
+                    }
                 )
 
         # TODO: how does GRYFFIN handle constraints?
@@ -205,28 +222,19 @@ class GRYFFIN(Strategy):
         self._setup_gryffin(config_dict, tmp_dir)
 
     def suggest_experiments(self, prev_res: DataSet = None, **kwargs):
-        """ Suggest experiments using Gryffin optimization strategy
-        
+        """Suggest experiments using Gryffin optimization strategy
+
         Parameters
-        ----------  
-        prev_res: summit.utils.data.DataSet, optional
+        ----------
+        prev_res: :class:`~summit.utils.data.DataSet`, optional
             Dataset with data from previous experiments of previous iteration.
             If no data is passed, then random sampling will
             be used to suggest an initial design.
-        
+
         Returns
         -------
-        next_experiments
-            A `Dataset` object with points to be evaluated next
-
-        Notes
-        -------
-        xbest, internal state
-            Best point from all iterations.
-        fbest, internal state
-            Objective value at best point from all iterations.
-        param, internal state
-            A list containing all evaluated X and corresponding Y values.
+        next_experiments : :class:`~summit.utils.data.DataSet`
+            A Dataset object with the suggested experiments
 
         """
 
@@ -373,7 +381,7 @@ class GRYFFIN(Strategy):
 
 
 class CategoryWriter(object):
-    """ Category Writer for Gryffin (adapted from https://github.com/aspuru-guzik-group/gryffin)
+    """Category Writer for Gryffin (adapted from https://github.com/aspuru-guzik-group/gryffin)
 
     Parameters
     ----------
@@ -398,7 +406,7 @@ class CategoryWriter(object):
         ]
 
     def write_categories(self, save_dir):
-        """ Writes categories to pkl file
+        """Writes categories to pkl file
         :param save_dir: string, path where category details will be saved.
         """
 
@@ -426,4 +434,3 @@ class CategoryWriter(object):
                 param_name,
             )
             pickle.dump(opt_list, open(cat_details_file, "wb"))
-

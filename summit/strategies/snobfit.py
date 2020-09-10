@@ -21,17 +21,19 @@ import numpy as np
 import pandas as pd
 import warnings
 
+
 class SNOBFIT(Strategy):
-    """ SNOBFIT optimization algorithm from W. Huyer and A.Neumaier, University of Vienna.
+    """Stable Noisy Optimization by Branch and Fit (SNOBFIT)
+
+    SNOBFIT is designed to quickly optimise noisy functions.
 
     Parameters
     ----------
-    domain: `summit.domain.Domain`
-        A summit domain object
-    transform: `summit.strategies.base.Transform`, optional
-        A transform class (i.e, not the object itself). By default
-        no transformation will be done the input variables or
-        objectives.
+    domain : :class:`~summit.domain.Domain`
+        The domain of the optimization
+    transform : :class:`~summit.strategies.base.Transform`, optional
+        A transform object. By default no transformation will be done
+        on the input variables or objectives.
     probability_p: float, optional
         The probability p that a point of class 4 is generated, i.e., higher p
         leads to more exploration.
@@ -41,25 +43,16 @@ class SNOBFIT(Strategy):
         to be different if they differ by at least dx(i) in at least one
         coordinate i.
         Default is 1E-5.
-    
+
     Notes
     ------
-    This implementation is based on the python reimplementation SQSnobFit (v.0.4.2)
-    of the original MATLAB implementation of SNOBFIT (v2.1).
+    SNOBFIT was created by [Huyer]_ et al. This implementation is based on the python reimplementation [SQSnobFit]_
+    of the original MATLAB code by [Neumaier]_.
 
-    Copyright of SNOBFIT (v2.1):
-        Neumaier, University of Vienna
-
-        Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
-
-    Copyright of SQSnobfit (v0.4.2)
-        UC Regents, Berkeley
-
-        Website: https://pypi.org/project/SQSnobFit/
 
     Note that SNOBFIT sometimes returns more experiments than requested when the number of experiments
     request is small (i.e., 1 or 2). This seems to be a general issue with the algorithm
-    instead of the specific implementation used here. 
+    instead of the specific implementation used here.
 
     Examples
     -------
@@ -77,6 +70,18 @@ class SNOBFIT(Strategy):
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
     >>> next_experiments = strategy.suggest_experiments(5, initial)
+
+
+    References
+    ----------
+
+    .. [Huyer] W. Huyer et al., ACM Trans. Math. Softw., 2008, 35, 1–25.
+       DOI: `10.1145/1377612.1377613 <https://doi.org/10.1145/1377612.1377613>`_.
+
+    .. [SQSnobFit] Lavrijsen, W. SQSnobFit `<https://pypi.org/project/SQSnobFit/>`_
+
+    .. [Neumaier] `<https://www.mat.univie.ac.at/~neum/software/snobfit/>`_
+
     """
 
     def __init__(self, domain: Domain, **kwargs):
@@ -89,7 +94,7 @@ class SNOBFIT(Strategy):
     def suggest_experiments(
         self, num_experiments=1, prev_res: DataSet = None, **kwargs
     ):
-        """ Suggest experiments using the SNOBFIT method
+        """Suggest experiments using the SNOBFIT method
 
         Parameters
         ----------
@@ -104,11 +109,11 @@ class SNOBFIT(Strategy):
         -------
         next_experiments: DataSet
             A `Dataset` object with the suggested experiments by SNOBFIT algorithm
-            
+
         """
-        silence_warnings = kwargs.get('silence_warnings', True)
+        silence_warnings = kwargs.get("silence_warnings", True)
         if silence_warnings:
-            warnings.filterwarnings('ignore', category=DeprecationWarning)
+            warnings.filterwarnings("ignore", category=DeprecationWarning)
         # get objective name and whether optimization is maximization problem
         obj_name = None
         obj_maximize = False
@@ -144,7 +149,7 @@ class SNOBFIT(Strategy):
         next_experiments = None
         while not valid_next_experiments and c_iter < inner_iter_tol:
             valid_next_experiments = False
-            next_experiments, xbest, fbest, param = self.inner_suggest_experiments(
+            next_experiments, xbest, fbest, param = self._inner_suggest_experiments(
                 num_experiments=num_experiments,
                 prev_res=prev_res,
                 prev_param=inner_prev_param,
@@ -211,10 +216,10 @@ class SNOBFIT(Strategy):
         snobfit.prev_param = params
         return snobfit
 
-    def inner_suggest_experiments(
+    def _inner_suggest_experiments(
         self, num_experiments, prev_res: DataSet = None, prev_param=None
     ):
-        """ Inner loop for generation of suggested experiments using the SNOBFIT method
+        """Inner loop for generation of suggested experiments using the SNOBFIT method
 
         Parameters
         ----------
@@ -260,14 +265,21 @@ class SNOBFIT(Strategy):
                 elif isinstance(v, CategoricalVariable):
                     if v.ds is not None:
                         descriptor_names = v.ds.data_columns
-                        descriptors = np.asarray([v.ds.loc[:, [l]].values.tolist() for l in v.ds.data_columns])
+                        descriptors = np.asarray(
+                            [
+                                v.ds.loc[:, [l]].values.tolist()
+                                for l in v.ds.data_columns
+                            ]
+                        )
                     else:
                         raise ValueError("No descriptors given for {}".format(v.name))
                     for d in descriptors:
                         bounds.append([np.min(np.asarray(d)), np.max(np.asarray(d))])
                     input_var_names.extend(descriptor_names)
                 else:
-                    raise TypeError("SNOBFIT can not handle variable type: {}".format(v.type))
+                    raise TypeError(
+                        "SNOBFIT can not handle variable type: {}".format(v.type)
+                    )
             else:
                 output_var_names.extend(v.name)
         bounds = np.asarray(bounds, dtype=float)
@@ -279,10 +291,12 @@ class SNOBFIT(Strategy):
         # Get previous results
         if prev_res is not None:
             # get always the same order according to the ordering in the domain -> this is actually done within transform
-            #ordered_var_names = input_var_names + output_var_names
-            #prev_res = prev_res[ordered_var_names]
+            # ordered_var_names = input_var_names + output_var_names
+            # prev_res = prev_res[ordered_var_names]
             # transform
-            inputs, outputs = self.transform.transform_inputs_outputs(prev_res, transform_descriptors=True)
+            inputs, outputs = self.transform.transform_inputs_outputs(
+                prev_res, transform_descriptors=True
+            )
 
             # Set up maximization and minimization
             for v in self.domain.variables:
@@ -349,7 +363,9 @@ class SNOBFIT(Strategy):
             next_experiments[("strategy", "METADATA")] = ["SNOBFIT"] * len(request)
 
         # Do any necessary transformation back
-        next_experiments = self.transform.un_transform(next_experiments, transform_descriptors=True)
+        next_experiments = self.transform.un_transform(
+            next_experiments, transform_descriptors=True
+        )
 
         return next_experiments, xbest, fbest, param
 

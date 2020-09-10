@@ -7,19 +7,19 @@ from typing import Type, Tuple
 
 
 class Random(Strategy):
-    """ Random strategy for experiment suggestion
+    """Random strategy for experiment suggestion
 
     Parameters
-    ---------- 
+    ----------
     domain: `summit.domain.Domain`
         A summit domain object
     random_state: `np.random.RandomState``
         A random state object to seed the random generator
-    
+
     Attributes
     ----------
     domain
-    
+
     Examples
     -------
     >>> from summit.domain import Domain, ContinuousVariable
@@ -43,7 +43,7 @@ class Random(Strategy):
     Notes
     -----
     Descriptors variables are selected randomly as if they were discrete variables instead of sampling evenly in the continuous space.
-    
+
     """
 
     def __init__(
@@ -57,17 +57,17 @@ class Random(Strategy):
         self._rstate = random_state if random_state else np.random.RandomState()
 
     def suggest_experiments(self, num_experiments: int, **kwargs) -> DataSet:
-        """ Suggest experiments for a random experimental design 
-        
+        """Suggest experiments for a random experimental design
+
         Parameters
-        ---------- 
+        ----------
         num_experiments: int
             The number of experiments (i.e., samples) to generate
-        
+
         Returns
         -------
-        ds
-            A `Dataset` object with the random design
+        next_experiments : :class:`~summit.utils.data.DataSet`
+            A Dataset object with the suggested experiments
         """
         design = Design(self.domain, num_experiments, "random")
 
@@ -112,10 +112,13 @@ class Random(Strategy):
 
 
 class LHS(Strategy):
-    """ Latin hypercube sampling (LHS) strategy for experiment suggestion
+    """Latin hypercube sampling (LHS) strategy for experiment suggestion
+
+    LHS samples evenly throughout the continuous part of the domain, which
+    can result in better data for model training.
 
     Parameters
-    ---------- 
+    ----------
     domain: `summit.domain.Domain`
         A summit domain object
     random_state: `np.random.RandomState``
@@ -139,6 +142,22 @@ class LHS(Strategy):
     2           55.0       0.22       0.30      LHS
     3           85.0       0.30       0.46      LHS
     4           75.0       0.38       0.22      LHS
+
+    Notes
+    -----
+
+    LHS was first introduced by [McKay]_ and coworkers in 1979. We rely on the implementation from
+    `pyDoE2 <https://github.com/clicumu/pydoe2>`_.
+
+    Our version randomly selects a categorical variable if no descriptors are available.
+    If descriptors are available it samples in the continuous space and then chooses the
+    closest point by Euclidean distance.
+
+    References
+    ----------
+
+    .. [McKay] R.J. Beckman et al., Technometrics, 1979, 21, 239–245.
+
     """
 
     def __init__(
@@ -151,27 +170,24 @@ class LHS(Strategy):
         self._rstate = random_state if random_state else np.random.RandomState()
 
     def suggest_experiments(
-        self, num_experiments, criterion="center", unique=False, exclude=[], **kwargs
+        self, num_experiments, criterion="center", exclude=[], **kwargs
     ) -> DataSet:
-        """ Generate latin hypercube intial design 
-        
+        """Generate latin hypercube intial design
+
         Parameters
-        ---------- 
+        ----------
         num_experiments: int
             The number of experiments (i.e., samples) to generate
-        criterion: str (optional, Default='center')
-            The criterion used for the LHS.  Allowable values are "center" or "c", "maximin" or "m", 
-            "centermaximin" or "cm", and "correlation" or "corr". 
-        unique: bool (Default=True)
-            Determines if all suggested experiments should be unique
-        exclude: array like
-            List of variable names that should be excluded
-            from the design. 
-        
+        criterion: str, optional
+            The criterion used for the LHS.  Allowable values are "center" or "c", "maximin" or "m",
+            "centermaximin" or "cm", and "correlation" or "corr". Default is center.
+        exclude: array like, optional
+            List of variable names that should be excluded from the design. Default is None.
+
         Returns
         -------
-        ds
-            A `Dataset` object with the random design
+        next_experiments : :class:`~summit.utils.data.DataSet`
+            A Dataset object with the suggested experiments
         """
         # design = Design(self.domain, num_experiments, "Latin design", exclude=exclude)
         design = pd.DataFrame()
@@ -280,43 +296,43 @@ Abraham Lee.
 def lhs(n, samples=None, criterion=None, iterations=None, random_state=None):
     """
     Generate a latin-hypercube design
-    
+
     Parameters
     ----------
     n : int
         The number of factors to generate samples for
-    
+
     Optional
     --------
     samples : int
         The number of samples to generate for each factor (Default: n)
     criterion : str
-        Allowable values are "center" or "c", "maximin" or "m", 
-        "centermaximin" or "cm", and "correlation" or "corr". If no value 
+        Allowable values are "center" or "c", "maximin" or "m",
+        "centermaximin" or "cm", and "correlation" or "corr". If no value
         given, the design is simply randomized.
     iterations : int
         The number of iterations in the maximin and correlations algorithms
         (Default: 5).
-    
+
     Returns
     -------
     H : 2d-array
         An n-by-samples design matrix that has been normalized so factor values
         are uniformly spaced between zero and one.
-    
+
     Example
     -------
     >>> import numpy as np
-    
+
     A 3-factor design (defaults to 3 samples)::
-    
+
         >>> lhs(3, random_state=np.random.RandomState(3))
         array([[0.5036092 , 0.73574763, 0.6320977 ],
                [0.70852844, 0.63098232, 0.09696825],
                [0.1835993 , 0.23604927, 0.6838224 ]])
-       
+
     A 4-factor design with 6 samples::
-    
+
         >>> lhs(4, samples=6, random_state=np.random.RandomState(3))
         array([[0.3419112 , 0.54641455, 0.3383127 , 0.59847714],
                [0.88058751, 0.11802464, 0.61270915, 0.4094722 ],
@@ -324,28 +340,28 @@ def lhs(n, samples=None, criterion=None, iterations=None, random_state=None):
                [0.67066365, 0.94885632, 0.90674229, 0.85947796],
                [0.60819067, 0.31604885, 0.04848412, 0.08513793],
                [0.31549116, 0.75980901, 0.70987541, 0.7358502 ]])
-       
+
     A 2-factor design with 5 centered samples::
-    
+
         >>> lhs(2, samples=5, criterion='center', random_state=np.random.RandomState(3))
         array([[0.7, 0.7],
                [0.1, 0.1],
                [0.5, 0.9],
                [0.3, 0.3],
                [0.9, 0.5]])
-       
+
     A 3-factor design with 4 samples where the minimum distance between
     all samples has been maximized::
-    
+
         >>> lhs(3, samples=4, criterion='maximin', random_state=np.random.RandomState(3))
         array([[0.07987376, 0.37639351, 0.92316265],
                [0.25650657, 0.7314332 , 0.12061145],
                [0.55174153, 0.00530644, 0.56933076],
                [0.79401553, 0.9975753 , 0.47950751]])
-       
+
     A 4-factor design with 5 samples where the samples are as uncorrelated
     as possible (within 10 iterations)::
-    
+
         >>> lhs(4, samples=5, criterion='correlation', iterations=10, random_state=np.random.RandomState(3))
         array([[0.72982881, 0.91177082, 0.73525098, 0.71817256],
                [0.37858939, 0.48816197, 0.40597524, 0.10216552],
@@ -483,20 +499,20 @@ def _lhscorrelate(n, samples, iterations, random_state):
 def _pdist(x):
     """
     Calculate the pair-wise point distances of a matrix
-    
+
     Parameters
     ----------
     x : 2d-array
         An m-by-n array of scalars, where there are m points in n dimensions.
-    
+
     Returns
     -------
     d : array
         A 1-by-b array of scalars, where b = m*(m - 1)/2. This array contains
-        all the pair-wise point distances, arranged in the order (1, 0), 
+        all the pair-wise point distances, arranged in the order (1, 0),
         (2, 0), ..., (m-1, 0), (2, 1), ..., (m-1, 1), ..., (m-1, m-2).
-    
-              
+
+
     """
 
     x = np.atleast_2d(x)

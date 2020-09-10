@@ -60,7 +60,12 @@ exclude_patterns = []
 
 numpydoc_show_class_members = True
 
-# -- Options for Numpydoc ----------------------------------------------------
+
+# -- Options for intersphinx output -------------------------------------------
+
+# intersphinx_mapping = dict(GPy=("https://gpy.readthedocs.io/", None))
+
+# -- Options for linkdccode ---------------------------------------------------
 
 
 def linkcode_resolve(domain, info):
