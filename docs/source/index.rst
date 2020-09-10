@@ -26,9 +26,11 @@ To get started, follow our tutorial_.
    
    installation
    tutorial
+   domains
    experiments_benchmarks/index
    strategies
    transforms
+   utils
 
 Indices and tables
 ==================

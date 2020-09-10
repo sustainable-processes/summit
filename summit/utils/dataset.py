@@ -5,7 +5,7 @@ from typing import List
 
 
 class DataSet(pd.core.frame.DataFrame):
-    """ A represenation of a dataset
+    """A represenation of a dataset
 
     This is basically a pandas dataframe with a set of "metadata" columns
     that will be removed when the dataframe is converted to a numpy array
@@ -85,19 +85,17 @@ class DataSet(pd.core.frame.DataFrame):
             self, data=data, index=index, columns=columns, dtype=dtype, copy=copy
         )
 
-
-
     @staticmethod
     def from_df(df: pd.DataFrame, metadata_columns: List = [], units: List = []):
         """Create Dataset from a pandas dataframe
-    
+
         Arguments
         ----------
         df: pandas.DataFrame
             Dataframe to be converted to a DataSet
         metadata_columns: list, optional
             names of the columns in the dataframe that are metadata columns
-        units: list, optional 
+        units: list, optional
             A list of objects representing the units of the columns
         """
         column_names = df.columns.to_numpy()
@@ -137,18 +135,23 @@ class DataSet(pd.core.frame.DataFrame):
             if c[1] == "METADATA":
                 metadata_columns.append(c[0])
         columns = [c[0] for c in d["columns"]]
-        return DataSet(d["data"], index=d["index"], columns=columns, metadata_columns=metadata_columns)
+        return DataSet(
+            d["data"],
+            index=d["index"],
+            columns=columns,
+            metadata_columns=metadata_columns,
+        )
 
     def zero_to_one(self, small_tol=1.0e-5, return_min_max=False) -> np.ndarray:
-        """ Scale the data columns between zero and one 
+        """Scale the data columns between zero and one
 
-        Each of the data columns is scaled between zero and one 
+        Each of the data columns is scaled between zero and one
         based on the maximum and minimum values of each column
 
         Arguments
         ---------
         small_tol: float, optional
-            The minimum value of any value in the final scaled array. 
+            The minimum value of any value in the final scaled array.
             This is used to prevent very small values that will cause
             issues in later calcualtions. Defaults to 1e-5.
 
@@ -160,7 +163,7 @@ class DataSet(pd.core.frame.DataFrame):
         if return_min_max true returns a tuple of scaled, mins, maxes
 
         Notes
-        ----- 
+        -----
         This method does not change the internal values of the data columns in place.
 
         """
@@ -183,13 +186,14 @@ class DataSet(pd.core.frame.DataFrame):
 
         The standard score of each data column is calculated as:
             z = (x - u) / s
-        where `u` is the mean of the columns and `s` is the standard deviation of 
+
+        where `u` is the mean of the columns and `s` is the standard deviation of
         each data column
-        
+
         Parameters
-        ---------- 
+        ----------
         small_tol: float, optional
-            The minimum value of any value in the final scaled array. 
+            The minimum value of any value in the final scaled array.
             This is used to prevent very small values that will cause
             issues in later calcualtions. Defaults to 1e-5.
         return_mean: bool, optional
@@ -200,18 +204,18 @@ class DataSet(pd.core.frame.DataFrame):
         mean: array, optional
             Pass a precalculated array of means for the columns
         std: array, optional
-            Pass a precalculated array of standard deviations 
+            Pass a precalculated array of standard deviations
             for the columns
-        
+
         Returns
         -------
         standard: np.ndarray
             Numpy array of the standardized data columns
 
         Notes
-        ----- 
+        -----
         This method does not change the internal values of the data columns in place.
-        
+
         """
         values = self.data_to_numpy()
         values = values.astype(np.float64)
