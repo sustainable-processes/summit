@@ -25,17 +25,21 @@ import warnings
 
 
 class TSEMO(Strategy):
-    """ Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
-    
+    """Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
+
+    TSEMO is a multiobjective Bayesian optimisation strategy. It is designed
+    to find optimal values in as few iterations as possible. This comes at the price
+    of higher computational time.
+
     Parameters
-    ---------- 
-    domain : :class:~summit.domain.Domain
+    ----------
+
+    domain : :class:`~summit.domain.Domain`
         The domain of the optimization
-    transform : :class:~summit.strategies.base.Transform, optional
-        A transform object. By default
-        no transformation will be done the input variables or
-        objectives.
-    kernel : :class:~GPy.kern.Kern, optional
+    transform : :class:`~summit.strategies.base.Transform`, optional
+        A transform object. By default no transformation will be done
+        on the input variables or objectives.
+    kernel : :class:`~GPy.kern.Kern`, optional
         A GPy kernel class (not instantiated). Must be Exponential,
         Matern32, Matern52 or RBF. Default Exponential.
     n_spectral_points : int, optional
@@ -43,7 +47,7 @@ class TSEMO(Strategy):
         Default is 1500. Note that the Matlab TSEMO version uses 4000
         which will improve accuracy but significantly slow down optimisation speed.
     n_retries : int, optional
-        Number of retries to use for spectral sampling in the singular value decomposition
+        Number of retries to use for spectral sampling iF the singular value decomposition
         fails. Retrying chooses a new Monte Carlo sampling which usually fixes the problem.
         Defualt is 10.
     generations : int, optional
@@ -55,17 +59,42 @@ class TSEMO(Strategy):
 
     Examples
     --------
-    >>> from summit.domain import Domain, ContinuousVariable
+
+    >>> from summit.domain import *
     >>> from summit.strategies import TSEMO
     >>> from summit.utils.dataset import DataSet
-    >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    >>> columns = [v.name for v in domain.variables]
+    >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
+    >>> previous_results = DataSet([values], columns=columns)
     >>> strategy = TSEMO(domain)
     >>> result = strategy.suggest_experiments(5)
- 
+
+    Notes
+    -----
+
+    TSEMO trains a gaussian process (GP) to model each objective. Internally, we use
+    `GPy <https://github.com/SheffieldML/GPy>`_ for GPs, and we accept any kernel in the Matérn family, including the
+    exponential and squared exponential kernel. See [Rasmussen]_ for more information about GPs.
+
+    A deterministic function is sampled from each of the trained GPs. We use spectral sampling available in `pyrff <https://github.com/michaelosthege/pyrff>`_.
+    These sampled functions are optimised using NSGAII (via `pymoo <https://pymoo.org/>`_) to find a selection of potential conditions.
+    Each of these conditions are evaluated using the hypervolume improvement (HVI) criterion, and the one(s) that offer the best
+    HVI are suggested as the next experiments. More details about TSEMO can be found in the original paper [Bradford]_.
+
+    References
+    ----------
+
+    .. [Rasmussen] C. E. Rasmussen et al.
+       Gaussian Processes for Machine Learning, MIT Press, 2006.
+
+    .. [Bradford] E. Bradford et al.
+       "Efficient multiobjective optimization employing Gaussian processes, spectral sampling and a genetic algorithm."
+       J. Glob. Optim., 2018, 71, 407–438.
+
     """
 
     def __init__(self, domain, transform=None, **kwargs):
@@ -107,20 +136,21 @@ class TSEMO(Strategy):
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
-        """ Suggest experiments using TSEMO
-        
+        """Suggest experiments using TSEMO
+
         Parameters
-        ----------  
+        ----------
         num_experiments : int
             The number of experiments (i.e., samples) to generate
-        prev_res : summit.utils.data.DataSet, optional
+        prev_res : :class:`~summit.utils.data.DataSet`, optional
             Dataset with data from previous experiments.
             If no data is passed, then latin hypercube sampling will
-            be used to suggest an initial design. 
+            be used to suggest an initial design.
+
         Returns
         -------
-        ds
-            A `Dataset` object with the random design
+        next_experiments : :class:`~summit.utils.data.DataSet`
+            A Dataset object with the suggested experiments
         """
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
@@ -295,7 +325,7 @@ class TSEMO(Strategy):
 
         # Select points that give maximum hypervolume improvement
         if X.shape[0] != 0 and y.shape[0] != 0:
-            self.hv_imp, indices = self.select_max_hvi(
+            self.hv_imp, indices = self._select_max_hvi(
                 outputs_scaled, y, num_experiments
             )
 
@@ -353,28 +383,29 @@ class TSEMO(Strategy):
 
     @classmethod
     def from_dict(cls, d):
+
         tsemo = super().from_dict(d)
         ae = d["strategy_params"]["all_experiments"]
         if ae is not None:
             tsemo.all_experiments = DataSet.from_dict(ae)
         return tsemo
 
-    def select_max_hvi(self, y, samples, num_evals=1):
-        """  Returns the point(s) that maximimize hypervolume improvement 
-        
+    def _select_max_hvi(self, y, samples, num_evals=1):
+        """Returns the point(s) that maximimize hypervolume improvement
+
         Parameters
-        ---------- 
+        ----------
         samples: np.ndarray
              The samples on which hypervolume improvement is calculated
         num_evals: `int`
             The number of points to return (with top hypervolume improvement)
-        
+
         Returns
         -------
         hv_imp, index
             Returns a tuple with lists of the best hypervolume improvement
-            and the indices of the corresponding points in samples       
-        
+            and the indices of the corresponding points in samples
+
         """
         samples_original = samples.copy()
         samples = samples.copy()
@@ -456,10 +487,10 @@ def rmse(Y_pred, Y_true, mean, std):
 
 
 class TSEMOInternalWrapper(Problem):
-    """ Wrapper for NSGAII internal optimisation 
-    
+    """Wrapper for NSGAII internal optimisation
+
     Parameters
-    ---------- 
+    ----------
     fp : os.PathLike
         Path to a folder containing the rffs
     domain : :class:`~summit.domain.Domain`
@@ -467,7 +498,7 @@ class TSEMOInternalWrapper(Problem):
     Notes
     -----
     It is assumed that the inputs are scaled between 0 and 1.
-    
+
     """
 
     def __init__(self, fp: os.PathLike, domain, n_var=None):

@@ -6,18 +6,14 @@ import numpy as np
 
 
 class FullFactorial(Strategy):
-    """ Full factorial DoE
+    """Full factorial DoE
     Strategy for full factorial design of experiments in all decision variables.
 
     Parameters
-    ---------- 
-    domain: `summit.domain.Domain`
-        A summit domain object
-    
-    Attributes
     ----------
-    domain
-    
+    domain: :class:`~summit.domain.Domain`
+        The Summit domain describing the optimization problem.
+
     Examples
     -------
     >>> from summit.domain import Domain, ContinuousVariable
@@ -40,20 +36,26 @@ class FullFactorial(Strategy):
     5          100.0        0.1        0.5  FullFactorial
     6           50.0        0.5        0.5  FullFactorial
     7          100.0        0.5        0.5  FullFactorial
+
+    Notes
+    -----
+
+    We rely on the implementation from `pyDoE2 <https://github.com/clicumu/pydoe2>`_.
+
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
         super().__init__(domain, transform, **kwargs)
 
     def suggest_experiments(self, levels_dict, **kwargs) -> DataSet:
-        """ Suggest experiments for a full factorial experimental design 
-        
+        """Suggest experiments for a full factorial experimental design
+
         Parameters
-        ---------- 
+        ----------
         levels_dict : dict
-            A dictionary with the number of levels for each variable. Keys are 
+            A dictionary with the number of levels for each variable. Keys are
             the variable names and values are arrays with the values of each level.
-        
+
         Returns
         -------
         ds
@@ -88,13 +90,13 @@ class FullFactorial(Strategy):
 def fullfact(levels):
     """
     Create a general full-factorial design
-    
+
     Parameters
     ----------
     levels : array-like
         An array of integers that indicate the number of levels of each input
         design factor.
-    
+
     Returns
     -------
     mat : 2d-array
@@ -104,7 +106,7 @@ def fullfact(levels):
     Notes
     ------
     This code is copied from pydoe2: https://github.com/clicumu/pyDOE2/blob/master/pyDOE2/doe_factorial.py
-               
+
     """
     n = len(levels)  # number of factors
     nb_lines = np.prod(levels)  # number of trial conditions

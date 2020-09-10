@@ -12,19 +12,24 @@ from abc import ABC, abstractmethod
 
 
 class SOBO(Strategy):
-    """ Single-objective Bayesian Optimization (SOBO)
-    
+    """Single-objective Bayesian Optimization (SOBO)
+
+    This is a general BO method since it is a wrapper around GPyOpt.
+
     Parameters
-    ---------- 
-    domain: summit.domain.Domain
+    ----------
+    domain: :class:`~summit.domain.Domain`
         The Summit domain describing the optimization problem.
+    transform : :class:`~summit.strategies.base.Transform`, optional
+        A transform object. By default no transformation will be done
+        on the input variables or objectives.
     gp_model_type: string, optional
-        The GPy Gaussian Process model type.
+        The GPy Gaussian Process model type. See notes for options.
         By default, gaussian processes with the Matern 5.2 kernel will be used.
     use_descriptors : bool, optional
         Whether to use descriptors of categorical variables. Defaults to False.
     acquisition_type: string, optional
-        The acquisition function type from GPyOpt.
+        The acquisition function type from GPyOpt. See notes for options.
         By default, Excpected Improvement (EI).
     optimizer_type: string, optional
         The internal optimizer used in GPyOpt for maximization of the acquisition function.
@@ -32,7 +37,7 @@ class SOBO(Strategy):
     evaluator_type: string, optional
         The evaluator type used for batch mode (how multiple points are chosen in one iteration).
         By default, thompson sampling will be used.
-    kernel: GPy kernel object, optional
+    kernel: :class:`~GPy.kern.kern`, optional
         The kernel used in the GP.
         By default a Matern 5.2 kernel (GPy object) will be used.
     exact_feval: boolean, optional
@@ -44,19 +49,6 @@ class SOBO(Strategy):
     standardize_outputs: boolean, optional
         Whether the outputs should be standardized (True).
         By default: True.
-
-    Notes
-    ----------
-    This implementation uses the python package GPyOpt provided by
-    the Machine Learning Group of the University of Sheffield.
-
-    Copyright (c) 2016, the GPyOpt Authors.
-    All rights reserved.
-
-    Github repository: https://github.com/SheffieldML/GPyOpt
-    Homepage: http://sheffieldml.github.io/GPyOpt/
-
-    Please cite their work, when using this strategy.
 
     Examples
     --------
@@ -70,6 +62,45 @@ class SOBO(Strategy):
     >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
     >>> strategy = SOBO(domain)
     >>> next_experiments = strategy.suggest_experiments(5)
+
+    Notes
+    ----------
+
+    Gaussian Process (GP) model
+        GP: standard Gaussian Process
+
+        GP_MCMC: Gaussian Process with prior in hyperparameters
+
+        sparseGP: sparse Gaussian Process
+
+        warpedGP: warped Gaussian Process
+
+        InputWarpedGP: input warped Gaussian Process
+
+        RF: random forest (scikit-learn)
+
+    Acquisition function type
+        EI: expected improvement
+
+        EI_MCMC: integrated expected improvement (requires GP_MCMC model) (https://dash.harvard.edu/bitstream/handle/1/11708816/snoek-bayesopt-nips-2012.pdf?sequence%3D1)
+
+        LCB: lower confidence bound
+
+        LCB_MCMC:  integrated GP-Lower confidence bound (requires GP_MCMC model)
+
+        MPI: maximum probability of improvement
+
+        MPI_MCMC: maximum probability of improvement (requires GP_MCMC model)
+
+        LP: local penalization
+
+        ES: entropy search
+
+    This implementation uses the python package GPyOpt provided by
+    the Machine Learning Group of the University of Sheffield.
+
+    Github repository: https://github.com/SheffieldML/GPyOpt
+
 
     """
 
@@ -159,16 +190,6 @@ class SOBO(Strategy):
 
         self.input_dim = len(self.domain.input_variables)
 
-        """
-        Gaussian Process (GP) model 
-            GP: standard Gaussian Process
-            GP_MCMC: Gaussian Process with prior in hyperparameters
-            sparseGP: sparse Gaussian Process
-            warpedGP: warped Gaussian Process
-            InputWarpedGP: input warped Gaussian Process
-            RF: random forest (scikit-learn)
-        """
-
         if gp_model_type in [
             "GP",
             "GP_MCMC",
@@ -181,17 +202,6 @@ class SOBO(Strategy):
         else:
             self.gp_model_type = "GP"  # default model type is a standard Gaussian Process (from GPy package)
 
-        """
-        Acquisition function type
-            EI: expected improvement
-            EI_MCMC: integrated expected improvement (requires GP_MCMC model) (https://dash.harvard.edu/bitstream/handle/1/11708816/snoek-bayesopt-nips-2012.pdf?sequence%3D1)
-            LCB: lower confidence bound
-            LCB_MCMC:  integrated GP-Lower confidence bound (requires GP_MCMC model)
-            MPI: maximum probability of improvement
-            MPI_MCMC: maximum probability of improvement (requires GP_MCMC model)
-            LP: local penalization
-            ES: entropy search 
-        """
         if acquisition_type in [
             "EI",
             "EI_MCMC",
@@ -242,30 +252,22 @@ class SOBO(Strategy):
     def suggest_experiments(
         self, num_experiments=1, prev_res: DataSet = None, **kwargs
     ):
-        """ Suggest experiments using GPyOpt single-objective Bayesian Optimization
-        
+        """Suggest experiments using GPyOpt single-objective Bayesian Optimization
+
         Parameters
-        ----------  
-        num_experiments: int
-            The number of experiments (i.e., samples) to generate
-        prev_res: summit.utils.data.DataSet, optional
+        ----------
+        num_experiments: int, optional
+            The number of experiments (i.e., samples) to generate. Default is 1.
+        prev_res: :class:`~summit.utils.data.DataSet`, optional
             Dataset with data from previous experiments of previous iteration.
             If no data is passed, then random sampling will
             be used to suggest an initial design.
-        prev_param: array-like, optional TODO: how to handle this?
-            File with results from previous iterations of SOBO algorithm.
-            If no data is passed, only results from prev_res will be used.
-        
+
         Returns
         -------
-        next_experiments
-            A `Dataset` object with points to be evaluated next
-        xbest
-            Best point from all iterations.
-        fbest
-            Objective value at best point from all iterations.
-        param
-            A list containing all evaluated X and corresponding Y values.
+        next_experiments : :class:`~summit.utils.data.DataSet`
+            A Dataset object with the suggested experiments
+
         """
 
         param = None
@@ -442,4 +444,3 @@ class SOBO(Strategy):
 
     def categorical_unwrap(self, gpyopt_level, categories):
         return categories[int(gpyopt_level)]
-

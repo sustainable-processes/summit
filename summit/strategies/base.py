@@ -19,10 +19,10 @@ __all__ = [
 
 
 class Transform:
-    """  Pre/post-processing of data for strategies
-    
+    """Pre/post-processing of data for strategies
+
     Parameters
-    ---------- 
+    ----------
     domain: `sumit.domain.Domain``
         A domain for that is being used in the strategy
 
@@ -31,8 +31,8 @@ class Transform:
 
     Notes
     ------
-    This class can be overridden to create custom transformations as necessary.    
-    
+    This class can be overridden to create custom transformations as necessary.
+
     """
 
     def __init__(self, domain, **kwargs):
@@ -40,10 +40,10 @@ class Transform:
         self.domain = domain
 
     def transform_inputs_outputs(self, ds: DataSet, **kwargs):
-        """  Transform of data into inputs and outptus for a strategy
-        
+        """Transform of data into inputs and outptus for a strategy
+
         Parameters
-        ---------- 
+        ----------
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
@@ -53,7 +53,7 @@ class Transform:
         Returns
         -------
         inputs, outputs
-            Datasets with the input and output datasets  
+            Datasets with the input and output datasets
         """
         copy = kwargs.get("copy", True)
         transform_descriptors = kwargs.get("transform_descriptors", True)
@@ -104,7 +104,9 @@ class Transform:
             elif isinstance(variable, Variable):
                 input_columns.append(variable.name)
             else:
-                raise DomainError(f"Variable {variable.name} is not in the dataset.")
+                raise DomainError(
+                    f"Variable {variable.name} is not a continuous or categorical variable."
+                )
 
         for variable in self.domain.output_variables:
             if variable.name in data_columns and variable.is_objective:
@@ -113,23 +115,25 @@ class Transform:
                         "Output variables cannot be categorical variables currently."
                     )
                 output_columns.append(variable.name)
+                # Ensure continuous variables are floats
+                new_ds[variable.name] = new_ds[variable.name].astype(np.float)
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 
         if output_columns is None:
             raise DomainError(
-                "No output columns in the domain.  Add at least one output column for optimization."
+                "No output columns in the domain.  Add at least one output column for optimisation."
             )
 
         # Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
 
     def un_transform(self, ds, **kwargs):
-        """ Transform data back into its original represetnation
-            after strategy is finished 
-        
+        """Transform data back into its original represetnation
+            after strategy is finished
+
         Parameters
-        ---------- 
+        ----------
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
         transform_descriptors: bool, optional
@@ -137,11 +141,11 @@ class Transform:
 
         Notes
         -----
-        Override this class to achieve custom untransformations 
+        Override this class to achieve custom untransformations
         """
         transform_descriptors = kwargs.get("transform_descriptors", True)
         # Determine input and output columns in dataset
-        new_ds = ds
+        new_ds = ds.copy()
         if transform_descriptors:
             for i, variable in enumerate(self.domain.input_variables):
                 if isinstance(variable, CategoricalVariable) and transform_descriptors:
@@ -187,8 +191,8 @@ class Transform:
                     for ixc in ix_code:
                         column_codes_2[ixc] = 1
                     new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
-                elif isinstance(variable, Variable):
-                    continue
+                elif isinstance(variable, ContinuousVariable):
+                    new_ds[variable.name] = new_ds[variable.name].astype(np.float)
                 else:
                     raise DomainError(
                         f"Variable {variable.name} is not in the dataset."
@@ -224,27 +228,48 @@ def transform_from_dict(d):
 
 
 class MultitoSingleObjective(Transform):
-    """  Transform a multiobjective problem into a single objective problems
-    
+    """Transform a multiobjective problem into a single objective problems
+
     Parameters
-    ---------- 
+    ----------
     domain: `sumit.domain.Domain``
         A domain for that is being used in the strategy
     expression: str
         An expression in terms of variable names used to
         convert the multiobjective problem into a single
         objective problem
-    
+
     Returns
     -------
     result: `bool`
         description
-    
+
     Raises
     ------
     ValueError
         If domain does not have at least two objectives
-    
+
+    Examples
+    ----------
+    >>> from summit.domain import *
+    >>> from summit.strategies import SNOBFIT, MultitoSingleObjective
+    >>> from summit.utils.dataset import DataSet
+    >>> # Create domain
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name="temperature",description="reaction temperature in celsius", bounds=[50, 100])
+    >>> domain += ContinuousVariable(name="flowrate_a", description="flow of reactant a in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="yield_", description="", bounds=[0, 100], is_objective=True, maximize=True)
+    >>> domain += ContinuousVariable(name="de",description="diastereomeric excess",bounds=[0, 100],is_objective=True,maximize=True)
+    >>> # Previous reactions
+    >>> columns = [v.name for v in domain.variables]
+    >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
+    >>> previous_results = DataSet([values], columns=columns)
+    >>> # Multiobjective transform
+    >>> transform = MultitoSingleObjective(domain, expression="(yield_+de)/2", maximize=True)
+    >>> strategy = SNOBFIT(domain, transform=transform)
+    >>> next_experiments = strategy.suggest_experiments(5, previous_results)
+
     """
 
     def __init__(self, domain: Domain, expression: str, maximize=True):
@@ -272,12 +297,12 @@ class MultitoSingleObjective(Transform):
         self.maximize = maximize
 
     def transform_inputs_outputs(self, ds, **kwargs):
-        """  Transform of data into inputs and outputs for a strategy
-        
+        """Transform of data into inputs and outputs for a strategy
+
         This will do multi to single objective transform
 
         Parameters
-        ---------- 
+        ----------
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
@@ -288,7 +313,7 @@ class MultitoSingleObjective(Transform):
         Returns
         -------
         inputs, outputs
-            Datasets with the input and output datasets  
+            Datasets with the input and output datasets
         """
         inputs, outputs = super().transform_inputs_outputs(ds, **kwargs)
         outputs = outputs.eval(self.expression, resolvers=[outputs])
@@ -303,10 +328,10 @@ class MultitoSingleObjective(Transform):
 
 
 class LogSpaceObjectives(Transform):
-    """  Log transform objectives
-    
+    """Log transform objectives
+
     Parameters
-    ---------- 
+    ----------
     domain: `sumit.domain.Domain``
         A domain for that is being used in the strategy
 
@@ -314,7 +339,28 @@ class LogSpaceObjectives(Transform):
     ------
     ValueError
         When the domain has no objectives.
-    
+
+    Examples
+    ----------
+    >>> from summit.domain import *
+    >>> from summit.strategies import SNOBFIT, MultitoSingleObjective
+    >>> from summit.utils.dataset import DataSet
+    >>> # Create domain
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name="temperature",description="reaction temperature in celsius", bounds=[50, 100])
+    >>> domain += ContinuousVariable(name="flowrate_a", description="flow of reactant a in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="yield_", description="", bounds=[0, 100], is_objective=True, maximize=True)
+    >>> domain += ContinuousVariable(name="de",description="diastereomeric excess",bounds=[0, 100],is_objective=True,maximize=True)
+    >>> # Previous reactions
+    >>> columns = [v.name for v in domain.variables]
+    >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
+    >>> previous_results = DataSet([values], columns=columns)
+    >>> # Multiobjective transform
+    >>> transform = LogSpaceObjectives(domain)
+    >>> strategy = SNOBFIT(domain, transform=transform)
+    >>> next_experiments = strategy.suggest_experiments(5, previous_results)
+
     """
 
     def __init__(self, domain: Domain):
@@ -337,12 +383,12 @@ class LogSpaceObjectives(Transform):
             v.name = "log_" + v.name
 
     def transform_inputs_outputs(self, ds, **kwargs):
-        """  Transform of data into inputs and outptus for a strategy
-        
+        """Transform of data into inputs and outptus for a strategy
+
         This will do a log transform on the objectives (outputs).
 
         Parameters
-        ---------- 
+        ----------
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
@@ -353,7 +399,7 @@ class LogSpaceObjectives(Transform):
         Returns
         -------
         inputs, outputs
-            Datasets with the input and output datasets  
+            Datasets with the input and output datasets
         """
         inputs, outputs = super().transform_inputs_outputs(ds, **kwargs)
         if (outputs.any() < 0).any():
@@ -364,10 +410,10 @@ class LogSpaceObjectives(Transform):
         return inputs, outputs
 
     def un_transform(self, ds, **kwargs):
-        """ Untransform objectives from log space
-        
+        """Untransform objectives from log space
+
         Parameters
-        ---------- 
+        ----------
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
@@ -383,44 +429,73 @@ class LogSpaceObjectives(Transform):
 
 
 class Chimera(Transform):
-    """ Scalarize a multiobjective problem using Chimera.
+    """Scalarise a multiobjective problem using Chimera.
 
-    Chimera is a hiearchical multiobjective scalarazation function developed by
-    Häse et al[1]_[2]_. You set the parameter `loss_tolerances` to weight the importance
+    Chimera is a hiearchical multiobjective scalarasation function.
+    You set the parameter `loss_tolerances` to weight the importance
     of each objective.
 
     Parameters
-    ---------- 
-    domain : `sumit.domain.Domain``
+    ----------
+    domain : :class:`~sumit.domain.Domain`
         A domain for that is being used in the strategy
     hierarchy : dict
         Dictionary with keys as the names of the objectives and values as dictionaries
-        with the keys hierarchy and tolerance for the ranking and tolerance on each objective.
+        with the keys "hierarchy" and "tolerance" for the ranking and tolerance, respectively, on each objective.
+        The hierachy is indexed from zero (i.e., 0, 1, 2, etc.) with zero being the highest priority objective.
+        A smaller tolerance means that the objective will be weighted more, while a
+        larger tolerance indicates that the objective will be weighted less. The tolerance must
+        be between zero and one.
     softness : float, optional
-        Smoothing parameter. Defaults to 1e-3 as recommended by Häse et al [1]_. 
+        Smoothing parameter. Defaults to 1e-3 as recommended by Häse et al.
         Larger values result in a more smooth objective while smaller values
         will give a disjointed objective.
     absolutes : array-like, optional
-        Default is zeros.s
-    
+        Default is zeros.
+
     Examples
     --------
+    >>> from summit.domain import *
+    >>> from summit.strategies import SNOBFIT, MultitoSingleObjective
+    >>> from summit.utils.dataset import DataSet
+    >>> # Create domain
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name="temperature",description="reaction temperature in celsius", bounds=[50, 100])
+    >>> domain += ContinuousVariable(name="flowrate_a", description="flow of reactant a in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="yield_", description="", bounds=[0, 100], is_objective=True, maximize=True)
+    >>> domain += ContinuousVariable(name="de",description="diastereomeric excess",bounds=[0, 100],is_objective=True,maximize=True)
+    >>> # Previous reactions
+    >>> columns = [v.name for v in domain.variables]
+    >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
+    >>> previous_results = DataSet([values], columns=columns)
+    >>> # Multiobjective transform
+    >>> hierarchy =  {"yield_": {"hierarchy": 0, "tolerance": 0.5}, "de": {"hierarchy": 1, "tolerance": 1.0}}
+    >>> transform = Chimera(domain, hierarchy=hierarchy)
+    >>> strategy = SNOBFIT(domain, transform=transform)
+    >>> next_experiments = strategy.suggest_experiments(5, previous_results)
 
     Notes
     ------
-    This code is based on the code for Griffyn[2]_, which can be found on `Github <https://github.com/aspuru-guzik-group/gryffin/blob/d7443bf374e5d1fee2424cb49f5008ce4248d432/src/gryffin/observation_processor/chimera.py>`_
-    
-    Chimera turns problems into minimization problems. This is done automatically by reading the type 
+    The original paper on Chimera can be found at [1]_.
+
+    This code is based on the code for Griffyn [2]_, which can be found on Github_.
+
+    Chimera turns problems into minimisation problems. This is done automatically by reading the type
     of objective from the domain.
-    
+
+    .. _Github: https://github.com/aspuru-guzik-group/gryffin/blob/d7443bf374e5d1fee2424cb49f5008ce4248d432/src/gryffin/observation_processor/chimera.py
+
     References
     ----------
+
     .. [1] Häse, F., Roch, L. M., & Aspuru-Guzik, A. "Chimera: enabling hierarchy based multi-objective
            optimization for self-driving laboratories." Chemical Science, 2018, 9,7642-7655
-    .. [2] Häse, F., Roch, L.M. and Aspuru-Guzik, A., 2020. Gryffin: An algorithm for Bayesian 
-           optimization for categorical variables informed by physical intuition with applications to chemistry. 
+
+    .. [2] Häse, F., Roch, L.M. and Aspuru-Guzik, A., 2020. Gryffin: An algorithm for Bayesian
+           optimization for categorical variables informed by physical intuition with applications to chemistry.
            arXiv preprint arXiv:2003.12127.
-    
+
     """
 
     def __init__(self, domain: Domain, hierarchy: dict, softness=1e-3, absolutes=None):
@@ -460,12 +535,12 @@ class Chimera(Transform):
         self.softness = softness
 
     def transform_inputs_outputs(self, ds, copy=True, **kwargs):
-        """  Transform of data into inputs and outptus for a strategy
-        
+        """Transform of data into inputs and outptus for a strategy
+
         This will do a log transform on the objectives (outputs).
 
         Parameters
-        ---------- 
+        ----------
         ds: `DataSet`
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
@@ -476,7 +551,7 @@ class Chimera(Transform):
         Returns
         -------
         inputs, outputs
-            Datasets with the input and output datasets  
+            Datasets with the input and output datasets
         """
         # Get inputs and outputs
         inputs, outputs = super().transform_inputs_outputs(ds, copy=copy, **kwargs)
@@ -594,17 +669,17 @@ class Chimera(Transform):
 
 
 class Strategy(ABC):
-    """ Base class for strategies 
-    
+    """Base class for strategies
+
     Parameters
-    ---------- 
+    ----------
     domain: `summit.domain.Domain`
         A summit domain containing variables and constraints
     transform: `summit.strategies.base.Transform`, optional
         A transform class (i.e, not the object itself). By default
         no transformation will be done the input variables or
         objectives.
-    
+
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
@@ -627,11 +702,9 @@ class Strategy(ABC):
         pass
 
     def to_dict(self, **strategy_params):
-        """Convert strategy to jsonable format
-        
-        You can pass in as keyword arguments any custom parameters
-        for a strategy, which will be stored under the key strategy_params.
-        """
+        """Convert strategy to a dictionary"""
+        # You can pass in as keyword arguments any custom parameters
+        # for a strategy, which will be stored under the key strategy_params.
         return dict(
             name=self.__class__.__name__,
             transform=self.transform.to_dict(),
@@ -659,15 +732,15 @@ class Strategy(ABC):
 
 class Design:
     """Representation of an experimental design
-    
+
     Parameters
-    ---------- 
+    ----------
     domain: summit.domain.Domain
         The domain of the design
     num_samples: int
-        Number of samples in the design 
+        Number of samples in the design
     design_type: str
-        The name of the design type 
+        The name of the design type
 
     Examples
     --------
@@ -691,19 +764,19 @@ class Design:
     def add_variable(
         self, variable_name: str, values: np.ndarray, indices: np.ndarray = None
     ):
-        """ Add a variable to a design 
-        
+        """Add a variable to a design
+
         Parameters
-        ---------- 
+        ----------
         variable_name: str
             Name of the variable to be added. Must already be in the domain.
         values: numpy.ndarray
-            Values of the design points in the variable. 
-            Should be an nxd array, where n is the number of samples and 
+            Values of the design points in the variable.
+            Should be an nxd array, where n is the number of samples and
             d is the number of dimensions of the variable.
         indices: numpy.ndarray, optional
             Indices of the design points in the variable
-        
+
         Raises
         ------
         ValueError
@@ -719,18 +792,18 @@ class Design:
         self._values[variable_index] = values
 
     def get_indices(self, variable_name: str) -> np.ndarray:
-        """ Get indices of designs points  
-        
+        """Get indices of designs points
+
         Parameters
-        ---------- 
+        ----------
         variable_name: str, optional
             Get only the indices for a specific variable name.
-        
+
         Returns
         -------
         indices: numpy.ndarray
             Indices of the design pionts
-        
+
         Raises
         ------
         ValueError
@@ -741,18 +814,18 @@ class Design:
         return indices
 
     def get_values(self, variable_name: str = None) -> np.ndarray:
-        """ Get values of designs points  
-        
+        """Get values of designs points
+
         Parameters
-        ---------- 
+        ----------
         variable_name: str, optional
             Get only the values for a specific variable name.
-        
+
         Returns
         -------
         values: numpy.ndarray
             Values of the design pionts
-        
+
         Raises
         ------
         ValueError
@@ -767,7 +840,7 @@ class Design:
         return values
 
     def to_dataset(self) -> DataSet:
-        """ Get design as a pandas dataframe 
+        """Get design as a pandas dataframe
         Returns
         -------
         ds: summit.utils.dataset.Dataset
@@ -882,7 +955,7 @@ class DesignCoverage:
     @staticmethod
     def average_coverages(coverages):
         """Average multiple design coverages
-        
+
         Arguments:
             coverages: a list of `DesignCoverage` objects.
         """

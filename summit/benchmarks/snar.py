@@ -7,20 +7,22 @@ from scipy.integrate import solve_ivp
 
 
 class SnarBenchmark(Experiment):
-    """ SnAr Benchmark
+    """Benchmark representing a nucleophilic aromatic substitution (SnAr) reaction
 
-    Virtual experiments representing a nucleophilic aromatic
-    substitution happening in a plug flow reactor. 
-    
+    The SnAr reactions occurs in a plug flow reactor where residence time, stoichiometry and temperature
+    can be adjusted. Maximizing Space time yield (STY) and minimising E-factor are the objectives.
+
     Parameters
     ----------
+
     noise_level: float, optional
-        The mean of the random noise added to the concentration measurements in terms of 
+        The mean of the random noise added to the concentration measurements in terms of
         percent of the signal. Default is 0.
 
 
     Examples
     --------
+
     >>> b = SnarBenchmark()
     >>> columns = [v.name for v in b.domain.variables]
     >>> values = [v.bounds[0]+0.1*(v.bounds[1]-v.bounds[0]) for v in b.domain.variables]
@@ -28,11 +30,20 @@ class SnarBenchmark(Experiment):
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
     >>> results = b.run_experiments(conditions)
-    
+
     Notes
     -----
-    This benchmark is based on Hone et al. Reac Engr. & Chem. 2016.
-    
+
+    This benchmark relies on the kinetics observerd by [Hone]_ et al. The mechanistic
+    model is integrated using scipy to find outlet concentrations of all species. These
+    concentrations are then used to calculate STY and E-factor.
+
+    References
+    ----------
+
+    .. [Hone] C. A. Hone et al., React. Chem. Eng., 2017, 2, 103–108. DOI:
+       `10.1039/C6RE00109B <https://doi.org/10.1039/C6RE00109B>`_
+
     """
 
     def __init__(self, noise_level=0, **kwargs):
@@ -112,10 +123,14 @@ class SnarBenchmark(Experiment):
         # Integrate
         res = solve_ivp(self._integrand, [0, tau], self.C_i, args=(temperature,))
         C_final = res.y[:, -1]
-        
+
         # Add measurment noise
-        C_final += C_final*self.rng.normal(scale=self.noise_level, size=len(C_final))/100
-        C_final[C_final < 0] = 0 # prevent negative values of concentration introduced by noise
+        C_final += (
+            C_final * self.rng.normal(scale=self.noise_level, size=len(C_final)) / 100
+        )
+        C_final[
+            C_final < 0
+        ] = 0  # prevent negative values of concentration introduced by noise
 
         # Calculate STY and E-factor
         M = [159.09, 71.12, 210.21, 210.21, 261.33]  # molecular weights (g/mol)

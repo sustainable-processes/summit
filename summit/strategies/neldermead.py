@@ -10,23 +10,25 @@ from scipy.optimize import OptimizeResult
 
 
 class NelderMead(Strategy):
-    """ A reimplementation of the Nelder-Mead Simplex method adapted for sequential calls.
+    """Nelder-Mead Simplex
+
+    A reimplementation of the Nelder-Mead Simplex method adapted for sequential calls.
     This includes adaptions in terms of reflecting points, dimension reduction and dimension recovery
-    proposed by Cortes-Borda et al. [1].
+    proposed by Cortes-Borda et al.
 
     Parameters
     ----------
-    domain: `summit.domain.Domain`
-        A summit domain object
-    transform: `summit.strategies.base.Transform`, optional
-        A transform class (i.e, not the object itself). By default
-        no transformation will be done the input variables or
-        objectives.
+
+    domain : :class:`~summit.domain.Domain`
+        The domain of the optimization
+    transform : :class:`~summit.strategies.base.Transform`, optional
+        A transform object. By default no transformation will be done
+        on the input variables or objectives.
     random_start : bool, optional
         Whether to start at a random point or the value specified by x_start
     adaptive : bool, optional
         Adapt algorithm parameters to dimensionality of problem. Useful for
-        high-dimensional minimization [1]. Default is False.
+        high-dimensional minimization. Default is False.
     x_start: array_like of shape (1, N), optional
         Initial center point of simplex
         Default: empty list that will initialize generation of x_start as geoemetrical center point of bounds
@@ -42,23 +44,26 @@ class NelderMead(Strategy):
         Default is 1E-5.
 
     Notes
-    ----------
-    After the initialisation, the number of suggested experiments depends on the internal state of Nelder Mead. 
-    Usually the algorithm requests 1 point per iteration, e.g., a reflection. 
-    In some cases it requests more than 1 point, e.g., for shrinking the simplex.
+    -----
 
-    Implementation partly follows the Nelder-Mead Simplex implementation in scipy-optimize:
-    https://github.com/scipy/scipy/blob/master/scipy/optimize/optimize.py
+    This is inspired by the work by [Cortés-Borda]_. Implementation partly follows the Nelder-Mead Simplex
+    implementation in `scipy-optimize <https://github.com/scipy/scipy/blob/master/scipy/optimize/optimize.py>`_
+
+    After the initialisation, the number of suggested experiments depends on the internal state of Nelder Mead.
+    Usually the algorithm requests 1 point per iteration, e.g., a reflection.
+    In some cases it requests more than 1 point, e.g., for shrinking the simplex.
 
     References
     ----------
-    .. [1] Cortés-Borda, D.; Kutonova, K. V.; Jamet, C.; Trusova, M. E.; Zammattio, F.;
-    Truchet, C.; Rodriguez-Zubiri, M.; Felpin, F.-X. Optimizing the Heck–Matsuda Reaction
-    in Flow with a Constraint-Adapted Direct Search Algorithm.
-    Organic ProcessResearch & Development 2016,20, 1979–1987
+
+    .. [Cortés-Borda] Cortés-Borda, D.; Kutonova, K. V.; Jamet, C.; Trusova, M. E.; Zammattio, F.;
+       Truchet, C.; Rodriguez-Zubiri, M.; Felpin, F.-X. Optimizing the Heck–Matsuda Reaction
+       in Flow with a Constraint-Adapted Direct Search Algorithm.
+       Organic ProcessResearch & Development 2016,20, 1979–1987
 
     Examples
-    -------
+    --------
+
     >>> from summit.domain import Domain, ContinuousVariable
     >>> from summit.strategies import NelderMead
     >>> domain = Domain()
@@ -73,6 +78,7 @@ class NelderMead(Strategy):
     0          0.500      0.500  Nelder-Mead Simplex
     1          0.625      0.500  Nelder-Mead Simplex
     2          0.500      0.625  Nelder-Mead Simplex
+
     """
 
     def __init__(self, domain: Domain, transform: Transform = None, **kwargs):
@@ -86,10 +92,11 @@ class NelderMead(Strategy):
         self.prev_param = None
 
     def suggest_experiments(self, prev_res: DataSet = None, **kwargs):
-        """ Suggest experiments using Nelder-Mead Simplex method
+        """Suggest experiments using Nelder-Mead Simplex method
 
         Parameters
         ----------
+
         prev_res: summit.utils.data.DataSet, optional
             Dataset with data from previous experiments.
             If no data is passed, the Nelder-Mead optimization algorithm
@@ -97,15 +104,18 @@ class NelderMead(Strategy):
 
         Returns
         -------
+
         next_experiments: DataSet
             A `Dataset` object with the suggested experiments by Nelder-Mead Simplex algorithm
-        
+
         Notes
         ------
-        After the initialisation, the number of suggested experiments depends on the internal state of Nelder Mead. 
-        Usually the algorithm requests 1 point per iteration, e.g., a reflection. 
+
+        After the initialisation, the number of suggested experiments depends on the internal state of Nelder Mead.
+        Usually the algorithm requests 1 point per iteration, e.g., a reflection.
         In some cases it requests more than 1 point, e.g., for shrinking the simplex.
         Thus, there is no `num_experiments` keyword argument.
+
         """
 
         # get objective name and whether optimization is maximization problem
@@ -147,7 +157,7 @@ class NelderMead(Strategy):
         next_experiments = None
         while not valid_next_experiments and c_iter < inner_iter_tol:
             valid_next_experiments = False
-            next_experiments, xbest, fbest, param = self.inner_suggest_experiments(
+            next_experiments, xbest, fbest, param = self._inner_suggest_experiments(
                 prev_res=prev_res, prev_param=inner_prev_param
             )
             # Invalid experiments hidden from data returned to user but stored internally in param
@@ -225,8 +235,8 @@ class NelderMead(Strategy):
             ]
         return nm
 
-    def inner_suggest_experiments(self, prev_res: DataSet = None, prev_param=None):
-        """ Inner loop for suggestion of experiments using Nelder-Mead Simplex method
+    def _inner_suggest_experiments(self, prev_res: DataSet = None, prev_param=None):
+        """Inner loop for suggestion of experiments using Nelder-Mead Simplex method
 
         Parameters
         ----------
@@ -234,22 +244,12 @@ class NelderMead(Strategy):
             Dataset with data from previous experiments.
             If no data is passed, the Nelder-Mead optimization algorithm
             will be initialized and suggest initial experiments.
-        prev_param: 
+        prev_param:
             Parameters of Nelder-Mead algorithm from previous
             iterations of a optimization problem.
             If no data is passed, the Nelder-Mead optimization algorithm
             will be initialized.
 
-        Returns
-        -------
-        next_experiments: DataSet
-            A `Dataset` object with the suggested experiments by Nelder-Mead Simplex algorithm
-        xbest: list
-            List with variable settings of experiment with best outcome
-        fbest: float
-            Objective value at xbest
-        param: list
-            List with parameters and prev_param of Nelder-Mead Simplex algorithm (required for next iteration)
         """
 
         # intern
@@ -406,7 +406,7 @@ class NelderMead(Strategy):
         # Run Nelder-Mead Simplex algorithm for one iteration
         overfull_simplex = False
         if not red_dim:
-            request, sim, fsim, x_iter = self.minimize_neldermead(
+            request, sim, fsim, x_iter = self._minimize_neldermead(
                 x0=x0[0],
                 bounds=bounds,
                 x_iter=x_iter,
@@ -446,7 +446,7 @@ class NelderMead(Strategy):
             new_bounds = np.delete(bounds, overfull_dim, 0)
 
             # Run one iteration of Nelder-Mead Simplex algorithm for reduced simplex
-            request, sim, fsim, x_iter = self.minimize_neldermead(
+            request, sim, fsim, x_iter = self._minimize_neldermead(
                 x0=new_prev_sim[0],
                 x_iter=x_iter,
                 bounds=new_bounds,
@@ -573,7 +573,7 @@ class NelderMead(Strategy):
         return next_experiments, x_best, f_best, param
 
     # implementation partly follows: https://github.com/scipy/scipy/blob/master/scipy/optimize/optimize.py
-    def minimize_neldermead(
+    def _minimize_neldermead(
         self,
         x0,
         bounds,
@@ -1051,18 +1051,18 @@ class NelderMead(Strategy):
     # adapted from the SQSnobFit package
     def round(self, x, bounds, dx):
         """
-          function x = round(x, bounds, dx)
+        function x = round(x, bounds, dx)
 
-          A point x is projected into the interior of [u, v] and x[i] is
-          rounded to the nearest integer multiple of dx[i].
+        A point x is projected into the interior of [u, v] and x[i] is
+        rounded to the nearest integer multiple of dx[i].
 
-          Input:
-          x         vector of length n
-          bounds    matrix of length nx2 such that bounds[:,0] < bounds[:,1]
-          dx        float
+        Input:
+        x         vector of length n
+        bounds    matrix of length nx2 such that bounds[:,0] < bounds[:,1]
+        dx        float
 
-          Output:
-          x         projected and rounded version of x
+        Output:
+        x         projected and rounded version of x
         """
         u = bounds[:, 0]
         v = bounds[:, 1]

@@ -10,9 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath("../.."))
 
 
 # -- Project information -----------------------------------------------------
@@ -22,7 +23,7 @@ copyright = "2020, Kobi Felton, Jan Rittig"
 author = "Kobi Felton, Jan Rittig"
 
 # The full version, including alpha/beta/rc tags
-release = "0.4.0"
+release = "0.5.0"
 
 
 # -- General configuration ---------------------------------------------------
@@ -31,8 +32,20 @@ release = "0.4.0"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    # enables use of jupyter notebooks
     "nbsphinx",
+    # enables use of math
     "sphinx.ext.mathjax",
+    # enables use of numpy docs strings
+    "sphinx.ext.napoleon",
+    # enables automatic processing of docstrings
+    "sphinx.ext.autodoc",
+    # View the code
+    "sphinx.ext.viewcode",
+    # enables to provide links alias in the project
+    "sphinx.ext.intersphinx",
+    # read the docs theme
+    "sphinx_rtd_theme",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -44,27 +57,48 @@ templates_path = ["_templates"]
 exclude_patterns = []
 
 
+# -- Options for NBShpinx ----------------------------------------------------
+
+autoclass_content = "init"
+
+
+# -- Options for intersphinx output -------------------------------------------
+
+# intersphinx_mapping = dict(GPy=("https://gpy.readthedocs.io/", None))
+
+# -- Options for linkdccode ---------------------------------------------------
+
+
+def linkcode_resolve(domain, info):
+    if domain != "py":
+        return None
+    if not info["module"]:
+        return None
+    filename = info["module"].replace(".", "/")
+    return "https://somesite/sourcerepo/%s.py" % filename
+
+
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "alabaster"
-html_theme_options = {
-    #'nosidebar': True,
-    "navigation_with_keys": True,
-    "description": "Tools for optimising chemical processes",
-    "github_banner": True,
-    "github_button": True,
-    "github_repo": "summit",
-    "github_type": "star",
-    "github_user": "sustainable-processes",
-    "page_width": "1095px",
-    "show_relbars": True,
-}
+# html_theme = "alabaster"
+# html_theme_options = {
+#     #'nosidebar': True,
+#     "navigation_with_keys": True,
+#     "description": "Tools for optimising chemical processes",
+#     "github_banner": True,
+#     "github_button": True,
+#     "github_repo": "summit",
+#     "github_type": "star",
+#     "github_user": "sustainable-processes",
+#     "page_width": "1095px",
+#     "show_relbars": True,
+# }
+html_theme = "sphinx_rtd_theme"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-

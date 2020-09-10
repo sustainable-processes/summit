@@ -9,6 +9,7 @@ __all__ = ["pareto_efficient", "hypervolume"]
 def pareto_efficient(data, maximize=True):
     """
     Find the pareto-efficient points
+
     Parameters
     ---------
     data: array-like
@@ -39,6 +40,7 @@ def pareto_efficient(data, maximize=True):
         next_point_index = np.sum(nondominated_point_mask[:next_point_index]) + 1
     return data, indices
 
+
 def hypervolume(pointset, ref):
     """Compute the absolute hypervolume of a *pointset* according to the
     reference point *ref*.
@@ -46,19 +48,20 @@ def hypervolume(pointset, ref):
     ref = np.array(ref)
     # Remove points above reference
     for i in range(pointset.shape[1]):
-        indices = np.where(pointset[:,i]<ref[i])[0]
+        indices = np.where(pointset[:, i] < ref[i])[0]
         pointset = pointset[indices, :]
-    
+
     if len(pointset) == 0:
-        hv = 0;
+        hv = 0
     else:
         hyper = _HyperVolume(ref)
         hv = hyper.compute(pointset)
     return hv
 
+
 class _HyperVolume:
     """
-    This code is copied from the GA library DEAP. 
+    This code is copied from the GA library DEAP.
     Hypervolume computation based on variant 3 of the algorithm in the paper:
     C. M. Fonseca, L. Paquete, and M. Lopez-Ibanez. An improved dimension-sweep
     algorithm for the hypervolume indicator. In IEEE Congress on Evolutionary
@@ -217,9 +220,9 @@ class _HyperVolume:
 
 
 class _MultiList:
-    """A special data structure needed by FonsecaHyperVolume. 
-    
-    It consists of several doubly linked lists that share common nodes. So, 
+    """A special data structure needed by FonsecaHyperVolume.
+
+    It consists of several doubly linked lists that share common nodes. So,
     every node has multiple predecessors and successors, one in every list.
     """
 
@@ -239,8 +242,8 @@ class _MultiList:
             return all(self.cargo < other.cargo)
 
     def __init__(self, numberLists):
-        """Constructor. 
-        
+        """Constructor.
+
         Builds 'numberLists' doubly linked lists.
         """
         self.numberLists = numberLists
@@ -310,7 +313,7 @@ class _MultiList:
     def reinsert(self, node, index, bounds):
         """
         Inserts 'node' at the position it had in all lists in [0, 'index'[
-        before it was removed. This method assumes that the next and previous 
+        before it was removed. This method assumes that the next and previous
         nodes of the node that is reinserted are in the list.
         """
         for i in range(index):
