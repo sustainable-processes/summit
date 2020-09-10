@@ -73,8 +73,6 @@ class DRO(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> strategy = DRO(domain)
-    >>> result = strategy.suggest_experiments(5)
-
 
     Notes
     -------
@@ -154,12 +152,12 @@ class DRO(Strategy):
 
         """
 
-        if tf.__version__ != "1.13.1":
-            raise ImportError(
-                """Tensorflow version 1.13.1 needed for DRO, which is different than the versions 
-                needed for other strategies. We suggest using the docker container marcosfelt/summit:dro.
-                """
-            )
+        # if tf.__version__ != "1.13.1":
+        #     raise ImportError(
+        #         """Tensorflow version 1.13.1 needed for DRO, which is different than the versions
+        #         needed for other strategies. We suggest using the docker container marcosfelt/summit:dro.
+        #         """
+        #     )
 
         # Extract dimension of input domain
         self.dim = self.domain.num_continuous_dimensions()

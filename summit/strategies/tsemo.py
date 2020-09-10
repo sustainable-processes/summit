@@ -67,7 +67,9 @@ class TSEMO(Strategy):
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
-    >>> previous_results = DataSet([values], columns=columns) 
+    >>> columns = [v.name for v in domain.variables]
+    >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
+    >>> previous_results = DataSet([values], columns=columns)
     >>> strategy = TSEMO(domain)
     >>> result = strategy.suggest_experiments(5)
 
