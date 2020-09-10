@@ -8,6 +8,8 @@ All strategies have a similar API. They are instantiated by passing in a :class:
 
 .. It is also possible to pass a transforms_.
 
+.. contents::
+
 Bayesian Optimisation
 ---------------------
 
