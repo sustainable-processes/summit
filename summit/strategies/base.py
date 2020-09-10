@@ -251,6 +251,27 @@ class MultitoSingleObjective(Transform):
     ValueError
         If domain does not have at least two objectives
 
+    Examples
+    ----------
+    >>> from summit.domain import *
+    >>> from summit.strategies import SNOBFIT, MultitoSingleObjective
+    >>> from summit.utils.dataset import DataSet
+    >>> # Create domain
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name="temperature",description="reaction temperature in celsius", bounds=[50, 100])
+    >>> domain += ContinuousVariable(name="flowrate_a", description="flow of reactant a in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="yield_", description="", bounds=[0, 100], is_objective=True, maximize=True)
+    >>> domain += ContinuousVariable(name="de",description="diastereomeric excess",bounds=[0, 100],is_objective=True,maximize=True)
+    >>> # Previous reactions
+    >>> columns = [v.name for v in domain.variables]
+    >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
+    >>> previous_results = DataSet([values], columns=columns)
+    >>> # Multiobjective transform
+    >>> transform = MultitoSingleObjective(domain, expression="(yield_+de)/2", maximize=True)
+    >>> strategy = SNOBFIT(domain, transform=transform)
+    >>> next_experiments = strategy.suggest_experiments(5, previous_results)
+
     """
 
     def __init__(self, domain: Domain, expression: str, maximize=True):
@@ -320,6 +341,27 @@ class LogSpaceObjectives(Transform):
     ------
     ValueError
         When the domain has no objectives.
+
+    Examples
+    ----------
+    >>> from summit.domain import *
+    >>> from summit.strategies import SNOBFIT, MultitoSingleObjective
+    >>> from summit.utils.dataset import DataSet
+    >>> # Create domain
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name="temperature",description="reaction temperature in celsius", bounds=[50, 100])
+    >>> domain += ContinuousVariable(name="flowrate_a", description="flow of reactant a in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="yield_", description="", bounds=[0, 100], is_objective=True, maximize=True)
+    >>> domain += ContinuousVariable(name="de",description="diastereomeric excess",bounds=[0, 100],is_objective=True,maximize=True)
+    >>> # Previous reactions
+    >>> columns = [v.name for v in domain.variables]
+    >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
+    >>> previous_results = DataSet([values], columns=columns)
+    >>> # Multiobjective transform
+    >>> transform = LogSpaceObjectives(domain)
+    >>> strategy = SNOBFIT(domain, transform=transform)
+    >>> next_experiments = strategy.suggest_experiments(5, previous_results)
 
     """
 
@@ -401,7 +443,11 @@ class Chimera(Transform):
         A domain for that is being used in the strategy
     hierarchy : dict
         Dictionary with keys as the names of the objectives and values as dictionaries
-        with the keys hierarchy and tolerance for the ranking and tolerance on each objective.
+        with the keys "hierarchy" and "tolerance" for the ranking and tolerance, respectively, on each objective.
+        The hierachy is indexed from zero (i.e., 0, 1, 2, etc.) with zero being the highest priority objective.
+        A smaller tolerance means that the objective will be weighted more, while a
+        larger tolerance indicates that the objective will be weighted less. The tolerance must
+        be between zero and one.
     softness : float, optional
         Smoothing parameter. Defaults to 1e-3 as recommended by Häse et al.
         Larger values result in a more smooth objective while smaller values
@@ -411,6 +457,25 @@ class Chimera(Transform):
 
     Examples
     --------
+    >>> from summit.domain import *
+    >>> from summit.strategies import SNOBFIT, MultitoSingleObjective
+    >>> from summit.utils.dataset import DataSet
+    >>> # Create domain
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name="temperature",description="reaction temperature in celsius", bounds=[50, 100])
+    >>> domain += ContinuousVariable(name="flowrate_a", description="flow of reactant a in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name="yield_", description="", bounds=[0, 100], is_objective=True, maximize=True)
+    >>> domain += ContinuousVariable(name="de",description="diastereomeric excess",bounds=[0, 100],is_objective=True,maximize=True)
+    >>> # Previous reactions
+    >>> columns = [v.name for v in domain.variables]
+    >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
+    >>> previous_results = DataSet([values], columns=columns)
+    >>> # Multiobjective transform
+    >>> hierarchy =  {"yield_": {"hierarchy": 0, "tolerance": 0.5}, "de": {"hierarchy": 1, "tolerance": 1.0}}
+    >>> transform = Chimera(domain, hierarchy=hierarchy)
+    >>> strategy = SNOBFIT(domain, transform=transform)
+    >>> next_experiments = strategy.suggest_experiments(5, previous_results)
 
     Notes
     ------
