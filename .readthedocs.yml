@@ -15,6 +15,6 @@ python:
   version: 3.7
   install:
     - method: pip
-        path: .
-        extra_requirements:
-            - dev
+      path: .
+      extra_requirements:
+        - dev

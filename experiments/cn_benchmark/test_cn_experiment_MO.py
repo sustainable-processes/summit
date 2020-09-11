@@ -50,9 +50,9 @@ transforms = [
 
 # Run experiments
 @pytest.mark.parametrize("strategy", [Random])
-def test_baselines(strategy):
+def test_baselines(strategy, num_repeats=1):
     """Test Multiobjective CN Benchmark with baseline strategies (random, full factorial)"""
-    for i in range(NUM_REPEATS):
+    for i in range(num_repeats):
         experiment.reset()
         s = strategy(experiment.domain, transform_descriptors=True)
 
@@ -181,4 +181,3 @@ def test_cn_experiment_no_descriptors(strategy, transform):
             hypervolume_ref=HYPERVOLUME_REF,
         )
         r.run(save_at_end=True)
-

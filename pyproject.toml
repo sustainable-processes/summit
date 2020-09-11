@@ -4,7 +4,7 @@ version = "0.5.0"
 description = "Tools for optimizing chemical processes"
 authors = ["Kobi Felton <kobi.c.f@gmail.com>", "Jan Rittig"]
 license = "MIT"
-readme = 'README.rst'
+readme = 'README.md'
 repository = "https://github.com/sustainable-processes/summit"
 homepage = "https://github.com/sustainable-processes/summit"
 keywords = ["machine-learning", "chemistry", "reactions", "optimization", 
@@ -31,17 +31,14 @@ gpyopt = "^1.2.6"
 neptune-client = {version= "^0.4.115", optional = true}
 hiplot = {version= "^0.1.12", optional = true}
 neptune-contrib = {extras = ["viz"], version = "^0.22.0", optional=true}
-gryffin = {git = "https://github.com/sustainable-processes/gryffin", rev = "0.1.1"}
-tensorflow = "^2.2.0"
-tensorflow-probability = "^0.10.1"
-tensorflow-estimator = ">=2.2.0,<2.3.0"
+tensorflow = "^2.3.0"
 torch = "^1.4.0"
 blitz-bayesian-pytorch = "0.2.3"
 paramiko = {version="^2.7.1", optional=true}    
-scp = {git = "https://github.com/jbardin/scp.py", rev = "v0.13.2", optional = true}
+gryffin = "^0.1.0"
 
 [tool.poetry.extras]
-experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko", "scp"]
+experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
