@@ -30,18 +30,14 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: '3.x'
-    - name: Cache pip
-      uses: actions/cache@v2
+    - uses: Gr1N/setup-poetry@v3
+    - uses: actions/cache@v1
       with:
-        # This path is specific to Ubuntu
-        path: ~/.cache/pip
-        # Look to see if there is a cache hit for the corresponding requirements file
-        key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
+        path: ~/.cache/pypoetry/virtualenvs
+        key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
         restore-keys: |
-          ${{ runner.os }}-pip-
-          ${{ runner.os }}-
-    - name: Install dependencies
-      # Install dependencies, including dev
-      run: pip   install .[dev]
+          ${{ runner.os }}-poetry-
     - name: Run pytest
-      run: python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
+      run: poetry run python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
+    - name: Build package
+      run: poetry build
