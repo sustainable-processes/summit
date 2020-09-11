@@ -31,12 +31,15 @@ jobs:
       with:
         python-version: '3.x'
     - uses: Gr1N/setup-poetry@v3
-    - uses: actions/cache@v1
+    - name: Cache poetry
+      uses: actions/cache@v1
       with:
         path: ~/.cache/pypoetry/virtualenvs
         key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
         restore-keys: |
           ${{ runner.os }}-poetry-
+    - name: Install dependencies
+      run: poetry install 
     - name: Run pytest
       run: poetry run python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
     - name: Build package
