@@ -1,21 +1,47 @@
 name: Run Tests
 on: [push]
 
+# jobs:
+#   pytest:
+#     name: pytest
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@master
+#     - name: Install
+#       uses: abatilo/actions-poetry@v1.5.0
+#       with:
+#         python_version: 3.7.7
+#         poetry_version: 1.0.10
+#         args: install -E experiments
+#     - name: Run pytest
+#       uses: abatilo/actions-poetry@v1.5.0
+#       with:
+#         python_version: 3.7.7
+#         poetry_version: 1.0.10
+#         args: run python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
+
 jobs:
-  pytest:
-    name: pytest
+  build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@master
-    - name: Install
-      uses: abatilo/actions-poetry@v1.5.0
+    - uses: actions/checkout@v2
+    - name: Setup python
+      uses: actions/setup-python@v2
       with:
-        python_version: 3.7.7
-        poetry_version: 1.0.10
-        args: install -E experiments
+        python-version: '3.x'
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        # This path is specific to Ubuntu
+        path: ~/.cache/pip
+        # Look to see if there is a cache hit for the corresponding requirements file
+        key: ${{ runner.os }}-pip-${{ hashFiles('setup.py') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          ${{ runner.os }}-
+    - name: Install dependencies
+      # Install dependencies, including dev
+      run: python install .[dev]
     - name: Run pytest
-      uses: abatilo/actions-poetry@v1.5.0
-      with:
-        python_version: 3.7.7
-        poetry_version: 1.0.10
-        args: run python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
+      run: python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
