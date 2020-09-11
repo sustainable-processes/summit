@@ -1,27 +1,78 @@
-name: Run Tests
+name: Test & Publish
 on: [push]
 
 jobs:
-  build:
+  #Run pytest and build package
+  test_build:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
-    - name: Setup python
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install python
       uses: actions/setup-python@v2
       with:
         python-version: '3.x'
-    - uses: Gr1N/setup-poetry@v3
-    - name: Cache poetry
+
+    - name: Install poetry
+      uses: Gr1N/setup-poetry@v3
+
+    - name: Cache poetry dependencies
       uses: actions/cache@v1
       with:
         path: ~/.cache/pypoetry/virtualenvs
         key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
         restore-keys: |
           ${{ runner.os }}-poetry-
+    
     - name: Install dependencies
       run: poetry install -E experiments
+
     - name: Run pytest
       run: poetry run pytest --doctest-modules --ignore=case_studies --ignore=experiments
+
     - name: Build package
       run: poetry build
+
+    - name: Save build
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ github.sha }}-build
+        path: dist/
+
+  
+  # Publish to pypi on version change
+  publish:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
+    
+    - name: Install toml
+      run: pip install toml
+
+    - name: Check for version bump and tag
+      id: version_check
+      uses: salsify/action-detect-and-tag-new-version@v2
+      with:
+        version-command: |
+          python .github/workflow/get_version.py
+
+    - name: Download build
+      uses: actions/download-artifact@v2
+      if: ${{ version_check.outputs.current-version != version_check.outputs.previous-version }}
+      with:
+        name: ${{ github.sha }}-build
+        path: dist/
+
+    - name: Install poetry
+      if: ${{ version_check.outputs.current-version != version_check.outputs.previous-version }}
+      uses: Gr1N/setup-poetry@v3
+
+    - name: Publish
+      if: ${{ version_check.outputs.current-version != version_check.outputs.previous-version }
+      run: poetry publish -u {{ $ username }} -p {{ $ password }}
