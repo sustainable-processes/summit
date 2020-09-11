@@ -29,8 +29,8 @@ jobs:
     - name: Install dependencies
       run: poetry install -E experiments
 
-    - name: Run pytest
-      run: poetry run pytest --doctest-modules --ignore=case_studies --ignore=experiments
+    # - name: Run pytest
+    #   run: poetry run pytest --doctest-modules --ignore=case_studies --ignore=experiments
 
     - name: Build package
       run: poetry build
