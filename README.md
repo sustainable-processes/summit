@@ -11,7 +11,7 @@
 Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions.
 
 ## What is Summit?
-Currently, reaction optimisation in the fine chemicals industry is done by intuition or design of experiments,  Both scale poorly with the complexity of the problem. 
+Currently, reaction optimisation in the fine chemicals industry is done by intuition or design of experiments.  Both scale poorly with the complexity of the problem. 
 
 Summit uses recent advances in machine learning to make the process of reaction optimisation faster. Essentially, it applies algorithms that learn which conditions (e.g., temperature, stoichiometry, etc.) are important to maximising one or more objectives (e.g., yield, enantiomeric excess). This is achieved through an iterative cycle.
 
@@ -21,17 +21,6 @@ Summit has two key features:
 - **Benchmarks**: Simulations of chemical reactions that can be used to test strategies. We have both mechanistic and data-driven benchmarks.
 
 To get started, see the Quick Start below or follow our [tutorial](https://gosummit.readthedocs.io/en/latest/tutorial.html). 
-
-Currently, Summit has the following strategies implemented:
-
-- **TSEMO**: Multi-objective Bayesian optimisation strategy by [Bradford et al.]()
-- **Gryffin**: Single-objective Bayesian optimisation strategy designed for categoical variables [Häse et al.](https://arxiv.org/abs/2003.12127)
-- **SOBO**: Single-objective Bayesian optimisation strategy ([GpyOpt](https://gpyopt.readthedocs.io/))
-- **Nelder-Mead**: Single-objective optimisation stategy for local search
-- **SNOBFIT**: Single-objective optimisation strategy by [Huyer et al.](https://www.mat.univie.ac.at/~neum/ms/snobfit.pdf)
-- **Deep Raction Optimiser**: Deep reinforcement learning by [Zhou et al.](https://pubs.acs.org/doi/10.1021/acscentsci.7b00492)
-- **Factorial DoE**: Factorial design of experiments
-- **Random**: Random search
 
 ## Installation
 
