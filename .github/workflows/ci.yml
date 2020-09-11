@@ -42,6 +42,6 @@ jobs:
           ${{ runner.os }}-
     - name: Install dependencies
       # Install dependencies, including dev
-      run: python install .[dev]
+      run: pip install .[dev]
     - name: Run pytest
       run: python -m pytest --doctest-modules --ignore=case_studies --ignore=experiments
