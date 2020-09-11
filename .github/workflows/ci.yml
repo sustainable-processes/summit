@@ -44,6 +44,7 @@ jobs:
   
   # Publish to pypi on version change
   publish:
+    needs: test_build
     runs-on: ubuntu-latest
     
     steps:
@@ -60,7 +61,7 @@ jobs:
       with:
         create-tag: $ {{ github.ref == 'refs/heads/master' }} # only create new tag on master
         version-command: |
-          python .github/workflow/get_version.py
+          python get_version.py
 
     - name: Download build
       uses: actions/download-artifact@v2
