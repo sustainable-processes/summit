@@ -35,7 +35,7 @@ tensorflow = "^2.3.0"
 torch = "^1.4.0"
 blitz-bayesian-pytorch = "0.2.3"
 paramiko = {version="^2.7.1", optional=true}    
-gryffin = "^0.1.0"
+gryffin = "^0.1.1"
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko"]
