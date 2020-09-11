@@ -7,14 +7,7 @@ license = "MIT"
 readme = 'README.md'
 repository = "https://github.com/sustainable-processes/summit"
 homepage = "https://github.com/sustainable-processes/summit"
-keywords = ["machine-learning", "chemistry", "reactions", "optimization", 
-            "neural-networks", "drug-discovery", "bayesian-optimization",
-            "nelder-mead", "snobfit", "gryffin", "TSEMO"]
-include = ["summit/benchmarks/experimental_emulator/data/*.csv", 
-           "summit/benchmarks/experimental_emulator/trained_models/BNN/*.json",
-           "summit/benchmarks/experimental_emulator/trained_models/BNN/*.pt"]
-exclude = ["summit/benchmarks/experimental_emulator/trained_models/BNN/*.png",
-           "summit/benchmarks/experimental_emulator/data/*.xlsx"]
+keywords = ["machine-learning", "chemistry", "reactions", "optimization", "neural-networks", "drug-discovery", "bayesian-optimization", "nelder-mead", "snobfit", "gryffin", "TSEMO"]
 
 [tool.poetry.dependencies]
 pandas = "^1.1.0"
@@ -52,4 +45,4 @@ black = {version = "^20.8b1", allow-prereleases = true}
 
 [build-system]
 requires = ["poetry>=0.12"]
-build-backendpoetry = "poetry.masonry.api"
+build-backend = "poetry.masonry.api"

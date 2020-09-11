@@ -1,5 +1,12 @@
 # Summit
-![summit_banner](docs/source/_static/banner_4.png)
+![summit_banner](https://raw.githubusercontent.com/sustainable-processes/summit/master/docs/source/_static/banner_4.png)
+
+<p align="center">
+<a href='https://gosummit.readthedocs.io/en/latest/?badge=latest'>
+    <img src='https://readthedocs.org/projects/gosummit/badge/?version=latest' alt='Documentation Status' />
+</a>
+<a href="https://pypi.org/project/nsummit/"><img alt="PyPI" src="https://img.shields.io/pypi/v/summit"></a>
+</p>
 
 Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions.
 
