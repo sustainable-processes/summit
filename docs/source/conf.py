@@ -12,6 +12,7 @@
 #
 import os
 import sys
+import subprocess
 
 sys.path.insert(0, os.path.abspath("../.."))
 
@@ -56,6 +57,34 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
+# -- Google Colab badge -------------------------------------------------
+COLAB = "https://colab.research.google.com/github"
+
+
+def get_current_git_branch():
+    branch = subprocess.check_output("git rev-parse --abbrev-ref HEAD", shell=True)
+    branch = str(branch).replace("\\n", "").replace("b", "").replace("'", "")
+    return branch
+
+
+def get_colab_base_link(
+    user="sustainable-processes", repo="summit", docs_path="docs/source"
+):
+    branch = get_current_git_branch()
+    return f"{COLAB}/{user}/{repo}/blob/{branch}/{docs_path}"
+
+
+badge_link = "https://colab.research.google.com/assets/colab-badge.svg"
+nbsphinx_prolog = r"""
+{%% set docname = env.doc2path(env.docname, base=None) %%} 
+.. role:: raw-html(raw)
+   :format: html
+
+.. |colab_badge| replace:: :raw-html:`<a href="%s/{{ docname }}"><img src="%s" alt="Open in colab"/></a>`
+""" % (
+    get_colab_base_link(),
+    badge_link,
+)
 
 # -- Options for NBShpinx ----------------------------------------------------
 

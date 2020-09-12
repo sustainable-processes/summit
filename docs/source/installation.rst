@@ -3,6 +3,7 @@ Installation
 
 The easiest way to install Summit is using pip or a depedency manager that supports pip:
 
+
 .. code-block:: bash
 
     pip install summit
