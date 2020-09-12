@@ -1,10 +1,17 @@
 # Summit
-![summit_banner](docs/source/_static/banner_4.png)
+![summit_banner](https://raw.githubusercontent.com/sustainable-processes/summit/master/docs/source/_static/banner_4.png)
+
+<p align="center">
+<a href='https://gosummit.readthedocs.io/en/latest/?badge=latest'>
+    <img src='https://readthedocs.org/projects/gosummit/badge/?version=latest' alt='Documentation Status' />
+</a>
+<a href="https://pypi.org/project/nsummit/"><img alt="PyPI" src="https://img.shields.io/pypi/v/summit"></a>
+</p>
 
 Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions.
 
 ## What is Summit?
-Currently, reaction optimisation in the fine chemicals industry is done by intuition or design of experiments,  Both scale poorly with the complexity of the problem. 
+Currently, reaction optimisation in the fine chemicals industry is done by intuition or design of experiments.  Both scale poorly with the complexity of the problem. 
 
 Summit uses recent advances in machine learning to make the process of reaction optimisation faster. Essentially, it applies algorithms that learn which conditions (e.g., temperature, stoichiometry, etc.) are important to maximising one or more objectives (e.g., yield, enantiomeric excess). This is achieved through an iterative cycle.
 
@@ -15,26 +22,15 @@ Summit has two key features:
 
 To get started, see the Quick Start below or follow our [tutorial](https://gosummit.readthedocs.io/en/latest/tutorial.html). 
 
-Currently, Summit has the following strategies implemented:
-
-- **TSEMO**: Multi-objective Bayesian optimisation strategy by [Bradford et al.]()
-- **Gryffin**: Single-objective Bayesian optimisation strategy designed for categoical variables [Häse et al.](https://arxiv.org/abs/2003.12127)
-- **SOBO**: Single-objective Bayesian optimisation strategy ([GpyOpt](https://gpyopt.readthedocs.io/))
-- **Nelder-Mead**: Single-objective optimisation stategy for local search
-- **SNOBFIT**: Single-objective optimisation strategy by [Huyer et al.](https://www.mat.univie.ac.at/~neum/ms/snobfit.pdf)
-- **Deep Raction Optimiser**: Deep reinforcement learning by [Zhou et al.](https://pubs.acs.org/doi/10.1021/acscentsci.7b00492)
-- **Factorial DoE**: Factorial design of experiments
-- **Random**: Random search
-
 ## Installation
 
 To install summit, use the following command:
 
-```pip install git+https://github.com/sustainable-processes/summit.git@0.5.0#egg=summit```
+```pip install summit```
 
 ## Quick Start
 
-Below, we show how to use the Nelder-Mead  strategy  to optimise a benchmark representing a nucleophlic aromatic substitution (SnAr) reaction.
+Below, we show how to use the Nelder-Mead  strategy to optimise a benchmark representing a nucleophlic aromatic substitution (SnAr) reaction.
 ```python
 # Import summit
 from summit.benchmarks import SnarBenchmark, MultitoSingleObjective
@@ -66,5 +62,4 @@ The documentation for summit can be found [here](https://gosummit.readthedocs.io
 
 ## Issues?
 Submit an [issue](https://github.com/sustainable-processes/summit/issues) or send an email to kcmf2@cam.ac.uk.
-
 
