@@ -29,8 +29,8 @@ jobs:
     - name: Install dependencies
       run: poetry install -E experiments
 
-    # - name: Run pytest
-    #   run: poetry run pytest --doctest-modules --ignore=case_studies --ignore=experiments
+    - name: Run pytest
+      run: poetry run pytest --doctest-modules --ignore=case_studies --ignore=experiments
 
     - name: Build package
       run: poetry build
@@ -50,6 +50,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
+        # Make sure to fetch the last two commits
+        # Needed forthe version bump and tag
         fetch-depth: 2
     
     - name: Install toml
@@ -63,7 +65,7 @@ jobs:
         version-command: |
           python get_version.py
 
-    - name: Download build
+    - name: Download poetry build
       uses: actions/download-artifact@v2
       with:
         name: ${{ github.sha }}-build
@@ -72,6 +74,6 @@ jobs:
       uses: Gr1N/setup-poetry@v3
 
     - name: Publish
-      # Oly publish if there is a new tag
+      # Only publish if there is a new tag
       if: ${{ steps.version_check.tag }}
       run: poetry publish -u {{ secrets.PYPI_USERNAME }} -p {{ $ secrets.PYPI_PASSWORD }}

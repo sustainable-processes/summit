@@ -26,11 +26,11 @@ To get started, see the Quick Start below or follow our [tutorial](https://gosum
 
 To install summit, use the following command:
 
-```pip install git+https://github.com/sustainable-processes/summit.git@0.5.0#egg=summit```
+```pip install summit```
 
 ## Quick Start
 
-Below, we show how to use the Nelder-Mead  strategy  to optimise a benchmark representing a nucleophlic aromatic substitution (SnAr) reaction.
+Below, we show how to use the Nelder-Mead  strategy to optimise a benchmark representing a nucleophlic aromatic substitution (SnAr) reaction.
 ```python
 # Import summit
 from summit.benchmarks import SnarBenchmark, MultitoSingleObjective
