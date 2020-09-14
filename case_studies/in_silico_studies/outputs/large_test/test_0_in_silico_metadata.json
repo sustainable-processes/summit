@@ -1,1 +1,0 @@
-{"num_principal_components": 3, "num_batches": 9, "batch_size": 4, "normalize_inputs": true, "normalize_outputs": false, "design_criterion": "center", "repeat_iteration": 35, "num_initial_experiments": 8, "random_rate": 0.0}
