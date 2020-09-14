@@ -42,38 +42,38 @@ jobs:
         path: dist/
 
   
-  # Publish to pypi on version change
-  publish:
-    needs: test_build
-    runs-on: ubuntu-latest
+  # # Publish to pypi on version change
+  # publish:
+  #   needs: test_build
+  #   runs-on: ubuntu-latest
     
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        # Make sure to fetch the last two commits
-        # Needed forthe version bump and tag
-        fetch-depth: 2
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #     with:
+  #       # Make sure to fetch the last two commits
+  #       # Needed forthe version bump and tag
+  #       fetch-depth: 2
     
-    - name: Install toml
-      run: pip install toml
+  #   - name: Install toml
+  #     run: pip install toml
 
-    - name: Check for version bump and tag
-      id: version_check
-      uses: salsify/action-detect-and-tag-new-version@v2
-      with:
-        create-tag: $ {{ github.ref == 'refs/heads/master' }} # only create new tag on master
-        version-command: |
-          python get_version.py
+  #   - name: Check for version bump and tag
+  #     id: version_check
+  #     uses: salsify/action-detect-and-tag-new-version@v2
+  #     with:
+  #       create-tag: $ {{ github.ref == 'refs/heads/master' }} # only create new tag on master
+  #       version-command: |
+  #         python get_version.py
 
-    - name: Download poetry build
-      uses: actions/download-artifact@v2
-      with:
-        name: ${{ github.sha }}-build
+  #   - name: Download poetry build
+  #     uses: actions/download-artifact@v2
+  #     with:
+  #       name: ${{ github.sha }}-build
 
-    - name: Install poetry
-      uses: Gr1N/setup-poetry@v3
+  #   - name: Install poetry
+  #     uses: Gr1N/setup-poetry@v3
 
-    - name: Publish
-      # Only publish if there is a new tag
-      if: ${{ steps.version_check.tag }}
-      run: poetry publish -u {{ secrets.PYPI_USERNAME }} -p {{ $ secrets.PYPI_PASSWORD }}
+  #   - name: Publish
+  #     # Only publish if there is a new tag
+  #     if: ${{ steps.version_check.tag }}
+  #     run: poetry publish -u {{ secrets.PYPI_USERNAME }} -p {{ $ secrets.PYPI_PASSWORD }}
