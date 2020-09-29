@@ -47,7 +47,7 @@ version = "1.4.4"
 [[package]]
 category = "main"
 description = "Disable App Nap on OS X 10.9"
-marker = "python_version >= \"3.3\" and sys_platform == \"darwin\" or platform_system == \"Darwin\" or python_version >= \"3.4\" and sys_platform == \"darwin\""
+marker = "sys_platform == \"darwin\" or platform_system == \"Darwin\" or python_version >= \"3.3\" and sys_platform == \"darwin\" or python_version >= \"3.4\" and sys_platform == \"darwin\""
 name = "appnope"
 optional = false
 python-versions = "*"
@@ -149,7 +149,6 @@ pytz = ">=2015.7"
 [[package]]
 category = "main"
 description = "Specifications for callback functions passed in to an API"
-marker = "python_version >= \"3.3\""
 name = "backcall"
 optional = false
 python-versions = "*"
@@ -804,7 +803,6 @@ version = "1.1.0"
 [[package]]
 category = "main"
 description = "An autocompletion tool for Python that can be used for text editors."
-marker = "python_version >= \"3.3\""
 name = "jedi"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
@@ -1243,6 +1241,14 @@ signedtoken = ["cryptography", "pyjwt (>=1.0.0)"]
 
 [[package]]
 category = "main"
+description = "Wrapper package for OpenCV python bindings."
+name = "opencv-python"
+optional = false
+python-versions = ">=3.6"
+version = "4.4.0.44"
+
+[[package]]
+category = "main"
 description = "Optimizing numpys einsum function"
 name = "opt-einsum"
 optional = false
@@ -1353,7 +1359,7 @@ version = "0.8.0"
 [[package]]
 category = "main"
 description = "Pexpect allows easy control of interactive console applications."
-marker = "python_version >= \"3.3\" and sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\""
+marker = "python_version >= \"3.3\" and sys_platform != \"win32\" or sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\""
 name = "pexpect"
 optional = false
 python-versions = "*"
@@ -1365,7 +1371,6 @@ ptyprocess = ">=0.5"
 [[package]]
 category = "main"
 description = "Tiny 'shelve'-like database with concurrency support"
-marker = "python_version >= \"3.3\""
 name = "pickleshare"
 optional = false
 python-versions = "*"
@@ -1409,7 +1414,6 @@ twisted = ["twisted"]
 [[package]]
 category = "main"
 description = "Library for building powerful interactive command lines in Python"
-marker = "python_version >= \"3.3\""
 name = "prompt-toolkit"
 optional = false
 python-versions = ">=3.6.1"
@@ -1433,7 +1437,7 @@ six = ">=1.9"
 [[package]]
 category = "main"
 description = "Run a subprocess in a pseudo terminal"
-marker = "python_version >= \"3.3\" and sys_platform != \"win32\" or os_name != \"nt\" or python_version >= \"3.4\" and sys_platform != \"win32\""
+marker = "python_version >= \"3.3\" and sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\" or os_name != \"nt\" or python_version >= \"3.3\" and sys_platform != \"win32\" and (python_version >= \"3.3\" and sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\") or python_version >= \"3.4\" and sys_platform != \"win32\" and (python_version >= \"3.3\" and sys_platform != \"win32\" or python_version >= \"3.4\" and sys_platform != \"win32\")"
 name = "ptyprocess"
 optional = false
 python-versions = "*"
@@ -1544,6 +1548,20 @@ name = "pyparsing"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 version = "2.4.7"
+
+[[package]]
+category = "main"
+description = "Video Recording made easy - The tool you need for animations using Matplotlib, Plotly and other plotting libraries."
+name = "pyrecorder"
+optional = false
+python-versions = ">=3.6"
+version = "0.1.8"
+
+[package.dependencies]
+Pillow = "*"
+matplotlib = ">=3"
+numpy = ">=1.15"
+opencv-python = ">=4.0.0.21"
 
 [[package]]
 category = "main"
@@ -2271,7 +2289,7 @@ docs = ["sphinx", "nbsphinx", "sphinx-rtd-theme"]
 experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko"]
 
 [metadata]
-content-hash = "176bb04ddbce2ada8a23d18785405ec71324cb1598d9d4214987db4bc23f504b"
+content-hash = "ac9d4d3ab1494d65b25b34468a498c78182b921fda4556d9b86c5d631dcbd4c6"
 python-versions = "^3.6.1"
 
 [metadata.files]
@@ -2984,6 +3002,24 @@ oauthlib = [
     {file = "oauthlib-3.1.0-py2.py3-none-any.whl", hash = "sha256:df884cd6cbe20e32633f1db1072e9356f53638e4361bef4e8b03c9127c9328ea"},
     {file = "oauthlib-3.1.0.tar.gz", hash = "sha256:bee41cc35fcca6e988463cacc3bcb8a96224f470ca547e697b604cc697b2f889"},
 ]
+opencv-python = [
+    {file = "opencv-python-4.4.0.44.tar.gz", hash = "sha256:e87d88a820050c0e886c9add48eac2f80ff29207a98cca25869a6868c519daa4"},
+    {file = "opencv_python-4.4.0.44-cp36-cp36m-macosx_10_13_x86_64.whl", hash = "sha256:69c971fefb633cfd334ed195d58e76e87f267649f98a2394f7400b178e918936"},
+    {file = "opencv_python-4.4.0.44-cp36-cp36m-manylinux2014_i686.whl", hash = "sha256:80b5b68e9c5dda29205ca112e6d5bd647b6b43cf917cfa5ce178d61675291bba"},
+    {file = "opencv_python-4.4.0.44-cp36-cp36m-manylinux2014_x86_64.whl", hash = "sha256:46032d4648c74730115f8522effda8ac39bd0385f07edc7aab57b41cc7617933"},
+    {file = "opencv_python-4.4.0.44-cp36-cp36m-win32.whl", hash = "sha256:98676d349fdfc17dba9f23b87e9b6a639733d35f5f0ffcccb90e76c8200568f4"},
+    {file = "opencv_python-4.4.0.44-cp36-cp36m-win_amd64.whl", hash = "sha256:27d5b83edd245a12dd6b8562569ad3f23e5ffe30cef8cfcc70756dd24b55d12f"},
+    {file = "opencv_python-4.4.0.44-cp37-cp37m-macosx_10_13_x86_64.whl", hash = "sha256:b2147317b00b20e8d7e01201221af2b278aed449fa436316c42bc63f653e8245"},
+    {file = "opencv_python-4.4.0.44-cp37-cp37m-manylinux2014_i686.whl", hash = "sha256:db74a92ef9c2a0810e1436d586b3b15d421a39b72f06263358f15c7a609498e0"},
+    {file = "opencv_python-4.4.0.44-cp37-cp37m-manylinux2014_x86_64.whl", hash = "sha256:23dade76fe0194139112eea7ecdfa02ae09924b1d8d853f17f387a356519e484"},
+    {file = "opencv_python-4.4.0.44-cp37-cp37m-win32.whl", hash = "sha256:fdf017c5b93d58ad77e2690e59322fd09414705c28d69b52fad4a19985422e6c"},
+    {file = "opencv_python-4.4.0.44-cp37-cp37m-win_amd64.whl", hash = "sha256:e100a4ffdeed8c4afac6a5b3f6b4481efe0ad90e0a0ae2d129478abd4bd790bc"},
+    {file = "opencv_python-4.4.0.44-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:d838ee4562f52793b1b10876e5067cae1a6bb1c3c575091644be9b88cf45d255"},
+    {file = "opencv_python-4.4.0.44-cp38-cp38-manylinux2014_i686.whl", hash = "sha256:9df617736351100879b70d914366b9f9e38aa227885f2590b48badc4a233119d"},
+    {file = "opencv_python-4.4.0.44-cp38-cp38-manylinux2014_x86_64.whl", hash = "sha256:2a2a7590b99d872b193cda0592b2c1cd6561159c31b361597c0e69e8926c8d16"},
+    {file = "opencv_python-4.4.0.44-cp38-cp38-win32.whl", hash = "sha256:16864152aa6ac346ef83588d6f4f5dc974d27851c034d6970fcb7b6a98bbd318"},
+    {file = "opencv_python-4.4.0.44-cp38-cp38-win_amd64.whl", hash = "sha256:4c195597d5286d1cc7259aeaeb7e6c1cde07fec9bddf26523eab1b15709291aa"},
+]
 opt-einsum = [
     {file = "opt_einsum-3.3.0-py3-none-any.whl", hash = "sha256:2455e59e3947d3c275477df7f5205b30635e266fe6dc300e3d9f9646bfcea147"},
     {file = "opt_einsum-3.3.0.tar.gz", hash = "sha256:59f6475f77bbc37dcf7cd748519c0ec60722e91e63ca114e68821c0c54a46549"},
@@ -3176,6 +3212,9 @@ pynacl = [
 pyparsing = [
     {file = "pyparsing-2.4.7-py2.py3-none-any.whl", hash = "sha256:ef9d7589ef3c200abe66653d3f1ab1033c3c419ae9b9bdb1240a85b024efc88b"},
     {file = "pyparsing-2.4.7.tar.gz", hash = "sha256:c203ec8783bf771a155b207279b9bccb8dea02d8f0c9e5f8ead507bc3246ecc1"},
+]
+pyrecorder = [
+    {file = "pyrecorder-0.1.8.tar.gz", hash = "sha256:333990eb25b2c5d0659d46952c67499e494ba9a191178b351bc2c955239310a5"},
 ]
 pyrff = [
     {file = "pyrff-1.0.1-py3-none-any.whl", hash = "sha256:45e4bf6da8526c34ba8bfe74ee0c6440f4a6b904907588b23e5612852499efbf"},

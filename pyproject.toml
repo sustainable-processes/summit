@@ -32,6 +32,7 @@ gryffin = "^0.1.1"
 sphinx = {version="^3.2.1", optional=true}
 nbsphinx = {version="^0.7.1", optional=true}
 sphinx-rtd-theme = {version="^0.5.0", optional=true}
+pyrecorder = "^0.1.8"
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko"]
