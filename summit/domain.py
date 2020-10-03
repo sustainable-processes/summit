@@ -12,13 +12,13 @@ __all__ = [
     "CategoricalVariable",
     "Constraint",
     "Domain",
-    "DomainError"
+    "DomainError",
 ]
 
 
 class Variable(ABC):
     """A base class for variables
-    
+
     Parameters
     ----------
     name: str
@@ -28,8 +28,8 @@ class Variable(ABC):
     is_objective: bool, optional
         If True, this variable is an output. Defaults to False (i.e., an input variable)
     maximize: bool, optional
-        If True, the output will be maximized; if False, it will be minimized. 
-        Defaults to True. 
+        If True, the output will be maximized; if False, it will be minimized.
+        Defaults to True.
     units: str, optional
         Units of the variable. Defaults to None.
 
@@ -134,20 +134,20 @@ class Variable(ABC):
 
 class ContinuousVariable(Variable):
     """Representation of a continuous variable
-    
+
     Parameters
     ----------
     name: str
         The name of the variable
     description: str
-        A short description of the variable 
+        A short description of the variable
     bounds: list of float or int
         The lower and upper bounds (respectively) of the variable
     is_objective: bool, optional
         If True, this variable is an output. Defaults to False (i.e., an input variable)
     maximize: bool, optional
-        If True, the output will be maximized; if False, it will be minimized. 
-        Defaults to True. 
+        If True, the output will be maximized; if False, it will be minimized.
+        Defaults to True.
 
     Attributes
     ---------
@@ -202,31 +202,32 @@ class ContinuousVariable(Variable):
             is_objective=variable_dict["is_objective"],
         )
 
+
 class CategoricalVariable(Variable):
     """Representation of a categorical variable
 
     Categorical variables are discrete choices that do not have an ordering.
-    Common examples are selections of catalysts, bases, or ligands. 
+    Common examples are selections of catalysts, bases, or ligands.
 
     Each possible discrete choice is referred to as a level. These are added as a list
-    using the `list` keyword argument. 
+    using the `list` keyword argument.
 
     When available, descriptors can be added to a categorical variable. These might be values
     such as the melting point, logP, etc. of each level of the categorical variable. These descriptors
     can significantly improve the speed of optimization and also make many more strategies compatible
     with categorical variables (i.e., all that work with continuos variables).
-    
+
     Parameters
     ----------
     name : str
         The name of the variable
     description : str
-        A short description of the variable 
+        A short description of the variable
     levels : list of any serializable object, optional
-        The potential values of the Categorical variable. When descriptors 
+        The potential values of the Categorical variable. When descriptors
         are passed, this can be left empty, and the levels will be inferred from
         the index of the descriptors DataSet.
-    descriptors : :class:~summit.utils.dataset.DataSet, optional
+    descriptors : :class:`~summit.utils.dataset.DataSet`, optional
         A DataSet where the keys correspond to the levels and the data
         columns are descriptors.
 
@@ -247,33 +248,38 @@ class CategoricalVariable(Variable):
     Examples
     --------
     The simplest way to use a CategoricalVariable is without descriptors:
+
     >>> base = CategoricalVariable('base', 'Organic Base', levels=['DBU', 'BMTG', 'TEA'])
 
     When descriptors are available, they can be used directly without specfying the levels:
+
     >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
     >>> solvent = CategoricalVariable('solvent', 'solvent descriptors', descriptors=solvent_df)
 
     It is also possible to specify a subset of the descriptors as possible choices by passing both descriptors and levels.
     The levels must match the index of the descriptors DataSet.
+
     >>> solvent_df = DataSet([[5, 81],[-93, 111]], index=['benzene', 'toluene'], columns=['melting_point', 'boiling_point'])
     >>> solvent = CategoricalVariable('solvent', 'solvent descriptors', levels=['benzene', 'toluene'],descriptors=solvent_df)
     """
 
     def __init__(self, name, description, **kwargs):
         Variable.__init__(self, name, description, "categorical", **kwargs)
-        
+
         # Get descriptors DataSet
         self.ds = kwargs.get("descriptors")
         if self.ds is not None and not isinstance(self.ds, DataSet):
             raise TypeError("descriptors must be a DataSet")
 
         self._levels = kwargs.get("levels")
-        #If levels and descriptors passed, check they match
+        # If levels and descriptors passed, check they match
         if self.ds is not None and self._levels is not None:
             index = self.ds.index
             for level in self._levels:
-                assert level in index, "Levels must be in the descriptors DataSet index."
-        #If no levels passed but descriptors passed, make levels the whole index
+                assert (
+                    level in index
+                ), "Levels must be in the descriptors DataSet index."
+        # If no levels passed but descriptors passed, make levels the whole index
         elif self.ds is not None and self._levels is None:
             self._levels = self.ds.index.to_list()
         elif self.ds is None and self._levels is None:
@@ -301,7 +307,7 @@ class CategoricalVariable(Variable):
             return len(self.ds.data_columns)
 
     def add_level(self, level):
-        """ Add a level to the discrete variable
+        """Add a level to the discrete variable
 
         Parameters
         ---------
@@ -318,7 +324,7 @@ class CategoricalVariable(Variable):
         self._levels.append(level)
 
     def remove_level(self, level):
-        """ Add a level to the discrete variable
+        """Add a level to the discrete variable
 
         Parameters
         ---------
@@ -339,9 +345,7 @@ class CategoricalVariable(Variable):
         """ Return json encoding of the variable"""
         variable_dict = super().to_dict()
         ds = self.ds.to_dict() if self.ds is not None else None
-        variable_dict.update(
-            dict(levels=self.levels, ds=ds)
-        )
+        variable_dict.update(dict(levels=self.levels, ds=ds))
         return variable_dict
 
     @staticmethod
@@ -362,26 +366,33 @@ class CategoricalVariable(Variable):
 
 
 class Constraint:
-    """ A constraint for an optimization domain 
-    
+    """A constraint for an optimization domain
+
     Parameters
-    ---------- 
+    ----------
     lhs: str
         The left hand side of a constraint equation
-    constraint_type: str (Default: "<=")
-        The type of constraint. Must be <, <=, ==, > or >=
-    
+    constraint_type: str
+        The type of constraint. Must be <, <=, ==, > or >=. Default: "<="
+
     Raises
     ------
     ValueError
 
-    Notes
-    -----
+    Examples
+    --------
+
     These should be constraints in the form "lhs constraint_type constraint 0"
     So for example, x+y=3 should be rewritten as x+y-3=0 and therefore:
-    >> Constraint(lhs="x+y-3", constraint_type="==")
+
+    >>> domain = Domain()
+    >>> domain += Constraint(lhs="x+y-3", constraint_type="==")
+
     Or x+y<0 would be:
-    >> Constraint(lhs="x+y", constraint_type="<")
+
+    >>> domain = Domain()
+    >>> domain += Constraint(lhs="x+y", constraint_type="<")
+
     """
 
     def __init__(self, lhs, constraint_type="<="):
@@ -413,9 +424,9 @@ class Domain:
 
     Parameters
     ---------
-    variables: `Variable` or list of `Variable` like objects, optional
+    variables: :class:`~summit.domain.Variable` or list of :class:`~summit.domain.Variable` like objects, optional
         list of variable objects (i.e., `ContinuousVariable`, `CategoricalVariable`)
-    constraints: `Constraint` or  list of `Constraint` objects
+    constraints: :class:`~summit.domain.Constraint` or  list of :class:`~summit.domain.Constraint` objects, optional
         list of constraints on the problem
 
     Attributes
@@ -514,14 +525,14 @@ class Domain:
             raise ValueError("Variable names are not unique")
 
     def num_variables(self, include_outputs=False) -> int:
-        """ Number of variables in the domain 
-        
+        """Number of variables in the domain
+
         Parameters
-        ---------- 
+        ----------
         include_outputs: bool, optional
             If True include output variables in the count.
             Defaults to False.
-        
+
         Returns
         -------
         num_variables: int
@@ -535,20 +546,24 @@ class Domain:
         return k
 
     def num_discrete_variables(self, include_outputs=False) -> int:
-        raise NotImplementedError("num_discrete_variables has been deprecated due to the change of Discrete to Categorical variables")
+        raise NotImplementedError(
+            "num_discrete_variables has been deprecated due to the change of Discrete to Categorical variables"
+        )
 
-    def num_continuous_dimensions(self, include_descriptors=False, include_outputs=False) -> int:
+    def num_continuous_dimensions(
+        self, include_descriptors=False, include_outputs=False
+    ) -> int:
         """The number of continuous dimensions
-        
+
         Parameters
-        ---------- 
+        ----------
         include_descriptors : bool, optional
             If True, the number of descriptors columns are considered.
             Defaults to False.
         include_outputs : bool, optional
             If True include output variables in the count.
             Defaults to False.
-        
+
         Returns
         -------
         num_variables: int
@@ -605,7 +620,7 @@ class Domain:
 
     def _repr_html_(self):
         """Build html string for table display in jupyter notebooks.
-        
+
         Notes
         -----
         Adapted from https://github.com/GPflow/GPflowOpt/blob/master/gpflowopt/domain.py

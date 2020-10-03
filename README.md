@@ -33,8 +33,8 @@ To install summit, use the following command:
 Below, we show how to use the Nelder-Mead  strategy to optimise a benchmark representing a nucleophlic aromatic substitution (SnAr) reaction.
 ```python
 # Import summit
-from summit.benchmarks import SnarBenchmark, MultitoSingleObjective
-from summit.strategies import NelderMead
+from summit.benchmarks import SnarBenchmark
+from summit.strategies import NelderMead, MultitoSingleObjective
 from summit.run import Runner
 
 # Instantiate the benchmark
@@ -62,4 +62,21 @@ The documentation for summit can be found [here](https://gosummit.readthedocs.io
 
 ## Issues?
 Submit an [issue](https://github.com/sustainable-processes/summit/issues) or send an email to kcmf2@cam.ac.uk.
+
+## Citing
+
+If you find this project useful, we encourage you to
+
+* Star this repository :star: 
+* Cite our [paper](https://chemrxiv.org/articles/preprint/Summit_Benchmarking_Machine_Learning_Methods_for_Reaction_Optimisation/12939806).
+```
+@article{Felton2020,
+author = "Kobi Felton and Jan Rittig and Alexei Lapkin",
+title = "{Summit: Benchmarking Machine Learning Methods for Reaction Optimisation}",
+year = "2020",
+month = "9",
+url = "https://chemrxiv.org/articles/preprint/Summit_Benchmarking_Machine_Learning_Methods_for_Reaction_Optimisation/12939806",
+doi = "10.26434/chemrxiv.12939806.v1"
+}
+```
 

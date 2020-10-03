@@ -23,7 +23,7 @@ class Transform:
 
     Parameters
     ----------
-    domain: `sumit.domain.Domain``
+    domain: :class:`~summit.domain.Domain`
         A domain for that is being used in the strategy
 
     transform_descriptors: bool, optional
@@ -232,7 +232,7 @@ class MultitoSingleObjective(Transform):
 
     Parameters
     ----------
-    domain: `sumit.domain.Domain``
+    domain: :class:`~summit.domain.Domain`
         A domain for that is being used in the strategy
     expression: str
         An expression in terms of variable names used to
@@ -332,7 +332,7 @@ class LogSpaceObjectives(Transform):
 
     Parameters
     ----------
-    domain: `sumit.domain.Domain``
+    domain: :class:`~summit.domain.Domain`
         A domain for that is being used in the strategy
 
     Raises
