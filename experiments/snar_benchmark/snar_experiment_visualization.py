@@ -49,10 +49,10 @@ CMAP = ListedColormap(COLORS)
 
 
 class PlotExperiments:
-    """  Make plots from benchmarks tracked on Neptune
-    
+    """Make plots from benchmarks tracked on Neptune
+
     Parameters
-    ---------- 
+    ----------
     project : str, optional
         The name of the Neptune.ai project
     experiment_ids : list of str, optional
@@ -60,14 +60,14 @@ class PlotExperiments:
     csv_filename : str, optional
         Name of the CSV filename
     tag : list  of str, optional
-        A list of tags used as filters 
+        A list of tags used as filters
     state : str, optional
         The state of the experiments. Must be succeeded, failed, running or aborted.
     trajectory_length : int, optional
         The maximum number of iterations for each experiment. Defaults to 50.
     num_repeats : int, optional
         The number of repeats required for each hyperparameter combination.s
-        
+
     """
 
     def __init__(
@@ -116,7 +116,9 @@ class PlotExperiments:
         for experiment in experiments:
             path = f"data/{experiment.id}"
             try:
-                os.mkdir(path,)
+                os.mkdir(
+                    path,
+                )
             except FileExistsError:
                 pass
             experiment.download_artifacts(destination_dir=path)
@@ -143,7 +145,7 @@ class PlotExperiments:
 
     def _create_param_df(self, reference=[-2957, 10.7]):
         """Create a parameters dictionary
-        
+
         Parameters
         ----------
         reference : array-like, optional
@@ -214,9 +216,9 @@ class PlotExperiments:
         return f"{unique['strategy_name']}, {transform_text}, {unique['num_initial_experiments']} initial experiments"
 
     def best_pareto_grid(self, ncols=3, figsize=(20, 40)):
-        """ Make a grid of pareto plots 
+        """Make a grid of pareto plots
 
-        Only includes the run with the maximum terminal hypervolume for each 
+        Only includes the run with the maximum terminal hypervolume for each
         unique hyperparameter combination.
 
         Parameters
@@ -279,8 +281,8 @@ class PlotExperiments:
         min_terminal_hv_avg=0,
         ax=None,
     ):
-        """ Plot the hypervolume trajectories with repeats as 95% confidence interval
-        
+        """Plot the hypervolume trajectories with repeats as 95% confidence interval
+
         Parameters
         ----------
         reference : array-like, optional
@@ -446,7 +448,7 @@ class PlotExperiments:
 
         Only shows the hyperparemter combination with the highest mean terminal hypervolume
         for each strategy
-        
+
         Parameters
         ----------
         ax : `matplotlib.pyplot.axes`, optional
@@ -464,7 +466,10 @@ class PlotExperiments:
             "num_initial_experiments",
         ]
         grouped_df = (
-            df.groupby(by=by, dropna=False,)
+            df.groupby(
+                by=by,
+                dropna=False,
+            )
             .head(self.num_repeats)
             .groupby(by=by, dropna=False)
         )
