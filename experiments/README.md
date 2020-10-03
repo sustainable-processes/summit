@@ -2,6 +2,14 @@
 
 This is the code used to run and analyze the experiments in the paper.  Each folder has code to run experiments, some code for visualization and a Jupyter notebook that contains all the plots used in the paper. 
 
+## Installation
+
+To run the experiments code, you will need to install the extra experiments dependencies:
+
+```bash
+pip install summit[experiments]
+```
+
 ## Steps to run on the HPC
 
 1. Commit changes and push to Github
