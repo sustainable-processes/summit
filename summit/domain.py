@@ -385,11 +385,13 @@ class Constraint:
     These should be constraints in the form "lhs constraint_type constraint 0"
     So for example, x+y=3 should be rewritten as x+y-3=0 and therefore:
 
-    >>> Constraint(lhs="x+y-3", constraint_type="==")
+    >>> domain = Domain()
+    >>> domain += Constraint(lhs="x+y-3", constraint_type="==")
 
     Or x+y<0 would be:
 
-    >>> Constraint(lhs="x+y", constraint_type="<")
+    >>> domain = Domain()
+    >>> domain += Constraint(lhs="x+y", constraint_type="<")
 
     """
 
