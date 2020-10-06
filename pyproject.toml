@@ -35,6 +35,7 @@ sphinx-rtd-theme = {version="^0.5.0", optional=true}
 pyrecorder = {version="^0.1.8", optional=true}
 botorch = "^0.3.1"
 streamlit = "^0.67.1"
+ax-platform = "^0.1.17"
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko", "pyrecorder"]
