@@ -10,8 +10,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-# from blitz.modules import BayesianLinear
-# from blitz.utils import variational_estimator
+from blitz.modules import BayesianLinear
+from blitz.utils import variational_estimator
 
 from sklearn.metrics import r2_score
 
