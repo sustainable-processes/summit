@@ -1,10 +1,13 @@
 from .base import Strategy, Transform
 from .random import LHS
-from summit.domain import Domain
+from summit.domain import *
 from summit.utils.dataset import DataSet
 
 import botorch
+from botorch.models.model import Model
+from botorch.acquisition.objective import ScalarizedObjective
 import torch
+from torch import Tensor
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 
 import numpy as np
@@ -129,7 +132,6 @@ class MTBO(Strategy):
 
         # Create acquisition function
         # Create weights for tasks, but only weight desired task
-        # TODO: properly handle maximization and minimzation
         if self.domain.output_variables[0].maximize:
             fbest_scaled = output_ct_scaled.max()
             maximize = True
@@ -177,3 +179,36 @@ class MTBO(Strategy):
         std[std < 1e-5] = 1e-5
         scaled = (X - mean.to_numpy()) / std.to_numpy()
         return scaled.to_numpy(), mean, std
+
+
+class CategoricalEI(botorch.acquisition.ExpectedImprovement):
+    def __init__(
+        self,
+        domain: Domain,
+        model: Model,
+        best_f: Union[float, Tensor],
+        objective: Optional[ScalarizedObjective] = None,
+        maximize: bool = True,
+    ) -> None:
+        super().__init__(model, best_f, objective, maximize)
+        self.domain = domain
+
+    def forward(self, X: Tensor) -> Tensor:
+        X = self.round_to_one_hot(X, self.domain)
+        return super().forward(X)
+
+    @staticmethod
+    def round_to_one_hot(X: Tensor, domain: Domain):
+        """Round all categorical variables to a one-hot encoding"""
+        c = 0
+        for i, v in domain.input_variables:
+            if isinstance(v, CategoricalVariable):
+                n_levels = len(v.levels)
+                levels_selected = X[:, c : c + n_levels].argmax(axis=1)
+                X[:, c : c + n_levels] = 0
+                for j, l in enumerate(levels_selected):
+                    X[j, l] = 1
+                c += n_levels
+            else:
+                c += 1
+        return X
