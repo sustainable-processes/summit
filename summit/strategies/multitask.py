@@ -11,6 +11,7 @@ from torch import Tensor
 from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
 
 import numpy as np
+from typing import Type, Tuple, Union, Optional
 
 
 class MTBO(Strategy):
@@ -30,8 +31,12 @@ class MTBO(Strategy):
     pretraining_data : :class:`~summit.utils.data.DataSet`
         A DataSet with pretraining data. Must contain a metadata column named "task"
         that specfies the task for all data.
-    task : int
+    task : int, optional
         The index of the task being optimized. Defaults to 1.
+    categorical_method : str, optional
+        The method for transforming categorical variables. Either
+        "one-hot" or "descriptors". Descriptors must be included in the
+        categorical variables for the later.
 
     Notes
     -----
@@ -65,14 +70,16 @@ class MTBO(Strategy):
     def __init__(
         self,
         domain: Domain,
-        pretraining_data,
+        pretraining_data: DataSet,
         transform: Transform = None,
-        task=1,
+        task: int = 1,
+        categorical_method: str = "one-hot",
         **kwargs
     ):
         Strategy.__init__(self, domain, transform, **kwargs)
         self.pretraining_data = pretraining_data
         self.task = task
+        self.categorical_method
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
@@ -101,10 +108,10 @@ class MTBO(Strategy):
 
         # Get inputs (decision variables) and outputs (objectives)
         inputs, output = self.transform.transform_inputs_outputs(
-            data, transform_descriptors=True
+            data, categorical_method=self.categorical_method
         )
         inputs_ct, output_ct = self.transform.transform_inputs_outputs(
-            self.all_experiments, transform_descriptors=True
+            self.all_experiments, categorical_method=self.categorical_method
         )  # only current task data
 
         # Standardize decision variables and objectives

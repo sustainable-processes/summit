@@ -36,6 +36,7 @@ pyrecorder = {version="^0.1.8", optional=true}
 botorch = "^0.3.1"
 streamlit = "^0.67.1"
 ax-platform = "^0.1.17"
+scikit-learn = "^0.23.2"
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko", "pyrecorder"]

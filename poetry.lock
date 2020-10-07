@@ -2526,7 +2526,7 @@ docs = ["sphinx", "nbsphinx", "sphinx-rtd-theme"]
 experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko", "pyrecorder"]
 
 [metadata]
-content-hash = "8f4b5ac54eeed310e221aa3244e67d9d49c59a75fddd36cb2e36968ff1074fb9"
+content-hash = "edf95ef527c69b1b62430ce818b4813ff1a323961b42638ac778a16df6579665"
 python-versions = "^3.7"
 
 [metadata.files]

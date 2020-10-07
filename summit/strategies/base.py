@@ -3,6 +3,7 @@ from summit.utils.dataset import DataSet
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
 
 from abc import ABC, abstractmethod, abstractclassmethod
 from typing import Type, Tuple
@@ -56,7 +57,7 @@ class Transform:
             Datasets with the input and output datasets
         """
         copy = kwargs.get("copy", True)
-        transform_descriptors = kwargs.get("transform_descriptors", True)
+        categorical_method = kwargs.get("categorical_method", "one-hot")
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -64,9 +65,11 @@ class Transform:
         # Determine input and output columns in dataset
         input_columns = []
         output_columns = []
-
         for variable in self.domain.input_variables:
-            if isinstance(variable, CategoricalVariable) and transform_descriptors:
+            if (
+                isinstance(variable, CategoricalVariable)
+                and categorical_method == "descriptors"
+            ):
                 # Add descriptors to the dataset
                 var_descriptor_names = variable.ds.data_columns
                 if all(
@@ -101,6 +104,23 @@ class Transform:
 
                 # add descriptors data columns to inputs
                 input_columns.extend(var_descriptor_names)
+            elif (
+                isinstance(variable, CategoricalVariable)
+                and categorical_method == "one-hot"
+            ):
+                # Create one-hot encoding columns & insert to DataSet
+                enc = OneHotEncoder(categories=[variable.levels])
+                values = np.atleast_2d(new_ds[variable.name].to_numpy()).T
+                one_hot_values = enc.fit_transform(values).toarray()
+                for loc, l in enumerate(variable.levels):
+                    column_name = f"{variable.name}_{l}"
+                    new_ds[column_name, "DATA"] = one_hot_values[:, loc]
+                    input_columns.append(column_name)
+
+                # Drop old categorical column, then write as metadata
+                new_ds = new_ds.drop(variable.name, axis=1)
+                new_ds[variable.name, "METADATA"] = values
+
             elif isinstance(variable, Variable):
                 input_columns.append(variable.name)
             else:
@@ -673,9 +693,9 @@ class Strategy(ABC):
 
     Parameters
     ----------
-    domain: `summit.domain.Domain`
+    domain : `summit.domain.Domain`
         A summit domain containing variables and constraints
-    transform: `summit.strategies.base.Transform`, optional
+    transform : `summit.strategies.base.Transform`, optional
         A transform class (i.e, not the object itself). By default
         no transformation will be done the input variables or
         objectives.
