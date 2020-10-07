@@ -6,7 +6,7 @@ import numpy as np
 from scipy.integrate import solve_ivp
 
 
-class SnarBenchmark(Experiment):
+class MIT_case1(Experiment):
     """Benchmark representing a nucleophilic aromatic substitution (SnAr) reaction
 
     The SnAr reactions occurs in a plug flow reactor where residence time, stoichiometry and temperature
@@ -56,59 +56,51 @@ class SnarBenchmark(Experiment):
         domain = Domain()
 
         # Decision variables
-        des_1 = "residence time in minutes"
-        domain += ContinuousVariable(name="tau", description=des_1, bounds=[0.5, 2])
+        des_1 = "catalyst concentration"
+        domain += ContinuousVariable(name="conc_cat", description=des_1, bounds=[?])
 
-        des_2 = "equivalents of pyrrolidine"
+        des_2 = "reaction time"
         domain += ContinuousVariable(
-            name="equiv_pldn", description=des_2, bounds=[1.0, 5]
+            name="t", description=des_2, bounds=[?]
         )
 
-        des_3 = "concentration of 2,4 dinitrofluorobenenze at reactor inlet (after mixing) in M"
+        des_3 = "Choice of catalyst"
         domain += ContinuousVariable(
-            name="conc_dfnb", description=des_3, bounds=[0.1, 0.5]
+            name="cat", description=des_3, bounds=[?]
         )
 
         des_4 = "Reactor temperature in degress celsius"
         domain += ContinuousVariable(
-            name="temperature", description=des_4, bounds=[30, 120]
+            name="temperature", description=des_4, bounds=[?]
         )
 
         # Objectives
-        des_5 = "space time yield (kg/m^3/h)"
+        des_5 = "yield (%)"
         domain += ContinuousVariable(
-            name="sty",
+            name="y",
             description=des_5,
             bounds=[0, 100],
             is_objective=True,
             maximize=True,
         )
 
-        des_6 = "E-factor"
-        domain += ContinuousVariable(
-            name="e_factor",
-            description=des_6,
-            bounds=[0, 10],
-            is_objective=True,
-            maximize=False,
-        )
+
 
         return domain
 
     def _run(self, conditions, **kwargs):
-        tau = float(conditions["tau"])
-        equiv_pldn = float(conditions["equiv_pldn"])
-        conc_dfnb = float(conditions["conc_dfnb"])
+        conc_cat = float(conditions["conc_cat"])
+        t = float(conditions["t"])
+        cat = float(conditions["cat"])
         T = float(conditions["temperature"])
-        y, e_factor, res = self._integrate_equations(tau, equiv_pldn, conc_dfnb, T)
-        conditions[("sty", "DATA")] = y
-        conditions[("e_factor", "DATA")] = e_factor
+        y = self._integrate_equations(conc_cat, t, cat, T)
+        conditions[("y", "DATA")] = y
         return conditions, {}
 
-    def _integrate_equations(self, tau, equiv_pldn, conc_dfnb, temperature):
-        # Initial Concentrations in mM
+    def _integrate_equations(self, conc_cat, t, cat, T):
+        # Initial Concentrations in mMß
         self.C_i = np.zeros(5)
-        self.C_i[0] = conc_dfnb
+        self.C_i[0] = conc_cat
         self.C_i[1] = equiv_pldn * conc_dfnb
 
         # Flowrate and residence time
