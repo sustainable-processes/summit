@@ -663,6 +663,35 @@ def test_mtbo(
 
         # This is the part where experiments take place
         next_experiments = hartmann3D.run_experiments(next_experiments)
+        fbest = strategy.fbest
+        if fbest < fbestold:
+            if fbest < 0.99 * fbestold or i < min_stop:
+                nstop = 0
+                num_improve_iter += 1
+            else:
+                nstop += 1
+            fbestold = fbest
+            pb.comment = f"Best f value: {fbest}"
+            print("\n")
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print(
+                "Stopping criterion reached. No improvement in last "
+                + str(max_stop)
+                + " iterations."
+            )
+            break
+        if fbest < -3.85:
+            print("Stopping criterion reached. Function value below -3.85.")
+            break
+        if num_improve_iter >= test_num_improve_iter:
+            print(
+                "Requirement to improve fbest in at least {} satisfied, test stopped.".format(
+                    test_num_improve_iter
+                )
+            )
+            break
 
     # xbest = np.around(xbest, decimals=3)
     # fbest = np.around(fbest, decimals=3)
