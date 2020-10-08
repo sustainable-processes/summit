@@ -26,6 +26,12 @@ def experiment_from_dict(d):
         return MIT_case1.from_dict(d)
     elif d["name"] == "MIT_case2":
         return MIT_case2.from_dict(d)
+    elif d["name"] == "MIT_case3":
+        return MIT_case3.from_dict(d)
+    elif d["name"] == "MIT_case4":
+        return MIT_case4.from_dict(d)
+    elif d["name"] == "MIT_case5":
+        return MIT_case5.from_dict(d)
     elif d["name"] == "Hartmann3D":
         return Hartmann3D.from_dict(d)
     elif d["name"] == "Himmelblau":
