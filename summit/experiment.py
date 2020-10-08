@@ -246,11 +246,11 @@ class Experiment(ABC):
                     label="Pareto Front",
                     linewidth=3,
                 )
-                ax.set_xlabel(objectives[0])
-                ax.set_ylabel(objectives[1])
-                if return_fig and colorbar:
-                    fig.colorbar(im)
-                ax.tick_params(direction="in")
+            ax.set_xlabel(objectives[0])
+            ax.set_ylabel(objectives[1])
+            if return_fig and colorbar:
+                fig.colorbar(im)
+            ax.tick_params(direction="in")
             ax.legend()
 
         if return_fig:

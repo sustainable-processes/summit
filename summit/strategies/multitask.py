@@ -79,7 +79,11 @@ class MTBO(Strategy):
         Strategy.__init__(self, domain, transform, **kwargs)
         self.pretraining_data = pretraining_data
         self.task = task
-        self.categorical_method
+        self.categorical_method = categorical_method
+        if self.categorical_method not in ["one-hot", "descriptors"]:
+            raise ValueError(
+                "categorical_method must be one of 'one-hot' or 'descriptors'."
+            )
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
@@ -102,35 +106,36 @@ class MTBO(Strategy):
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
             self.all_experiments = self.all_experiments.append(prev_res)
+        self.iterations += 1
 
         # Combine pre-training and experiment data
         data = self.all_experiments.append(self.pretraining_data)
 
         # Get inputs (decision variables) and outputs (objectives)
         inputs, output = self.transform.transform_inputs_outputs(
-            data, categorical_method=self.categorical_method
+            data,
+            categorical_method=self.categorical_method,
+            standardize_inputs=True,
+            standardize_outputs=True,
         )
         inputs_ct, output_ct = self.transform.transform_inputs_outputs(
-            self.all_experiments, categorical_method=self.categorical_method
+            self.all_experiments,
+            categorical_method=self.categorical_method,
+            standardize_inputs=True,
+            standardize_outputs=True,
         )  # only current task data
-
-        # Standardize decision variables and objectives
-        inputs_scaled, self.input_mean, self.input_std = self.standardize(inputs)
-        output_scaled, self.output_mean, self.output_std = self.standardize(output)
-        inputs_ct_scaled = (inputs_ct - self.input_mean) / self.input_std
-        inputs_ct_scaled = inputs_ct_scaled.to_numpy()
-        output_ct_scaled = (output_ct - self.output_mean) / self.output_std
-        output_ct_scaled = output_ct_scaled.to_numpy()
 
         # Add column to inputs indicating task
         task_data = data["task"].to_numpy()
         task_data = np.atleast_2d(task_data).T
-        inputs_scaled_task = np.append(inputs_scaled, task_data, axis=1)
+        inputs_task = np.append(inputs.data_to_numpy(), task_data, axis=1).astype(
+            np.float
+        )
 
         # Train model
         model = botorch.models.MultiTaskGP(
-            torch.tensor(inputs_scaled_task).float(),
-            torch.tensor(output_scaled).float(),
+            torch.tensor(inputs_task).float(),
+            torch.tensor(output.data_to_numpy()).float(),
             task_feature=-1,
             output_tasks=[self.task],
         )
@@ -138,39 +143,54 @@ class MTBO(Strategy):
         botorch.fit.fit_gpytorch_model(mll)
 
         # Create acquisition function
-        # Create weights for tasks, but only weight desired task
         if self.domain.output_variables[0].maximize:
-            fbest_scaled = output_ct_scaled.max()
+            fbest_scaled = output_ct.max()
             maximize = True
         else:
-            fbest_scaled = output_ct_scaled.min()
+            fbest_scaled = output_ct.min()
             maximize = False
-        ei = botorch.acquisition.ExpectedImprovement(
-            model, best_f=fbest_scaled, maximize=maximize
-        )
+        ei = CategoricalEI(self.domain, model, best_f=fbest_scaled, maximize=maximize)
 
-        # Optimize acquisition function
-        bounds = torch.tensor([v.bounds for v in self.domain.input_variables]).float()
-        bounds = (bounds.T - self.input_mean.to_numpy()) / self.input_std.to_numpy()
+        # Optimize acquisitio function
         results, acq_values = botorch.optim.optimize_acqf(
             acq_function=ei,
-            bounds=bounds.float(),
+            bounds=self._get_bounds(),
             num_restarts=20,
             q=num_experiments,
             raw_samples=100,
         )
 
-        #  Return result
-        self.iterations += 1
+        # Convert result to datset
         result = DataSet(
             results.detach().numpy(),
-            columns=[v.name for v in self.domain.input_variables],
+            columns=inputs.data_columns,
         )
-        result = result * self.input_std.to_numpy() + self.input_mean.to_numpy()
-        result = self.transform.un_transform(result, transform_descriptors=True)
+
+        # Untransform
+        result = self.transform.un_transform(
+            result, categorical_method=self.categorical_method, standardize_inputs=True
+        )
+
+        # Add metadata
         result[("strategy", "METADATA")] = "MTBO"
         result[("task", "METADATA")] = self.task
         return result
+
+    def _get_bounds(self):
+        bounds = []
+        for v in self.domain.input_variables:
+            if isinstance(v, ContinuousVariable):
+                mean = self.transform.input_means[v.name]
+                std = self.transform.input_stds[v.name]
+                v_bounds = np.array(v.bounds)
+                v_bounds = (v_bounds - mean) / std
+                bounds.append(v_bounds)
+            elif (
+                isinstance(v, CategoricalVariable)
+                and self.categorical_method == "one-hot"
+            ):
+                bounds += [[0, 1] for _ in v.levels]
+        return torch.tensor(bounds).T.float()
 
     def reset(self):
         """Reset MTBO state"""
@@ -198,17 +218,17 @@ class CategoricalEI(botorch.acquisition.ExpectedImprovement):
         maximize: bool = True,
     ) -> None:
         super().__init__(model, best_f, objective, maximize)
-        self.domain = domain
+        self._domain = domain
 
     def forward(self, X: Tensor) -> Tensor:
-        X = self.round_to_one_hot(X, self.domain)
+        X = self.round_to_one_hot(X, self._domain)
         return super().forward(X)
 
     @staticmethod
     def round_to_one_hot(X: Tensor, domain: Domain):
         """Round all categorical variables to a one-hot encoding"""
         c = 0
-        for i, v in domain.input_variables:
+        for v in domain.input_variables:
             if isinstance(v, CategoricalVariable):
                 n_levels = len(v.levels)
                 levels_selected = X[:, c : c + n_levels].argmax(axis=1)

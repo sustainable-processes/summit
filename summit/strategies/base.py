@@ -49,6 +49,10 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
+        standardize_inputs : bool, optional
+            Standardize all input continuous variables. Default is False.
+        standardize_outputs : bool, optional
+            Standardize all output continuous variables. Default is False.
         categorical_method : str, optional
             The method for transforming categorical variables. Either
             "one-hot" or "descriptors". Descriptors must be included in the
@@ -61,6 +65,8 @@ class Transform:
         """
         copy = kwargs.get("copy", True)
         categorical_method = kwargs.get("categorical_method", "one-hot")
+        standardize_inputs = kwargs.get("standardize_inputs", False)
+        standardize_outputs = kwargs.get("standardize_outputs", False)
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -68,6 +74,8 @@ class Transform:
         # Determine input and output columns in dataset
         input_columns = []
         output_columns = []
+        self.input_means, self.input_stds = {}, {}
+        self.output_means, self.output_stds = {}, {}
         for variable in self.domain.input_variables:
             if (
                 isinstance(variable, CategoricalVariable)
@@ -125,7 +133,12 @@ class Transform:
                 new_ds = new_ds.drop(variable.name, axis=1)
                 new_ds[variable.name, "METADATA"] = values
 
-            elif isinstance(variable, Variable):
+            elif isinstance(variable, ContinuousVariable):
+                if standardize_inputs:
+                    values, mean, std = self.standardize_column(new_ds[variable.name])
+                    self.input_means[variable.name] = mean
+                    self.input_stds[variable.name] = std
+                    new_ds[variable.name, "DATA"] = values
                 input_columns.append(variable.name)
             else:
                 raise DomainError(
@@ -138,6 +151,11 @@ class Transform:
                     raise DomainError(
                         "Output variables cannot be categorical variables currently."
                     )
+                if standardize_outputs:
+                    values, mean, std = self.standardize_column(new_ds[variable.name])
+                    self.output_means[variable.name] = mean
+                    self.output_stds[variable.name] = std
+                    new_ds[variable.name, "DATA"] = values
                 output_columns.append(variable.name)
                 # Ensure continuous variables are floats
                 new_ds[variable.name] = new_ds[variable.name].astype(np.float)
@@ -162,20 +180,30 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         transform_descriptors: bool, optional
             Transform the descriptors into continuous variables. Default True.
+        standardize_inputs : bool, optional
+            Standardize all input continuous variables. Default is False.
+        standardize_outputs : bool, optional
+            Standardize all output continuous variables. Default is False.
         categorical_method : str, optional
             The method for transforming categorical variables. Either
             "one-hot" or "descriptors". Descriptors must be included in the
-            categorical variables for the later.
+            categorical variables for the later. Default is None.
 
         Notes
         -----
         Override this class to achieve custom untransformations
+
         """
-        categorical_method = kwargs.get("categorical_method", "one-hot")
+        categorical_method = kwargs.get("categorical_method")
+        standardize_inputs = kwargs.get("standardize_inputs", False)
+        standardize_outputs = kwargs.get("standardize_outputs", False)
+
+        data_columns = ds.data_columns
 
         # Determine input and output columns in dataset
         new_ds = ds.copy()
         for i, variable in enumerate(self.domain.input_variables):
+            # Categorical variables with descriptors
             if (
                 isinstance(variable, CategoricalVariable)
                 and categorical_method == "descriptors"
@@ -219,6 +247,7 @@ class Transform:
                 for ixc in ix_code:
                     column_codes_2[ixc] = 1
                 new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+            # Categorical variables using one-hot encoding
             elif (
                 isinstance(variable, CategoricalVariable)
                 and categorical_method == "one-hot"
@@ -236,11 +265,29 @@ class Transform:
                 # Add to dataset and drop one-hot encoding
                 new_ds = new_ds.drop(one_hot_names, axis=1)
                 new_ds[variable.name, "DATA"] = values
-
+            # Plain categorical variables
+            elif isinstance(variable, CategoricalVariable):
+                pass
             elif isinstance(variable, ContinuousVariable):
-                new_ds[variable.name] = new_ds[variable.name].astype(np.float)
+                if standardize_inputs:
+                    mean = self.input_means[variable.name]
+                    std = self.input_stds[variable.name]
+                    values = new_ds[variable.name]
+                    new_ds[variable.name, "DATA"] = values * std + mean
+                new_ds[variable.name, "DATA"] = new_ds[variable.name].astype(np.float)
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
+
+        for variable in self.domain.output_variables:
+            if (
+                variable.name in data_columns
+                and variable.is_objective
+                and standardize_outputs
+            ):
+                mean = self.output_means[variable.name]
+                std = self.output_stds[variable.name]
+                values = new_ds[variable.name]
+                new_ds[variable.name, "DATA"] = values * std + mean
 
         return new_ds
 
@@ -258,6 +305,14 @@ class Transform:
         t = cls(Domain.from_dict(d["domain"]), **d["transform_params"])
         t.transform_domain = Domain.from_dict(d["transform_domain"])
         return t
+
+    @staticmethod
+    def standardize_column(X):
+        X = X.to_numpy()
+        mean, std = X.mean(), X.std()
+        std = std if std > 1e-5 else 1e-5
+        scaled = (X - mean) / std
+        return scaled, mean, std
 
 
 def transform_from_dict(d):
