@@ -72,7 +72,9 @@ with torch.no_grad():
     for i in range(100):
         y = posterior.sample()[0, :, 1] * train_Y_std + train_Y_mean
         ax.plot(X_plot, y, alpha=0.01, color="b")
-    # ax.plot(X_plot, posterior.mean.detach())
+
+# Plot formatting
 ax.legend(loc="best")
+
 
 st.write(fig)

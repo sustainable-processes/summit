@@ -627,6 +627,89 @@ def test_sobo(
 
 
 @pytest.mark.parametrize(
+    "batch_size, max_num_exp, maximize, constraint",
+    [
+        [1, 1, True, True],
+        [1, 200, True, True],
+        [4, 200, False, True],
+        [1, 200, True, False],
+        [4, 200, False, False],
+    ],
+)
+def test_mtbo(
+    batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False
+):
+    hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
+    strategy = MTBO(domain=hartmann3D.domain)
+
+    # run SOBO loop for fixed <num_iter> number of iteration
+    num_iter = max_num_exp // batch_size  # maximum number of iterations
+    max_stop = (
+        80 // batch_size
+    )  # allowed number of consecutive iterations w/o improvement
+    min_stop = (
+        20 // batch_size
+    )  # minimum number of iterations before algorithm is stopped
+    nstop = 0
+
+    num_improve_iter = 0
+    fbestold = float("inf")
+    next_experiments = None
+    pb = progress_bar(range(num_iter))
+    for i in pb:
+        next_experiments = strategy.suggest_experiments(
+            num_experiments=batch_size, prev_res=next_experiments
+        )
+
+        # This is the part where experiments take place
+        next_experiments = hartmann3D.run_experiments(next_experiments)
+        fbest = strategy.fbest
+        if fbest < fbestold:
+            if fbest < 0.99 * fbestold or i < min_stop:
+                nstop = 0
+                num_improve_iter += 1
+            else:
+                nstop += 1
+            fbestold = fbest
+            pb.comment = f"Best f value: {fbest}"
+            print("\n")
+        else:
+            nstop += 1
+        if nstop >= max_stop:
+            print(
+                "Stopping criterion reached. No improvement in last "
+                + str(max_stop)
+                + " iterations."
+            )
+            break
+        if fbest < -3.85:
+            print("Stopping criterion reached. Function value below -3.85.")
+            break
+        if num_improve_iter >= test_num_improve_iter:
+            print(
+                "Requirement to improve fbest in at least {} satisfied, test stopped.".format(
+                    test_num_improve_iter
+                )
+            )
+            break
+
+    # xbest = np.around(xbest, decimals=3)
+    # fbest = np.around(fbest, decimals=3)
+    # print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
+    # if check_convergence:
+    #    assert (fbest <= -3.85 and fbest >= -3.87)
+
+    # Test saving and loading
+    # strategy.save("sobo_test.json")
+    # strategy_2 = SOBO.load("sobo_test.json")
+    # os.remove("sobo_test.json")
+
+    if plot:
+        fig, ax = hartmann3D.plot()
+
+
+@pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint, test_id",
     [[1, 1, True, False, 0], [1, 200, True, False, 1], [4, 200, False, False, 2]],
 )
@@ -829,4 +912,3 @@ def test_tsemo(test_num_improve_iter=2, save=False):
             )
             break
     # assert hv > 117.0
-
