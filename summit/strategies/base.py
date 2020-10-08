@@ -135,7 +135,9 @@ class Transform:
 
             elif isinstance(variable, ContinuousVariable):
                 if standardize_inputs:
-                    values, mean, std = self.standardize_column(new_ds[variable.name])
+                    values, mean, std = self.standardize_column(
+                        new_ds[variable.name].astype(np.float)
+                    )
                     self.input_means[variable.name] = mean
                     self.input_stds[variable.name] = std
                     new_ds[variable.name, "DATA"] = values
@@ -152,7 +154,9 @@ class Transform:
                         "Output variables cannot be categorical variables currently."
                     )
                 if standardize_outputs:
-                    values, mean, std = self.standardize_column(new_ds[variable.name])
+                    values, mean, std = self.standardize_column(
+                        new_ds[variable.name].astype(np.float)
+                    )
                     self.output_means[variable.name] = mean
                     self.output_stds[variable.name] = std
                     new_ds[variable.name, "DATA"] = values

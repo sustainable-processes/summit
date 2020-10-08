@@ -342,7 +342,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
             name="base",
             description=des_2,
             levels=["DBU", "BTMG", "TMG", "TEA"],
-            descriptors=base_df,
+            descriptors=base_df
         )
 
         des_3 = "Base equivalents"

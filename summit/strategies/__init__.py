@@ -6,7 +6,7 @@ from .tsemo import TSEMO
 from .neldermead import NelderMead
 from .snobfit import SNOBFIT
 from .sobo import SOBO
-from .multitask import MTBO
+from .multitask import MTBO, STBO
 from .gryffin import GRYFFIN
 from .deep_reaction_optimizer import DRO
 
@@ -18,6 +18,7 @@ __all__ = [
     "NelderMead",
     "SNOBFIT",
     "MTBO",
+    "STBO",
     "SOBO",
     "GRYFFIN",
     "DRO",
@@ -26,7 +27,11 @@ __all__ = [
 
 
 def strategy_from_dict(d):
-    if d["name"] == "TSEMO":
+    if d["name"] == "STBO":
+        return STBO.from_dict(d)
+    elif d["name"] == "MTBO":
+        return MTBO.from_dict(d)
+    elif d["name"] == "TSEMO":
         return TSEMO.from_dict(d)
     elif d["name"] == "GRYFFIN":
         return GRYFFIN.from_dict(d)

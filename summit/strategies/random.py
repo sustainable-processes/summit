@@ -172,7 +172,7 @@ class LHS(Strategy):
         domain: Domain,
         transform: Transform = None,
         random_state: np.random.RandomState = None,
-        categorical_method: str = "one-hot",
+        categorical_method: str = None,
     ):
         super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
@@ -241,6 +241,9 @@ class LHS(Strategy):
             elif (
                 isinstance(variable, CategoricalVariable)
                 and variable.name in categoricals
+            ) or (
+                isinstance(variable, CategoricalVariable)
+                and self.categorical_method == None
             ):
                 indices, values = rdesigner._random_categorical(
                     variable, num_experiments
