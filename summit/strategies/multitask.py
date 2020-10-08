@@ -70,13 +70,14 @@ class MTBO(Strategy):
     def __init__(
         self,
         domain: Domain,
+        pretraining_data=None,
         transform: Transform = None,
         task: int = 1,
         categorical_method: str = "one-hot",
         **kwargs
     ):
         Strategy.__init__(self, domain, transform, **kwargs)
-        # self.pretraining_data = pretraining_data
+        self.pretraining_data = pretraining_data
         self.task = task
         self.categorical_method = categorical_method
         if self.categorical_method not in ["one-hot", "descriptors"]:
@@ -194,6 +195,17 @@ class MTBO(Strategy):
         scaled = (X - mean.to_numpy()) / std.to_numpy()
         return scaled.to_numpy(), mean, std
 
+    def to_dict(self):
+        ae = (
+            self.all_experiments.to_dict() if self.all_experiments is not None else None
+        )
+        strategy_params = dict(
+            all_experiments=ae,
+            categorical_method=self.categorical_method,
+            task=self.task,
+        )
+        return super().to_dict(**strategy_params)
+
 
 class CategoricalEI(botorch.acquisition.ExpectedImprovement):
     def __init__(
@@ -208,9 +220,6 @@ class CategoricalEI(botorch.acquisition.ExpectedImprovement):
         self._domain = domain
 
     def forward(self, X: Tensor) -> Tensor:
-        import ipdb
-
-        ipdb.set_trace()
         X = self.round_to_one_hot(X, self._domain)
         return super().forward(X)
 

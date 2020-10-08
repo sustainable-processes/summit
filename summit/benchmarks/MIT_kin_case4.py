@@ -91,9 +91,9 @@ class MIT_case4(Experiment):
     def _run(self, conditions, **kwargs):
         conc_cat = float(conditions["conc_cat"])
         t = float(conditions["t"])
-        cat_index = int(conditions["cat"])
+        cat_index = int(conditions["cat_index"])
         T = float(conditions["temperature"])
-        y = self._integrate_equations(conc_cat, t, cat_index, T)
+        y, res = self._integrate_equations(conc_cat, t, cat_index, T)
         conditions[("y", "DATA")] = y
         return conditions, {}
 

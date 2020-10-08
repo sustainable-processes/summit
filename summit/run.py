@@ -22,6 +22,10 @@ if "neptune-client" in installed:
 def experiment_from_dict(d):
     if d["name"] == "SnarBenchmark":
         return SnarBenchmark.from_dict(d)
+    elif d["name"] == "MIT_case1":
+        return MIT_case1.from_dict(d)
+    elif d["name"] == "MIT_case2":
+        return MIT_case2.from_dict(d)
     elif d["name"] == "Hartmann3D":
         return Hartmann3D.from_dict(d)
     elif d["name"] == "Himmelblau":
@@ -49,10 +53,10 @@ def experiment_from_dict(d):
 
 
 class Runner:
-    """  Run a closed-loop strategy and experiment cycle
-    
+    """Run a closed-loop strategy and experiment cycle
+
     Parameters
-    ---------- 
+    ----------
     strategy: `summit.strategies.Strategy`
         The summit strategy to be used. Note this should be an object
         (i.e., you need to call the strategy and then pass it). This allows
@@ -77,8 +81,8 @@ class Runner:
     max_restarts : int, optional
         Number of restarts if max_same where is violated. Default is 0.
     Examples
-    --------    
-    
+    --------
+
     """
 
     def __init__(
@@ -106,7 +110,7 @@ class Runner:
         self.logger = logging.getLogger(__name__)
 
     def run(self, **kwargs):
-        """  Run the closed loop experiment cycle
+        """Run the closed loop experiment cycle
 
         Parameters
         ----------
@@ -184,7 +188,9 @@ class Runner:
         self.strategy.reset()
         self.experiment.reset()
 
-    def to_dict(self,):
+    def to_dict(
+        self,
+    ):
         runner_params = dict(
             num_initial_experiments=self.n_init,
             max_iterations=self.max_iterations,
@@ -217,10 +223,10 @@ class Runner:
 
 
 class NeptuneRunner(Runner):
-    """  Run a closed-loop strategy and experiment cycle
-    
+    """Run a closed-loop strategy and experiment cycle
+
     Parameters
-    ---------- 
+    ----------
     strategy : `summit.strategies.Strategy`
         The summit strategy to be used. Note this should be an object
         (i.e., you need to call the strategy and then pass it). This allows
@@ -253,8 +259,8 @@ class NeptuneRunner(Runner):
         The reference for the hypervolume calculation if it is a multiobjective problem.
         Should be an array of length the number of objectives. Default is at the origin.
     Examples
-    --------    
-    
+    --------
+
     """
 
     def __init__(
@@ -295,7 +301,7 @@ class NeptuneRunner(Runner):
         self.logger = logging.getLogger(__name__)
 
     def run(self, **kwargs):
-        """  Run the closed loop experiment cycle
+        """Run the closed loop experiment cycle
 
         Parameters
         ----------
@@ -411,7 +417,9 @@ class NeptuneRunner(Runner):
         # Stop the neptune experiment
         neptune_exp.stop()
 
-    def to_dict(self,):
+    def to_dict(
+        self,
+    ):
         d = super().to_dict()
         d["runner"].update(
             dict(
