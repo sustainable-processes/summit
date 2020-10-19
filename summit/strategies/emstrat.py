@@ -22,22 +22,29 @@ class TreeBayes(Strategy):
     transform : :class:`~summit.strategies.base.Transform`, optional
         A transform object. By default no transformation will be done
         on the input variables or objectives.
-    gp_model_type: string, optional
-        The GPy Gaussian Process model type. See notes for options.
-        By default, gaussian processes with the Matern 5.2 kernel will be used.
-    use_descriptors : bool, optional
-        Whether to use descriptors of categorical variables. Defaults to False.
+    estimator_type: string, optional
+        The ENTMOOT base_estimator type.
+        By default, Gradient-Boosted Regression
+    std_estimator_type: string, optional
+        The ENTMOOT std_estimator
+        By default, bounded data distance
     acquisition_type: string, optional
         The acquisition function type from ENTMOOT. See notes for options.
         By default, Lower Confidence Bound.
     optimizer_type: string, optional
-        The optimizer used in ENMOOT for maximization of the acquisition function.
+        The optimizer used in ENTMOOT for maximization of the acquisition function.
         By default, sampling will be used.
     generator_type: string, optional
         The method for generating initial points before a model can be trained.
         By default, uniform random points will be used.
+    initial_points: int, optional
+        How many points to require before training models
+    min_child_samples: int, optional
+        Minimum size of a leaf in tree models
 
 [note: do we need these ones?]
+    use_descriptors : bool, optional
+        Whether to use descriptors of categorical variables. Defaults to False.
     exact_feval: boolean, optional
         Whether the function evaluations are exact (True) or noisy (False).
         By default: False.
@@ -58,7 +65,7 @@ class TreeBayes(Strategy):
     >>> domain += CategoricalVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
-    >>> strategy = SOBO(domain)
+    >>> strategy = TreeBayes(domain)
     >>> next_experiments = strategy.suggest_experiments(5)
 
     Notes
