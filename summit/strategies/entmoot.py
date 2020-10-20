@@ -10,10 +10,9 @@ import pandas as pd
 from abc import ABC, abstractmethod
 
 
-class TreeBayes(Strategy):
-    """Single-objective Bayesian Optimization (SOBO)
-
-    This is a general BO method since it is a wrapper around GPyOpt.
+class ENTMOOT(Strategy):
+    """Single-objective Bayesian optimization, using gradient-boosted trees
+    instead of Gaussian processes, via ENTMOOT.
 
     Parameters
     ----------
