@@ -7,10 +7,13 @@ from scipy.integrate import solve_ivp
 
 
 class MIT_case3(Experiment):
-    """Benchmark representing a nucleophilic aromatic substitution (SnAr) reaction
+    """Benchmark representing a simulated kinetic reaction network and accompanying kinetic constants (see reference).
 
-    The SnAr reactions occurs in a plug flow reactor where residence time, stoichiometry and temperature
-    can be adjusted. Maximizing Space time yield (STY) and minimising E-factor are the objectives.
+    The reactions occur in a batch reactor.
+    The objective is to maximize yield (y), defined as the concentration of product dividen by the initial concentration of 
+    the limiting reagent (We can do this because the stoichiometry is 1:1).
+
+    We optimize the reactions by changing the catalyst concentration, reaction time, choice of catalyst, and temperature. 
 
     Parameters
     ----------
@@ -23,27 +26,26 @@ class MIT_case3(Experiment):
     Examples
     --------
 
-    >>> b = SnarBenchmark()
+    >>> exp3 = MIT_case3()
     >>> columns = [v.name for v in b.domain.variables]
     >>> values = [v.bounds[0]+0.1*(v.bounds[1]-v.bounds[0]) for v in b.domain.variables]
     >>> values = np.array(values)
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
-    >>> results = b.run_experiments(conditions)
+    >>> results = exp3.run_experiments(conditions)
 
     Notes
     -----
 
-    This benchmark relies on the kinetics observerd by [Hone]_ et al. The mechanistic
-    model is integrated using scipy to find outlet concentrations of all species. These
-    concentrations are then used to calculate STY and E-factor.
+    This benchmark relies on the kinetics simulated by Jensen et al. The mechanistic
+    model is integrated using scipy to find outlet concentrations of all species. 
+
 
     References
     ----------
 
-    .. [Hone] C. A. Hone et al., React. Chem. Eng., 2017, 2, 103–108. DOI:
-       `10.1039/C6RE00109B <https://doi.org/10.1039/C6RE00109B>`_
-
+    K. Jensen et al., React. Chem. Eng., 2018, 3,301
+    DOI: 10.1039/c8re00032h
     """
 
     def __init__(self, noise_level=0, **kwargs):
