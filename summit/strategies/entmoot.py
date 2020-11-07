@@ -4,6 +4,11 @@ from summit.domain import *
 from summit.utils.dataset import DataSet
 
 from entmoot.optimizer.optimizer import Optimizer
+from entmoot.space.space import Space
+from entmoot.optimizer.gurobi_utils import get_core_gurobi_model
+
+from gurobipy import LinExpr
+import string
 
 import numpy as np
 import pandas as pd
@@ -12,7 +17,9 @@ from abc import ABC, abstractmethod
 
 class ENTMOOT(Strategy):
     """Single-objective Bayesian optimization, using gradient-boosted trees
-    instead of Gaussian processes, via ENTMOOT.
+    instead of Gaussian processes, via ENTMOOT (ENsemble Tree MOdel 
+                                                Optimization Tool)
+    
 
     Parameters
     ----------
@@ -57,14 +64,14 @@ class ENTMOOT(Strategy):
     Examples
     --------
     >>> from summit.domain import *
-    >>> from summit.strategies import SOBO
+    >>> from summit.strategies.entmoot import ENTMOOT
     >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
     >>> domain += CategoricalVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
     >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
-    >>> strategy = TreeBayes(domain)
+    >>> strategy = ENTMOOT(domain)
     >>> next_experiments = strategy.suggest_experiments(5)
 
     Notes
@@ -110,6 +117,10 @@ class ENTMOOT(Strategy):
                         }
                     )
                 elif isinstance(v, CategoricalVariable):
+                    raise ValueError(
+                                "Categorical Variables are not yet implemented "
+                                "for ENTMOOT strategy."
+                                )
                     if not self.use_descriptors:
                         self.input_domain.append(
                             {
@@ -154,17 +165,7 @@ class ENTMOOT(Strategy):
         # TODO: how to handle equality constraints? Could we remove '==' from constraint types as each equality
         #  constraint reduces the degrees of freedom?
         if self.domain.constraints is not None:
-            constraints = self.constr_wrapper(self.domain)
-            self.constraints = [
-                {
-                    "name": "constr_" + str(i),
-                    "constraint": c[0]
-                    if c[1] in ["<=", "<"]
-                    else "(" + c[0] + ")*(-1)",
-                }
-                for i, c in enumerate(constraints)
-                if not (c[1] == "==")
-            ]
+            self.constraints = self.constr_wrapper(self.domain)
         else:
             self.constraints = None
 
@@ -265,6 +266,19 @@ class ENTMOOT(Strategy):
 
 
         bounds = [k["domain"] for k in self.input_domain]
+        
+        space = Space(bounds)
+        core_model = get_core_gurobi_model(space)
+        gvars = core_model.getVars()
+        
+        for c in self.constraints:
+            left=LinExpr()
+            left.addTerms(c[0],gvars)
+            left.addConstant(c[1])
+            core_model.addLConstr(left,c[2],0)
+        
+        core_model.update()
+        
         entmoot_model = Optimizer(
             dimensions=bounds,
             base_estimator=self.estimator_type,
@@ -275,7 +289,9 @@ class ENTMOOT(Strategy):
             acq_optimizer=self.optimizer_type, 
             random_state=None, 
             acq_func_kwargs=None, 
-            acq_optimizer_kwargs=None,
+            acq_optimizer_kwargs={
+                "add_model_core": core_model
+                },
             base_estimator_kwargs={"min_child_samples":self.min_child_samples},
             std_estimator_kwargs=None,
             model_queue_size=None,
@@ -369,7 +385,56 @@ class ENTMOOT(Strategy):
         """Reset the internal parameters"""
         self.prev_param = None
 
-"""    def to_dict(self):
+    def constr_wrapper(self, summit_domain):
+        v_input_names = [v.name for v in summit_domain.variables if not v.is_objective]
+        constraints = []
+        for c in summit_domain.constraints:
+            tmp_c = c.lhs
+            # Split LHS on + signs into fragments
+            tmp_p = str.split(tmp_c,'+')
+            
+            tmp_a = []
+            for t in tmp_p:
+                # For each of the fragments, split on -
+                terms = str.split(t,'-')
+                for i in range(len(terms)):
+                    if i == 0:
+                        # If the first part in the fragment is not empty, that 
+                        # means the first term was positive. 
+                        if terms[0] != '':
+                            tmp_a.append(terms[0])
+                    # All of the terms in the split will have 
+                    # negative coefficients.
+                    else:
+                        tmp_a.append("-"+terms[i])
+            # Split the terms into coefficients and variables:
+            constraint_dict = dict()
+            for term in tmp_a:
+                for i, char in enumerate(term):
+                    if char in string.ascii_letters:
+                        index = i
+                        c_variable = term[index:]
+                        if term[:index] == '':
+                            c_coeff=1.0
+                        elif term[:index] == '-':
+                            c_coeff=-1.0
+                        else:
+                            c_coeff=float(term[:index])
+                        break
+                    else:
+                        c_variable = "constant"
+                        c_coeff = term
+                constraint_dict[c_variable] = c_coeff
+            # Place coefficients in the variable order the model expects.
+            constraints_ordered = []
+            for v_input_index, v_input_name in enumerate(v_input_names):
+                constraints_ordered.append(constraint_dict.get(v_input_name,0))
+            constraints.append([constraints_ordered,
+                                       constraint_dict["constant"], 
+                                       c.constraint_type])
+        return constraints
+
+    def to_dict(self):
         if self.prev_param is not None:
             param = [self.prev_param[0].tolist(), self.prev_param[1].tolist()]
         else:
@@ -379,46 +444,28 @@ class ENTMOOT(Strategy):
             prev_param=param,
             use_descriptors=self.use_descriptors,
             estimator_type=self.estimator_type,
+            std_estimator_type=self.std_estimator_type,
             acquisition_type=self.acquisition_type,
             optimizer_type=self.optimizer_type,
-            evaluator_type=self.evaluator_type,
-            kernel=self.kernel.to_dict(),
-            exact_feval=self.exact_feval,
-            ARD=self.ARD,
-            standardize_outputs=self.standardize_outputs,
+            generator_type=self.generator_type,
+            initial_points=self.initial_points,
+            min_child_samples=self.min_child_samples,
         )
 
         return super().to_dict(**strategy_params)
-"""
-"""
+
+
     @classmethod
     def from_dict(cls, d):
-        # Get kernel
-        kernel = d["strategy_params"].get("kernel")
-        if kernel is not None:
-            kernel = GPy.kern.Kern.from_dict(kernel)
-            d["strategy_params"]["kernel"] = kernel
-
-        # Setup SOBO
-        sobo = super().from_dict(d)
+    # Setup ENTMOOT
+        entmoot = super().from_dict(d)
         param = d["strategy_params"]["prev_param"]
         if param is not None:
             param = [np.array(param[0]), np.array(param[1])]
-            sobo.prev_param = param
-        return sobo
-"""
-"""
-    def constr_wrapper(self, summit_domain):
-        v_input_names = [v.name for v in summit_domain.variables if not v.is_objective]
-        gpyopt_constraints = []
-        for c in summit_domain.constraints:
-            tmp_c = c.lhs
-            for v_input_index, v_input_name in enumerate(v_input_names):
-                v_gpyopt_name = "x[:," + str(v_input_index) + "]"
-                tmp_c = tmp_c.replace(v_input_name, v_gpyopt_name)
-            gpyopt_constraints.append([tmp_c, c.constraint_type])
-        return gpyopt_constraints
-"""
+            entmoot.prev_param = param
+        return entmoot
+
+
 """
     def categorical_wrapper(self, categories, reference_categories=None):
         if not reference_categories:
