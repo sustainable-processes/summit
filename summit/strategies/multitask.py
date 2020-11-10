@@ -26,7 +26,7 @@ class MTBO(Strategy):
     domain : :class:`~summit.domain.Domain`
         The domain of the optimization
     transform : :class:`~summit.strategies.base.Transform`, optional
-        A transform object. By default no transformation will be done
+        A transform object. By default, no transformation will be done
         on the input variables or objectives.
     pretraining_data : :class:`~summit.utils.data.DataSet`
         A DataSet with pretraining data. Must contain a metadata column named "task"
@@ -349,7 +349,7 @@ class STBO(Strategy):
             maximize = False
         ei = CategoricalEI(self.domain, model, best_f=fbest_scaled, maximize=maximize)
 
-        # Optimize acquisitio function
+        # Optimize acquisition function
         results, acq_values = botorch.optim.optimize_acqf(
             acq_function=ei,
             bounds=self._get_bounds(),
