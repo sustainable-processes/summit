@@ -637,10 +637,22 @@ def test_sobo(
     ],
 )
 def test_mtbo(
-    batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False
+    batch_size,
+    max_num_exp,
+    maximize,
+    constraint,
+    test_num_improve_iter=2,
+    plot=False,
+    n_pretraining=100,
 ):
+
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
-    strategy = MTBO(domain=hartmann3D.domain)
+    # Pretraining data
+    random = Random(hartmann3D.domain)
+    conditions = random.suggest_experiments(n_pretraining)
+    results = hartmann3D.run_experiments(conditions)
+    results["task", "METADATA"] = 0
+    strategy = MTBO(domain=hartmann3D.domain, pretraining_data=results)
 
     # run SOBO loop for fixed <num_iter> number of iteration
     num_iter = max_num_exp // batch_size  # maximum number of iterations
