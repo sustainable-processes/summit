@@ -295,7 +295,7 @@ class ENTMOOT(Strategy):
             base_estimator_kwargs={"min_child_samples":self.min_child_samples},
             std_estimator_kwargs=None,
             model_queue_size=None,
-            verbose=True
+            verbose=False
             )
 
         # If we have previous results:
