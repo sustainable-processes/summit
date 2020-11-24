@@ -7,6 +7,7 @@ from .snobfit import SNOBFIT
 from .sobo import SOBO
 from .gryffin import GRYFFIN
 from .deep_reaction_optimizer import DRO
+from .entmoot import ENTMOOT
 
 
 def strategy_from_dict(d):
@@ -28,6 +29,9 @@ def strategy_from_dict(d):
         return LHS.from_dict(d)
     elif d["name"] == "DRO":
         return DRO.from_dict(d)
+    elif d["name"] == "ENTMOOT":
+        return ENTMOOT.from_dict(d)
+
     else:
         raise ValueError(f"""Strategy {d["name"]} not found.""")
 
