@@ -13,7 +13,7 @@ keywords = ["machine-learning", "chemistry", "reactions", "optimization", "neura
 pandas = "^1.1.0"
 python = "^3.6.1"
 GPy = "^1.9"
-numpy = "1.18.0"
+numpy = "^1.18.0"
 pyrff = "^1.0.1"
 SQSnobFit = "^0.4.3"
 fastprogress = "^0.2.3"
@@ -32,6 +32,7 @@ sphinx = {version="^3.2.1", optional=true}
 nbsphinx = {version="^0.7.1", optional=true}
 sphinx-rtd-theme = {version="^0.5.0", optional=true}
 pyrecorder = {version="^0.1.8", optional=true}
+entmoot = "^0.1.4"
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "paramiko", "pyrecorder"]

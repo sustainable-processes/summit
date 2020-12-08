@@ -1,5 +1,6 @@
 name: Test & Publish
-on: push:
+on:
+  push:
   pull_request:
     branches:
       # Branches from forks have the form 'user:branch-name' so we only run
