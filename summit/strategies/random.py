@@ -71,7 +71,7 @@ class Random(Strategy):
         """
         design = Design(self.domain, num_experiments, "random")
 
-        for i, variable in enumerate(self.domain.variables):
+        for variable in self.domain.variables:
             if variable.is_objective:
                 continue
             if isinstance(variable, ContinuousVariable):
@@ -89,7 +89,7 @@ class Random(Strategy):
         ds = design.to_dataset()
         ds[("strategy", "METADATA")] = "Random"
 
-        return self.transform.un_transform(ds, transform_descriptors=False)
+        return self.transform.un_transform(ds, categorical_method=None)
 
     def _random_continuous(
         self, variable: ContinuousVariable, num_samples: int

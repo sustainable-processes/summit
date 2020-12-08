@@ -188,9 +188,9 @@ class Transform:
             Standardize all input continuous variables. Default is False.
         standardize_outputs : bool, optional
             Standardize all output continuous variables. Default is False.
-        categorical_method : str, optional
+        categorical_method : str or None, optional
             The method for transforming categorical variables. Either
-            "one-hot" or "descriptors". Descriptors must be included in the
+            "one-hot", "descriptors" or None. Descriptors must be included in the
             categorical variables for the later. Default is None.
 
         Notes
