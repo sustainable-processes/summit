@@ -1,5 +1,13 @@
 name: Test & Publish
-on: [push]
+on:
+  push:
+  pull_request:
+    branches:
+      # Branches from forks have the form 'user:branch-name' so we only run
+      # this job on pull_request events for branches that look like fork
+      # branches. Without this we would end up running this job twice for non
+      # forked PRs, once for the push and then once for opening the PR.
+    - '**:**'
 
 jobs:
   #Run pytest and build package
@@ -16,10 +24,10 @@ jobs:
         python-version: '3.7'
 
     - name: Install poetry
-      uses: Gr1N/setup-poetry@v3
+      uses: Gr1N/setup-poetry@v4
 
     - name: Cache poetry dependencies
-      uses: actions/cache@v1
+      uses: actions/cache@v2
       with:
         path: ~/.cache/pypoetry/virtualenvs
         key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
@@ -40,6 +48,7 @@ jobs:
       with:
         name: ${{ github.sha }}-build
         path: dist/
+
 
   
   # # Publish to pypi on version change
