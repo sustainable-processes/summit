@@ -10,10 +10,10 @@ class MIT_case1(Experiment):
     """Benchmark representing a simulated kinetic reaction network and accompanying kinetic constants (see reference).
 
     The reactions occur in a batch reactor.
-    The objective is to maximize yield (y), defined as the concentration of product dividen by the initial concentration of 
+    The objective is to maximize yield (y), defined as the concentration of product dividen by the initial concentration of
     the limiting reagent (We can do this because the stoichiometry is 1:1).
 
-    We optimize the reactions by changing the catalyst concentration, reaction time, choice of catalyst, and temperature. 
+    We optimize the reactions by changing the catalyst concentration, reaction time, choice of catalyst, and temperature.
 
     Parameters
     ----------
@@ -26,19 +26,12 @@ class MIT_case1(Experiment):
     Examples
     --------
 
-    >>> exp1 = MIT_case1()
-    >>> columns = [v.name for v in b.domain.variables]
-    >>> values = [v.bounds[0]+0.1*(v.bounds[1]-v.bounds[0]) for v in b.domain.variables]
-    >>> values = np.array(values)
-    >>> values = np.atleast_2d(values)
-    >>> conditions = DataSet(values, columns=columns)
-    >>> results = exp1.run_experiments(conditions)
 
     Notes
     -----
 
     This benchmark relies on the kinetics simulated by Jensen et al. The mechanistic
-    model is integrated using scipy to find outlet concentrations of all species. 
+    model is integrated using scipy to find outlet concentrations of all species.
 
 
     References
