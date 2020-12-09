@@ -38,6 +38,7 @@ ipykernel = "^5.3.4"
 scikit-learn = "^0.23.2"
 blitz-bayesian-pytorch = {git = "https://github.com/sustainable-processes/blitz-bayesian-deep-learning.git"}
 xlrd = "^1.2.0"
+cython = "^0.29.21"
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "neptune-contrib", "paramiko", "pyrecorder"]
