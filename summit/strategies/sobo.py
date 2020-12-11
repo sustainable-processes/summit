@@ -292,7 +292,8 @@ class SOBO(Strategy):
         else:
             # Get inputs and outputs
             inputs, outputs = self.transform.transform_inputs_outputs(
-                prev_res, transform_descriptors=self.use_descriptors
+                prev_res,
+                cateogrical_method="descriptors" if self.use_descriptors else None,
             )
 
             # Set up maximization and minimization by converting maximization to minimization problem
@@ -379,7 +380,8 @@ class SOBO(Strategy):
 
         # Do any necessary transformation back
         next_experiments = self.transform.un_transform(
-            next_experiments, transform_descriptors=self.use_descriptors
+            next_experiments,
+            cateogrical_method="descriptors" if self.use_descriptors else None,
         )
 
         return next_experiments

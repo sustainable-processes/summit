@@ -3,6 +3,7 @@ from summit.utils.dataset import DataSet
 
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import OneHotEncoder
 
 from abc import ABC, abstractmethod, abstractclassmethod
 from typing import Type, Tuple
@@ -48,15 +49,24 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
-        transform_descriptors: bool, optional
-            Transform the descriptors into continuous variables. Default True.
+        standardize_inputs : bool, optional
+            Standardize all input continuous variables. Default is False.
+        standardize_outputs : bool, optional
+            Standardize all output continuous variables. Default is False.
+        categorical_method : str, optional
+            The method for transforming categorical variables. Either
+            "one-hot" or "descriptors". Descriptors must be included in the
+            categorical variables for the later.
+
         Returns
         -------
         inputs, outputs
             Datasets with the input and output datasets
         """
         copy = kwargs.get("copy", True)
-        transform_descriptors = kwargs.get("transform_descriptors", True)
+        categorical_method = kwargs.get("categorical_method", "one-hot")
+        standardize_inputs = kwargs.get("standardize_inputs", False)
+        standardize_outputs = kwargs.get("standardize_outputs", False)
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -64,9 +74,13 @@ class Transform:
         # Determine input and output columns in dataset
         input_columns = []
         output_columns = []
-
+        self.input_means, self.input_stds = {}, {}
+        self.output_means, self.output_stds = {}, {}
         for variable in self.domain.input_variables:
-            if isinstance(variable, CategoricalVariable) and transform_descriptors:
+            if (
+                isinstance(variable, CategoricalVariable)
+                and categorical_method == "descriptors"
+            ):
                 # Add descriptors to the dataset
                 var_descriptor_names = variable.ds.data_columns
                 if all(
@@ -101,7 +115,32 @@ class Transform:
 
                 # add descriptors data columns to inputs
                 input_columns.extend(var_descriptor_names)
-            elif isinstance(variable, Variable):
+            elif (
+                isinstance(variable, CategoricalVariable)
+                and categorical_method == "one-hot"
+            ):
+                # Create one-hot encoding columns & insert to DataSet
+                enc = OneHotEncoder(categories=[variable.levels])
+                values = np.atleast_2d(new_ds[variable.name].to_numpy()).T
+                one_hot_values = enc.fit_transform(values).toarray()
+                for loc, l in enumerate(variable.levels):
+                    column_name = f"{variable.name}_{l}"
+                    new_ds[column_name, "DATA"] = one_hot_values[:, loc]
+                    input_columns.append(column_name)
+                variable.enc = enc
+
+                # Drop old categorical column, then write as metadata
+                new_ds = new_ds.drop(variable.name, axis=1)
+                new_ds[variable.name, "METADATA"] = values
+
+            elif isinstance(variable, ContinuousVariable):
+                if standardize_inputs:
+                    values, mean, std = self.standardize_column(
+                        new_ds[variable.name].astype(np.float)
+                    )
+                    self.input_means[variable.name] = mean
+                    self.input_stds[variable.name] = std
+                    new_ds[variable.name, "DATA"] = values
                 input_columns.append(variable.name)
             else:
                 raise DomainError(
@@ -114,6 +153,13 @@ class Transform:
                     raise DomainError(
                         "Output variables cannot be categorical variables currently."
                     )
+                if standardize_outputs:
+                    values, mean, std = self.standardize_column(
+                        new_ds[variable.name].astype(np.float)
+                    )
+                    self.output_means[variable.name] = mean
+                    self.output_stds[variable.name] = std
+                    new_ds[variable.name, "DATA"] = values
                 output_columns.append(variable.name)
                 # Ensure continuous variables are floats
                 new_ds[variable.name] = new_ds[variable.name].astype(np.float)
@@ -138,65 +184,114 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         transform_descriptors: bool, optional
             Transform the descriptors into continuous variables. Default True.
+        standardize_inputs : bool, optional
+            Standardize all input continuous variables. Default is False.
+        standardize_outputs : bool, optional
+            Standardize all output continuous variables. Default is False.
+        categorical_method : str or None, optional
+            The method for transforming categorical variables. Either
+            "one-hot", "descriptors" or None. Descriptors must be included in the
+            categorical variables for the later. Default is None.
 
         Notes
         -----
         Override this class to achieve custom untransformations
+
         """
-        transform_descriptors = kwargs.get("transform_descriptors", True)
+        categorical_method = kwargs.get("categorical_method")
+        standardize_inputs = kwargs.get("standardize_inputs", False)
+        standardize_outputs = kwargs.get("standardize_outputs", False)
+
+        data_columns = ds.data_columns
+
         # Determine input and output columns in dataset
         new_ds = ds.copy()
-        if transform_descriptors:
-            for i, variable in enumerate(self.domain.input_variables):
-                if isinstance(variable, CategoricalVariable) and transform_descriptors:
-                    # Add original categorical variable to the dataset
-                    var_descriptor_names = variable.ds.data_columns
-                    var_descriptor_conditions = ds[var_descriptor_names]
-                    var_descriptor_orig_data = np.asarray(
-                        [
-                            variable.ds.loc[[level], :].values[0].tolist()
-                            for level in variable.ds.index
-                        ]
-                    )
-                    var_categorical_transformed = []
-                    for _, dc in var_descriptor_conditions.iterrows():
-                        eucl_distance_squ = np.sum(
-                            np.square(
-                                np.subtract(var_descriptor_orig_data, dc.to_numpy())
-                            ),
-                            axis=1,
-                        )
-                        cat_level_index = np.where(
-                            eucl_distance_squ == np.min(eucl_distance_squ)
-                        )[0][0]
-                        cat_level = variable.ds.index[cat_level_index]
-                        var_categorical_transformed.append(cat_level)
-                    dt = {variable.name: var_categorical_transformed}
-                    new_ds.insert(
-                        loc=i, column=variable.name, value=var_categorical_transformed
-                    )
-
-                    # Make the descriptors columns a metadata column
-                    column_list_1 = new_ds.columns.levels[0].to_list()  # all variables
-                    ix = [
-                        column_list_1.index(d_name) for d_name in var_descriptor_names
-                    ]  # just descriptors variables
-                    column_codes_2 = list(
-                        new_ds.columns.codes[1]
-                    )  # codes for the variable type
-                    ix_code = [
-                        np.where(new_ds.columns.codes[0] == tmp_ix)[0][0]
-                        for tmp_ix in ix
+        for i, variable in enumerate(self.domain.input_variables):
+            # Categorical variables with descriptors
+            if (
+                isinstance(variable, CategoricalVariable)
+                and categorical_method == "descriptors"
+            ):
+                # Add original categorical variable to the dataset
+                var_descriptor_names = variable.ds.data_columns
+                var_descriptor_conditions = ds[var_descriptor_names]
+                var_descriptor_orig_data = np.asarray(
+                    [
+                        variable.ds.loc[[level], :].values[0].tolist()
+                        for level in variable.ds.index
                     ]
-                    for ixc in ix_code:
-                        column_codes_2[ixc] = 1
-                    new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
-                elif isinstance(variable, ContinuousVariable):
-                    new_ds[variable.name] = new_ds[variable.name].astype(np.float)
-                else:
-                    raise DomainError(
-                        f"Variable {variable.name} is not in the dataset."
+                )
+                var_categorical_transformed = []
+                for _, dc in var_descriptor_conditions.iterrows():
+                    eucl_distance_squ = np.sum(
+                        np.square(np.subtract(var_descriptor_orig_data, dc.to_numpy())),
+                        axis=1,
                     )
+                    cat_level_index = np.where(
+                        eucl_distance_squ == np.min(eucl_distance_squ)
+                    )[0][0]
+                    cat_level = variable.ds.index[cat_level_index]
+                    var_categorical_transformed.append(cat_level)
+                dt = {variable.name: var_categorical_transformed}
+                new_ds.insert(
+                    loc=i, column=variable.name, value=var_categorical_transformed
+                )
+
+                # Make the descriptors columns a metadata column
+                column_list_1 = new_ds.columns.levels[0].to_list()  # all variables
+                ix = [
+                    column_list_1.index(d_name) for d_name in var_descriptor_names
+                ]  # just descriptors variables
+                column_codes_2 = list(
+                    new_ds.columns.codes[1]
+                )  # codes for the variable type
+                ix_code = [
+                    np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix
+                ]
+                for ixc in ix_code:
+                    column_codes_2[ixc] = 1
+                new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+            # Categorical variables using one-hot encoding
+            elif (
+                isinstance(variable, CategoricalVariable)
+                and categorical_method == "one-hot"
+            ):
+                # Get one-hot encoder
+                enc = variable.enc
+
+                # Get array to be transformed
+                one_hot_names = [f"{variable.name}_{l}" for l in variable.levels]
+                one_hot = new_ds[one_hot_names].to_numpy()
+
+                # Do inverse transform
+                values = enc.inverse_transform(one_hot)
+
+                # Add to dataset and drop one-hot encoding
+                new_ds = new_ds.drop(one_hot_names, axis=1)
+                new_ds[variable.name, "DATA"] = values
+            # Plain categorical variables
+            elif isinstance(variable, CategoricalVariable):
+                pass
+            elif isinstance(variable, ContinuousVariable):
+                if standardize_inputs:
+                    mean = self.input_means[variable.name]
+                    std = self.input_stds[variable.name]
+                    values = new_ds[variable.name]
+                    new_ds[variable.name, "DATA"] = values * std + mean
+                new_ds[variable.name, "DATA"] = new_ds[variable.name].astype(np.float)
+            else:
+                raise DomainError(f"Variable {variable.name} is not in the dataset.")
+
+        for variable in self.domain.output_variables:
+            if (
+                variable.name in data_columns
+                and variable.is_objective
+                and standardize_outputs
+            ):
+                mean = self.output_means[variable.name]
+                std = self.output_stds[variable.name]
+                values = new_ds[variable.name]
+                new_ds[variable.name, "DATA"] = values * std + mean
 
         return new_ds
 
@@ -214,6 +309,14 @@ class Transform:
         t = cls(Domain.from_dict(d["domain"]), **d["transform_params"])
         t.transform_domain = Domain.from_dict(d["transform_domain"])
         return t
+
+    @staticmethod
+    def standardize_column(X):
+        X = X.to_numpy()
+        mean, std = X.mean(), X.std()
+        std = std if std > 1e-5 else 1e-5
+        scaled = (X - mean) / std
+        return scaled, mean, std
 
 
 def transform_from_dict(d):
@@ -673,9 +776,9 @@ class Strategy(ABC):
 
     Parameters
     ----------
-    domain: `summit.domain.Domain`
+    domain : `summit.domain.Domain`
         A summit domain containing variables and constraints
-    transform: `summit.strategies.base.Transform`, optional
+    transform : `summit.strategies.base.Transform`, optional
         A transform class (i.e, not the object itself). By default
         no transformation will be done the input variables or
         objectives.

@@ -71,7 +71,7 @@ class Random(Strategy):
         """
         design = Design(self.domain, num_experiments, "random")
 
-        for i, variable in enumerate(self.domain.variables):
+        for variable in self.domain.variables:
             if variable.is_objective:
                 continue
             if isinstance(variable, ContinuousVariable):
@@ -89,7 +89,7 @@ class Random(Strategy):
         ds = design.to_dataset()
         ds[("strategy", "METADATA")] = "Random"
 
-        return self.transform.un_transform(ds, transform_descriptors=False)
+        return self.transform.un_transform(ds, categorical_method=None)
 
     def _random_continuous(
         self, variable: ContinuousVariable, num_samples: int
@@ -126,6 +126,10 @@ class LHS(Strategy):
         A summit domain object
     random_state: `np.random.RandomState``
         A random state object to seed the random generator
+    categorical_method : str, optional
+        The method for transforming categorical variables. Either
+        "one-hot" or "descriptors". Descriptors must be included in the
+        categorical variables for the later.
 
     Examples
     --------
@@ -168,9 +172,11 @@ class LHS(Strategy):
         domain: Domain,
         transform: Transform = None,
         random_state: np.random.RandomState = None,
+        categorical_method: str = None,
     ):
         super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
+        self.categorical_method = categorical_method
 
     def suggest_experiments(
         self, num_experiments, criterion="center", exclude=[], **kwargs
@@ -184,6 +190,7 @@ class LHS(Strategy):
         criterion: str, optional
             The criterion used for the LHS.  Allowable values are "center" or "c", "maximin" or "m",
             "centermaximin" or "cm", and "correlation" or "corr". Default is center.
+
         exclude: array like, optional
             List of variable names that should be excluded from the design. Default is None.
 
@@ -214,8 +221,6 @@ class LHS(Strategy):
                 criterion=criterion,
                 random_state=self._rstate,
             )
-        else:
-            raise ValueError("Need sufficient number of variables")
 
         k = 0
         columns = []
@@ -236,11 +241,14 @@ class LHS(Strategy):
             elif (
                 isinstance(variable, CategoricalVariable)
                 and variable.name in categoricals
+            ) or (
+                isinstance(variable, CategoricalVariable)
+                and self.categorical_method == None
             ):
                 indices, values = rdesigner._random_categorical(
                     variable, num_experiments
                 )
-                design.insert(design.shape[1], variable.name, values)
+                design.insert(design.shape[1], variable.name, values[:, 0])
 
             # For categorical variable with descriptors, look in descriptors space
             # The untransform method at the end should find the closest point by euclidean distance.
@@ -277,7 +285,9 @@ class LHS(Strategy):
             # design.add_variable(variable.name, values, indices=indices)
         design = DataSet.from_df(design)
         design[("strategy", "METADATA")] = "LHS"
-        return self.transform.un_transform(design, transform_descriptors=True)
+        return self.transform.un_transform(
+            design, categorical_method=self.categorical_method
+        )
 
     def reset(self):
         pass

@@ -1,3 +1,4 @@
+from .base import __all__ as base_all
 from .base import *
 from .random import Random, LHS
 from .factorial_doe import FullFactorial
@@ -5,13 +6,33 @@ from .tsemo import TSEMO
 from .neldermead import NelderMead
 from .snobfit import SNOBFIT
 from .sobo import SOBO
+from .multitask import MTBO, STBO
 from .gryffin import GRYFFIN
 from .deep_reaction_optimizer import DRO
 from .entmoot import ENTMOOT
 
+__all__ = [
+    "Random",
+    "LHS",
+    "FullFactorial",
+    "TSEMO",
+    "NelderMead",
+    "SNOBFIT",
+    "MTBO",
+    "STBO",
+    "SOBO",
+    "GRYFFIN",
+    "DRO",
+    "strategy_from_dict",
+] + base_all
+
 
 def strategy_from_dict(d):
-    if d["name"] == "TSEMO":
+    if d["name"] == "STBO":
+        return STBO.from_dict(d)
+    elif d["name"] == "MTBO":
+        return MTBO.from_dict(d)
+    elif d["name"] == "TSEMO":
         return TSEMO.from_dict(d)
     elif d["name"] == "GRYFFIN":
         return GRYFFIN.from_dict(d)
@@ -34,4 +55,3 @@ def strategy_from_dict(d):
 
     else:
         raise ValueError(f"""Strategy {d["name"]} not found.""")
-

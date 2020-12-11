@@ -298,7 +298,7 @@ class NelderMead(Strategy):
         if prev_res is not None:
             initial_run = False
             inputs, outputs = self.transform.transform_inputs_outputs(
-                prev_res, transform_descriptors=True
+                prev_res, categorical_method="descriptors"
             )
 
             # Set up maximization and minimization
@@ -567,7 +567,7 @@ class NelderMead(Strategy):
 
         # Do any necessary transformation back
         next_experiments = self.transform.un_transform(
-            next_experiments, transform_descriptors=True
+            next_experiments, categorical_method="descriptors"
         )
 
         return next_experiments, x_best, f_best, param

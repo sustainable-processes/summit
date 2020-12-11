@@ -17,10 +17,10 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 class Himmelblau(Experiment):
-    """ Himmelblau function (2D) for testing optimization algorithms
+    """Himmelblau function (2D) for testing optimization algorithms
 
     Virtual experiment corresponds to a function evaluation.
-    
+
     Examples
     --------
     >>> b = Himmelblau()
@@ -30,16 +30,15 @@ class Himmelblau(Experiment):
     >>> values = np.atleast_2d(values)
     >>> conditions = DataSet(values, columns=columns)
     >>> results = b.run_experiments(conditions)
-    
+
     Notes
     -----
     This function is taken from http://benchmarkfcns.xyz/benchmarkfcns/himmelblaufcn.html.
-    
+
     """
 
     def __init__(self, constraints=False, maximize=False, **kwargs):
         self.constraints = constraints
-        self.evaluated_points = []
         self.maximize = maximize
 
         if self.maximize:
@@ -88,10 +87,10 @@ class Himmelblau(Experiment):
         return conditions, None
 
     def plot(self, ax=None, **kwargs):
-        """  Make a plot of the experiments evaluated thus far
-        
+        """Make a plot of the experiments evaluated thus far
+
         Parameters
-        ---------- 
+        ----------
         ax: `matplotlib.pyplot.axes`, optional
             An existing axis to apply the plot to
 
@@ -101,7 +100,7 @@ class Himmelblau(Experiment):
         as the a new figure and the second component the axis
 
         if ax is a matplotlib axis, returns only the axis
-        
+
         Raises
         ------
         ValueError
@@ -194,9 +193,13 @@ class Himmelblau(Experiment):
         else:
             return ax
 
+    def reset(self):
+        super().reset()
+        self.evaluated_points = []
+
 
 class Hartmann3D(Experiment):
-    """ Hartmann test function (3D) for testing optimization algorithms
+    """Hartmann test function (3D) for testing optimization algorithms
 
     Virtual experiment corresponds to a function evaluation.
 
@@ -259,14 +262,17 @@ class Hartmann3D(Experiment):
         def function_evaluation(x_1, x_2, x_3):
             x_exp = np.asarray([x_1, x_2, x_3])
             A = np.array([[3, 10, 30], [0.1, 10, 35], [3, 10, 30], [0.1, 10, 35]])
-            P = np.array(
-                [
-                    [3689, 1170, 2673],
-                    [4699, 4387, 7470],
-                    [1091, 8732, 5547],
-                    [381, 5743, 8828],
-                ]
-            ) * 10 ** (-4)
+            P = (
+                np.array(
+                    [
+                        [3689, 1170, 2673],
+                        [4699, 4387, 7470],
+                        [1091, 8732, 5547],
+                        [381, 5743, 8828],
+                    ]
+                )
+                * 10 ** (-4)
+            )
             alpha = np.array([1, 1.2, 3.0, 3.2])
             d = np.zeros((4, 1))
             for k in range(4):
@@ -289,10 +295,10 @@ class Hartmann3D(Experiment):
         return conditions, None
 
     def plot(self, ax=None, **kwargs):
-        """  Make a plot of the experiments evaluated thus far
-        
+        """Make a plot of the experiments evaluated thus far
+
         Parameters
-        ---------- 
+        ----------
         ax: `matplotlib.pyplot.axes`, optional
             An existing axis to apply the plot to
 
@@ -302,7 +308,7 @@ class Hartmann3D(Experiment):
         as the a new figure and the second component the axis
 
         if ax is a matplotlib axis, returns only the axis
-        
+
         Raises
         ------
         ValueError
@@ -400,7 +406,7 @@ class Hartmann3D(Experiment):
 
 
 class ThreeHumpCamel(Experiment):
-    """ Three-Hump Camel function (2D) for testing optimization algorithms
+    """Three-Hump Camel function (2D) for testing optimization algorithms
 
     Virtual experiment corresponds to a function evaluation.
 
@@ -471,10 +477,10 @@ class ThreeHumpCamel(Experiment):
         return conditions, None
 
     def plot(self, ax=None, **kwargs):
-        """  Make a plot of the experiments evaluated thus far
-        
+        """Make a plot of the experiments evaluated thus far
+
         Parameters
-        ---------- 
+        ----------
         ax: `matplotlib.pyplot.axes`, optional
             An existing axis to apply the plot to
 
@@ -484,7 +490,7 @@ class ThreeHumpCamel(Experiment):
         as the a new figure and the second component the axis
 
         if ax is a matplotlib axis, returns only the axis
-        
+
         Raises
         ------
         ValueError

@@ -131,7 +131,7 @@ class GRYFFIN(Strategy):
         discrete_optimizer="naive",
         **kwargs,
     ):
-        kwargs.update({"transform_descriptors": False})
+        kwargs.update({"categorical_method": None})
         Strategy.__init__(self, domain, transform=transform, **kwargs)
 
         self.domain_inputs = []
@@ -194,7 +194,7 @@ class GRYFFIN(Strategy):
         else:
             # Get inputs and outputs
             inputs, outputs = self.transform.transform_inputs_outputs(
-                prev_res, transform_descriptors=False
+                prev_res, categorical_method=None
             )
 
             # Set up maximization and minimization by converting maximization to minimization problem
@@ -243,7 +243,7 @@ class GRYFFIN(Strategy):
 
         # Do any necessary transformation back
         next_experiments = self.transform.un_transform(
-            next_experiments, transform_descriptors=False
+            next_experiments, categorical_method=None
         )
 
         return next_experiments

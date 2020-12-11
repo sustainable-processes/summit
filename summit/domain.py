@@ -651,6 +651,12 @@ class Domain:
                 return v
         raise ValueError("Variable not in domain")
 
+    def __setitem__(self, key, value):
+        for i, v in enumerate(self.variables):
+            if v.name == key:
+                self._variables.pop(i)
+                self._variables.insert(i, value)
+
     def copy(self):
         return deepcopy(self)
 
