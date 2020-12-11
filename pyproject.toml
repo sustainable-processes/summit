@@ -38,11 +38,12 @@ scikit-learn = "^0.23.2"
 blitz-bayesian-pytorch = {git = "https://github.com/sustainable-processes/blitz-bayesian-deep-learning.git"}
 xlrd = "^1.2.0"
 cython = "^0.29.21"
-entmoot = "^0.1.4"
+entmoot = {version="^0.1.4", optional=true}
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "paramiko", "pyrecorder"]
 docs = ["sphinx", "nbsphinx", "sphinx-rtd-theme"]
+entmoot = ["entmoot"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
