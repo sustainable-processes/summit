@@ -264,7 +264,7 @@ class PlotExperiments:
             title = self._create_label(unique)
             title = "\n".join(wrap(title, 30))
             ax.set_title(title)
-            ax.set_xlabel(r"Space Time Yield ($kg \; m^{-3} h^{-1}$)")
+            ax.set_xlabel(r"Space Time Yield / $kg \; m^{-3} h^{-1}$")
             ax.set_ylabel("E-factor")
             ax.set_xlim(0.0, float(1.2e4))
             ax.set_ylim(0.0, 300.0)
