@@ -929,6 +929,13 @@ def test_tsemo(test_num_improve_iter=2, save=False):
 def test_entmoot(
     batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False
 ):
+    # Only run if gurobipy installed
+    required = {"gurobipy"}
+    installed = {pkg.key for pkg in pkg_resources.working_set}
+    missing = required - installed
+    if missing:
+        return
+
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = ENTMOOT(domain=hartmann3D.domain)
 

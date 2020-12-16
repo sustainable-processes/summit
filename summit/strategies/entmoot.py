@@ -3,11 +3,18 @@ from summit.strategies.random import LHS
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
-from entmoot.optimizer.optimizer import Optimizer
-from entmoot.space.space import Space
-from entmoot.optimizer.gurobi_utils import get_core_gurobi_model
 
-from gurobipy import LinExpr
+import pkg_resources
+
+required = {"gurobipy"}
+installed = {pkg.key for pkg in pkg_resources.working_set}
+missing = required - installed
+if not missing:
+    from gurobipy import LinExpr
+    from entmoot.optimizer.optimizer import Optimizer
+    from entmoot.space.space import Space
+    from entmoot.optimizer.gurobi_utils import get_core_gurobi_model
+
 import string
 
 import numpy as np
@@ -17,73 +24,73 @@ from abc import ABC, abstractmethod
 
 class ENTMOOT(Strategy):
     """Single-objective Bayesian optimization, using gradient-boosted trees
-    instead of Gaussian processes, via ENTMOOT (ENsemble Tree MOdel 
-                                                Optimization Tool)
-    
+        instead of Gaussian processes, via ENTMOOT (ENsemble Tree MOdel
+                                                    Optimization Tool)
 
-    Parameters
-    ----------
-    domain: :class:`~summit.domain.Domain`
-        The Summit domain describing the optimization problem.
-    transform : :class:`~summit.strategies.base.Transform`, optional
-        A transform object. By default no transformation will be done
-        on the input variables or objectives.
-    estimator_type: string, optional
-        The ENTMOOT base_estimator type.
-        By default, Gradient-Boosted Regression
-    std_estimator_type: string, optional
-        The ENTMOOT std_estimator
-        By default, bounded data distance
-    acquisition_type: string, optional
-        The acquisition function type from ENTMOOT. See notes for options.
-        By default, Lower Confidence Bound.
-    optimizer_type: string, optional
-        The optimizer used in ENTMOOT for maximization of the acquisition function.
-        By default, sampling will be used.
-    generator_type: string, optional
-        The method for generating initial points before a model can be trained.
-        By default, uniform random points will be used.
-    initial_points: int, optional
-        How many points to require before training models
-    min_child_samples: int, optional
-        Minimum size of a leaf in tree models
 
-[note: do we need these ones?]
-    use_descriptors : bool, optional
-        Whether to use descriptors of categorical variables. Defaults to False.
-    exact_feval: boolean, optional
-        Whether the function evaluations are exact (True) or noisy (False).
-        By default: False.
-    ARD: boolean, optional
-        Whether automatic relevance determination should be applied (True).
-        By default: True.
-    standardize_outputs: boolean, optional
-        Whether the outputs should be standardized (True).
-        By default: True.
+        Parameters
+        ----------
+        domain: :class:`~summit.domain.Domain`
+            The Summit domain describing the optimization problem.
+        transform : :class:`~summit.strategies.base.Transform`, optional
+            A transform object. By default no transformation will be done
+            on the input variables or objectives.
+        estimator_type: string, optional
+            The ENTMOOT base_estimator type.
+            By default, Gradient-Boosted Regression
+        std_estimator_type: string, optional
+            The ENTMOOT std_estimator
+            By default, bounded data distance
+        acquisition_type: string, optional
+            The acquisition function type from ENTMOOT. See notes for options.
+            By default, Lower Confidence Bound.
+        optimizer_type: string, optional
+            The optimizer used in ENTMOOT for maximization of the acquisition function.
+            By default, sampling will be used.
+        generator_type: string, optional
+            The method for generating initial points before a model can be trained.
+            By default, uniform random points will be used.
+        initial_points: int, optional
+            How many points to require before training models
+        min_child_samples: int, optional
+            Minimum size of a leaf in tree models
 
-    Examples
-    --------
-    >>> from summit.domain import *
-    >>> from summit.strategies.entmoot import ENTMOOT
-    >>> import numpy as np
-    >>> domain = Domain()
-    >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
-    >>> domain += CategoricalVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
-    >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
-    >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
-    >>> strategy = ENTMOOT(domain)
-    >>> next_experiments = strategy.suggest_experiments(5)
+    [note: do we need these ones?]
+        use_descriptors : bool, optional
+            Whether to use descriptors of categorical variables. Defaults to False.
+        exact_feval: boolean, optional
+            Whether the function evaluations are exact (True) or noisy (False).
+            By default: False.
+        ARD: boolean, optional
+            Whether automatic relevance determination should be applied (True).
+            By default: True.
+        standardize_outputs: boolean, optional
+            Whether the outputs should be standardized (True).
+            By default: True.
 
-    Notes
-    ----------
+        Examples
+        --------
+        >>> from summit.domain import *
+        >>> from summit.strategies.entmoot import ENTMOOT
+        >>> import numpy as np
+        >>> domain = Domain()
+        >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
+        >>> domain += CategoricalVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
+        >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+        >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
+        >>> # strategy = ENTMOOT(domain)
+        >>> # next_experiments = strategy.suggest_experiments(5)
 
-    Estimator type
-        GBRT: Gradient-boosted regression trees
+        Notes
+        ----------
 
-        RF: random forest (scikit-learn)
+        Estimator type
+            GBRT: Gradient-boosted regression trees
 
-    Acquisition function type
-        LCB: lower confidence bound
+            RF: random forest (scikit-learn)
+
+        Acquisition function type
+            LCB: lower confidence bound
 
 
     """
@@ -118,9 +125,9 @@ class ENTMOOT(Strategy):
                     )
                 elif isinstance(v, CategoricalVariable):
                     raise ValueError(
-                                "Categorical Variables are not yet implemented "
-                                "for ENTMOOT strategy."
-                                )
+                        "Categorical Variables are not yet implemented "
+                        "for ENTMOOT strategy."
+                    )
                     if not self.use_descriptors:
                         self.input_domain.append(
                             {
@@ -179,7 +186,6 @@ class ENTMOOT(Strategy):
         else:
             self.estimator_type = "GBRT"  # default model type is GB trees
 
-
         if std_estimator_type in [
             "BDD",
             "L1BDD",
@@ -188,8 +194,9 @@ class ENTMOOT(Strategy):
         ]:
             self.std_estimator_type = std_estimator_type
         else:
-            self.std_estimator_type = "BDD"  # default model type is bounded data distance
-
+            self.std_estimator_type = (
+                "BDD"  # default model type is bounded data distance
+            )
 
         if acquisition_type in [
             "LCB",
@@ -207,7 +214,7 @@ class ENTMOOT(Strategy):
            global: optimized by using global solver to find minimum of 
                `acquisition_type`. Requires gurobipy
         """
-        if optimizer_type in ["sampling","global"]:
+        if optimizer_type in ["sampling", "global"]:
             self.optimizer_type = optimizer_type
         else:
             self.optimizer_type = "sampling"  # default optimizer: sampling
@@ -221,13 +228,13 @@ class ENTMOOT(Strategy):
         - "grid" for a uniform grid sequence
         """
         if generator_type in [
-                "random",
-                "sobol",
-                "halton",
-                "hammersly",
-                "lhs",
-                "grid",
-                ]:
+            "random",
+            "sobol",
+            "halton",
+            "hammersly",
+            "lhs",
+            "grid",
+        ]:
             self.generator_type = generator_type
         else:
             self.generator_type = "random"
@@ -235,7 +242,6 @@ class ENTMOOT(Strategy):
         self.initial_points = initial_points
         self.min_child_samples = min_child_samples
         self.prev_param = None
-
 
     def suggest_experiments(
         self, num_experiments=1, prev_res: DataSet = None, **kwargs
@@ -264,39 +270,36 @@ class ENTMOOT(Strategy):
         objective_dir = -1.0 if obj.maximize else 1.0
         fbest = float("inf")
 
-
         bounds = [k["domain"] for k in self.input_domain]
-        
+
         space = Space(bounds)
         core_model = get_core_gurobi_model(space)
         gvars = core_model.getVars()
-        
+
         for c in self.constraints:
-            left=LinExpr()
-            left.addTerms(c[0],gvars)
+            left = LinExpr()
+            left.addTerms(c[0], gvars)
             left.addConstant(c[1])
-            core_model.addLConstr(left,c[2],0)
-        
+            core_model.addLConstr(left, c[2], 0)
+
         core_model.update()
-        
+
         entmoot_model = Optimizer(
             dimensions=bounds,
             base_estimator=self.estimator_type,
-            std_estimator=self.std_estimator_type, 
-            n_initial_points=self.initial_points, 
+            std_estimator=self.std_estimator_type,
+            n_initial_points=self.initial_points,
             initial_point_generator=self.generator_type,
-            acq_func=self.acquisition_type, 
-            acq_optimizer=self.optimizer_type, 
-            random_state=None, 
-            acq_func_kwargs=None, 
-            acq_optimizer_kwargs={
-                "add_model_core": core_model
-                },
-            base_estimator_kwargs={"min_child_samples":self.min_child_samples},
+            acq_func=self.acquisition_type,
+            acq_optimizer=self.optimizer_type,
+            random_state=None,
+            acq_func_kwargs=None,
+            acq_optimizer_kwargs={"add_model_core": core_model},
+            base_estimator_kwargs={"min_child_samples": self.min_child_samples},
             std_estimator_kwargs=None,
             model_queue_size=None,
-            verbose=False
-            )
+            verbose=False,
+        )
 
         # If we have previous results:
         if prev_res is not None:
@@ -317,7 +320,7 @@ class ENTMOOT(Strategy):
 
             inputs = inputs.to_numpy()
             outputs = outputs.to_numpy()
-            
+
             if self.prev_param is not None:
                 X_step = self.prev_param[0]
                 Y_step = self.prev_param[1]
@@ -331,16 +334,18 @@ class ENTMOOT(Strategy):
             # Convert to list form to give to optimizer
             prev_X = [list(x) for x in X_step]
             prev_y = [y for x in Y_step for y in x]
-             
+
             # Train entmoot model
-            entmoot_model.tell(prev_X,prev_y,fit=True)
-            
+            entmoot_model.tell(prev_X, prev_y, fit=True)
+
             # Store parameters (history of suggested points and function evaluations)
             param = [X_step, Y_step]
             fbest = np.min(Y_step)
             xbest = X_step[np.argmin(Y_step)]
-        
-        request=np.array(entmoot_model.ask(n_points=num_experiments,strategy="cl_mean"))
+
+        request = np.array(
+            entmoot_model.ask(n_points=num_experiments, strategy="cl_mean")
+        )
         # Generate DataSet object with variable values of next
         next_experiments = None
         transform_descriptors = False
@@ -391,22 +396,22 @@ class ENTMOOT(Strategy):
         for c in summit_domain.constraints:
             tmp_c = c.lhs
             # Split LHS on + signs into fragments
-            tmp_p = str.split(tmp_c,'+')
-            
+            tmp_p = str.split(tmp_c, "+")
+
             tmp_a = []
             for t in tmp_p:
                 # For each of the fragments, split on -
-                terms = str.split(t,'-')
+                terms = str.split(t, "-")
                 for i in range(len(terms)):
                     if i == 0:
-                        # If the first part in the fragment is not empty, that 
-                        # means the first term was positive. 
-                        if terms[0] != '':
+                        # If the first part in the fragment is not empty, that
+                        # means the first term was positive.
+                        if terms[0] != "":
                             tmp_a.append(terms[0])
-                    # All of the terms in the split will have 
+                    # All of the terms in the split will have
                     # negative coefficients.
                     else:
-                        tmp_a.append("-"+terms[i])
+                        tmp_a.append("-" + terms[i])
             # Split the terms into coefficients and variables:
             constraint_dict = dict()
             for term in tmp_a:
@@ -414,12 +419,12 @@ class ENTMOOT(Strategy):
                     if char in string.ascii_letters:
                         index = i
                         c_variable = term[index:]
-                        if term[:index] == '':
-                            c_coeff=1.0
-                        elif term[:index] == '-':
-                            c_coeff=-1.0
+                        if term[:index] == "":
+                            c_coeff = 1.0
+                        elif term[:index] == "-":
+                            c_coeff = -1.0
                         else:
-                            c_coeff=float(term[:index])
+                            c_coeff = float(term[:index])
                         break
                     else:
                         c_variable = "constant"
@@ -428,10 +433,10 @@ class ENTMOOT(Strategy):
             # Place coefficients in the variable order the model expects.
             constraints_ordered = []
             for v_input_index, v_input_name in enumerate(v_input_names):
-                constraints_ordered.append(constraint_dict.get(v_input_name,0))
-            constraints.append([constraints_ordered,
-                                       constraint_dict["constant"], 
-                                       c.constraint_type])
+                constraints_ordered.append(constraint_dict.get(v_input_name, 0))
+            constraints.append(
+                [constraints_ordered, constraint_dict["constant"], c.constraint_type]
+            )
         return constraints
 
     def to_dict(self):
@@ -454,10 +459,9 @@ class ENTMOOT(Strategy):
 
         return super().to_dict(**strategy_params)
 
-
     @classmethod
     def from_dict(cls, d):
-    # Setup ENTMOOT
+        # Setup ENTMOOT
         entmoot = super().from_dict(d)
         param = d["strategy_params"]["prev_param"]
         if param is not None:
