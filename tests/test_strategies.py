@@ -11,6 +11,7 @@ from fastprogress.fastprogress import progress_bar
 import numpy as np
 import os
 import warnings
+import pkg_resources
 
 
 def test_strategy():
@@ -926,6 +927,10 @@ def test_tsemo(test_num_improve_iter=2, save=False):
     # assert hv > 117.0
 
 
+@pytest.mark.parametrize(
+    "batch_size, max_num_exp, maximize, constraint",
+    [[1, 1, True, False], [1, 200, True, False], [4, 200, False, False]],
+)
 def test_entmoot(
     batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False
 ):
