@@ -39,6 +39,8 @@ blitz-bayesian-pytorch = {git = "https://github.com/sustainable-processes/blitz-
 xlrd = "^1.2.0"
 cython = "^0.29.21"
 entmoot = "^0.1.4"
+pytorch-lightning = "^1.1.1"
+
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "paramiko", "pyrecorder"]
@@ -48,6 +50,7 @@ docs = ["sphinx", "nbsphinx", "sphinx-rtd-theme"]
 pytest = "^3.0"
 ipdb = "^0.13.2"
 rope = "^0.17.0"
+black = {version = "^20.8b1", allow-prereleases = true}
 
 [build-system]
 requires = ["poetry>=0.12"]
