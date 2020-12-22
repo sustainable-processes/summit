@@ -7,8 +7,4 @@ from .experimental_emulator import (
     BaumgartnerCrossCouplingDescriptorEmulator,
     BaumgartnerCrossCouplingEmulator_Yield_Cost,
 )
-from .MIT_kin_case1 import MIT_case1
-from .MIT_kin_case2 import MIT_case2
-from .MIT_kin_case3 import MIT_case3
-from .MIT_kin_case4 import MIT_case4
-from .MIT_kin_case5 import MIT_case5
+from .MIT import *

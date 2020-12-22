@@ -6,7 +6,6 @@ from summit import get_summit_config_path
 import numpy as np
 import pandas as pd
 
-from gryffin import Gryffin
 import json
 
 import os
@@ -333,6 +332,9 @@ class GRYFFIN(Strategy):
         category_writer.write_categories(save_dir=tmp_dir)
 
         # initialize gryffin
+
+        from gryffin import Gryffin
+
         self.gryffin = Gryffin(config_file_path)
 
     def _get_tmp_dir(self):

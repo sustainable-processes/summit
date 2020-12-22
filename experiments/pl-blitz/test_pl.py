@@ -1,3 +1,4 @@
+import ipdb
 from summit.utils.dataset import DataSet
 from summit.domain import *
 
@@ -55,8 +56,9 @@ def get_data(test_size=0.25, random_state=42):
     return dataloader_train, X_test, y_test
 
 
-class EmulatorDataModule(pl.LightningModule):
+class EmulatorDataModule(pl.LightningDataModule):
     def __init__(self, domain: Domain, ds: DataSet, model_dir: str, **kwargs):
+        super().__init__()
         self.domain = domain
         self.ds = ds
         self.model_dir = model_dir
@@ -65,6 +67,9 @@ class EmulatorDataModule(pl.LightningModule):
         self.random_state = kwargs.get("random_state")
         self.batch_size = kwargs.get("train_batch_size", 4)
         self.shuffle = kwargs.get("shuffle", False)
+
+        # Run initial setup
+        self.initial_setup()
 
     def initial_setup(self):
         # Get data
@@ -94,7 +99,7 @@ class EmulatorDataModule(pl.LightningModule):
 
     def test_dataloader(self):
         ds_test = torch.utils.data.TensorDataset(self.X_test, self.y_test)
-        return torch.utils.data.DataLoader(ds_test, shuffle=self.shuffle)
+        return torch.utils.data.DataLoader(ds_test)
 
     @classmethod
     def from_csv(cls, csv_file, domain, ds, model_dir, **kwargs):
@@ -103,21 +108,22 @@ class EmulatorDataModule(pl.LightningModule):
         return cls(domain, ds, model_dir, **kwargs)
 
     @staticmethod
-    def split_data(self, domain, ds):
-        X = ds[domain.input_variables].to_numpy()
-        y = ds[self.domain.output_variables].to_numpy()
+    def split_data(domain, ds):
+        X = ds[[v.name for v in domain.input_variables]].to_numpy()
+        y = ds[[v.name for v in domain.output_variables]].to_numpy()
         return X, y
 
     @staticmethod
-    def _create_scalers(self, X, y):
-        input_scaler = StandardScaler().fit_(X)
+    def _create_scalers(X, y):
+        input_scaler = StandardScaler().fit(X)
         output_scaler = StandardScaler().fit(y)
         return input_scaler, output_scaler
 
 
-@torch.no_grad()
-def create_parity_plot(regressor, X_test, y_test):
-    Y_test_pred = regressor(X_test)
+def create_parity_plot(regressor, datamodule):
+    X_test, y_test = datamodule.X_test, datamodule.y_test
+    with torch.no_grad():
+        Y_test_pred = regressor(X_test)
     fig, ax = plt.subplots(1)
     ax.scatter(Y_test_pred[:, 0], y_test[:, 0])
     ax.plot([-4, 4], [-4, 4])
@@ -140,15 +146,28 @@ class BayesianRegressor(pl.LightningModule):
     ):
         super().__init__()
         # self.linear = nn.Linear(input_dim, output_dim)
-        self.blinear1 = BayesianLinear(input_dim, 512)
-        self.blinear2 = BayesianLinear(512, output_dim)
+        hu = 512
+        # self.blinear1 = nn.Linear(input_dim, hu)
+        # self.blinear2 = nn.Linear(hu, hu)
+        # self.blinear3 = nn.Linear(hu, hu)
+        # self.blinear4 = nn.Linear(hu, output_dim)
+
+        self.blinear1 = BayesianLinear(input_dim, hu)
+        # self.blinear2 = BayesianLinear(hu, hu)
+        # self.blinear3 = BayesianLinear(hu, hu)
+        self.blinear4 = BayesianLinear(hu, output_dim)
+
         self.criterion = torch.nn.MSELoss()
         self.train_len = train_len
 
     def forward(self, x):
-        x_ = self.blinear1(x)
-        x_ = F.relu(x_)
-        return self.blinear2(x_)
+        x_ = F.relu(self.blinear1(x))
+        # x_ = self.blinear2(x_)
+        # # x = F.dropout(x, p=0.1, training=self.training)
+        # x_ = F.relu(self.blinear3(x_))
+        # x = F.dropout(x, p=0.1, training=self.training)
+        x_ = self.blinear4(x_)
+        return x_
 
     def training_step(self, batch, batch_idx):
         X, y = batch
@@ -230,7 +249,7 @@ class BayesianRegressor(pl.LightningModule):
 
 
 def create_domain():
-    domain = Domain
+    domain = Domain()
     domain += ContinuousVariable(
         name="temperature",
         description="reaction temperature in celsius",
@@ -251,35 +270,46 @@ def create_domain():
         is_objective=True,
         maximize=True,
     )
-
     return domain
 
 
 def create_dataset(domain, n_samples=100, random_seed=100):
     rng = default_rng(random_seed)
     n_features = len(domain.input_variables)
-    inputs = rng.std_normal(size=(n_samples, n_features))
-    output = np.sum(inputs ** 2, axis=0)
-    data = np.hstack([inputs, output])
-    columns = [v.name for v in domain.inputs] + [domain.ouput_variables[0].name]
+    inputs = rng.standard_normal(size=(n_samples, n_features))
+    inputs *= [-5, 6, 0.1]
+    output = np.sum(inputs ** 2, axis=1)
+    data = np.append(inputs, np.atleast_2d(output).T, axis=1)
+    columns = [v.name for v in domain.input_variables] + [
+        domain.output_variables[0].name
+    ]
     return DataSet(data, columns=columns)
 
 
 def main():
+    # Get data
     domain = create_domain()
-    dataset = create_dataset(domain)
-    summit_dm = EmulatorDataModule(domain, dataset, model_dir="")
+    dataset = create_dataset(domain, n_samples=500)
+    summit_dm = EmulatorDataModule(
+        domain, dataset, model_dir="", random_state=42, batch_size=16, shuffle=True
+    )
 
-    # train_loader = summit_dm.train_dataloader
-    # n_examples = len(train_loader.dataset)
-    # n_features = train_loader.dataset[0][0].shape[0]
-    # n_targets = train_loader.dataset[0][1].shape[0]
-    # regressor = BayesianRegressor(n_features, n_targets, n_examples)
+    train_loader = summit_dm.train_dataloader()
+    n_examples = len(train_loader.dataset)
+    n_features = train_loader.dataset[0][0].shape[0]
+    n_targets = train_loader.dataset[0][1].shape[0]
+    regressor = BayesianRegressor(n_features, n_targets, n_examples)
 
-    # trainer = pl.Trainer(max_epochs=10)
-    # trainer.fit(regressor, summit_dm)
-    # # create_parity_plot(regressor, X_test, y_test)
-    # plt.show()
+    fig, axes = plt.subplots(3)
+    X = summit_dm.X_train
+    for i in range(3):
+        axes[i].scatter(X[:, i], summit_dm.y_train)
+    plt.show()
+
+    trainer = pl.Trainer(max_epochs=10)
+    trainer.fit(regressor, summit_dm)
+    create_parity_plot(regressor, summit_dm)
+    plt.show()
 
 
 if __name__ == "__main__":

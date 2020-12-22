@@ -122,7 +122,9 @@ class TSEMO(Strategy):
         self.kern_dim = len(self.columns)
 
         # Kernel
-        self.kernel = kwargs.get("kernel", GPy.kern.Exponential)
+        from GPy.kern import Exponential
+
+        self.kernel = kwargs.get("kernel", Exponential)
 
         # Spectral sampling settings
         self.n_spectral_points = kwargs.get("n_spectral_points", 1500)
@@ -192,6 +194,9 @@ class TSEMO(Strategy):
         ) / self.output_std.to_numpy()
 
         # Set up models
+        from GPy.models import GPRegression as gpr
+        from GPy.priors import LogGaussian
+
         input_dim = self.kern_dim
         self.models = {
             v.name: gpr(
@@ -222,12 +227,12 @@ class TSEMO(Strategy):
                 np.sqrt(1e-3), np.sqrt(1e3), warning=False
             )
             model.kern.lengthscale.set_prior(
-                GPy.priors.LogGaussian(0, 10), warning=False
+                LogGaussian(0, 10), warning=False
             )
             model.kern.variance.constrain_bounded(
                 np.sqrt(1e-3), np.sqrt(1e3), warning=False
             )
-            model.kern.variance.set_prior(GPy.priors.LogGaussian(-6, 10), warning=False)
+            model.kern.variance.set_prior(LogGaussian(-6, 10), warning=False)
             model.Gaussian_noise.constrain_bounded(np.exp(-6), 1, warning=False)
 
             # Train model
@@ -253,16 +258,17 @@ class TSEMO(Strategy):
             self.logger.debug(f"RMSE train {name} = {rmse_train[i].round(2)}")
 
             # Spectral sampling
+            import GPy.kern as kern
             self.logger.debug(
                 f"Spectral sampling {name} with {self.n_spectral_points} spectral points."
             )
-            if type(model.kern) == GPy.kern.Exponential:
+            if type(model.kern) == kern.Exponential:
                 matern_nu = 1
-            elif type(model.kern) == GPy.kern.Matern32:
+            elif type(model.kern) == kern.Matern32:
                 matern_nu = 3
-            elif type(model.kern) == GPy.kern.Matern52:
+            elif type(model.kern) == kern.Matern52:
                 matern_nu = 5
-            elif type(model.kern) == GPy.kern.RBF:
+            elif type(model.kern) == kern.RBF:
                 matern_nu = np.inf
             else:
                 raise TypeError(
