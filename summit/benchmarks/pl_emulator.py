@@ -1,8 +1,16 @@
+import ipdb
+from summit.utils.dataset import DataSet
+from summit.domain import *
+from summit.experiment import Experiment
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+
+
 import numpy as np
+from numpy.random import default_rng
 
 import pytorch_lightning as pl
 
@@ -16,54 +24,96 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 
 
-# TODO:
-# Figure out how to create a dataloader from summit data
-# Set location for logs to a reasonable place
+class ExperimentalEmulator(Experiment):
+    def __init__(self, domain, dataset, **kwargs):
+        super().__init__(domain, **kwargs)
+
+        self.datamodule = EmulatorDataModule(self.domain, dataset, **kwargs)
+
+    def _run(self, conditions, **kwargs):
+        X = conditions[[v.name for v in self.domain.input_variables]]
+        X = self.datamodule.input_scaler.transform(X)
+        y = self.regressor(X)
+        y = self.datamodule.output_scaler.inverse_transform(y)
+        for i, v in enumerate(self.domain.output_variables):
+            conditions[v.name] = y[:, i]
+        return conditions
+
+    def train(self, max_epochs=10):
+        train_loader = self.datamodule.train_dataloader()
+        n_examples = len(train_loader.dataset)
+        n_features = train_loader.dataset[0][0].shape[0]
+        n_targets = train_loader.dataset[0][1].shape[0]
+        self.regressor = BayesianRegressor(n_features, n_targets, n_examples)
+
+        trainer = pl.Trainer(max_epochs=max_epochs)
+        trainer.fit(self.regressor, self.datamodule)
 
 
-def get_data(test_size=0.25, random_state=42):
-    # Load data
-    X, y = load_boston(return_X_y=True)
+class EmulatorDataModule(pl.LightningDataModule):
+    """Convert Summit DataSet and Domain into a Pytorch Dataloader"""
 
-    # Normalize
-    X = StandardScaler().fit_transform(X)
-    y = StandardScaler().fit_transform(np.expand_dims(y, -1))
-
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state
-    )
-
-    # Convert to tensors
-    X_train = torch.tensor(X_train).float()
-    y_train = torch.tensor(y_train).float()
-    X_test = torch.tensor(X_test).float()
-    y_test = torch.tensor(y_test).float()
-
-    # Create dataloaders
-    ds_train = torch.utils.data.TensorDataset(X_train, y_train)
-    dataloader_train = torch.utils.data.DataLoader(
-        ds_train, batch_size=16, shuffle=True
-    )
-
-    return dataloader_train, X_test, y_test
-
-
-class SummitDataModule(pl.LightningModule):
-    def __init__(self, domain, dataset):
+    def __init__(self, domain: Domain, ds: DataSet, model_dir: str = None, **kwargs):
+        super().__init__()
         self.domain = domain
-        self.dataset = dataset
+        self.ds = ds
+        self.model_dir = model_dir
+        self.normalize = kwargs.get("normalize", True)
+        self.test_size = kwargs.get("test_size", 0.25)
+        self.random_state = kwargs.get("random_state")
+        self.batch_size = kwargs.get("train_batch_size", 4)
+        self.shuffle = kwargs.get("shuffle", False)
 
+        # Run initial setup
+        self.initial_setup()
 
-@torch.no_grad()
-def create_parity_plot(regressor, X_test, y_test):
-    Y_test_pred = regressor(X_test)
-    fig, ax = plt.subplots(1)
-    ax.scatter(Y_test_pred[:, 0], y_test[:, 0])
-    ax.plot([-4, 4], [-4, 4])
-    ax.set_xlabel("Predicted")
-    ax.set_ylabel("True")
-    return fig, ax
+    def initial_setup(self):
+        # Get data
+        X, y = self.split_data(self.domain, self.ds)
+
+        # Scaling
+        self.input_scaler, self.output_scaler = self._create_scalers(X, y)
+        X = self.input_scaler.transform(X)
+        y = self.output_scaler.transform(y)
+
+        # Train-test split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=self.test_size, random_state=self.random_state
+        )
+
+        # Convert to tensors
+        self.X_train = torch.tensor(X_train).float()
+        self.y_train = torch.tensor(y_train).float()
+        self.X_test = torch.tensor(X_test).float()
+        self.y_test = torch.tensor(y_test).float()
+
+    def train_dataloader(self):
+        ds_train = torch.utils.data.TensorDataset(self.X_train, self.y_train)
+        return torch.utils.data.DataLoader(
+            ds_train, batch_size=self.batch_size, shuffle=self.shuffle
+        )
+
+    def test_dataloader(self):
+        ds_test = torch.utils.data.TensorDataset(self.X_test, self.y_test)
+        return torch.utils.data.DataLoader(ds_test)
+
+    @classmethod
+    def from_csv(cls, csv_file, domain, ds, model_dir, **kwargs):
+        """Create a Summit Data Module from a csv file"""
+        ds = DataSet.read_csv(csv_file)
+        return cls(domain, ds, model_dir, **kwargs)
+
+    @staticmethod
+    def split_data(domain, ds):
+        X = ds[[v.name for v in domain.input_variables]].to_numpy()
+        y = ds[[v.name for v in domain.output_variables]].to_numpy()
+        return X, y
+
+    @staticmethod
+    def _create_scalers(X, y):
+        input_scaler = StandardScaler().fit(X)
+        output_scaler = StandardScaler().fit(y)
+        return input_scaler, output_scaler
 
 
 @variational_estimator
@@ -72,23 +122,29 @@ class BayesianRegressor(pl.LightningModule):
 
     val_str = "CI acc: {:.2f}, CI upper acc: {:.2f}, CI lower acc: {:.2f}"
 
-    def __init__(self, input_dim, output_dim):
+    def __init__(self, input_dim, output_dim, train_len, hidden_units=512):
         super().__init__()
-        # self.linear = nn.Linear(input_dim, output_dim)
-        self.blinear1 = nn.BayesianLinear(input_dim, 512)
-        self.blinear2 = nn.BayesianLinear(512, output_dim)
+
+        self.blinear1 = BayesianLinear(input_dim, hidden_units)
+        self.blinear4 = BayesianLinear(hidden_units, output_dim)
+
         self.criterion = torch.nn.MSELoss()
+        self.train_len = train_len
 
     def forward(self, x):
-        x_ = self.blinear1(x)
-        x_ = F.relu(x_)
-        return self.blinear2(x_)
+        x_ = F.relu(self.blinear1(x))
+        x_ = self.blinear4(x_)
+        return x_
 
     def training_step(self, batch, batch_idx):
-        datapoints, labels = batch
+        X, y = batch
 
         loss = self.sample_elbo(
-            inputs=datapoints, labels=labels, criterion=self.criterion, sample_nbr=3
+            inputs=X,
+            labels=y,
+            criterion=self.criterion,
+            sample_nbr=3,
+            complexity_cost_weight=1 / self.train_len,
         )
         return loss
 
@@ -159,13 +215,68 @@ class BayesianRegressor(pl.LightningModule):
         pass
 
 
+def create_parity_plot(regressor, datamodule):
+    X_test, y_test = datamodule.X_test, datamodule.y_test
+    with torch.no_grad():
+        Y_test_pred = regressor(X_test)
+    fig, ax = plt.subplots(1)
+    ax.scatter(Y_test_pred[:, 0], y_test[:, 0])
+    ax.plot([-4, 4], [-4, 4])
+    ax.set_xlabel("Predicted")
+    ax.set_ylabel("True")
+    return fig, ax
+
+
+def create_domain():
+    domain = Domain()
+    domain += ContinuousVariable(
+        name="temperature",
+        description="reaction temperature in celsius",
+        bounds=[30, 100],
+    )
+    domain += ContinuousVariable(
+        name="flowrate_a", description="flowrate of reactant a", bounds=[1, 100]
+    )
+
+    domain += ContinuousVariable(
+        name="flowrate_b", description="flowrate of reactant b", bounds=[1, 100]
+    )
+
+    domain += ContinuousVariable(
+        name="yield",
+        description="yield of reaction",
+        bounds=[0, 100],
+        is_objective=True,
+        maximize=True,
+    )
+    return domain
+
+
+def create_dataset(domain, n_samples=100, random_seed=100):
+    rng = default_rng(random_seed)
+    n_features = len(domain.input_variables)
+    inputs = rng.standard_normal(size=(n_samples, n_features))
+    inputs *= [-5, 6, 0.1]
+    output = np.sum(inputs ** 2, axis=1)
+    data = np.append(inputs, np.atleast_2d(output).T, axis=1)
+    columns = [v.name for v in domain.input_variables] + [
+        domain.output_variables[0].name
+    ]
+    return DataSet(data, columns=columns)
+
+
 def main():
-    regressor = BayesianRegressor(13, 1)
-    train_loader, X_test, y_test = get_data()
-    trainer = pl.Trainer(max_epochs=10)
-    trainer.fit(regressor, train_loader)
-    create_parity_plot(regressor, X_test, y_test)
-    plt.show()
+    # Get data
+    domain = create_domain()
+    dataset = create_dataset(domain, n_samples=500)
+
+    exp = ExperimentalEmulator(domain, dataset)
+    exp.train(max_epochs=1)
+    d = exp.regressor.state_dict()
+    import json
+
+    with open("test.json", "w") as f:
+        json.dump(d, f)
 
 
 if __name__ == "__main__":

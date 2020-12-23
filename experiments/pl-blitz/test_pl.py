@@ -138,34 +138,17 @@ class BayesianRegressor(pl.LightningModule):
 
     val_str = "CI acc: {:.2f}, CI upper acc: {:.2f}, CI lower acc: {:.2f}"
 
-    def __init__(
-        self,
-        input_dim,
-        output_dim,
-        train_len,
-    ):
+    def __init__(self, input_dim, output_dim, train_len, hidden_units=512):
         super().__init__()
         # self.linear = nn.Linear(input_dim, output_dim)
-        hu = 512
-        # self.blinear1 = nn.Linear(input_dim, hu)
-        # self.blinear2 = nn.Linear(hu, hu)
-        # self.blinear3 = nn.Linear(hu, hu)
-        # self.blinear4 = nn.Linear(hu, output_dim)
-
-        self.blinear1 = BayesianLinear(input_dim, hu)
-        # self.blinear2 = BayesianLinear(hu, hu)
-        # self.blinear3 = BayesianLinear(hu, hu)
-        self.blinear4 = BayesianLinear(hu, output_dim)
+        self.blinear1 = BayesianLinear(input_dim, hidden_units)
+        self.blinear4 = BayesianLinear(hidden_units, output_dim)
 
         self.criterion = torch.nn.MSELoss()
         self.train_len = train_len
 
     def forward(self, x):
         x_ = F.relu(self.blinear1(x))
-        # x_ = self.blinear2(x_)
-        # # x = F.dropout(x, p=0.1, training=self.training)
-        # x_ = F.relu(self.blinear3(x_))
-        # x = F.dropout(x, p=0.1, training=self.training)
         x_ = self.blinear4(x_)
         return x_
 
