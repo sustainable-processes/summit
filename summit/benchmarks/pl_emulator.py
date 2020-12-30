@@ -33,6 +33,8 @@ class ExperimentalEmulator(Experiment):
         Pytorch LightningModule class. Defaults to the BayesianRegressor
     model_dir : :class:`pathlib.Path` or str, optional
         Directory where models are saved. Defaults to `~/.summit/ExperimentEmulator"
+    load_checkpoint : bool, optional
+        Whether to load any previously trained models on disk. By default previous models ar enot loaded.
     normalize : bool, optional
         Normalize continuous input variables. Default is True.
     test_size : float, optional
@@ -84,11 +86,11 @@ class ExperimentalEmulator(Experiment):
             self.regressor = BayesianRegressor(n_features, n_targets, n_examples)
 
         # Try to load any previous models
-        if self.checkpoint_path.exists():
-            # self.regressor = self.regressor.load_from_checkpoint(
-            #     checkpoint_path=self.checkpoint_path
-            # )
-            self.regressor = torch.load(self.checkpoint_path)
+        load_checkpoint = kwargs.get("load_checkpoint", False)
+        if self.checkpoint_path.exists() and load_checkpoint:
+            self.regressor = self.regressor.load_from_checkpoint(
+                checkpoint_path=self.checkpoint_path
+            )
             print("Model Loaded from disk")
 
     def _run(self, conditions, **kwargs):
@@ -137,10 +139,10 @@ class ExperimentalEmulator(Experiment):
         with torch.no_grad():
             Y_test_pred = self.regressor(X_test)
         fig, ax = plt.subplots(1)
-        ax.scatter(Y_test_pred[:, 0], y_test[:, 0])
+        ax.scatter(y_test[:, 0], Y_test_pred[:, 0])
         ax.plot([-4, 4], [-4, 4])
-        ax.set_xlabel("Predicted")
-        ax.set_ylabel("True")
+        ax.set_xlabel("Measured")
+        ax.set_ylabel("Predicted")
         return fig, ax
 
 
