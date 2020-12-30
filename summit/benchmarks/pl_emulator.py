@@ -2,6 +2,7 @@ from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.experiment import Experiment
 from summit import get_summit_config_path
+from summit.strategies import Transform
 
 import torch
 import pytorch_lightning as pl
@@ -19,7 +20,10 @@ from numpy.random import default_rng
 
 
 class ExperimentalEmulator(Experiment):
-    """brief description
+    """Experimental Emulator
+
+    Train a machine learning model based on experimental data.
+    The model acts a benchmark for testing optimisation strategies.
 
     Parameters
     ----------
@@ -34,7 +38,7 @@ class ExperimentalEmulator(Experiment):
     model_dir : :class:`pathlib.Path` or str, optional
         Directory where models are saved. Defaults to `~/.summit/ExperimentEmulator"
     load_checkpoint : bool, optional
-        Whether to load any previously trained models on disk. By default previous models ar enot loaded.
+        Whether to load any previously trained models on disk. By default previous models are not loaded.
     normalize : bool, optional
         Normalize continuous input variables. Default is True.
     test_size : float, optional
@@ -42,10 +46,6 @@ class ExperimentalEmulator(Experiment):
     random_state : float, optional
         A random initialization value. Use to make results more reproducible.
 
-    Returns
-    -------
-    result: `bool`
-        description
 
     Raises
     ------
@@ -135,6 +135,7 @@ class ExperimentalEmulator(Experiment):
         pass
 
     def parity_plot(self):
+        """ Produce a parity plot based on the test data"""
         X_test, y_test = self.datamodule.X_test, self.datamodule.y_test
         with torch.no_grad():
             Y_test_pred = self.regressor(X_test)
@@ -191,13 +192,17 @@ class EmulatorDataModule(pl.LightningDataModule):
         self.shuffle = kwargs.get("shuffle", True)
         self.batch_size = kwargs.get("train_batch_size", 4)
         self.random_state = kwargs.get("random_state")
+        self.transform = kwargs.get("transform", Transform(self.domain))
+        self.categorical_method = kwargs.get("categorical_method", "one-hot")
 
         # Run initial setup
         self.initial_setup()
 
     def initial_setup(self):
         # Get data
-        X, y = self.split_data(self.domain, self.ds)
+        X, y = self.transform.transform_inputs_outputs(
+            self.ds, categorical_method=self.categorical_method
+        )
 
         # Scaling
         self.input_scaler, self.output_scaler = self._create_scalers(X, y)
@@ -230,12 +235,6 @@ class EmulatorDataModule(pl.LightningDataModule):
         """Create a Summit Data Module from a csv file"""
         ds = DataSet.read_csv(csv_file)
         return cls(domain, ds, model_dir, **kwargs)
-
-    @staticmethod
-    def split_data(domain, ds):
-        X = ds[[v.name for v in domain.input_variables]].to_numpy()
-        y = ds[[v.name for v in domain.output_variables]].to_numpy()
-        return X, y
 
     @staticmethod
     def _create_scalers(X, y):
