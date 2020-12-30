@@ -194,9 +194,7 @@ class Runner:
         self.strategy.reset()
         self.experiment.reset()
 
-    def to_dict(
-        self,
-    ):
+    def to_dict(self):
         runner_params = dict(
             num_initial_experiments=self.n_init,
             max_iterations=self.max_iterations,
