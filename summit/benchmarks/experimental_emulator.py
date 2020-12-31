@@ -76,24 +76,25 @@ class ExperimentalEmulator(Experiment):
         # Create the datamoedule
         if dataset is not None:
             self.datamodule = EmulatorDataModule(self.domain, dataset, **kwargs)
-
-        # Create the regressor
-        self.regressor = kwargs.get("regressor")
-        if not self.regressor and dataset is not None:
             train_loader = self.datamodule.train_dataloader()
             self.n_examples = len(train_loader.dataset)
-            n_features = train_loader.dataset[0][0].shape[0]
-            n_targets = train_loader.dataset[0][1].shape[0]
-            self.regressor = BayesianRegressor(n_features, n_targets, self.n_examples)
+            self.n_features = train_loader.dataset[0][0].shape[0]
+            self.n_targets = train_loader.dataset[0][1].shape[0]
 
-        # Try to load any previous models
+        # Create the regressor
+        Reg = kwargs.get("regressor", BayesianRegressor)
         load_checkpoint = kwargs.get("load_checkpoint", False)
         if self.checkpoint_path.exists() and load_checkpoint:
-            self.regressor = BayesianRegressor.load_from_checkpoint(
+            # Load checkpoint if it exists
+            self.regressor = Reg.load_from_checkpoint(
                 checkpoint_path=self.checkpoint_path
             )
             print("Model Loaded from disk")
-        elif dataset is None:
+        elif self.datamodule is not None:
+            # Create new regressor
+            hparams = dict(n_examples=self.n_examples)
+            self.regressor = Reg(self.n_features, self.n_targets, **hparams)
+        elif self.datamodule is None:
             raise ValueError(
                 "Dataset cannot be None when there is not pretrained model."
             )
@@ -117,17 +118,17 @@ class ExperimentalEmulator(Experiment):
         """
         logger = kwargs.get("logger")
         version = kwargs.get("version", 0)
-        if logger is None:
-            kwargs["logger"] = pl.loggers.TensorBoardLogger(
-                name=self.model_name,
-                save_dir=self.model_dir,
-                version=version,
-            )
+        # if logger is None:
+        #     kwargs["logger"] = pl.loggers.TensorBoardLogger(
+        #         name=self.model_name,
+        #         save_dir=self.model_dir,
+        #         version=version,
+        #     )
         kwargs["checkpoint_callback"] = kwargs.get("checkpoint_callback", False)
 
         # Use pytorch lightining for training and saving
         trainer = pl.Trainer(**kwargs)
-        trainer.fit(self.regressor, self.datamodule)
+        trainer.fit(model=self.regressor, datamodule=self.datamodule)
         trainer.save_checkpoint(self.checkpoint_path)
 
     def to_dict(self):
@@ -149,7 +150,10 @@ class ExperimentalEmulator(Experiment):
             Y_test_pred = self.regressor(X_test)
         fig, ax = plt.subplots(1)
         ax.scatter(y_test[:, 0], Y_test_pred[:, 0])
-        ax.plot([-4, 4], [-4, 4])
+        # Parity line
+        min = np.min(np.concatenate([y_test[:, 0], Y_test_pred[:, 0]]))
+        max = np.max(np.concatenate([y_test[:, 0], Y_test_pred[:, 0]]))
+        ax.plot([min, max], [min, max])
         ax.set_xlabel("Measured")
         ax.set_ylabel("Predicted")
         return fig, ax
@@ -348,7 +352,7 @@ class BayesianRegressor(pl.LightningModule):
 
     val_str = "CI acc: {:.2f}, CI upper acc: {:.2f}, CI lower acc: {:.2f}"
 
-    def __init__(self, input_dim, output_dim, train_len, hidden_units=512):
+    def __init__(self, input_dim, output_dim, train_len=100, hidden_units=512):
         super().__init__()
 
         self.blinear1 = BayesianLinear(input_dim, hidden_units)
@@ -364,7 +368,6 @@ class BayesianRegressor(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         X, y = batch
-
         loss = self.sample_elbo(
             inputs=X,
             labels=y,
@@ -442,7 +445,7 @@ class BayesianRegressor(pl.LightningModule):
 
 
 class ANNRegressor(pl.LightningModule):
-    def __init__(self, input_dim, output_dim, hidden_units=512):
+    def __init__(self, input_dim, output_dim, hidden_units=512, **kwargs):
         super().__init__()
 
         self.linear1 = torch.nn.Linear(input_dim, hidden_units)
@@ -450,19 +453,19 @@ class ANNRegressor(pl.LightningModule):
         self.save_hyperparameters("input_dim", "output_dim")
         self.criterion = torch.nn.MSELoss()
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         x_ = self.linear1(x)
         x_ = torch.nn.functional.relu(x_)
         return self.linear2(x_)
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, **kwargs):
         X, y = batch
         y_hat = self(X)
         loss = self.criterion(y_hat, y)
         self.log("train_loss", loss)
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, **kwargs):
         X, y = batch
         y_hat = self(X)
         loss = self.criterion(y_hat, y)
