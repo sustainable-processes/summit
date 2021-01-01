@@ -6,11 +6,10 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     ds = DataSet.read_csv("data/reizman_suzuki_case_1.csv")
-    # exp = ReizmanSuzukiEmulator(case=1, dataset=ds, regressor=ANNRegressor)
-    # exp.train(max_epochs=10)
+    exp = ReizmanSuzukiEmulator(case=1, dataset=ds, regressor=ANNRegressor)
+    exp.train(max_epochs=1)
+    d = exp.to_dict()
 
-    exp = ReizmanSuzukiEmulator(
-        case=1, dataset=ds, load_checkpoint=True, regressor=ANNRegressor
-    )
+    exp = ReizmanSuzukiEmulator.from_dict(d)
     exp.parity_plot()
     plt.show()

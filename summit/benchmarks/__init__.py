@@ -3,8 +3,15 @@ from .test_functions import Himmelblau, Hartmann3D, ThreeHumpCamel, DTLZ2, VLMOP
 from .experimental_emulator import (
     ExperimentalEmulator,
     ReizmanSuzukiEmulator,
+    registry,
+    ANNRegressor,
+    BayesianRegressor,
     # BaumgartnerCrossCouplingEmulator,
     # BaumgartnerCrossCouplingDescriptorEmulator,
     # BaumgartnerCrossCouplingEmulator_Yield_Cost,
 )
 from .MIT import *
+
+# Register regressors here
+registry.register(ANNRegressor)
+registry.register(BayesianRegressor)

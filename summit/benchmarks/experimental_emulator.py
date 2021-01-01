@@ -1,3 +1,4 @@
+import ipdb
 from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.experiment import Experiment
@@ -118,12 +119,12 @@ class ExperimentalEmulator(Experiment):
         """
         logger = kwargs.get("logger")
         version = kwargs.get("version", 0)
-        # if logger is None:
-        #     kwargs["logger"] = pl.loggers.TensorBoardLogger(
-        #         name=self.model_name,
-        #         save_dir=self.model_dir,
-        #         version=version,
-        #     )
+        if logger is None:
+            kwargs["logger"] = pl.loggers.TensorBoardLogger(
+                name=self.model_name,
+                save_dir=self.model_dir,
+                version=version,
+            )
         kwargs["checkpoint_callback"] = kwargs.get("checkpoint_callback", False)
 
         # Use pytorch lightining for training and saving
@@ -131,17 +132,23 @@ class ExperimentalEmulator(Experiment):
         trainer.fit(model=self.regressor, datamodule=self.datamodule)
         trainer.save_checkpoint(self.checkpoint_path)
 
-    def to_dict(self):
-        params = dict(
-            dataset=self.dataset,
-            model_name=self.model_name,
-            model_dir=self.model_dir,
-            n_examples=self.n_examples,
+    def to_dict(self, **kwargs):
+        kwargs.update(
+            dict(
+                dataset=self.datamodule.ds,
+                model_name=self.model_name,
+                model_dir=self.model_dir,
+                regressor_name=self.regressor.__class__.__name__,
+                n_examples=self.n_examples,
+            )
         )
-        return super().to_dict(**params)
+        return super().to_dict(**kwargs)
 
-    def from_dict(self):
-        pass
+    @classmethod
+    def from_dict(cls, d):
+        regressor = registry[d["experiment_params"]["regressor_name"]]
+        d["experiment_params"]["regressor"] = regressor
+        return super().from_dict(d)
 
     def parity_plot(self):
         """ Produce a parity plot based on the test data"""
@@ -189,9 +196,11 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     """
 
     def __init__(self, case=1, dataset=None, **kwargs):
+        self.case = case
         model_name = f"reizman_suzuki_case_{case}"
         domain = self.setup_domain()
-        super().__init__(model_name, domain, dataset=dataset, **kwargs)
+        kwargs.update(dict(domain=domain, model_name=model_name, dataset=dataset))
+        super().__init__(**kwargs)
 
     def setup_domain(self):
         domain = Domain()
@@ -248,6 +257,10 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         )
 
         return domain
+
+    def to_dict(self):
+        experiment_params = {"case": self.case}
+        return super().to_dict(**experiment_params)
 
 
 class EmulatorDataModule(pl.LightningDataModule):
@@ -476,57 +489,34 @@ class ANNRegressor(pl.LightningModule):
         return optimizer
 
 
-def create_domain():
-    domain = Domain()
-    domain += ContinuousVariable(
-        name="temperature",
-        description="reaction temperature in celsius",
-        bounds=[30, 100],
-    )
-    domain += ContinuousVariable(
-        name="flowrate_a", description="flowrate of reactant a", bounds=[1, 100]
-    )
+class RegressorRegistry:
+    """Registry for Regressors
 
-    domain += ContinuousVariable(
-        name="flowrate_b", description="flowrate of reactant b", bounds=[1, 100]
-    )
+    Models registered using the register method
+    are saved as the class name.
 
-    domain += ContinuousVariable(
-        name="yield",
-        description="yield of reaction",
-        bounds=[0, 100],
-        is_objective=True,
-        maximize=True,
-    )
-    return domain
+    """
 
+    regressors = {}
 
-def create_dataset(domain, n_samples=100, random_seed=100):
-    rng = default_rng(random_seed)
-    n_features = len(domain.input_variables)
-    inputs = rng.standard_normal(size=(n_samples, n_features))
-    inputs *= [-5, 6, 0.1]
-    output = np.sum(inputs ** 2, axis=1)
-    data = np.append(inputs, np.atleast_2d(output).T, axis=1)
-    columns = [v.name for v in domain.input_variables] + [
-        domain.output_variables[0].name
-    ]
-    return DataSet(data, columns=columns)
+    def __getitem__(self, key):
+        reg = self.regressors.get(key)
+        if reg is not None:
+            return reg
+        else:
+            raise KeyError(
+                f"{key} is not in the registry. Register using the register method."
+            )
+
+    def __setitem__(self, key, value):
+        reg = self.regressors.get(key)
+        if reg is not None:
+            self.regressors[key] = value
+
+    def register(self, regressor):
+        key = regressor.__name__
+        self.regressors[key] = regressor
 
 
-def main():
-    # Get data
-    domain = create_domain()
-    dataset = create_dataset(domain, n_samples=500)
-
-    # Setup and train model
-    n_features = len(domain.input_variables)
-    regressor = ANNRegressor(n_features, 1)
-    exp = ExperimentalEmulator("test_ann_model", domain, dataset, regressor=regressor)
-    exp.train(max_epochs=10)
-    exp.parity_plot()
-    plt.show()
-
-
-if __name__ == "__main__":
-    main()
+# Create global registry
+registry = RegressorRegistry()
