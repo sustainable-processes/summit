@@ -135,7 +135,7 @@ class ExperimentalEmulator(Experiment):
     def to_dict(self, **kwargs):
         kwargs.update(
             dict(
-                dataset=self.datamodule.ds,
+                dataset=self.datamodule.ds.to_dict(),
                 model_name=self.model_name,
                 model_dir=self.model_dir,
                 regressor_name=self.regressor.__class__.__name__,
@@ -147,7 +147,10 @@ class ExperimentalEmulator(Experiment):
     @classmethod
     def from_dict(cls, d):
         regressor = registry[d["experiment_params"]["regressor_name"]]
+        ds_dict = d["experiment_params"]["dataset"]
+        ds = DataSet.from_dict(ds_dict)
         d["experiment_params"]["regressor"] = regressor
+        d["experiment_params"]["dataset"] = ds
         return super().from_dict(d)
 
     def parity_plot(self):
@@ -278,16 +281,6 @@ class EmulatorDataModule(pl.LightningDataModule):
         Fraction of data used for test. Default is 0.25
     random_state : float, optional
         A random initialization value. Use to make results more reproducible.
-
-    Returns
-    -------
-    result: `bool`
-        description
-
-    Raises
-    ------
-    ValueError
-        description
 
     Examples
     --------
