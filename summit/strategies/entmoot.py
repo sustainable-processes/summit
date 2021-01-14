@@ -92,6 +92,7 @@ class ENTMOOT(Strategy):
         Acquisition function type
             LCB: lower confidence bound
 
+
     """
 
     def __init__(
@@ -216,7 +217,15 @@ class ENTMOOT(Strategy):
         if optimizer_type in ["sampling", "global"]:
             self.optimizer_type = optimizer_type
         else:
-            self.optimizer_type = "sampling"  # default optimizer: sampling
+            self.optimizer_type = "global"  # default optimizer: global
+
+        if self.optimizer_type == "sampling" & self.constraints is not None:
+            raise ValueError(
+                "Constraints can only be applied when ENTMOOT is using \ 
+                global solver. Set optimizer_type = \"global\" or remove \
+                constraints."
+                )
+
         """
         Sets an initial points generator. Can be either
         - "random" for uniform random numbers,
@@ -319,6 +328,7 @@ class ENTMOOT(Strategy):
 
             inputs = inputs.to_numpy()
             outputs = outputs.to_numpy()
+
             if self.prev_param is not None:
                 X_step = self.prev_param[0]
                 Y_step = self.prev_param[1]
