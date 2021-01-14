@@ -218,6 +218,14 @@ class ENTMOOT(Strategy):
             self.optimizer_type = optimizer_type
         else:
             self.optimizer_type = "sampling"  # default optimizer: sampling
+
+        if self.optimizer_type == "sampling" & self.constraints is not None:
+            raise ValueError(
+                "Constraints can only be applied when ENTMOOT is using \ 
+                global solver. Set optimizer_type = \"global\" or remove \
+                constraints."
+                )
+
         """
         Sets an initial points generator. Can be either
         - "random" for uniform random numbers,
