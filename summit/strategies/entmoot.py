@@ -217,7 +217,7 @@ class ENTMOOT(Strategy):
         if optimizer_type in ["sampling", "global"]:
             self.optimizer_type = optimizer_type
         else:
-            self.optimizer_type = "global"  # default optimizer: global
+            self.optimizer_type = "sampling"  # default optimizer: sampling
 
         if self.optimizer_type == "sampling" & self.constraints is not None:
             raise ValueError(
