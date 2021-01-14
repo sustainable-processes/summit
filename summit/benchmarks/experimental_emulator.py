@@ -193,7 +193,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
             osp.dirname(osp.realpath(__file__)),
             "experiment_emulator/data/" + model_name + "_train_test.csv",
         )
-        super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
+        super().__init__(domain=domain, model_name=model_name)
 
     def setup_domain(self):
         domain = Domain()
@@ -237,7 +237,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
             description=des_5,
             bounds=[0, 200],  # TODO: not sure about bounds, maybe redefine
             is_objective=True,
-            maximize=True,
+            maximize=False,
         )
 
         des_6 = "Yield"
@@ -342,7 +342,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
             name="base",
             description=des_2,
             levels=["DBU", "BTMG", "TMG", "TEA"],
-            descriptors=base_df,
+            descriptors=base_df
         )
 
         des_3 = "Base equivalents"

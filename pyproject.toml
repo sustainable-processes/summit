@@ -11,10 +11,10 @@ keywords = ["machine-learning", "chemistry", "reactions", "optimization", "neura
 
 [tool.poetry.dependencies]
 pandas = "^1.1.0"
-python = "^3.6.1"
+python = "^3.7"
 GPy = "^1.9"
-numpy = "1.18.0"
-pyrff = "^1.0.1"
+numpy = "^1.18.0"
+pyrff = "^2.0.1"
 SQSnobFit = "^0.4.3"
 fastprogress = "^0.2.3"
 ipywidgets = "^7.5.1"
@@ -25,17 +25,25 @@ neptune-client = {version= "^0.4.115", optional = true}
 hiplot = {version= "^0.1.12", optional = true}
 tensorflow = "^2.3.0"
 torch = "^1.4.0"
-blitz-bayesian-pytorch = "0.2.3"
 paramiko = {version="^2.7.1", optional=true}    
 gryffin = "^0.1.1"
 sphinx = {version="^3.2.1", optional=true}
 nbsphinx = {version="^0.7.1", optional=true}
 sphinx-rtd-theme = {version="^0.5.0", optional=true}
 pyrecorder = {version="^0.1.8", optional=true}
+botorch = "*"
+streamlit = "^0.67.1"
+ipykernel = "^5.3.4"
+scikit-learn = "^0.23.2"
+blitz-bayesian-pytorch = {git = "https://github.com/sustainable-processes/blitz-bayesian-deep-learning.git"}
+xlrd = "^1.2.0"
+cython = "^0.29.21"
+entmoot = {version="^0.1.4", optional=true}
 
 [tool.poetry.extras]
 experiments = ["neptune-client", "hiplot", "paramiko", "pyrecorder"]
 docs = ["sphinx", "nbsphinx", "sphinx-rtd-theme"]
+entmoot = ["entmoot"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"

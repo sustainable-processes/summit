@@ -295,7 +295,7 @@ class SNOBFIT(Strategy):
             # prev_res = prev_res[ordered_var_names]
             # transform
             inputs, outputs = self.transform.transform_inputs_outputs(
-                prev_res, transform_descriptors=True
+                prev_res, categorical_method="descriptors"
             )
 
             # Set up maximization and minimization
@@ -364,7 +364,7 @@ class SNOBFIT(Strategy):
 
         # Do any necessary transformation back
         next_experiments = self.transform.un_transform(
-            next_experiments, transform_descriptors=True
+            next_experiments, categorical_method="descriptors"
         )
 
         return next_experiments, xbest, fbest, param
