@@ -100,6 +100,11 @@ def test_experimental_emulator(n_samples=100, max_epochs=100):
     # Evaluate emulator
     print(exp.test())
 
+    exp.parity_plot()
+    import matplotlib.pyplot as plt
+
+    plt.show()
+
 
 def test_baumgartner_CC_emulator():
     """ Test the Baumgartner Cross Coupling emulator"""
