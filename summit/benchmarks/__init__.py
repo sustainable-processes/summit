@@ -5,7 +5,7 @@ from .experimental_emulator import (
     ReizmanSuzukiEmulator,
     registry,
     ANNRegressor,
-    BayesianRegressor,
+    BNNRegressor,
     # BaumgartnerCrossCouplingEmulator,
     # BaumgartnerCrossCouplingDescriptorEmulator,
     # BaumgartnerCrossCouplingEmulator_Yield_Cost,
@@ -14,4 +14,4 @@ from .MIT import *
 
 # Register regressors here
 registry.register(ANNRegressor)
-registry.register(BayesianRegressor)
+registry.register(BNNRegressor)

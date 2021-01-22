@@ -83,7 +83,7 @@ class ExperimentalEmulator(Experiment):
             self.n_targets = train_loader.dataset[0][1].shape[0]
 
         # Create the regressor
-        Reg = kwargs.get("regressor", BayesianRegressor)
+        Reg = kwargs.get("regressor", BNNRegressor)
         load_checkpoint = kwargs.get("load_checkpoint", False)
         if self.checkpoint_path.exists() and load_checkpoint:
             # Load checkpoint if it exists
@@ -118,14 +118,14 @@ class ExperimentalEmulator(Experiment):
         https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#init
         """
         logger = kwargs.get("logger")
-        version = kwargs.get("version", 0)
+        # version = kwargs.get("version", 0)
         if logger is None:
             kwargs["logger"] = pl.loggers.TensorBoardLogger(
                 name=self.model_name,
                 save_dir=self.model_dir,
                 version=version,
             )
-        kwargs["checkpoint_callback"] = kwargs.get("checkpoint_callback", False)
+        # kwargs["checkpoint_callback"] = kwargs.get("checkpoint_callback", False)
 
         # Use pytorch lightining for training and saving
         trainer = pl.Trainer(**kwargs)
@@ -134,8 +134,7 @@ class ExperimentalEmulator(Experiment):
 
     def test(self, **kwargs):
         trainer = pl.Trainer(**kwargs)
-        return trainer.test(model=self.regressor, datamodule=self.datamodule)  
-
+        return trainer.test(model=self.regressor, datamodule=self.datamodule)
 
     def to_dict(self, **kwargs):
         kwargs.update(
@@ -365,19 +364,22 @@ class EmulatorDataModule(pl.LightningDataModule):
 
 
 @variational_estimator
-class BayesianRegressor(pl.LightningModule):
+class BNNRegressor(pl.LightningModule):
     """A Bayesian Neural Network pytorch lightining module"""
 
     val_str = "CI acc: {:.2f}, CI upper acc: {:.2f}, CI lower acc: {:.2f}"
 
-    def __init__(self, input_dim, output_dim, train_len=100, hidden_units=512):
+    def __init__(
+        self, input_dim, output_dim, n_examples=100, hidden_units=512, **kwargs
+    ):
         super().__init__()
 
         self.blinear1 = BayesianLinear(input_dim, hidden_units)
         self.blinear4 = BayesianLinear(hidden_units, output_dim)
-        self.save_hyperparameters("input_dim", "output_dim", "train_len")
+        self.n_examples = n_examples
+        self.n_samples = kwargs.get("n_samples", 50)
+        self.save_hyperparameters("input_dim", "output_dim", "n_examples")
         self.criterion = torch.nn.MSELoss()
-        self.train_len = train_len
 
     def forward(self, x):
         x_ = torch.nn.functional.relu(self.blinear1(x))
@@ -391,8 +393,18 @@ class BayesianRegressor(pl.LightningModule):
             labels=y,
             criterion=self.criterion,
             sample_nbr=3,
-            complexity_cost_weight=1 / self.train_len,
+            complexity_cost_weight=1 / self.n_examples,
         )
+        self.log("train_mse", loss)
+        return loss
+
+    def test_step(self, batch, batch_idx, **kwargs):
+        X, y = batch
+        y_hats = torch.stack([self(X) for _ in range(self.n_samples)])
+        mean_y_hat = y_hats.mean(axis=0)
+        std_y_hat = y_hats.std(axis=0)
+        loss = self.criterion(mean_y_hat, y)
+        self.log("test_mse", loss)
         return loss
 
     # def validation_step(self, batch, batch_idx):
@@ -431,7 +443,7 @@ class BayesianRegressor(pl.LightningModule):
         X, y = batch
 
         # Sample
-        preds = [self(X) for i in range(samples)]
+        preds = torch.tensor([self(X) for i in range(samples)])
         preds = torch.stack(preds)
         means = preds.mean(axis=0)
         stds = preds.std(axis=0)
@@ -457,9 +469,6 @@ class BayesianRegressor(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
         return optimizer
-
-    def test_step(self, batch, batch_idx):
-        pass
 
 
 class ANNRegressor(pl.LightningModule):
@@ -489,7 +498,7 @@ class ANNRegressor(pl.LightningModule):
         X, y = batch
         y_hat = self(X)
         loss = self.criterion(y_hat, y)
-        self.log(f"{step}_loss", loss)
+        self.log(f"{step}_mse", loss)
         return loss
 
     def configure_optimizers(self):

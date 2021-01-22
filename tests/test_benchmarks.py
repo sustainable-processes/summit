@@ -7,6 +7,7 @@ from summit.benchmarks import (
     DTLZ2,
     ExperimentalEmulator,
     ANNRegressor,
+    BNNRegressor,
     # Hartmann3D,
     # Himmelblau,
     # ThreeHumpCamel,
@@ -88,22 +89,25 @@ def create_dataset(domain, n_samples=100, random_seed=100):
     return DataSet(data, columns=columns)
 
 
-def test_experimental_emulator(n_samples=100, max_epochs=100):
+def test_experimental_emulator(n_samples=100, max_epochs=100, show_plot=False):
     # Setup
     domain = create_domain()
     ds = create_dataset(domain, n_samples=n_samples)
 
     # Train emulator
-    exp = ExperimentalEmulator("test_model", domain, dataset=ds, regressor=ANNRegressor)
+    exp = ExperimentalEmulator("test_model", domain, dataset=ds, regressor=BNNRegressor)
     exp.train(max_epochs=max_epochs)
 
     # Evaluate emulator
-    print(exp.test())
+    res_dict = exp.test()[0]
+    mse = res_dict["test_mse"]
+    # assert mse <= 0.1
 
-    exp.parity_plot()
-    import matplotlib.pyplot as plt
+    if show_plot:
+        import matplotlib.pyplot as plt
 
-    plt.show()
+        exp.parity_plot()
+        plt.show()
 
 
 def test_baumgartner_CC_emulator():
