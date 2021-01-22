@@ -98,6 +98,7 @@ def test_experimental_emulator(n_samples=100, max_epochs=100):
     exp.train(max_epochs=max_epochs)
 
     # Evaluate emulator
+    print(exp.test())
 
 
 def test_baumgartner_CC_emulator():

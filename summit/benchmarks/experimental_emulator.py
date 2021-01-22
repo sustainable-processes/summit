@@ -132,6 +132,11 @@ class ExperimentalEmulator(Experiment):
         trainer.fit(model=self.regressor, datamodule=self.datamodule)
         trainer.save_checkpoint(self.checkpoint_path)
 
+    def test(self, **kwargs):
+        trainer = pl.Trainer(**kwargs)
+        return trainer.test(model=self.regressor, datamodule=self.datamodule)  
+
+
     def to_dict(self, **kwargs):
         kwargs.update(
             dict(
@@ -342,7 +347,7 @@ class EmulatorDataModule(pl.LightningDataModule):
             ds_train, batch_size=self.batch_size, shuffle=self.shuffle
         )
 
-    def val_dataloader(self):
+    def test_dataloader(self):
         ds_test = torch.utils.data.TensorDataset(self.X_test, self.y_test)
         return torch.utils.data.DataLoader(ds_test)
 
@@ -472,17 +477,20 @@ class ANNRegressor(pl.LightningModule):
         return self.linear2(x_)
 
     def training_step(self, batch, batch_idx, **kwargs):
-        X, y = batch
-        y_hat = self(X)
-        loss = self.criterion(y_hat, y)
-        self.log("train_loss", loss)
-        return loss
+        return self.calculate_loss(batch, "train")
 
     def validation_step(self, batch, batch_idx, **kwargs):
+        return self.calculate_loss(batch, "validation")
+
+    def test_step(self, batch, batch_idx, **kwargs):
+        return self.calculate_loss(batch, "test")
+
+    def calculate_loss(self, batch, step, **kwargs):
         X, y = batch
         y_hat = self(X)
         loss = self.criterion(y_hat, y)
-        self.log("val_loss", loss)
+        self.log(f"{step}_loss", loss)
+        return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
