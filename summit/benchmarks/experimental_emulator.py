@@ -6,6 +6,7 @@ from summit import get_summit_config_path
 from summit.strategies import Transform
 
 import torch
+import torch.nn.functional as F
 import pytorch_lightning as pl
 
 from blitz.modules import BayesianLinear
@@ -93,8 +94,9 @@ class ExperimentalEmulator(Experiment):
             print("Model Loaded from disk")
         elif self.datamodule is not None:
             # Create new regressor
-            hparams = dict(n_examples=self.n_examples)
-            self.regressor = Reg(self.n_features, self.n_targets, **hparams)
+            model_hparams = kwargs.get("model_hparams", dict())
+            model_hparams["n_example"] = self.n_examples
+            self.regressor = Reg(self.n_features, self.n_targets, **model_hparams)
         elif self.datamodule is None:
             raise ValueError(
                 "Dataset cannot be None when there is not pretrained model."
@@ -118,12 +120,12 @@ class ExperimentalEmulator(Experiment):
         https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#init
         """
         logger = kwargs.get("logger")
-        # version = kwargs.get("version", 0)
+        version = kwargs.get("version", 0)
         if logger is None:
             kwargs["logger"] = pl.loggers.TensorBoardLogger(
                 name=self.model_name,
                 save_dir=self.model_dir,
-                version=version,
+                # version=version,
             )
         # kwargs["checkpoint_callback"] = kwargs.get("checkpoint_callback", False)
 
@@ -373,18 +375,27 @@ class BNNRegressor(pl.LightningModule):
         self, input_dim, output_dim, n_examples=100, hidden_units=512, **kwargs
     ):
         super().__init__()
-
+        # self.n_layers = kwargs.get("n_hidden", 3)
+        # self.layers = [BayesianLinear(input_dim, hidden_units)]
+        # self.layers += [
+        #     BayesianLinear(hidden_units, hidden_units) for _ in range(self.n_layers)
+        # ]
+        # self.layers.append(BayesianLinear(hidden_units, output_dim))
         self.blinear1 = BayesianLinear(input_dim, hidden_units)
-        self.blinear4 = BayesianLinear(hidden_units, output_dim)
+        self.blinear2 = BayesianLinear(hidden_units, output_dim)
         self.n_examples = n_examples
         self.n_samples = kwargs.get("n_samples", 50)
         self.save_hyperparameters("input_dim", "output_dim", "n_examples")
         self.criterion = torch.nn.MSELoss()
 
     def forward(self, x):
-        x_ = torch.nn.functional.relu(self.blinear1(x))
-        x_ = self.blinear4(x_)
-        return x_
+        # for layer in self.layers[:-1]:
+        #     x = layer(x)
+        #     x = F.relu(x)
+        # return self.layers[-1](x)
+        x = self.blinear1(x)
+        x = F.relu(x)
+        return self.blinear2(x)
 
     def training_step(self, batch, batch_idx):
         X, y = batch
@@ -467,7 +478,7 @@ class BNNRegressor(pl.LightningModule):
         return ci_lower, ci_upper
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
         return optimizer
 
 

@@ -89,13 +89,18 @@ def create_dataset(domain, n_samples=100, random_seed=100):
     return DataSet(data, columns=columns)
 
 
-def test_experimental_emulator(n_samples=100, max_epochs=100, show_plot=False):
+def test_experimental_emulator(
+    n_samples=100, max_epochs=100, show_plot=False, **kwargs
+):
     # Setup
     domain = create_domain()
     ds = create_dataset(domain, n_samples=n_samples)
 
     # Train emulator
-    exp = ExperimentalEmulator("test_model", domain, dataset=ds, regressor=BNNRegressor)
+    exp = ExperimentalEmulator(
+        "test_model", domain, dataset=ds, regressor=BNNRegressor, **kwargs
+    )
+    print("N_examples", exp.n_examples)
     exp.train(max_epochs=max_epochs)
 
     # Evaluate emulator
