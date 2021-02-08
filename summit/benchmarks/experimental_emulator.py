@@ -1,4 +1,3 @@
-import ipdb
 from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.experiment import Experiment
@@ -14,6 +13,7 @@ from blitz.utils import variational_estimator
 
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
 
 import matplotlib.pyplot as plt
 import pathlib
@@ -134,8 +134,7 @@ class ExperimentalEmulator(Experiment):
         trainer.fit(model=self.regressor, datamodule=self.datamodule)
         trainer.save_checkpoint(self.checkpoint_path)
 
-    def test(self, **kwargs):
-        trainer = pl.Trainer(**kwargs)
+        # Test
         return trainer.test(model=self.regressor, datamodule=self.datamodule)
 
     def to_dict(self, **kwargs):
@@ -493,11 +492,13 @@ class ANNRegressor(pl.LightningModule):
 
     def forward(self, x, **kwargs):
         x_ = self.linear1(x)
-        x_ = torch.nn.functional.relu(x_)
+        x_ = F.relu(x_)
         return self.linear2(x_)
 
     def training_step(self, batch, batch_idx, **kwargs):
-        return self.calculate_loss(batch, "train")
+        X, y = batch
+        y_hat = self(X)
+        return self.evaluate_loss(y, y_hat, "train")
 
     def validation_step(self, batch, batch_idx, **kwargs):
         return self.calculate_loss(batch, "validation")
@@ -508,8 +509,18 @@ class ANNRegressor(pl.LightningModule):
     def calculate_loss(self, batch, step, **kwargs):
         X, y = batch
         y_hat = self(X)
-        loss = self.criterion(y_hat, y)
-        self.log(f"{step}_mse", loss)
+        return self.evaluate_loss(y, y_hat, "val")
+
+    def test_step(self, batch, batch_idx, **kwargs):
+        X, y = batch
+        y_hat = self(X)
+        return self.evaluate_loss(y, y_hat, "test")
+
+    def evaluate_loss(self, y_true, y_hat, step):
+        loss = F.mse_loss(y_hat, y_true)
+        self.log(f"_mse", loss)
+        # r2 = r2_score(y_true.detach().numpy(), y_hat.detach().numpy())
+        # self.log(f"{step}_r2_score", r2)
         return loss
 
     def configure_optimizers(self):
