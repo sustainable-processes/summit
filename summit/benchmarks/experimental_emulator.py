@@ -5,7 +5,7 @@ from summit.experiment import Experiment
 
 import numpy as np
 
-from summit.benchmarks.experiment_emulator.bnn_emulator import BNNEmulator
+# from summit.benchmarks.experiment_emulator.bnn_emulator import BNNEmulator
 from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.utils import jsonify_dict, unjsonify_dict
@@ -342,7 +342,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
             name="base",
             description=des_2,
             levels=["DBU", "BTMG", "TMG", "TEA"],
-            descriptors=base_df
+            descriptors=base_df,
         )
 
         des_3 = "Base equivalents"

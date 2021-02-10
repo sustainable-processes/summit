@@ -5,15 +5,15 @@ from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
 
-from GPy.models import GPRegression as gpr
-import GPy
-import pyrff
+# from GPy.models import GPRegression as gpr
+# import GPy
+# import pyrff
 
 from pymoo.model.problem import Problem
-from pymoo.algorithms.nsga2 import NSGA2
-from pymoo.factory import get_sampling, get_crossover, get_mutation
-from pymoo.optimize import minimize
-from pymoo.factory import get_termination
+
+# from pymoo.algorithms.nsga2 import NSGA2
+# from pymoo.optimize import minimize
+# from pymoo.factory import get_termination
 
 import pathlib
 import os

@@ -1,4 +1,4 @@
-from .base import Strategy, Design, _closest_point_indices, Transform
+from .base import Strategy, Design, Transform
 from summit.domain import *
 from summit.utils.dataset import DataSet
 import numpy as np

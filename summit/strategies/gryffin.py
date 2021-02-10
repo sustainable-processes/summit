@@ -1,12 +1,10 @@
 from .base import Strategy
-from summit.domain import Domain, DomainError
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
 
 import numpy as np
 import pandas as pd
 
-from gryffin import Gryffin
 import json
 
 import os
@@ -309,6 +307,8 @@ class GRYFFIN(Strategy):
             self.constraints = None
 
     def _setup_gryffin(self, config_dict: dict, tmp_dir: pathlib.Path):
+        from gryffin import Gryffin
+
         # Create class attribute
         self.config_dict = copy.deepcopy(config_dict)
         self._create_gryffin_domain(tmp_dir)

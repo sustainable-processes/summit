@@ -3,7 +3,7 @@ from summit.utils.dataset import DataSet
 
 import numpy as np
 import pandas as pd
-from sklearn.preprocessing import OneHotEncoder
+
 
 from abc import ABC, abstractmethod, abstractclassmethod
 from typing import Type, Tuple
@@ -63,6 +63,7 @@ class Transform:
         inputs, outputs
             Datasets with the input and output datasets
         """
+        from sklearn.preprocessing import OneHotEncoder
         copy = kwargs.get("copy", True)
         categorical_method = kwargs.get("categorical_method", "one-hot")
         standardize_inputs = kwargs.get("standardize_inputs", False)
@@ -198,6 +199,7 @@ class Transform:
         Override this class to achieve custom untransformations
 
         """
+        from sklearn.preprocessing import OneHotEncoder
         categorical_method = kwargs.get("categorical_method")
         standardize_inputs = kwargs.get("standardize_inputs", False)
         standardize_outputs = kwargs.get("standardize_outputs", False)

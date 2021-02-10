@@ -3,8 +3,8 @@ from .random import LHS
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
-import GPy
-import GPyOpt
+# import GPy
+# import GPyOpt
 
 import numpy as np
 import pandas as pd
