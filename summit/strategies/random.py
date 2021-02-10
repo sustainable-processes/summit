@@ -3,7 +3,7 @@ from summit.domain import *
 from summit.utils.dataset import DataSet
 import numpy as np
 import pandas as pd
-from typing import Type, Tuple
+from typing import Tuple
 
 
 class Random(Strategy):
