@@ -15,11 +15,11 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score
 
-import matplotlib.pyplot as plt
+
 import pathlib
 import numpy as np
 from numpy.random import default_rng
-# from summit.benchmarks.experiment_emulator.bnn_emulator import BNNEmulator
+
 from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.utils import jsonify_dict, unjsonify_dict
@@ -72,7 +72,7 @@ class ExperimentalEmulator(Experiment):
         # Save locations
         self.model_name = model_name
         self.model_dir = kwargs.get(
-            "model_dir", get_summit_config_path() / "ExprimentalEmulator"
+            "model_dir", get_summit_config_path() / "ExperimentalEmulator"
         )
         self.model_dir = pathlib.Path(self.model_dir)
         self.checkpoint_path = (
@@ -123,6 +123,7 @@ class ExperimentalEmulator(Experiment):
         For kwargs, see pytorch-lightining documentation:
         https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#init
         """
+
         logger = kwargs.get("logger")
         version = kwargs.get("version", 0)
         if logger is None:
@@ -161,6 +162,8 @@ class ExperimentalEmulator(Experiment):
 
     def parity_plot(self):
         """ Produce a parity plot based on the test data"""
+        import matplotlib.pyplot as plt
+
         X_test, y_test = self.datamodule.X_test, self.datamodule.y_test
         with torch.no_grad():
             Y_test_pred = self.regressor(X_test)

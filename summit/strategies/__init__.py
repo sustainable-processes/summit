@@ -7,7 +7,6 @@ from .neldermead import NelderMead
 from .snobfit import SNOBFIT
 from .sobo import SOBO
 from .multitask import MTBO, STBO
-from .gryffin import GRYFFIN
 from .deep_reaction_optimizer import DRO
 from .entmoot import ENTMOOT
 
@@ -21,7 +20,6 @@ __all__ = [
     "MTBO",
     "STBO",
     "SOBO",
-    "GRYFFIN",
     "DRO",
     "strategy_from_dict",
 ] + base_all
