@@ -68,15 +68,15 @@ Submit an [issue](https://github.com/sustainable-processes/summit/issues) or sen
 If you find this project useful, we encourage you to
 
 * Star this repository :star: 
-* Cite our [paper](https://chemrxiv.org/articles/preprint/Summit_Benchmarking_Machine_Learning_Methods_for_Reaction_Optimisation/12939806).
+* Cite our [paper](https://chemistry-europe.onlinelibrary.wiley.com/doi/full/10.1002/cmtd.202000051).
 ```
-@article{Felton2020,
+@article{Felton2021,
 author = "Kobi Felton and Jan Rittig and Alexei Lapkin",
 title = "{Summit: Benchmarking Machine Learning Methods for Reaction Optimisation}",
-year = "2020",
-month = "9",
-url = "https://chemrxiv.org/articles/preprint/Summit_Benchmarking_Machine_Learning_Methods_for_Reaction_Optimisation/12939806",
-doi = "10.26434/chemrxiv.12939806.v1"
+year = "2021",
+month = "2",
+url = "https://chemistry-europe.onlinelibrary.wiley.com/doi/full/10.1002/cmtd.202000051",
+journal = "Chemistry Methods"
 }
 ```
 

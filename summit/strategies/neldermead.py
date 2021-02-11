@@ -6,7 +6,6 @@ from summit.utils import jsonify_dict, unjsonify_dict
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import OptimizeResult
 
 
 class NelderMead(Strategy):

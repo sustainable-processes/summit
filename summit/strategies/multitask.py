@@ -3,15 +3,15 @@ from .random import LHS
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
-import botorch
-from botorch.models.model import Model
-from botorch.acquisition.objective import ScalarizedObjective
-import torch
-from torch import Tensor
-from gpytorch.mlls.exact_marginal_log_likelihood import ExactMarginalLogLikelihood
+# from botorch.models.model import Model
+# from botorch.acquisition.objective import ScalarizedObjective
+from botorch.acquisition import ExpectedImprovement as EI
 
 import numpy as np
 from typing import Type, Tuple, Union, Optional
+
+from torch import Tensor
+import torch
 
 
 class MTBO(Strategy):
@@ -87,6 +87,13 @@ class MTBO(Strategy):
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
+        from botorch.models import MultiTaskGP
+        from botorch.fit import fit_gpytorch_model
+        from botorch.optim import optimize_acqf
+        from gpytorch.mlls.exact_marginal_log_likelihood import (
+            ExactMarginalLogLikelihood,
+        )
+
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
@@ -120,14 +127,14 @@ class MTBO(Strategy):
         )
 
         # Train model
-        model = botorch.models.MultiTaskGP(
+        model = MultiTaskGP(
             torch.tensor(inputs_task).float(),
             torch.tensor(output.data_to_numpy()).float(),
             task_feature=-1,
             output_tasks=[self.task],
         )
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        botorch.fit.fit_gpytorch_model(mll)
+        fit_gpytorch_model(mll)
 
         # Create acquisition function
         objective = self.domain.output_variables[0]
@@ -140,7 +147,7 @@ class MTBO(Strategy):
         ei = CategoricalEI(self.domain, model, best_f=fbest_scaled, maximize=maximize)
 
         # Optimize acquisitio function
-        results, acq_values = botorch.optim.optimize_acqf(
+        results, _ = optimize_acqf(
             acq_function=ei,
             bounds=self._get_bounds(),
             num_restarts=20,
@@ -207,24 +214,24 @@ class MTBO(Strategy):
         return super().to_dict(**strategy_params)
 
 
-class CategoricalEI(botorch.acquisition.ExpectedImprovement):
+class CategoricalEI(EI):
     def __init__(
         self,
         domain: Domain,
-        model: Model,
-        best_f: Union[float, Tensor],
-        objective: Optional[ScalarizedObjective] = None,
+        model,
+        best_f,
+        objective=None,
         maximize: bool = True,
     ) -> None:
         super().__init__(model, best_f, objective, maximize)
         self._domain = domain
 
-    def forward(self, X: Tensor) -> Tensor:
+    def forward(self, X):
         X = self.round_to_one_hot(X, self._domain)
         return super().forward(X)
 
     @staticmethod
-    def round_to_one_hot(X: Tensor, domain: Domain):
+    def round_to_one_hot(X, domain: Domain):
         """Round all categorical variables to a one-hot encoding"""
         c = 0
         for v in domain.input_variables:
@@ -309,6 +316,14 @@ class STBO(Strategy):
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
+        from botorch.models import SingleTaskGP
+        from botorch.fit import fit_gpytorch_model
+        from botorch.optim import optimize_acqf
+        from torch import tensor
+        from gpytorch.mlls.exact_marginal_log_likelihood import (
+            ExactMarginalLogLikelihood,
+        )
+
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
@@ -332,12 +347,12 @@ class STBO(Strategy):
         )
 
         # Train model
-        model = botorch.models.SingleTaskGP(
+        model = SingleTaskGP(
             torch.tensor(inputs.data_to_numpy()).float(),
             torch.tensor(output.data_to_numpy()).float(),
         )
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        botorch.fit.fit_gpytorch_model(mll)
+        fit_gpytorch_model(mll)
 
         # Create acquisition function
         objective = self.domain.output_variables[0]
@@ -350,7 +365,7 @@ class STBO(Strategy):
         ei = CategoricalEI(self.domain, model, best_f=fbest_scaled, maximize=maximize)
 
         # Optimize acquisition function
-        results, acq_values = botorch.optim.optimize_acqf(
+        results, acq_values = optimize_acqf(
             acq_function=ei,
             bounds=self._get_bounds(),
             num_restarts=20,

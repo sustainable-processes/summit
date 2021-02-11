@@ -3,7 +3,6 @@ from summit.experiment import Experiment
 from summit.benchmarks import *
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit import get_summit_config_path
-import pkg_resources
 
 from fastprogress.fastprogress import progress_bar
 import numpy as np
@@ -11,12 +10,9 @@ import os
 import pathlib
 import uuid
 import json
-import pkg_resources
 import logging
 
-installed = {pkg.key for pkg in pkg_resources.working_set}
-if "neptune-client" in installed:
-    from neptune.sessions import Session, HostedNeptuneBackend
+__all__ = ["experiment_from_dict", "Runner", "NeptuneRunner"]
 
 
 def experiment_from_dict(d):
@@ -334,6 +330,7 @@ class NeptuneRunner(Runner):
         save_at_end = kwargs.get("save_at_end", True)
 
         # Create neptune experiment
+        from neptune.sessions import Session, HostedNeptuneBackend
 
         if self.neptune_exp is None:
             session = Session(backend=HostedNeptuneBackend())

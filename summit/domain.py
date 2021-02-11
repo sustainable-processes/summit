@@ -1,11 +1,3 @@
-from summit.utils.dataset import DataSet
-import numpy as np
-import pandas as pd
-from typing import List, Optional, Type, Dict
-from abc import ABC, abstractmethod
-import json
-from copy import deepcopy
-
 __all__ = [
     "Variable",
     "ContinuousVariable",
@@ -14,6 +6,12 @@ __all__ = [
     "Domain",
     "DomainError",
 ]
+
+from summit.utils.dataset import DataSet
+import numpy as np
+from abc import ABC, abstractmethod
+import json
+from copy import deepcopy
 
 
 class Variable(ABC):

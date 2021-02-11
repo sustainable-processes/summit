@@ -3,8 +3,6 @@ from .random import LHS
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
-import GPy
-import GPyOpt
 
 import numpy as np
 import pandas as pd
@@ -114,6 +112,8 @@ class SOBO(Strategy):
         evaluator_type=None,
         **kwargs
     ):
+        from GPy.kern import Matern52
+
         Strategy.__init__(self, domain, transform=transform, **kwargs)
 
         self.use_descriptors = kwargs.get("use_descriptors", False)
@@ -240,7 +240,7 @@ class SOBO(Strategy):
             self.evaluator_type = "random"
 
         # specify GPy kernel: # https://gpy.readthedocs.io/en/deploy/GPy.kern.html#subpackages
-        self.kernel = kwargs.get("kernel", GPy.kern.Matern52(self.input_dim))
+        self.kernel = kwargs.get("kernel", Matern52(self.input_dim))
         # Are function values exact (w/o noise)?
         self.exact_feval = kwargs.get("exact_feval", False)
         # automatic relevance determination
@@ -269,6 +269,7 @@ class SOBO(Strategy):
             A Dataset object with the suggested experiments
 
         """
+        import GPyOpt
 
         param = None
         xbest = np.zeros(self.domain.num_continuous_dimensions())
@@ -413,10 +414,12 @@ class SOBO(Strategy):
 
     @classmethod
     def from_dict(cls, d):
+        from GPy.kern import Kern
+
         # Get kernel
         kernel = d["strategy_params"].get("kernel")
         if kernel is not None:
-            kernel = GPy.kern.Kern.from_dict(kernel)
+            kernel = Kern.from_dict(kernel)
             d["strategy_params"]["kernel"] = kernel
 
         # Setup SOBO
