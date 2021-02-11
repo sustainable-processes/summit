@@ -1,27 +1,17 @@
-from .base import Strategy, Transform
+from .base import Strategy
 from .random import LHS
 from summit.domain import *
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
 
-from GPy.models import GPRegression as gpr
-import GPy
-import pyrff
-
 from pymoo.model.problem import Problem
-from pymoo.algorithms.nsga2 import NSGA2
-from pymoo.factory import get_sampling, get_crossover, get_mutation
-from pymoo.optimize import minimize
-from pymoo.factory import get_termination
 
 import pathlib
 import os
 import numpy as np
 import uuid
-from abc import ABC, abstractmethod
 import logging
-import warnings
 
 
 class TSEMO(Strategy):
@@ -98,6 +88,8 @@ class TSEMO(Strategy):
     """
 
     def __init__(self, domain, transform=None, **kwargs):
+        from GPy.kern import Exponential
+
         Strategy.__init__(self, domain, transform, **kwargs)
 
         # Input bounds
@@ -122,7 +114,7 @@ class TSEMO(Strategy):
         self.kern_dim = len(self.columns)
 
         # Kernel
-        self.kernel = kwargs.get("kernel", GPy.kern.Exponential)
+        self.kernel = kwargs.get("kernel", Exponential)
 
         # Spectral sampling settings
         self.n_spectral_points = kwargs.get("n_spectral_points", 1500)
@@ -152,6 +144,14 @@ class TSEMO(Strategy):
         next_experiments : :class:`~summit.utils.data.DataSet`
             A Dataset object with the suggested experiments
         """
+        from GPy.models import GPRegression as gpr
+        from GPy.priors import LogGaussian
+        from GPy.kern import Exponential, Matern32, Matern52, RBF
+        import pyrff
+        from pymoo.algorithms.nsga2 import NSGA2
+        from pymoo.optimize import minimize
+        from pymoo.factory import get_termination
+
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
@@ -221,13 +221,11 @@ class TSEMO(Strategy):
             model.kern.lengthscale.constrain_bounded(
                 np.sqrt(1e-3), np.sqrt(1e3), warning=False
             )
-            model.kern.lengthscale.set_prior(
-                GPy.priors.LogGaussian(0, 10), warning=False
-            )
+            model.kern.lengthscale.set_prior(LogGaussian(0, 10), warning=False)
             model.kern.variance.constrain_bounded(
                 np.sqrt(1e-3), np.sqrt(1e3), warning=False
             )
-            model.kern.variance.set_prior(GPy.priors.LogGaussian(-6, 10), warning=False)
+            model.kern.variance.set_prior(LogGaussian(-6, 10), warning=False)
             model.Gaussian_noise.constrain_bounded(np.exp(-6), 1, warning=False)
 
             # Train model
@@ -256,13 +254,13 @@ class TSEMO(Strategy):
             self.logger.debug(
                 f"Spectral sampling {name} with {self.n_spectral_points} spectral points."
             )
-            if type(model.kern) == GPy.kern.Exponential:
+            if type(model.kern) == Exponential:
                 matern_nu = 1
-            elif type(model.kern) == GPy.kern.Matern32:
+            elif type(model.kern) == Matern32:
                 matern_nu = 3
-            elif type(model.kern) == GPy.kern.Matern52:
+            elif type(model.kern) == Matern52:
                 matern_nu = 5
-            elif type(model.kern) == GPy.kern.RBF:
+            elif type(model.kern) == RBF:
                 matern_nu = np.inf
             else:
                 raise TypeError(
@@ -504,6 +502,8 @@ class TSEMOInternalWrapper(Problem):
     """
 
     def __init__(self, fp: os.PathLike, domain, n_var=None):
+        import pyrff
+
         self.rffs = pyrff.load_rffs(fp)
         self.domain = domain
         # Number of decision variables

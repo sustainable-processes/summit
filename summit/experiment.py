@@ -1,11 +1,11 @@
+__all__ = ["Experiment"]
+
 from abc import ABC, abstractmethod
 from summit.domain import Domain
 from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient
 from summit.utils import jsonify_dict, unjsonify_dict
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+
 import pandas as pd
 import numpy as np
 import time
@@ -194,6 +194,10 @@ class Experiment(ABC):
 
 
         """
+        import matplotlib.pyplot as plt
+        import matplotlib as mpl
+        from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+
         if objectives is None:
             objectives = [v.name for v in self.domain.variables if v.is_objective]
             objectives = objectives[0:2]

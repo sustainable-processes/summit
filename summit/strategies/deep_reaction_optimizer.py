@@ -6,7 +6,6 @@ from summit import get_summit_config_path
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 
 import logging
 import json
@@ -20,10 +19,6 @@ from copy import deepcopy
 IGNORE_CHEMOPT = (
     True  # Global variable to ignore issues with tensorflow just for sake of analysis
 )
-
-if not IGNORE_CHEMOPT:
-    import chemopt
-    from chemopt.logger import get_handlers
 
 
 class DRO(Strategy):
@@ -158,6 +153,8 @@ class DRO(Strategy):
         #         needed for other strategies. We suggest using the docker container marcosfelt/summit:dro.
         #         """
         #     )
+
+        import tensorflow as tf
 
         # Extract dimension of input domain
         self.dim = self.domain.num_continuous_dimensions()
@@ -296,6 +293,9 @@ class DRO(Strategy):
         return real_x
 
     def main(self, num_input=3, prev_res=None, prev_param=None):
+        import chemopt
+        from chemopt.logger import get_handlers
+
         x0, y0 = prev_res[0], prev_res[1]
         module_path = os.path.dirname(chemopt.__file__)
         if self._pretrained_model_config_path:

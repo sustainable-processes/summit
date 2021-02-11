@@ -2,18 +2,6 @@ from .base import Strategy, Transform
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
-from SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
-from SQSnobFit._snobinput import snobinput
-from SQSnobFit._snoblocf import snoblocf, snobround
-from SQSnobFit._snoblp import snoblp
-from SQSnobFit._snobnan import snobnan
-from SQSnobFit._snobnn import snobnn
-from SQSnobFit._snobpoint import snobpoint
-from SQSnobFit._snobqfit import snobqfit
-from SQSnobFit._snobsplit import snobsplit
-from SQSnobFit._snobupdt import snobupdt
-from SQSnobFit._snob5 import snob5
-
 import math
 import numpy
 from copy import deepcopy
@@ -246,7 +234,6 @@ class SNOBFIT(Strategy):
         param: list
             List with parameters and prev_param of SNOBFIT algorithm (required for next iteration)
         """
-
         # Extract dimension of input domain
         dim = self.domain.num_continuous_dimensions()
 
@@ -369,72 +356,83 @@ class SNOBFIT(Strategy):
 
         return next_experiments, xbest, fbest, param
 
-    """
-    The following snobfit code was copied and modified from the SQSnobFit package and was originally published by
-    Wim Lavrijsen. The SQSnobFit package includes a python version of SNOBFIT which was originally published by
-    A. Neumaier.
-    
-    Copyright of SNOBFIT (v2.1):
-        Neumaier, University of Vienna
-        
-        Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
-        
-    Copyright of SQSnobfit (v0.4.2)
-        UC Regents, Berkeley
-        
-        Website: https://pypi.org/project/SQSnobFit/
-    """
-
-    """
-     request, xbest, fbest = snobfit(x, f, config, dx=None)
-     minimization of a function over a box in R^n
-     Input:
-      file         name of file for input and output
-                   if nargin < 5, the program continues a previous run and
-                   reads from file.mat the output is (again) stored in file.mat
-    ^^do not use file - store variables globally,
-    or make them available to be passed in?
-      x            the rows are a set of new points entering the
-                   optimization algorithm together with their function
-                   values
-      f            matrix containing the corresponding function values
-                   and their uncertainties, i.e., f(j,1) = f(x(j))
-                   and f(j,2) = df(x(j))
-                   a value f(j,2)<=0 indicates that the corresponding
-                   uncertainty is not known, and the program resets it to
-                   sqrt(numpy.spacing(1))
-      config       structure variable defining the box [u,v] in which the
-                   points are to be generated, the number nreq of
-                   points to be generated and the probability p that a
-                   point of type 4 is generated
-                   config = struct('bounds',{u,v},'nreq',nreq,'p',p)
-      dx           only used for the definition of a new problem (when
-                   the program should continue from the values stored in
-                   file.mat, the call should have only 4 input parameters!)
-                   n-vector (n = dimension of the problem) of minimal
-                   stnp.spacing(1), i.e., two points are considered to be different
-                   if they differ by at least dx(i) in at least one
-                   coordinate i
-      prev_res     results of previous iterations
-     Output:
-      request      nreq x (n+3)-matrix
-                   request[j,1:n] is the jth newly generated point,
-                   request[j,n+1] is its estimated function value and
-                   request[j,n+3] indicates for which reason the point
-                   request[j,1:n] has been generated
-                   request[j,n+3] = 1 best prediction
-                                  = 2 putative local minimizer
-                                  = 3 alternative good point
-                                  = 4 explore empty region
-                                  = 5 to fill up the required number of
-                                  function values if too little points of
-                                  the other classes are found
-      xbest        current best point
-      fbest        current best function value (i.e. function value at xbest)
-      res          current results (this iteration) including results from previous iterations
-    """
-
     def snobfit(self, x, f, config, dx=None, prev_param=None):
+        """
+        The following snobfit code was copied and modified from the SQSnobFit package and was originally published by
+        Wim Lavrijsen. The SQSnobFit package includes a python version of SNOBFIT which was originally published by
+        A. Neumaier.
+
+        Copyright of SNOBFIT (v2.1):
+            Neumaier, University of Vienna
+
+            Website: https://www.mat.univie.ac.at/~neum/software/snobfit/
+
+        Copyright of SQSnobfit (v0.4.2)
+            UC Regents, Berkeley
+
+            Website: https://pypi.org/project/SQSnobFit/
+        """
+
+        """
+        request, xbest, fbest = snobfit(x, f, config, dx=None)
+        minimization of a function over a box in R^n
+        Input:
+        file         name of file for input and output
+                    if nargin < 5, the program continues a previous run and
+                    reads from file.mat the output is (again) stored in file.mat
+        ^^do not use file - store variables globally,
+        or make them available to be passed in?
+        x            the rows are a set of new points entering the
+                    optimization algorithm together with their function
+                    values
+        f            matrix containing the corresponding function values
+                    and their uncertainties, i.e., f(j,1) = f(x(j))
+                    and f(j,2) = df(x(j))
+                    a value f(j,2)<=0 indicates that the corresponding
+                    uncertainty is not known, and the program resets it to
+                    sqrt(numpy.spacing(1))
+        config       structure variable defining the box [u,v] in which the
+                    points are to be generated, the number nreq of
+                    points to be generated and the probability p that a
+                    point of type 4 is generated
+                    config = struct('bounds',{u,v},'nreq',nreq,'p',p)
+        dx           only used for the definition of a new problem (when
+                    the program should continue from the values stored in
+                    file.mat, the call should have only 4 input parameters!)
+                    n-vector (n = dimension of the problem) of minimal
+                    stnp.spacing(1), i.e., two points are considered to be different
+                    if they differ by at least dx(i) in at least one
+                    coordinate i
+        prev_res     results of previous iterations
+        Output:
+        request      nreq x (n+3)-matrix
+                    request[j,1:n] is the jth newly generated point,
+                    request[j,n+1] is its estimated function value and
+                    request[j,n+3] indicates for which reason the point
+                    request[j,1:n] has been generated
+                    request[j,n+3] = 1 best prediction
+                                    = 2 putative local minimizer
+                                    = 3 alternative good point
+                                    = 4 explore empty region
+                                    = 5 to fill up the required number of
+                                    function values if too little points of
+                                    the other classes are found
+        xbest        current best point
+        fbest        current best function value (i.e. function value at xbest)
+        res          current results (this iteration) including results from previous iterations
+        """
+        from SQSnobFit._gen_utils import diag, max_, min_, find, extend, rand, sort
+        from SQSnobFit._snobinput import snobinput
+        from SQSnobFit._snoblocf import snoblocf, snobround
+        from SQSnobFit._snoblp import snoblp
+        from SQSnobFit._snobnan import snobnan
+        from SQSnobFit._snobnn import snobnn
+        from SQSnobFit._snobpoint import snobpoint
+        from SQSnobFit._snobqfit import snobqfit
+        from SQSnobFit._snobsplit import snobsplit
+        from SQSnobFit._snobupdt import snobupdt
+        from SQSnobFit._snob5 import snob5
+
         ind = find(f[:, 1] <= 0)
         if not (ind.size <= 0 or numpy.all(ind == 0)):
             f[ind, 1] = math.sqrt(numpy.spacing(1))  # may be wrong

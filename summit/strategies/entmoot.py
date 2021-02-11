@@ -1,25 +1,10 @@
 from summit.strategies.base import Strategy
-from summit.strategies.random import LHS
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
-
-import pkg_resources
-
-required = {"gurobipy"}
-installed = {pkg.key for pkg in pkg_resources.working_set}
-missing = required - installed
-if not missing:
-    from gurobipy import LinExpr
-    from entmoot.optimizer.optimizer import Optimizer
-    from entmoot.space.space import Space
-    from entmoot.optimizer.gurobi_utils import get_core_gurobi_model
-
 import string
-
 import numpy as np
 import pandas as pd
-from abc import ABC, abstractmethod
 
 
 class ENTMOOT(Strategy):
@@ -221,10 +206,16 @@ class ENTMOOT(Strategy):
 
         if self.optimizer_type == "sampling" & self.constraints is not None:
             raise ValueError(
-                "Constraints can only be applied when ENTMOOT is using \ 
-                global solver. Set optimizer_type = \"global\" or remove \
-                constraints."
-                )
+                "Constraints can only be applied when ENTMOOT is using"
+                "global solver. Set optimizer_type = global or remove"
+                "constraints."
+            )
+
+        import pkg_resources
+
+        required = {"gurobipy"}
+        installed = {pkg.key for pkg in pkg_resources.working_set}
+        self.gurobi_missing = required - installed
 
         """
         Sets an initial points generator. Can be either
@@ -271,6 +262,12 @@ class ENTMOOT(Strategy):
             A Dataset object with the suggested experiments
 
         """
+        from entmoot.optimizer.optimizer import Optimizer
+        from entmoot.space.space import Space
+        from entmoot.optimizer.gurobi_utils import get_core_gurobi_model
+
+        if not self.gurobi_missing:
+            from gurobipy import LinExpr
 
         param = None
         xbest = np.zeros(self.domain.num_continuous_dimensions())
