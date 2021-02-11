@@ -3,17 +3,10 @@ from summit.domain import *
 from summit.utils.dataset import DataSet
 import numpy as np
 
-import random
-from math import sin, cos, pi, exp, e, sqrt
+from math import sin, cos, pi
 from operator import mul
 from functools import reduce
 import numpy as np
-
-import matplotlib.pyplot as plt
-import matplotlib.colors as Colors
-from matplotlib.patches import Polygon
-from matplotlib.collections import PatchCollection
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 
 class Himmelblau(Experiment):
@@ -106,6 +99,9 @@ class Himmelblau(Experiment):
         ValueError
             If there are no points to plot
         """
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Polygon
+        from matplotlib.collections import PatchCollection
 
         # evaluated points in <run_experiments> and optional points added by the user
         extra_points = kwargs.get("extra_points", None)
@@ -314,6 +310,8 @@ class Hartmann3D(Experiment):
         ValueError
             If there are no points to plot
         """
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
         # evaluated points in <run_experiments> and optional points added by the user
         extra_points = kwargs.get("extra_points", None)
@@ -496,6 +494,10 @@ class ThreeHumpCamel(Experiment):
         ValueError
             If there are no points to plot
         """
+        import matplotlib.pyplot as plt
+        import matplotlib.colors as Colors
+        from matplotlib.patches import Polygon
+        from matplotlib.collections import PatchCollection
 
         # evaluated points in <run_experiments> and optional points added by the user
         extra_points = kwargs.get("extra_points", None)

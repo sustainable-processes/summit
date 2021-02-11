@@ -5,13 +5,13 @@ from summit.utils.dataset import DataSet
 
 # from botorch.models.model import Model
 # from botorch.acquisition.objective import ScalarizedObjective
-# from botorch.acquisition import ExpectedImprovement as EI
+from botorch.acquisition import ExpectedImprovement as EI
 
 import numpy as np
 from typing import Type, Tuple, Union, Optional
 
-# from torch import Tensor
-# from torch import tensor
+from torch import Tensor
+import torch
 
 
 class MTBO(Strategy):
@@ -128,8 +128,8 @@ class MTBO(Strategy):
 
         # Train model
         model = MultiTaskGP(
-            tensor(inputs_task).float(),
-            tensor(output.data_to_numpy()).float(),
+            torch.tensor(inputs_task).float(),
+            torch.tensor(output.data_to_numpy()).float(),
             task_feature=-1,
             output_tasks=[self.task],
         )
@@ -214,37 +214,37 @@ class MTBO(Strategy):
         return super().to_dict(**strategy_params)
 
 
-# class CategoricalEI(EI):
-#     def __init__(
-#         self,
-#         domain: Domain,
-#         model: Model,
-#         best_f: Union[float, Tensor],
-#         objective: Optional[ScalarizedObjective] = None,
-#         maximize: bool = True,
-#     ) -> None:
-#         super().__init__(model, best_f, objective, maximize)
-#         self._domain = domain
+class CategoricalEI(EI):
+    def __init__(
+        self,
+        domain: Domain,
+        model,
+        best_f,
+        objective=None,
+        maximize: bool = True,
+    ) -> None:
+        super().__init__(model, best_f, objective, maximize)
+        self._domain = domain
 
-#     def forward(self, X: Tensor) -> Tensor:
-#         X = self.round_to_one_hot(X, self._domain)
-#         return super().forward(X)
+    def forward(self, X):
+        X = self.round_to_one_hot(X, self._domain)
+        return super().forward(X)
 
-#     @staticmethod
-#     def round_to_one_hot(X: Tensor, domain: Domain):
-#         """Round all categorical variables to a one-hot encoding"""
-#         c = 0
-#         for v in domain.input_variables:
-#             if isinstance(v, CategoricalVariable):
-#                 n_levels = len(v.levels)
-#                 levels_selected = X[:, :, c : c + n_levels].argmax(axis=1)
-#                 X[:, :, c : c + n_levels] = 0
-#                 for j, l in enumerate(levels_selected):
-#                     X[j, :, l] = 1
-#                 c += n_levels
-#             else:
-#                 c += 1
-#         return X
+    @staticmethod
+    def round_to_one_hot(X, domain: Domain):
+        """Round all categorical variables to a one-hot encoding"""
+        c = 0
+        for v in domain.input_variables:
+            if isinstance(v, CategoricalVariable):
+                n_levels = len(v.levels)
+                levels_selected = X[:, :, c : c + n_levels].argmax(axis=1)
+                X[:, :, c : c + n_levels] = 0
+                for j, l in enumerate(levels_selected):
+                    X[j, :, l] = 1
+                c += n_levels
+            else:
+                c += 1
+        return X
 
 
 class STBO(Strategy):
@@ -348,8 +348,8 @@ class STBO(Strategy):
 
         # Train model
         model = SingleTaskGP(
-            tensor(inputs.data_to_numpy()).float(),
-            tensor(output.data_to_numpy()).float(),
+            torch.tensor(inputs.data_to_numpy()).float(),
+            torch.tensor(output.data_to_numpy()).float(),
         )
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
         fit_gpytorch_model(mll)
@@ -402,7 +402,7 @@ class STBO(Strategy):
                 and self.categorical_method == "one-hot"
             ):
                 bounds += [[0, 1] for _ in v.levels]
-        return tensor(bounds).T.float()
+        return torch.tensor(bounds).T.float()
 
     def reset(self):
         """Reset MTBO state"""
