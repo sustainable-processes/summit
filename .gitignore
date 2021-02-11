@@ -103,8 +103,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-#vscode
+# Code editors
 .vscode/
+.idea/
 
 #pickle files
 .pickle

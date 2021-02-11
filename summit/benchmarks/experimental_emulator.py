@@ -12,17 +12,12 @@ from blitz.modules import BayesianLinear
 from blitz.utils import variational_estimator
 
 from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import r2_score
-
 
 import pathlib
 import numpy as np
-from numpy.random import default_rng
-
-from summit.utils.dataset import DataSet
-from summit.domain import *
-from summit.utils import jsonify_dict, unjsonify_dict
+from copy import deepcopy
 
 
 class ExperimentalEmulator(Experiment):
@@ -79,7 +74,7 @@ class ExperimentalEmulator(Experiment):
             self.model_dir / self.model_name / f"{self.model_name}.ckpt"
         )
 
-        # Create the datamoedule
+        # Create the datamodule
         if dataset is not None:
             self.datamodule = EmulatorDataModule(self.domain, dataset, **kwargs)
             train_loader = self.datamodule.train_dataloader()
@@ -130,17 +125,17 @@ class ExperimentalEmulator(Experiment):
             kwargs["logger"] = pl.loggers.TensorBoardLogger(
                 name=self.model_name,
                 save_dir=self.model_dir,
-                # version=version,
+                version=version,
             )
         # kwargs["checkpoint_callback"] = kwargs.get("checkpoint_callback", False)
 
         # Use pytorch lightining for training and saving
-        trainer = pl.Trainer(**kwargs)
-        trainer.fit(model=self.regressor, datamodule=self.datamodule)
-        trainer.save_checkpoint(self.checkpoint_path)
+        cv = CrossValidate(**kwargs)
+        cv.fit(model=self.regressor, datamodule=self.datamodule)
+        # cv.save_checkpoint(self.checkpoint_path)
 
-        # Test
-        return trainer.test(model=self.regressor, datamodule=self.datamodule)
+        # # Test
+        # return cv.test(model=self.regressor, datamodule=self.datamodule)
 
     def to_dict(self, **kwargs):
         kwargs.update(
@@ -316,6 +311,7 @@ class EmulatorDataModule(pl.LightningDataModule):
         self.domain = domain
         self.ds = dataset
         self.normalize = kwargs.get("normalize", True)
+        self.n_splits = kwargs.get("n_splits", 5)
         self.test_size = kwargs.get("test_size", 0.25)
         self.shuffle = kwargs.get("shuffle", True)
         self.batch_size = kwargs.get("train_batch_size", 4)
@@ -332,7 +328,7 @@ class EmulatorDataModule(pl.LightningDataModule):
             self.ds, categorical_method=self.categorical_method
         )
 
-        # Scaling
+        # Normailzation
         self.input_scaler, self.output_scaler = self._create_scalers(X, y)
         X = self.input_scaler.transform(X)
         y = self.output_scaler.transform(y)
@@ -340,6 +336,11 @@ class EmulatorDataModule(pl.LightningDataModule):
         # Train-test split
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=self.test_size, random_state=self.random_state
+        )
+
+        # Cross validation folds
+        self.kf = KFold(
+            self.n_splits, shuffle=self.shuffle, random_state=self.random_state
         )
 
         # Convert to tensors
@@ -357,6 +358,18 @@ class EmulatorDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         ds_test = torch.utils.data.TensorDataset(self.X_test, self.y_test)
         return torch.utils.data.DataLoader(ds_test)
+
+    def get_kfold(self):
+        for train_indices, val_indices in self.kf.split(self.X_train):
+            # Create the train dataloader
+            ds_train = torch.utils.data.TensorDataset(
+                self.X_train[train_indices, :], self.y_train[train_indices, :]
+            )
+            # Create the validation dataloader
+            ds_val = torch.utils.data.TensorDataset(
+                self.X_train[val_indices, :], self.y_train[val_indices, :]
+            )
+            yield {"train_dataloader": ds_train, "val_dataloaders": ds_val}
 
     @classmethod
     def from_csv(cls, csv_file, domain, ds, model_dir, **kwargs):
@@ -566,3 +579,43 @@ class RegressorRegistry:
 
 # Create global registry
 registry = RegressorRegistry()
+
+
+class CrossValidate:
+    """Cross Validation for pytorch lightning
+
+    Parameters
+    ----------
+    param1: `int`
+        description
+
+    Returns
+    -------
+    result: `bool`
+        description
+
+    Raises
+    ------
+    ValueError
+        description
+
+    Examples
+    --------
+
+
+    Notes
+    -----
+
+
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.trainer_args = args
+        self.trainer_kwargs = kwargs
+
+    def fit(self, model, datamodule):
+        for loaders in datamodule.get_kfold():
+            fold_model = deepcopy(model)
+            pl.Trainer(*self.trainer_args, **self.trainer_kwargs).fit(
+                fold_model, **loaders
+            )

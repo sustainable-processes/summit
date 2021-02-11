@@ -7,6 +7,7 @@ from .experimental_emulator import (
     registry,
     ANNRegressor,
     BNNRegressor,
+    CrossValidate,
     # BaumgartnerCrossCouplingEmulator,
     # BaumgartnerCrossCouplingDescriptorEmulator,
     # BaumgartnerCrossCouplingEmulator_Yield_Cost,
