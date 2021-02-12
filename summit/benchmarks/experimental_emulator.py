@@ -14,147 +14,351 @@ from summit.utils import jsonify_dict, unjsonify_dict
 class ExperimentalEmulator(Experiment):
     """Experimental Emulator
 
+    Train a machine learning model based on experimental data.
+    The model acts a benchmark for testing optimisation strategies.
+
     Parameters
-    ---------
-    domain: summit.domain.Domain
-        The domain of the experiment
-    dataset: class:~summit.utils.dataset.DataSet, optional
-        A DataSet with data for training where the data columns correspond to the domain and the data rows correspond to the training points.
-        By default: None
-    csv_dataset: string, optional
-        Path to csv_file with data for training where columns correspond to the domain and the rows correspond to the training points.
-        Note that the first row should exactly match the variable names of the domain and the second row should only have "DATA" as entry.
-        By default: None
-    model_name: string, optional
-        Name of the model that is used for saving model parameters. Should be unique.
-        By default: "dataset_emulator_model_name"
-    regressor_type: string, optional
-        Type of the regressor that is used within the emulator (available: "BNN").
-        By default: "BNN"
-    cat_to_descr: Boolean, optional
-        If True, transform categorical variable to one or more continuous variable(s)
-        corresponding to the descriptors of the categorical variable (else do nothing).
-        By default: False
+    ----------
+    model_name : str
+        Model name used for identification. Must be unique from other models stored on the system.
+    domain : :class:`~summit.domain.Domain`
+        The domain of the emulator
+    dataset : :class:`~summit.dataset.Dataset`
+        Dataset used for training/validation
+    regressor : :classs:`pl.LightningModule`, optional
+        Pytorch LightningModule class. Defaults to the BayesianRegressor
+    model_dir : :class:`pathlib.Path` or str, optional
+        Directory where models are saved. Defaults to `~/.summit/ExperimentEmulator"
+    load_checkpoint : bool, optional
+        Whether to load any previously trained models on disk. By default previous models are not loaded.
+    normalize : bool, optional
+        Normalize continuous input variables. Default is True.
+    test_size : float, optional
+        Fraction of data used for test. Default is 0.25
+    random_state : float, optional
+        A random initialization value. Use to make results more reproducible.
+
+
+    Raises
+    ------
+    ValueError
+        description
 
     Examples
     --------
-    >>> test_domain = ReizmanSuzukiEmulator().domain
-    >>> e = ExperimentalEmulator(domain=test_domain, model_name="Pytest")
-    No trained model for Pytest. Train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.
-    >>> columns = [v.name for v in e.domain.variables]
-    >>> train_values = {("catalyst", "DATA"): ["P1-L2", "P1-L7", "P1-L3", "P1-L3"], ("t_res", "DATA"): [60, 120, 110, 250], ("temperature", "DATA"): [110, 30, 70, 80], ("catalyst_loading", "DATA"): [0.508, 0.6, 1.4, 1.3], ("yield", "DATA"): [20, 40, 60, 34], ("ton", "DATA"): [33, 34, 21, 22]}
-    >>> train_dataset = DataSet(train_values, columns=columns)
-    >>> e.train(train_dataset, verbose=False, cv_fold=2, test_size=0.25)
-    >>> columns = [v.name for v in e.domain.variables]
-    >>> values = [float(v.bounds[0] + 0.6 * (v.bounds[1] - v.bounds[0])) if v.variable_type == 'continuous' else v.levels[-1] for v in e.domain.variables]
-    >>> values = np.array(values)
-    >>> values = np.atleast_2d(values)
-    >>> conditions = DataSet(values, columns=columns)
-    >>> results = e.run_experiments(conditions)
+    >>>
+    Notes
+    -----
 
     """
 
-    def __init__(
-        self,
-        domain,
-        dataset=None,
-        csv_dataset=None,
-        model_name="dataset_name_emulator_bnn",
-        regressor_type="BNN",
-        cat_to_descr=False,
-        **kwargs
-    ):
-        super().__init__(domain)
-        dataset = self._check_datasets(dataset, csv_dataset)
+    def __init__(self, model_name, domain, dataset=None, **kwargs):
+        super().__init__(domain, **kwargs)
 
-        kwargs["cat_to_descr"] = cat_to_descr
+        # Save locations
+        self.model_name = model_name
+        self.model_dir = kwargs.get(
+            "model_dir", get_summit_config_path() / "ExperimentalEmulator"
+        )
+        self.model_dir = pathlib.Path(self.model_dir)
+        self.checkpoint_path = (
+            self.model_dir / self.model_name / f"{self.model_name}.ckpt"
+        )
 
-        if regressor_type == "BNN":
-            self.emulator = BNNEmulator(
-                domain=domain, dataset=dataset, model_name=model_name, kwargs=kwargs
+        # Create the datamodule
+        if dataset is not None:
+            self.datamodule = EmulatorDataModule(self.domain, dataset, **kwargs)
+            train_loader = self.datamodule.train_dataloader()
+            self.n_examples = len(train_loader.dataset)
+            self.n_features = train_loader.dataset[0][0].shape[0]
+            self.n_targets = train_loader.dataset[0][1].shape[0]
+
+        # Create the regressor
+        Reg = kwargs.get("regressor", BNNRegressor)
+        load_checkpoint = kwargs.get("load_checkpoint", False)
+        if self.checkpoint_path.exists() and load_checkpoint:
+            # Load checkpoint if it exists
+            self.regressor = Reg.load_from_checkpoint(
+                checkpoint_path=self.checkpoint_path
             )
-            try:
-                self.extras = [self.emulator._load_model(model_name)]
-            except:
-                print(
-                    "No trained model for {}. Train this model with ExperimentalEmulator.train() in order to use this Emulator as an virtual Experiment.".format(
-                        self.emulator.model_name
-                    )
-                )
-        else:
-            raise NotImplementedError(
-                "Regressor type <{}> not implemented yet".format(str(regressor_type))
+            print("Model Loaded from disk")
+        elif self.datamodule is not None:
+            # Create new regressor
+            model_hparams = kwargs.get("model_hparams", dict())
+            model_hparams["n_example"] = self.n_examples
+            self.regressor = Reg(self.n_features, self.n_targets, **model_hparams)
+        elif self.datamodule is None:
+            raise ValueError(
+                "Dataset cannot be None when there is not pretrained model."
             )
 
     def _run(self, conditions, **kwargs):
-        condition = DataSet.from_df(conditions.to_frame().T)
-        infer_dict = self.emulator.infer_model(dataset=condition)
-        for k, v in infer_dict.items():
-            conditions[(k, "DATA")] = v
-        return conditions, None
+        X = conditions[[v.name for v in self.domain.input_variables]]
+        if self.datamodule.normalize:
+            X = self.datamodule.input_scaler.transform(X)
+        y = self.regressor(X)
+        if self.datamodule.normalize:
+            y = self.datamodule.output_scaler.inverse_transform(y)
+        for i, v in enumerate(self.domain.output_variables):
+            conditions[v.name] = y[:, i]
+        return conditions
 
-    def train(self, dataset=None, csv_dataset=None, verbose=True, **kwargs):
-        dataset = self._check_datasets(dataset, csv_dataset)
-        self.emulator.set_training_hyperparameters(kwargs=kwargs)
-        self.emulator.train_model(dataset=dataset, verbose=verbose, kwargs=kwargs)
-        self.extras = [self.emulator.output_models]
+    def train(self, **kwargs):
+        """Train the model on the dataset
 
-    def validate(
-        self,
-        dataset=None,
-        csv_dataset=None,
-        parity_plots=False,
-        get_pred=False,
-        **kwargs
-    ):
-        dataset = self._check_datasets(dataset, csv_dataset)
-        if dataset is not None:
-            return self.emulator.validate_model(
-                dataset=dataset,
-                parity_plots=parity_plots,
-                get_pred=get_pred,
-                kwargs=kwargs,
+        For kwargs, see pytorch-lightining documentation:
+        https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#init
+        """
+
+        logger = kwargs.get("logger")
+        version = kwargs.get("version", 0)
+        if logger is None:
+            kwargs["logger"] = pl.loggers.TensorBoardLogger(
+                name=self.model_name,
+                save_dir=self.model_dir,
+                version=version,
             )
-        else:
-            try:
-                print("Evaluation based on training and test set.")
-                return self.emulator.validate_model(parity_plots=parity_plots)
-            except:
-                raise ValueError("No dataset to evaluate.")
+        # kwargs["checkpoint_callback"] = kwargs.get("checkpoint_callback", False)
 
-    def _check_datasets(self, dataset=None, csv_dataset=None):
-        if csv_dataset:
-            if dataset:
-                print(
-                    "Dataset and csv.dataset are given, hence dataset will be overwritten by csv.data."
-                )
-            dataset = DataSet.read_csv(csv_dataset, index_col=None)
-        return dataset
+        # Use pytorch lightining for training and saving
+        cv = CrossValidate(**kwargs)
+        cv.fit(model=self.regressor, datamodule=self.datamodule)
+        # cv.save_checkpoint(self.checkpoint_path)
+
+        # # Test
+        # return cv.test(model=self.regressor, datamodule=self.datamodule)
 
     def to_dict(self, **kwargs):
-        """Serialize the class to a dictionary
-
-        Subclasses can add a experiment_params dictionary
-        key with custom parameters for the experiment
-        """
         kwargs.update(
             dict(
-                model_name=self.emulator.model_name,
-                dataset=self.emulator._dataset.to_dict()
-                if self.emulator._dataset is not None
-                else None,
-                output_models=self.emulator.output_models,
+                dataset=self.datamodule.ds,
+                model_name=self.model_name,
+                model_dir=self.model_dir,
+                regressor_name=self.regressor.__class__.__name__,
+                n_examples=self.n_examples,
             )
         )
         return super().to_dict(**kwargs)
 
     @classmethod
     def from_dict(cls, d):
-        dataset = d["experiment_params"]["dataset"]
-        d["experiment_params"]["dataset"] = DataSet.from_dict(dataset)
-        exp = super().from_dict(d)
-        exp.emulator.output_models = d["experiment_params"]["output_models"]
-        return exp
+        regressor = registry[d["experiment_params"]["regressor_name"]]
+        d["experiment_params"]["regressor"] = regressor
+        return super().from_dict(d)
+
+    def parity_plot(self):
+        """ Produce a parity plot based on the test data"""
+        import matplotlib.pyplot as plt
+
+        X_test, y_test = self.datamodule.X_test, self.datamodule.y_test
+        with torch.no_grad():
+            Y_test_pred = self.regressor(X_test)
+        fig, ax = plt.subplots(1)
+        ax.scatter(y_test[:, 0], Y_test_pred[:, 0])
+        # Parity line
+        min = np.min(np.concatenate([y_test[:, 0], Y_test_pred[:, 0]]))
+        max = np.max(np.concatenate([y_test[:, 0], Y_test_pred[:, 0]]))
+        ax.plot([min, max], [min, max])
+        ax.set_xlabel("Measured")
+        ax.set_ylabel("Predicted")
+        return fig, ax
+
+
+@variational_estimator
+class BNNRegressor(pl.LightningModule):
+    """A Bayesian Neural Network pytorch lightining module"""
+
+    val_str = "CI acc: {:.2f}, CI upper acc: {:.2f}, CI lower acc: {:.2f}"
+
+    def __init__(
+        self, input_dim, output_dim, n_examples=100, hidden_units=512, **kwargs
+    ):
+        super().__init__()
+        # self.n_layers = kwargs.get("n_hidden", 3)
+        # self.layers = [BayesianLinear(input_dim, hidden_units)]
+        # self.layers += [
+        #     BayesianLinear(hidden_units, hidden_units) for _ in range(self.n_layers)
+        # ]
+        # self.layers.append(BayesianLinear(hidden_units, output_dim))
+        self.blinear1 = BayesianLinear(input_dim, hidden_units)
+        self.blinear2 = BayesianLinear(hidden_units, output_dim)
+        self.n_examples = n_examples
+        self.n_samples = kwargs.get("n_samples", 50)
+        self.save_hyperparameters("input_dim", "output_dim", "n_examples")
+        self.criterion = torch.nn.MSELoss()
+
+    def forward(self, x):
+        # for layer in self.layers[:-1]:
+        #     x = layer(x)
+        #     x = F.relu(x)
+        # return self.layers[-1](x)
+        x = self.blinear1(x)
+        x = F.relu(x)
+        return self.blinear2(x)
+
+    def training_step(self, batch, batch_idx):
+        X, y = batch
+        loss = self.sample_elbo(
+            inputs=X,
+            labels=y,
+            criterion=self.criterion,
+            sample_nbr=3,
+            complexity_cost_weight=1 / self.n_examples,
+        )
+        self.log("train_mse", loss)
+        return loss
+
+    def test_step(self, batch, batch_idx, **kwargs):
+        X, y = batch
+        y_hats = torch.stack([self(X) for _ in range(self.n_samples)])
+        mean_y_hat = y_hats.mean(axis=0)
+        std_y_hat = y_hats.std(axis=0)
+        loss = self.criterion(mean_y_hat, y)
+        self.log("test_mse", loss)
+        return loss
+
+    # def validation_step(self, batch, batch_idx):
+    #     ic_acc, over_ci_lower, under_ci_upper = self.evaluate_regression(batch)
+
+    #     self.log("val_loss", ic_acc)
+    #     self.log("under_ci_upper", under_ci_upper)
+    #     self.log("over_ci_lower", over_ci_lower)
+
+    #     return ic_acc
+
+    def evaluate_regression(self, batch, samples=100, std_multiplier=1.96):
+        """Evaluate Bayesian Neural Network
+
+        This answers the question "How many correction predictions
+        are in the confidence interval (CI)?" It also spits out the CI.
+
+        Parameters
+        ----------
+        batch : tuple
+            The batch being evaluatd
+        samples : int, optional
+            The number of samples of the BNN for calculating the CI
+        std_multiplier : float, optional
+            The Z-score corresponding with the desired CI. Default is
+            1.96, which corresponds with a 95% CI.
+
+        Returns
+        -------
+        tuple of ic_acc, over_ci_lower, under_ci_upper
+
+        icc_acc is the percentage within the CI.
+
+        """
+
+        X, y = batch
+
+        # Sample
+        preds = torch.tensor([self(X) for i in range(samples)])
+        preds = torch.stack(preds)
+        means = preds.mean(axis=0)
+        stds = preds.std(axis=0)
+
+        # Calculate CI
+        ci_upper, ci_lower = self._calc_ci(means, stds, std_multiplier)
+        ic_acc = (ci_lower <= y) * (ci_upper >= y)
+        ic_acc = ic_acc.float().mean()
+
+        under_ci_upper = (ci_upper >= y).float().mean()
+        over_ci_lower = (ci_lower <= y).float().mean()
+
+        ic_acc = (ci_lower <= y) * (ci_upper >= y)
+        ic_acc = ic_acc.float().mean()
+
+        return ic_acc, over_ci_lower, under_ci_upper
+
+    def _calc_ci(self, means, stds, std_multiplier=1.96):
+        ci_upper = means + (std_multiplier * stds)
+        ci_lower = means - (std_multiplier * stds)
+        return ci_lower, ci_upper
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
+        return optimizer
+
+
+class ANNRegressor(pl.LightningModule):
+    def __init__(self, input_dim, output_dim, hidden_units=512, **kwargs):
+        super().__init__()
+
+        self.linear1 = torch.nn.Linear(input_dim, hidden_units)
+        self.linear2 = torch.nn.Linear(hidden_units, output_dim)
+        self.save_hyperparameters("input_dim", "output_dim")
+        self.criterion = torch.nn.MSELoss()
+
+    def forward(self, x, **kwargs):
+        x_ = self.linear1(x)
+        x_ = F.relu(x_)
+        return self.linear2(x_)
+
+    def training_step(self, batch, batch_idx, **kwargs):
+        X, y = batch
+        y_hat = self(X)
+        return self.evaluate_loss(y, y_hat, "train")
+
+    def validation_step(self, batch, batch_idx, **kwargs):
+        return self.calculate_loss(batch, "validation")
+
+    def test_step(self, batch, batch_idx, **kwargs):
+        return self.calculate_loss(batch, "test")
+
+    def calculate_loss(self, batch, step, **kwargs):
+        X, y = batch
+        y_hat = self(X)
+        return self.evaluate_loss(y, y_hat, "val")
+
+    def test_step(self, batch, batch_idx, **kwargs):
+        X, y = batch
+        y_hat = self(X)
+        return self.evaluate_loss(y, y_hat, "test")
+
+    def evaluate_loss(self, y_true, y_hat, step):
+        loss = F.mse_loss(y_hat, y_true)
+        self.log(f"_mse", loss)
+        # r2 = r2_score(y_true.detach().numpy(), y_hat.detach().numpy())
+        # self.log(f"{step}_r2_score", r2)
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
+        return optimizer
+
+
+class RegressorRegistry:
+    """Registry for Regressors
+
+    Models registered using the register method
+    are saved as the class name.
+
+    """
+
+    regressors = {}
+
+    def __getitem__(self, key):
+        reg = self.regressors.get(key)
+        if reg is not None:
+            return reg
+        else:
+            raise KeyError(
+                f"{key} is not in the registry. Register using the register method."
+            )
+
+    def __setitem__(self, key, value):
+        reg = self.regressors.get(key)
+        if reg is not None:
+            self.regressors[key] = value
+
+    def register(self, regressor):
+        key = regressor.__name__
+        self.regressors[key] = regressor
+
+
+# Create global registry
+registry = RegressorRegistry()
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
