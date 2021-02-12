@@ -1,14 +1,24 @@
-import os
-import os.path as osp
-
-from summit.experiment import Experiment
-
-import numpy as np
-
-# from summit.benchmarks.experiment_emulator.bnn_emulator import BNNEmulator
 from summit.utils.dataset import DataSet
 from summit.domain import *
-from summit.utils import jsonify_dict, unjsonify_dict
+from summit.experiment import Experiment
+from summit import get_summit_config_path
+from summit.strategies import Transform
+
+import torch
+import torch.nn.functional as F
+from skorch import NeuralNetRegressor
+from skorch.utils import to_device
+
+from blitz.modules import BayesianLinear
+from blitz.utils import variational_estimator
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.metrics import r2_score
+
+import pathlib
+import numpy as np
+from copy import deepcopy
 
 
 class ExperimentalEmulator(Experiment):
@@ -54,7 +64,6 @@ class ExperimentalEmulator(Experiment):
 
     def __init__(self, model_name, domain, dataset=None, **kwargs):
         super().__init__(domain, **kwargs)
-
         # Save locations
         self.model_name = model_name
         self.model_dir = kwargs.get(
@@ -76,21 +85,22 @@ class ExperimentalEmulator(Experiment):
         # Create the regressor
         Reg = kwargs.get("regressor", BNNRegressor)
         load_checkpoint = kwargs.get("load_checkpoint", False)
+        ## Check if the regressor exists
         if self.checkpoint_path.exists() and load_checkpoint:
-            # Load checkpoint if it exists
-            self.regressor = Reg.load_from_checkpoint(
-                checkpoint_path=self.checkpoint_path
-            )
-            print("Model Loaded from disk")
-        elif self.datamodule is not None:
-            # Create new regressor
-            model_hparams = kwargs.get("model_hparams", dict())
-            model_hparams["n_example"] = self.n_examples
-            self.regressor = Reg(self.n_features, self.n_targets, **model_hparams)
-        elif self.datamodule is None:
-            raise ValueError(
-                "Dataset cannot be None when there is not pretrained model."
-            )
+            # TODO: Put skorch model loading code
+            self.logger.info(f"{model_name} loaded from disk.")
+        ## If it doesn't, log at INFO level that the regressor needs to be trained before being used.
+        else:
+            self.logger.info("The regressor must be trained before use.")
+        # elif self.datamodule is not None:
+        #     # Create new regressor
+        #     model_hparams = kwargs.get("model_hparams", dict())
+        #     model_hparams["n_example"] = self.n_examples
+        #     self.regressor = Reg(self.n_features, self.n_targets, **model_hparams)
+        # elif self.datamodule is None:
+        #     raise ValueError(
+        #         "Dataset cannot be None when there is not pretrained model."
+        #     )
 
     def _run(self, conditions, **kwargs):
         X = conditions[[v.name for v in self.domain.input_variables]]
@@ -109,24 +119,8 @@ class ExperimentalEmulator(Experiment):
         For kwargs, see pytorch-lightining documentation:
         https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#init
         """
-
-        logger = kwargs.get("logger")
-        version = kwargs.get("version", 0)
-        if logger is None:
-            kwargs["logger"] = pl.loggers.TensorBoardLogger(
-                name=self.model_name,
-                save_dir=self.model_dir,
-                version=version,
-            )
-        # kwargs["checkpoint_callback"] = kwargs.get("checkpoint_callback", False)
-
-        # Use pytorch lightining for training and saving
-        cv = CrossValidate(**kwargs)
-        cv.fit(model=self.regressor, datamodule=self.datamodule)
-        # cv.save_checkpoint(self.checkpoint_path)
-
-        # # Test
-        # return cv.test(model=self.regressor, datamodule=self.datamodule)
+        # net = NeuralNetRegressor(self.regressor, =self.n_features, kwargs)
+        # net.fit()
 
     def to_dict(self, **kwargs):
         kwargs.update(
@@ -164,8 +158,30 @@ class ExperimentalEmulator(Experiment):
         return fig, ax
 
 
+class Trainer(NeuralNetRegressor):
+    def __init__(self, *args, **kwargs):
+        self.regressor_kwargs = kwargs.pop("regressor_kwargs", {})
+        super().__init__(*args, **kwargs)
+
+    def initialize_module(self):
+        kwargs = self.regressor_kwargs
+        module = self.module
+        is_initialized = isinstance(module, torch.nn.Module)
+        if kwargs or not is_initialized:
+            if is_initialized:
+                module = type(module)
+
+            if (is_initialized or self.initialized_) and self.verbose:
+                msg = self._format_reinit_msg("module", kwargs)
+                print(msg)
+
+            module = module(**kwargs)
+        self.module_ = to_device(module, self.device)
+        return self
+
+
 @variational_estimator
-class BNNRegressor(pl.LightningModule):
+class BNNRegressor(torch.nn.Module):
     """A Bayesian Neural Network pytorch lightining module"""
 
     val_str = "CI acc: {:.2f}, CI upper acc: {:.2f}, CI lower acc: {:.2f}"
@@ -281,13 +297,12 @@ class BNNRegressor(pl.LightningModule):
         return optimizer
 
 
-class ANNRegressor(pl.LightningModule):
+class ANNRegressor(torch.nn.Module):
     def __init__(self, input_dim, output_dim, hidden_units=512, **kwargs):
         super().__init__()
 
         self.linear1 = torch.nn.Linear(input_dim, hidden_units)
         self.linear2 = torch.nn.Linear(hidden_units, output_dim)
-        self.save_hyperparameters("input_dim", "output_dim")
         self.criterion = torch.nn.MSELoss()
 
     def forward(self, x, **kwargs):

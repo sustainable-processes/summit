@@ -9,6 +9,7 @@ from summit.utils import jsonify_dict, unjsonify_dict
 import pandas as pd
 import numpy as np
 import time
+import logging
 
 COLORS = [
     (165, 0, 38),
@@ -44,6 +45,7 @@ class Experiment(ABC):
     """
 
     def __init__(self, domain, **kwargs):
+        self.logger = kwargs.get("logger", logging.getLogger(__name__))
         self._domain = domain
         self.reset()
 
