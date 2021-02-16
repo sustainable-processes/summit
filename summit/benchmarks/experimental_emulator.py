@@ -14,7 +14,7 @@ from blitz.utils import variational_estimator
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, FunctionTransformer
-from sklearn.model_selection import train_test_split, KFold
+from sklearn.model_selection import train_test_split, cross_validate
 from sklearn.metrics import r2_score
 
 import pathlib
@@ -97,10 +97,26 @@ class ExperimentalEmulator(Experiment):
             Standardize all input continuous variables. Default is True.
         standardize_outputs : bool, optional
             Standardize all output continuous variables. Default is True.
-        output_variables : str or list
+        output_variables : str or list, optional
             The variables that should be trained by the predictor.
             Defaults to all objectives in the domain.
+        test_size : float, optional
+            The size of the test as a fraction of the total dataset. Defaults to 0.1.
+        cv_folds : int, optional
+            The number of cross validation folds. Defaults to 5.
+        max_epochs : int, optional
+            The max number of epochs for each CV fold. Defaults to 100.
+        scoring : str or list, optional
+            A list of scoring functions or names of them. Defaults to R2 and MSE.
+            See here for more https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
+        regressor_kwargs : dict, optional
+            You can pass extra arguments to the regressor here.
+        callbacks : None, "disable" or list of Callbacks
+            Skorch callbacks passed to skorch.net. See: https://skorch.readthedocs.io/en/latest/net.html
 
+        Returns
+        -------
+        A dictionary containing the results of the training.
         """
         # Preprocessors
         output_variables = kwargs.get(
@@ -121,7 +137,13 @@ class ExperimentalEmulator(Experiment):
                 n_examples=dataset.shape[0],
             )
         )
-        net = EmulatorNet(self.regressor, regressor_kwargs=regressor_kwargs, **kwargs)
+        net = EmulatorNet(
+            self.regressor,
+            regressor_kwargs=regressor_kwargs,
+            train_split=None,
+            max_epochs=kwargs.get("max_epochs", 100),
+            callbacks=kwargs.get("callbacks"),
+        )
 
         # Create predictor
         # TODO: also create an inverse function
@@ -143,7 +165,7 @@ class ExperimentalEmulator(Experiment):
         X = pd.DataFrame(X, columns=input_columns)
 
         # Train-test split
-        test_size = kwargs.get("test_size", 0.3)
+        test_size = kwargs.get("test_size", 0.1)
         random_state = kwargs.get("random_state")
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state=random_state
@@ -151,9 +173,17 @@ class ExperimentalEmulator(Experiment):
         y_train, y_test = torch.tensor(y_train).float(), torch.tensor(y_test).float()
 
         # Run training
-        self.predictor.fit(X_train, y_train)
+        scoring = kwargs.get("scoring", ["r2", "neg_root_mean_squared_error"])
+        folds = kwargs.get("cv_folds", 5)
+        return cross_validate(
+            self.predictor, X_train, y_train, scoring=scoring, cv=folds
+        )
+
+    def caclulate_input_dimensions(self):
+        pass
 
     def _create_input_preprocessor(self):
+        """Create feature preprocessors """
         transformers = []
         # Numeric transforms
         numeric_features = [
@@ -187,6 +217,7 @@ class ExperimentalEmulator(Experiment):
         return preprocessor
 
     def _create_output_preprocessor(self, output_variables):
+        """"Create target preprocessors"""
         transformers = [
             ("scale", StandardScaler(), output_variables),
             ("dst", FunctionTransformer(dataset_to_tensor), output_variables),
