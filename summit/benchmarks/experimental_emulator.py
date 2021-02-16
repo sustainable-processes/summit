@@ -183,6 +183,26 @@ class ExperimentalEmulator(Experiment):
         self.estimators = res.pop("estimator")
         return res
 
+    def ensemble_predict(self, X, **kwargs):
+        """Get an prediction of the ensembled models
+
+        Returns
+        -------
+        mean, std
+        """
+        clip = kwargs.pop("clip", None)
+        y_pred = torch.tensor(
+            [estimator.predict(X, **kwargs) for estimator in self.estimators]
+        )
+
+        if clip is not None:
+            for i, v in enumerate(self.domain.output_variables):
+                if clip.get(v.name):
+                    y_pred[:, :, i] = torch.clip(
+                        y_pred[:, :, i], clip[v.name][0], clip[v.name][1]
+                    )
+        return y_pred.mean(axis=0), y_pred.std(axis=0)
+
     def caclulate_input_dimensions(self):
         num_dimensions = 0
         for v in self.domain.input_variables:
@@ -252,25 +272,55 @@ class ExperimentalEmulator(Experiment):
         d["experiment_params"]["regressor"] = regressor
         return super().from_dict(d)
 
-    def parity_plot(self, include_test=False):
+    def parity_plot(self, include_test=False, color="#6f3666", clip=None):
         """ Produce a parity plot based on the test data"""
         import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
 
         vars = self.output_variables
         fig, axes = plt.subplots(1, len(vars))
         fig.subplots_adjust(wspace=0.2)
         with torch.no_grad():
-            y_train_pred = self.estimators[0].predict(self.X_train)
+            y_train_pred, y_train_pred_std = self.ensemble_predict(
+                self.X_train, clip=clip
+            )
+            if include_test:
+                y_test_pred, y_test_pred_std = self.ensemble_predict(
+                    self.X_test, clip=clip
+                )
 
         for i, var in enumerate(vars):
-            axes[i].scatter(self.y_train[:, i], y_train_pred[:, i])
+            # Train
+            axes[i].scatter(
+                self.y_train[:, i], y_train_pred[:, i], color=color, alpha=0.5
+            )
+
+            if include_test:
+                axes[i].scatter(
+                    self.y_test[:, i], y_test_pred[:, i], color=color, alpha=0.5
+                )
+
             # Parity line
             min = np.min(np.concatenate([self.y_train[:, i], y_train_pred[:, i]]))
             max = np.max(np.concatenate([self.y_train[:, i], y_train_pred[:, i]]))
-            axes[i].plot([min, max], [min, max])
+
+            # Scores
+            handles = []
+            r2_train = r2_score(self.y_train[:, i], y_train_pred[:, i])
+            r2_train_patch = mpatches.Patch(label=f"R2 = {r2_train:.2f}", color=color)
+            handles.append(r2_train_patch)
+            if include_test:
+                r2_test = r2_score(self.y_test[:, i], y_test_pred[:, i])
+                r2_test_patch = mpatches.Patch(label=f"R2 = {r2_test:.2f}", color=color)
+                handles.append(r2_test_patch)
+            axes[i].legend(handles=handles, fontsize=12)
+
+            # Formatting
+            axes[i].plot([min, max], [min, max], c=color)
             axes[i].set_xlabel("Measured")
             axes[i].set_ylabel("Predicted")
             axes[i].set_title(var)
+            axes[i].tick_params(direction="in")
         return fig, axes
 
 
@@ -419,17 +469,26 @@ class BNNRegressor(torch.nn.Module):
 
 
 class ANNRegressor(torch.nn.Module):
-    def __init__(self, input_dim, output_dim, hidden_units=512, **kwargs):
+    def __init__(
+        self, input_dim, output_dim, hidden_units=512, num_hidden_layers=0, **kwargs
+    ):
         super().__init__()
 
-        self.linear1 = torch.nn.Linear(input_dim, hidden_units)
-        self.linear2 = torch.nn.Linear(hidden_units, output_dim)
+        self.num_hidden_layers = 1
+        self.input_layer = torch.nn.Linear(input_dim, hidden_units)
+        if num_hidden_layers > 0:
+            self.hidden_layers = torch.nn.Sequential(
+                [torch.nn.linear(hidden_units, hidden_units)]
+            )
+        self.output_layer = torch.nn.Linear(hidden_units, output_dim)
         self.criterion = torch.nn.MSELoss()
 
     def forward(self, x, **kwargs):
-        x_ = self.linear1(x)
-        x_ = F.relu(x_)
-        return self.linear2(x_)
+        x_ = F.relu(self.input_layer(x))
+        if self.num_hidden_layers > 1:
+            x_ = self.hidden_layers(x_)
+            x_ = F.relu(x_)
+        return self.output_layer(x_)
 
     def training_step(self, batch, batch_idx, **kwargs):
         X, y = batch
