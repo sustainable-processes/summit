@@ -35,7 +35,7 @@ class ExperimentalEmulator(Experiment):
         Model name used for identification. Must be unique from other models stored on the system.
     domain : :class:`~summit.domain.Domain`
         The domain of the emulator
-    dataset : :class:`~summit.dataset.Dataset`
+    dataset : :class:`~summit.dataset.Dataset`, optional
         Dataset used for training/validation
     regressor : :classs:`pl.LightningModule`, optional
         Pytorch LightningModule class. Defaults to the BayesianRegressor
@@ -43,16 +43,14 @@ class ExperimentalEmulator(Experiment):
         Directory where models are saved. Defaults to `~/.summit/ExperimentEmulator"
     load_checkpoint : bool, optional
         Whether to load any previously trained models on disk. By default previous models are not loaded.
-    normalize : bool, optional
-        Normalize continuous input variables. Default is True.
-    test_size : float, optional
-        Fraction of data used for test. Default is 0.25
-    random_state : float, optional
-        A random initialization value. Use to make results more reproducible.
+    standardize_inputs : bool, optional
+        Standardize all input continuous variables. Default is True.
+    standardize_outputs : bool, optional
+        Standardize all output continuous variables. Default is True.e.
 
     """
 
-    def __init__(self, model_name, domain, **kwargs):
+    def __init__(self, model_name, domain, dataset=None, **kwargs):
         super().__init__(domain, **kwargs)
 
         # Metadata
@@ -64,6 +62,9 @@ class ExperimentalEmulator(Experiment):
         self.checkpoint_path = (
             self.model_dir / self.model_name / f"{self.model_name}.ckpt"
         )
+
+        # Data
+        self.ds = dataset
 
         # Training related parameters
         self.standardize_inputs = kwargs.get("standardize_inputs", True)
@@ -88,15 +89,11 @@ class ExperimentalEmulator(Experiment):
             conditions[v.name] = y[:, i]
         return conditions
 
-    def train(self, dataset, **kwargs):
+    def train(self, **kwargs):
         """Train the model on the dataset
 
         Parameters
         ----------
-        standardize_inputs : bool, optional
-            Standardize all input continuous variables. Default is True.
-        standardize_outputs : bool, optional
-            Standardize all output continuous variables. Default is True.
         output_variables : str or list, optional
             The variables that should be trained by the predictor.
             Defaults to all objectives in the domain.
@@ -119,22 +116,19 @@ class ExperimentalEmulator(Experiment):
         A dictionary containing the results of the training.
         """
         # Preprocessors
-        output_variables = kwargs.get(
+        self.output_variables = kwargs.get(
             "output_variables", [v.name for v in self.domain.output_variables]
         )
         X_preprocessor = self._create_input_preprocessor()
-        y_preprocessor = self._create_output_preprocessor(output_variables)
+        y_preprocessor = self._create_output_preprocessor(self.output_variables)
 
         # Create network
-        output_variables = kwargs.get(
-            "output_variables", [v.name for v in self.domain.output_variables]
-        )
         regressor_kwargs = kwargs.get("regressor_kwargs", {})
         regressor_kwargs.update(
             dict(
-                input_dim=11,
-                output_dim=len(output_variables),
-                n_examples=dataset.shape[0],
+                input_dim=self.caclulate_input_dimensions(),
+                output_dim=len(self.output_variables),
+                n_examples=self.ds.shape[0],
             )
         )
         net = EmulatorNet(
@@ -147,7 +141,7 @@ class ExperimentalEmulator(Experiment):
 
         # Create predictor
         # TODO: also create an inverse function
-        ds_to_tensor = FunctionTransformer(dataset_to_tensor)
+        ds_to_tensor = FunctionTransformer(numpy_to_tensor)
         pipe = Pipeline(
             steps=[
                 ("preprocessor", X_preprocessor),
@@ -159,28 +153,44 @@ class ExperimentalEmulator(Experiment):
 
         # Get data
         input_columns = [v.name for v in self.domain.input_variables]
-        X = dataset[input_columns].to_numpy()
-        y = dataset[output_variables].to_numpy().astype(float)
+        X = self.ds[input_columns].to_numpy()
+        y = self.ds[self.output_variables].to_numpy().astype(float)
         # Sklearn columntransformer expects a pandas dataframe not a dataset
         X = pd.DataFrame(X, columns=input_columns)
 
         # Train-test split
         test_size = kwargs.get("test_size", 0.1)
         random_state = kwargs.get("random_state")
-        X_train, X_test, y_train, y_test = train_test_split(
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             X, y, test_size=test_size, random_state=random_state
         )
-        y_train, y_test = torch.tensor(y_train).float(), torch.tensor(y_test).float()
+        y_train, y_test = (
+            torch.tensor(self.y_train).float(),
+            torch.tensor(self.y_test).float(),
+        )
 
         # Run training
         scoring = kwargs.get("scoring", ["r2", "neg_root_mean_squared_error"])
         folds = kwargs.get("cv_folds", 5)
-        return cross_validate(
-            self.predictor, X_train, y_train, scoring=scoring, cv=folds
+        res = cross_validate(
+            self.predictor,
+            self.X_train,
+            y_train,
+            scoring=scoring,
+            cv=folds,
+            return_estimator=True,
         )
+        self.estimators = res.pop("estimator")
+        return res
 
     def caclulate_input_dimensions(self):
-        pass
+        num_dimensions = 0
+        for v in self.domain.input_variables:
+            if v.variable_type == "continuous":
+                num_dimensions += 1
+            elif v.variable_type == "categorical":
+                num_dimensions += len(v.levels)
+        return num_dimensions
 
     def _create_input_preprocessor(self):
         """Create feature preprocessors """
@@ -220,7 +230,7 @@ class ExperimentalEmulator(Experiment):
         """"Create target preprocessors"""
         transformers = [
             ("scale", StandardScaler(), output_variables),
-            ("dst", FunctionTransformer(dataset_to_tensor), output_variables),
+            ("dst", FunctionTransformer(numpy_to_tensor), output_variables),
         ]
         return ColumnTransformer(transformers=transformers)
 
@@ -242,22 +252,26 @@ class ExperimentalEmulator(Experiment):
         d["experiment_params"]["regressor"] = regressor
         return super().from_dict(d)
 
-    def parity_plot(self):
+    def parity_plot(self, include_test=False):
         """ Produce a parity plot based on the test data"""
         import matplotlib.pyplot as plt
 
-        X_test, y_test = self.datamodule.X_test, self.datamodule.y_test
+        vars = self.output_variables
+        fig, axes = plt.subplots(1, len(vars))
+        fig.subplots_adjust(wspace=0.2)
         with torch.no_grad():
-            Y_test_pred = self.regressor(X_test)
-        fig, ax = plt.subplots(1)
-        ax.scatter(y_test[:, 0], Y_test_pred[:, 0])
-        # Parity line
-        min = np.min(np.concatenate([y_test[:, 0], Y_test_pred[:, 0]]))
-        max = np.max(np.concatenate([y_test[:, 0], Y_test_pred[:, 0]]))
-        ax.plot([min, max], [min, max])
-        ax.set_xlabel("Measured")
-        ax.set_ylabel("Predicted")
-        return fig, ax
+            y_train_pred = self.estimators[0].predict(self.X_train)
+
+        for i, var in enumerate(vars):
+            axes[i].scatter(self.y_train[:, i], y_train_pred[:, i])
+            # Parity line
+            min = np.min(np.concatenate([self.y_train[:, i], y_train_pred[:, i]]))
+            max = np.max(np.concatenate([self.y_train[:, i], y_train_pred[:, i]]))
+            axes[i].plot([min, max], [min, max])
+            axes[i].set_xlabel("Measured")
+            axes[i].set_ylabel("Predicted")
+            axes[i].set_title(var)
+        return fig, axes
 
 
 class EmulatorNet(NeuralNetRegressor):
@@ -282,7 +296,7 @@ class EmulatorNet(NeuralNetRegressor):
         return self
 
 
-def dataset_to_tensor(X):
+def numpy_to_tensor(X):
     """Convert datasets into """
     return torch.tensor(X).float()
 
