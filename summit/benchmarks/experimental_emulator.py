@@ -2,7 +2,6 @@ from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.experiment import Experiment
 from summit import get_summit_config_path
-from summit.strategies import Transform
 
 import torch
 import torch.nn.functional as F
@@ -12,12 +11,15 @@ from skorch.utils import to_device
 from blitz.modules import BayesianLinear
 from blitz.utils import variational_estimator
 
-from sklearn.preprocessing import StandardScaler
+from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, FunctionTransformer
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import r2_score
 
 import pathlib
 import numpy as np
+import pandas as pd
 from copy import deepcopy
 
 
@@ -48,23 +50,12 @@ class ExperimentalEmulator(Experiment):
     random_state : float, optional
         A random initialization value. Use to make results more reproducible.
 
-
-    Raises
-    ------
-    ValueError
-        description
-
-    Examples
-    --------
-    >>>
-    Notes
-    -----
-
     """
 
-    def __init__(self, model_name, domain, dataset=None, **kwargs):
+    def __init__(self, model_name, domain, **kwargs):
         super().__init__(domain, **kwargs)
-        # Save locations
+
+        # Metadata
         self.model_name = model_name
         self.model_dir = kwargs.get(
             "model_dir", get_summit_config_path() / "ExperimentalEmulator"
@@ -74,53 +65,133 @@ class ExperimentalEmulator(Experiment):
             self.model_dir / self.model_name / f"{self.model_name}.ckpt"
         )
 
-        # Create the datamodule
-        if dataset is not None:
-            self.datamodule = EmulatorDataModule(self.domain, dataset, **kwargs)
-            train_loader = self.datamodule.train_dataloader()
-            self.n_examples = len(train_loader.dataset)
-            self.n_features = train_loader.dataset[0][0].shape[0]
-            self.n_targets = train_loader.dataset[0][1].shape[0]
+        # Training related parameters
+        self.standardize_inputs = kwargs.get("standardize_inputs", True)
+        self.standardize_outputs = kwargs.get("standardize_outputs", True)
+        load_checkpoint = kwargs.get("load_checkpoint", False)
 
         # Create the regressor
-        Reg = kwargs.get("regressor", BNNRegressor)
-        load_checkpoint = kwargs.get("load_checkpoint", False)
-        ## Check if the regressor exists
-        if self.checkpoint_path.exists() and load_checkpoint:
-            # TODO: Put skorch model loading code
-            self.logger.info(f"{model_name} loaded from disk.")
-        ## If it doesn't, log at INFO level that the regressor needs to be trained before being used.
-        else:
-            self.logger.info("The regressor must be trained before use.")
-        # elif self.datamodule is not None:
-        #     # Create new regressor
-        #     model_hparams = kwargs.get("model_hparams", dict())
-        #     model_hparams["n_example"] = self.n_examples
-        #     self.regressor = Reg(self.n_features, self.n_targets, **model_hparams)
-        # elif self.datamodule is None:
-        #     raise ValueError(
-        #         "Dataset cannot be None when there is not pretrained model."
-        #     )
+        self.regressor = kwargs.get("regressor", BNNRegressor)
+        #  Check if the regressor exists
+        # if self.checkpoint_path.exists() and load_checkpoint:
+        #     # TODO: Put skorch model loading code
+        #     self.logger.info(f"{model_name} loaded from disk.")
+        # # If it doesn't, log at INFO level that the regressor needs to be trained before being used.
+        # else:
+        #     self.logger.info("The regressor must be trained before use.")
 
     def _run(self, conditions, **kwargs):
-        X = conditions[[v.name for v in self.domain.input_variables]]
-        if self.datamodule.normalize:
-            X = self.datamodule.input_scaler.transform(X)
-        y = self.regressor(X)
+
         if self.datamodule.normalize:
             y = self.datamodule.output_scaler.inverse_transform(y)
         for i, v in enumerate(self.domain.output_variables):
             conditions[v.name] = y[:, i]
         return conditions
 
-    def train(self, **kwargs):
+    def train(self, dataset, **kwargs):
         """Train the model on the dataset
 
-        For kwargs, see pytorch-lightining documentation:
-        https://pytorch-lightning.readthedocs.io/en/stable/trainer.html#init
+        Parameters
+        ----------
+        standardize_inputs : bool, optional
+            Standardize all input continuous variables. Default is True.
+        standardize_outputs : bool, optional
+            Standardize all output continuous variables. Default is True.
+        output_variables : str or list
+            The variables that should be trained by the predictor.
+            Defaults to all objectives in the domain.
+
         """
-        # net = NeuralNetRegressor(self.regressor, =self.n_features, kwargs)
-        # net.fit()
+        # Preprocessors
+        output_variables = kwargs.get(
+            "output_variables", [v.name for v in self.domain.output_variables]
+        )
+        X_preprocessor = self._create_input_preprocessor()
+        y_preprocessor = self._create_output_preprocessor(output_variables)
+
+        # Create network
+        output_variables = kwargs.get(
+            "output_variables", [v.name for v in self.domain.output_variables]
+        )
+        regressor_kwargs = kwargs.get("regressor_kwargs", {})
+        regressor_kwargs.update(
+            dict(
+                input_dim=11,
+                output_dim=len(output_variables),
+                n_examples=dataset.shape[0],
+            )
+        )
+        net = EmulatorNet(self.regressor, regressor_kwargs=regressor_kwargs, **kwargs)
+
+        # Create predictor
+        # TODO: also create an inverse function
+        ds_to_tensor = FunctionTransformer(dataset_to_tensor)
+        pipe = Pipeline(
+            steps=[
+                ("preprocessor", X_preprocessor),
+                ("dst", ds_to_tensor),
+                ("net", net),
+            ]
+        )
+        self.predictor = TransformedTargetRegressor(pipe, transformer=StandardScaler())
+
+        # Get data
+        input_columns = [v.name for v in self.domain.input_variables]
+        X = dataset[input_columns].to_numpy()
+        y = dataset[output_variables].to_numpy().astype(float)
+        # Sklearn columntransformer expects a pandas dataframe not a dataset
+        X = pd.DataFrame(X, columns=input_columns)
+
+        # Train-test split
+        test_size = kwargs.get("test_size", 0.3)
+        random_state = kwargs.get("random_state")
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=random_state
+        )
+        y_train, y_test = torch.tensor(y_train).float(), torch.tensor(y_test).float()
+
+        # Run training
+        self.predictor.fit(X_train, y_train)
+
+    def _create_input_preprocessor(self):
+        transformers = []
+        # Numeric transforms
+        numeric_features = [
+            v.name
+            for v in self.domain.input_variables
+            if v.variable_type == "continuous"
+        ]
+        if len(numeric_features) > 0:
+            transformers.append(("num", StandardScaler(), numeric_features))
+
+        # Categorical transforms
+        categorical_features = [
+            v.name
+            for v in self.domain.input_variables
+            if v.variable_type == "categorical"
+        ]
+        if len(categorical_features) > 0:
+            transformers.append(("cat", OneHotEncoder(), categorical_features))
+
+        # Create preprocessor
+        if len(numeric_features) == 0 and len(categorical_features) > 0:
+            raise DomainError(
+                "With only categorical features, you can do a simple lookup."
+            )
+        elif len(numeric_features) > 0 or len(categorical_features) > 0:
+            preprocessor = ColumnTransformer(transformers=transformers)
+        else:
+            raise DomainError(
+                "No continuous or categorical features were found in the dataset."
+            )
+        return preprocessor
+
+    def _create_output_preprocessor(self, output_variables):
+        transformers = [
+            ("scale", StandardScaler(), output_variables),
+            ("dst", FunctionTransformer(dataset_to_tensor), output_variables),
+        ]
+        return ColumnTransformer(transformers=transformers)
 
     def to_dict(self, **kwargs):
         kwargs.update(
@@ -158,7 +229,7 @@ class ExperimentalEmulator(Experiment):
         return fig, ax
 
 
-class Trainer(NeuralNetRegressor):
+class EmulatorNet(NeuralNetRegressor):
     def __init__(self, *args, **kwargs):
         self.regressor_kwargs = kwargs.pop("regressor_kwargs", {})
         super().__init__(*args, **kwargs)
@@ -178,6 +249,11 @@ class Trainer(NeuralNetRegressor):
             module = module(**kwargs)
         self.module_ = to_device(module, self.device)
         return self
+
+
+def dataset_to_tensor(X):
+    """Convert datasets into """
+    return torch.tensor(X).float()
 
 
 @variational_estimator
@@ -408,13 +484,10 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     def __init__(self, case=1, **kwargs):
         model_name = "reizman_suzuki_case" + str(case)
         domain = self.setup_domain()
-        dataset_file = osp.join(
-            osp.dirname(osp.realpath(__file__)),
-            "experiment_emulator/data/" + model_name + "_train_test.csv",
-        )
         super().__init__(domain=domain, model_name=model_name)
 
-    def setup_domain(self):
+    @staticmethod
+    def setup_domain():
         domain = Domain()
 
         # Decision variables
