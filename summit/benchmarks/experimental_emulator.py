@@ -396,62 +396,112 @@ class ExperimentalEmulator(Experiment):
         return exp
 
     def parity_plot(self, **kwargs):
-        """ Produce a parity plot based for the trained model"""
+        """Produce a parity plot based for the trained model using matplotlib
+
+        Parameters
+        ---------
+        output_variables : str or list, optional
+            The output variables to plot. Defaults to all.
+        include_test : bool, optional
+            Include the performance of the model on the test set.
+            Defaults to False.
+        train_color : str, optional
+            Hex string for the train points. Defaults to "#6f3666"
+        test_color : str, optional
+            Hex string for the train points. Defaults to "#3c328c"
+        clip : dict, optional
+            A dictionary with keys of the output variables
+            and values as tuples of lows and highs to clip to.
+            Useful for clipping yields, conversions, etc. to be 0-100.
+        """
         import matplotlib.pyplot as plt
-        import matplotlib.patches as mpatches
 
         include_test = kwargs.get("include_test", False)
         train_color = kwargs.get("train_color", "#6f3666")
         test_color = kwargs.get("test_color", "#3c328c")
         clip = kwargs.get("clip")
+        vars = kwargs.get("output_variables", self.output_variables)
+        if type(vars) == str:
+            vars = [vars]
 
-        vars = self.output_variables
         fig, axes = plt.subplots(1, len(vars))
-        fig.subplots_adjust(wspace=0.2)
+        if len(vars) > 1:
+            fig.subplots_adjust(wspace=0.2)
+        if type(axes) != np.ndarray:
+            axes = np.array([axes])
+
         # Do predictions
         with torch.no_grad():
             y_train_pred = self.predict(self.X_train, clip=clip)
             if include_test:
                 y_test_pred = self.predict(self.X_test, clip=clip)
 
-        for i, var in enumerate(vars):
-            # Train
-            axes[i].scatter(
-                self.y_train[:, i], y_train_pred[:, i], color=train_color, alpha=0.5
-            )
-            # Test
-            if include_test:
-                axes[i].scatter(
-                    self.y_test[:, i], y_test_pred[:, i], color=test_color, alpha=0.5
+        plots = 0
+        for i, v in enumerate(self.output_variables):
+            if v in vars:
+                make_parity_plot(
+                    self.y_train[:, i],
+                    y_train_pred[:, i],
+                    y_test=self.y_test[:, i],
+                    y_test_pred=y_test_pred[:, i],
+                    ax=axes[plots],
+                    train_color=train_color,
+                    test_color=test_color,
+                    title=v,
                 )
+                plots += 1
 
-            # Parity line
-            min = np.min(np.concatenate([self.y_train[:, i], y_train_pred[:, i]]))
-            max = np.max(np.concatenate([self.y_train[:, i], y_train_pred[:, i]]))
-            axes[i].plot([min, max], [min, max], c="#747378")
-            # Scores
-            handles = []
-            r2_train = r2_score(self.y_train[:, i], y_train_pred[:, i])
-            r2_train_patch = mpatches.Patch(
-                label=f"Train R2 = {r2_train:.2f}", color=train_color
-            )
-            handles.append(r2_train_patch)
-            if include_test:
-                r2_test = r2_score(self.y_test[:, i], y_test_pred[:, i])
-                r2_test_patch = mpatches.Patch(
-                    label=f"Test R2 = {r2_test:.2f}", color=test_color
-                )
-                handles.append(r2_test_patch)
-
-            # Formatting
-            axes[i].legend(handles=handles, fontsize=12)
-            axes[i].set_xlim(min, max)
-            axes[i].set_ylim(min, max)
-            axes[i].set_xlabel("Measured")
-            axes[i].set_ylabel("Predicted")
-            axes[i].set_title(var)
-            axes[i].tick_params(direction="in")
         return fig, axes
+
+
+def make_parity_plot(
+    y_train,
+    y_train_pred,
+    y_test=None,
+    y_test_pred=None,
+    ax=None,
+    train_color="#6f3666",
+    test_color="#3c328c",
+    title=None,
+):
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+
+    if ax is None:
+        fig, ax = plt.subplots(1)
+    ax.scatter(y_train, y_train_pred, color=train_color, alpha=0.5)
+    # Test
+    if y_test is not None:
+        ax.scatter(y_test, y_test_pred, color=test_color, alpha=0.5)
+
+    # Parity line
+    min = np.min(np.concatenate([y_train, y_train_pred]))
+    max = np.max(np.concatenate([y_train, y_train_pred]))
+    ax.plot([min, max], [min, max], c="#747378")
+    # Scores
+    handles = []
+    r2_train = r2_score(y_train, y_train_pred)
+    r2_train_patch = mpatches.Patch(
+        label=f"Train R2 = {r2_train:.2f}", color=train_color
+    )
+    handles.append(r2_train_patch)
+    if y_test is not None:
+        r2_test = r2_score(y_test, y_test_pred)
+        r2_test_patch = mpatches.Patch(
+            label=f"Test R2 = {r2_test:.2f}", color=test_color
+        )
+        handles.append(r2_test_patch)
+
+    # Formatting
+    ax.legend(handles=handles, fontsize=12)
+    ax.set_xlim(min, max)
+    ax.set_ylim(min, max)
+    ax.set_xlabel("Measured")
+    ax.set_ylabel("Predicted")
+    if title is not None:
+        ax.set_title(title)
+    ax.tick_params(direction="in")
+    return ax
 
 
 def numpy_to_tensor(X):
