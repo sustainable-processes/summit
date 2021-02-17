@@ -8,8 +8,6 @@ import torch.nn.functional as F
 from skorch import NeuralNetRegressor
 from skorch.utils import to_device
 
-from blitz.modules import BayesianLinear
-from blitz.utils import variational_estimator
 
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
 from sklearn.pipeline import Pipeline
@@ -45,6 +43,17 @@ from collections import defaultdict
 from copy import deepcopy
 import time
 
+__all__ = [
+    "ExperimentalEmulator",
+    "ANNRegressor",
+    "get_bnn",
+    "RegressorRegistry",
+    "ReizmanSuzukiEmulator",
+    "BaumgartnerCrossCouplingEmulator",
+    "BaumgartnerCrossCouplingDescriptorEmulator",
+    "BaumgartnerCrossCouplingEmulator_Yield_Cost",
+]
+
 
 class ExperimentalEmulator(Experiment):
     """Experimental Emulator
@@ -54,55 +63,29 @@ class ExperimentalEmulator(Experiment):
 
     Parameters
     ----------
-    model_name : str
-        Model name used for identification. Must be unique from other models stored on the system.
     domain : :class:`~summit.domain.Domain`
         The domain of the emulator
     dataset : :class:`~summit.dataset.Dataset`, optional
         Dataset used for training/validation
     regressor : :classs:`pl.LightningModule`, optional
         Pytorch LightningModule class. Defaults to the BayesianRegressor
-    model_dir : :class:`pathlib.Path` or str, optional
-        Directory where models are saved. Defaults to `~/.summit/ExperimentEmulator"
-    load_checkpoint : bool, optional
-        Whether to load any previously trained models on disk. By default previous models are not loaded.
-    standardize_inputs : bool, optional
-        Standardize all input continuous variables. Default is True.
-    standardize_outputs : bool, optional
-        Standardize all output continuous variables. Default is True.e.
 
     """
 
     def __init__(self, model_name, domain, dataset=None, **kwargs):
         super().__init__(domain, **kwargs)
-
-        # Metadata
         self.model_name = model_name
-        self.model_dir = kwargs.get(
-            "model_dir", get_summit_config_path() / "ExperimentalEmulator"
-        )
-        self.model_dir = pathlib.Path(self.model_dir)
-        self.checkpoint_path = (
-            self.model_dir / self.model_name / f"{self.model_name}.ckpt"
-        )
-
         # Data
         self.ds = dataset
 
-        # Training related parameters
-        self.standardize_inputs = kwargs.get("standardize_inputs", True)
-        self.standardize_outputs = kwargs.get("standardize_outputs", True)
-        load_checkpoint = kwargs.get("load_checkpoint", False)
+        # Load in previous models
+        self.predictors = kwargs.get("predictors")
+        if self.ds is not None:
+            self.n_features = self._caclulate_input_dimensions(self.domain)
+            self.n_examples = self.ds.shape[0]
 
         # Create the regressor
-        self.regressor = kwargs.get("regressor", BNNRegressor)
-        #  Check if the regressor exists
-        # if self.checkpoint_path.exists() and load_checkpoint:
-        #     # TODO: Put skorch model loading code
-        #     self.logger.info(f"{model_name} loaded from disk.")
-        # # If it doesn't, log at INFO level that the regressor needs to be trained before being used.
-        # else:
-        #     self.logger.info("The regressor must be trained before use.")
+        self.regressor = kwargs.get("regressor", ANNRegressor)
 
     def _run(self, conditions, **kwargs):
 
@@ -140,44 +123,21 @@ class ExperimentalEmulator(Experiment):
         -------
         A dictionary containing the results of the training.
         """
-        # Preprocessors
+        if self.ds is None:
+            raise ValueError("Dataset is required for training.")
+
+        # Create predictor
         self.output_variables = kwargs.get(
             "output_variables", [v.name for v in self.domain.output_variables]
         )
-        X_preprocessor = self._create_input_preprocessor()
-        y_preprocessor = self._create_output_preprocessor(self.output_variables)
-
-        # Create network
-        regressor_kwargs = kwargs.get("regressor_kwargs", {})
-        regressor_kwargs.update(
-            dict(
-                module__input_dim=self.caclulate_input_dimensions(),
-                module__output_dim=len(self.output_variables),
-                module__n_examples=self.ds.shape[0],
-            )
-        )
-        verbose = kwargs.get("verbose", 0)
-        net = NeuralNetRegressor(
+        predictor = self._create_predictor(
             self.regressor,
-            train_split=None,
-            max_epochs=kwargs.get("max_epochs", 100),
-            callbacks=kwargs.get("callbacks"),
-            verbose=verbose,
-            **regressor_kwargs,
+            self.domain,
+            self.n_features,
+            self.n_examples,
+            output_variables=self.output_variables,
+            **kwargs,
         )
-
-        # Create predictor
-        # TODO: also create an inverse function
-        ds_to_tensor = FunctionTransformer(numpy_to_tensor)
-        pipe = Pipeline(
-            steps=[
-                ("preprocessor", X_preprocessor),
-                ("dst", ds_to_tensor),
-                ("net", net),
-            ]
-        )
-
-        self.predictor = TransformedTargetRegressor(pipe, transformer=StandardScaler())
 
         # Get data
         input_columns = [v.name for v in self.domain.input_variables]
@@ -204,22 +164,71 @@ class ExperimentalEmulator(Experiment):
         if search_params:
             self.logger.info("Starting grid search.")
             gs = ProgressGridSearchCV(
-                self.predictor, search_params, refit="r2", cv=folds, scoring=scoring
+                predictor, search_params, refit="r2", cv=folds, scoring=scoring
             )
             gs.fit(self.X_train, y_train)
-            self.predictor.set_params(**gs.best_params_)
+            predictor.set_params(**gs.best_params_)
 
         self.logger.info("Starting training via cross validation.")
         res = cross_validate(
-            self.predictor,
+            predictor,
             self.X_train,
             y_train,
             scoring=scoring,
             cv=folds,
             return_estimator=True,
         )
-        self.estimators = res.pop("estimator")
+        self.predictors = res.pop("estimator")
         return res
+
+    @classmethod
+    def _create_predictor(
+        cls,
+        regressor,
+        domain,
+        input_dimensions,
+        num_examples,
+        output_variables,
+        **kwargs,
+    ):
+        # Preprocessors
+        output_variables = kwargs.get(
+            "output_variables", [v.name for v in domain.output_variables]
+        )
+        X_preprocessor = cls._create_input_preprocessor(domain)
+        y_preprocessor = cls._create_output_preprocessor(output_variables)
+
+        # Create network
+        regressor_kwargs = kwargs.get("regressor_kwargs", {})
+        regressor_kwargs.update(
+            dict(
+                module__input_dim=input_dimensions,
+                module__output_dim=len(output_variables),
+                module__n_examples=num_examples,
+            )
+        )
+        verbose = kwargs.get("verbose", 0)
+        net = NeuralNetRegressor(
+            regressor,
+            train_split=None,
+            max_epochs=kwargs.get("max_epochs", 100),
+            callbacks=kwargs.get("callbacks"),
+            verbose=verbose,
+            **regressor_kwargs,
+        )
+
+        # Create predictor
+        # TODO: also create an inverse function
+        ds_to_tensor = FunctionTransformer(numpy_to_tensor)
+        pipe = Pipeline(
+            steps=[
+                ("preprocessor", X_preprocessor),
+                ("dst", ds_to_tensor),
+                ("net", net),
+            ]
+        )
+
+        return TransformedTargetRegressor(pipe, transformer=StandardScaler())
 
     def ensemble_predict(self, X, **kwargs):
         """Get an prediction of the ensembled models
@@ -230,7 +239,7 @@ class ExperimentalEmulator(Experiment):
         """
         clip = kwargs.pop("clip", None)
         y_pred = torch.tensor(
-            [estimator.predict(X, **kwargs) for estimator in self.estimators]
+            [estimator.predict(X, **kwargs) for estimator in self.predictors]
         )
 
         if clip is not None:
@@ -241,32 +250,30 @@ class ExperimentalEmulator(Experiment):
                     )
         return y_pred.mean(axis=0), y_pred.std(axis=0)
 
-    def caclulate_input_dimensions(self):
+    @staticmethod
+    def _caclulate_input_dimensions(domain):
         num_dimensions = 0
-        for v in self.domain.input_variables:
+        for v in domain.input_variables:
             if v.variable_type == "continuous":
                 num_dimensions += 1
             elif v.variable_type == "categorical":
                 num_dimensions += len(v.levels)
         return num_dimensions
 
-    def _create_input_preprocessor(self):
+    @staticmethod
+    def _create_input_preprocessor(domain):
         """Create feature preprocessors """
         transformers = []
         # Numeric transforms
         numeric_features = [
-            v.name
-            for v in self.domain.input_variables
-            if v.variable_type == "continuous"
+            v.name for v in domain.input_variables if v.variable_type == "continuous"
         ]
         if len(numeric_features) > 0:
             transformers.append(("num", StandardScaler(), numeric_features))
 
         # Categorical transforms
         categorical_features = [
-            v.name
-            for v in self.domain.input_variables
-            if v.variable_type == "categorical"
+            v.name for v in domain.input_variables if v.variable_type == "categorical"
         ]
         if len(categorical_features) > 0:
             transformers.append(("cat", OneHotEncoder(), categorical_features))
@@ -284,7 +291,8 @@ class ExperimentalEmulator(Experiment):
             )
         return preprocessor
 
-    def _create_output_preprocessor(self, output_variables):
+    @staticmethod
+    def _create_output_preprocessor(output_variables):
         """"Create target preprocessors"""
         transformers = [
             ("scale", StandardScaler(), output_variables),
@@ -293,22 +301,87 @@ class ExperimentalEmulator(Experiment):
         return ColumnTransformer(transformers=transformers)
 
     def to_dict(self, **kwargs):
-        kwargs.update(
-            dict(
-                dataset=self.datamodule.ds,
-                model_name=self.model_name,
-                model_dir=self.model_dir,
-                regressor_name=self.regressor.__class__.__name__,
-                n_examples=self.n_examples,
+        """Convert emulator parameters to dictionary
+        Notes
+        ------
+        This does not save the weights and biases of the regressor.
+        You need to use save_regressor method.
+        """
+        if self.predictors is not None:
+            kwargs.update(
+                {
+                    "predictors": [
+                        predictor.get_params() for predictor in self.predictors
+                    ]
+                }
             )
+        else:
+            kwargs.update(
+                {
+                    "predictors": None,
+                }
+            )
+        kwargs.update(
+            {
+                "regressor_name": self.regressor.__class__.__name__,
+                "n_features": self.n_features,
+                "n_examples": self.n_examples,
+                "output_variables": self.output_variables,
+            }
         )
         return super().to_dict(**kwargs)
 
     @classmethod
     def from_dict(cls, d):
-        regressor = registry[d["experiment_params"]["regressor_name"]]
+        """Create ExperimentalEmulator from a dictionary
+
+        Notes
+        -----
+        This does not load the regressor weights and biases.
+        After calling from_dict, call load_regressor to load the
+        weights and biases.
+
+        """
+        params = d["experiment_params"]
+        domain = d["domain"]
+        # Load regressor
+        regressor = registry[params["regressor_name"]]
         d["experiment_params"]["regressor"] = regressor
+
+        # Load predictors
+        predictor_params = params["predictors"]
+        predictors = [
+            cls._create_predictor(
+                regressor,
+                domain,
+                params["n_features"],
+                params["n_examples"],
+                output_variables=d["output_variables"],
+            ).set_params(predictor_param)
+            for param in predictor_params
+        ]
+        d["experiment_params"]["predictors"] = predictors
+
         return super().from_dict(d)
+
+    def save_regressor(self, save_dir):
+        save_dir = pathlib.Path(save_dir)
+        if self.predictors is None:
+            raise ValueError(
+                "No predictors available. First, run training using the train method."
+            )
+        for i, predictor in enumerate(self.predictors):
+            predictor.regressor_.named_steps.net.save_params(
+                f_params=save_dir / f"{self.model_name}_predictor_{i}"
+            )
+
+    def load_regressor(self, save_dir):
+        save_dir = pathlib.Path(save_dir)
+        for i, predictor in enumerate(self.predictors):
+            predictor.regressor_.named_steps.net.initialize()
+            predictor.regressor_.named_steps.net.load_params(
+                f_params=save_dir / f"{self.model_name}_predictor_{i}"
+            )
 
     def parity_plot(self, include_test=False, color="#6f3666", clip=None):
         """ Produce a parity plot based on the test data"""
@@ -624,121 +697,84 @@ class ProgressGridSearchCV(BaseSearchCV):
             raise ValueError(multimetric_refit_msg)
 
 
-@variational_estimator
-class BNNRegressor(torch.nn.Module):
-    """A Bayesian Neural Network pytorch lightining module"""
+def get_bnn():
+    from blitz.modules import BayesianLinear
+    from blitz.utils import variational_estimator
 
-    val_str = "CI acc: {:.2f}, CI upper acc: {:.2f}, CI lower acc: {:.2f}"
+    @variational_estimator
+    class BNNRegressor(torch.nn.Module):
+        """A Bayesian Neural Network pytorch lightining module"""
 
-    def __init__(
-        self, input_dim, output_dim, n_examples=100, hidden_units=512, **kwargs
-    ):
-        super().__init__()
-        # self.n_layers = kwargs.get("n_hidden", 3)
-        # self.layers = [BayesianLinear(input_dim, hidden_units)]
-        # self.layers += [
-        #     BayesianLinear(hidden_units, hidden_units) for _ in range(self.n_layers)
-        # ]
-        # self.layers.append(BayesianLinear(hidden_units, output_dim))
-        self.blinear1 = BayesianLinear(input_dim, hidden_units)
-        self.blinear2 = BayesianLinear(hidden_units, output_dim)
-        self.n_examples = n_examples
-        self.n_samples = kwargs.get("n_samples", 50)
-        self.save_hyperparameters("input_dim", "output_dim", "n_examples")
-        self.criterion = torch.nn.MSELoss()
+        val_str = "CI acc: {:.2f}, CI upper acc: {:.2f}, CI lower acc: {:.2f}"
 
-    def forward(self, x):
-        # for layer in self.layers[:-1]:
-        #     x = layer(x)
-        #     x = F.relu(x)
-        # return self.layers[-1](x)
-        x = self.blinear1(x)
-        x = F.relu(x)
-        return self.blinear2(x)
+        def __init__(
+            self, input_dim, output_dim, n_examples=100, hidden_units=512, **kwargs
+        ):
+            super().__init__()
+            self.blinear1 = BayesianLinear(input_dim, hidden_units)
+            self.blinear2 = BayesianLinear(hidden_units, output_dim)
+            self.n_examples = n_examples
+            self.n_samples = kwargs.get("n_samples", 50)
+            self.criterion = torch.nn.MSELoss()
 
-    def training_step(self, batch, batch_idx):
-        X, y = batch
-        loss = self.sample_elbo(
-            inputs=X,
-            labels=y,
-            criterion=self.criterion,
-            sample_nbr=3,
-            complexity_cost_weight=1 / self.n_examples,
-        )
-        self.log("train_mse", loss)
-        return loss
+        def forward(self, x):
+            # for layer in self.layers[:-1]:
+            #     x = layer(x)
+            #     x = F.relu(x)
+            # return self.layers[-1](x)
+            x = self.blinear1(x)
+            x = F.relu(x)
+            return self.blinear2(x)
 
-    def test_step(self, batch, batch_idx, **kwargs):
-        X, y = batch
-        y_hats = torch.stack([self(X) for _ in range(self.n_samples)])
-        mean_y_hat = y_hats.mean(axis=0)
-        std_y_hat = y_hats.std(axis=0)
-        loss = self.criterion(mean_y_hat, y)
-        self.log("test_mse", loss)
-        return loss
+        def evaluate_regression(self, batch, samples=100, std_multiplier=1.96):
+            """Evaluate Bayesian Neural Network
 
-    # def validation_step(self, batch, batch_idx):
-    #     ic_acc, over_ci_lower, under_ci_upper = self.evaluate_regression(batch)
+            This answers the question "How many correction predictions
+            are in the confidence interval (CI)?" It also spits out the CI.
 
-    #     self.log("val_loss", ic_acc)
-    #     self.log("under_ci_upper", under_ci_upper)
-    #     self.log("over_ci_lower", over_ci_lower)
+            Parameters
+            ----------
+            batch : tuple
+                The batch being evaluatd
+            samples : int, optional
+                The number of samples of the BNN for calculating the CI
+            std_multiplier : float, optional
+                The Z-score corresponding with the desired CI. Default is
+                1.96, which corresponds with a 95% CI.
 
-    #     return ic_acc
+            Returns
+            -------
+            tuple of ic_acc, over_ci_lower, under_ci_upper
 
-    def evaluate_regression(self, batch, samples=100, std_multiplier=1.96):
-        """Evaluate Bayesian Neural Network
+            icc_acc is the percentage within the CI.
 
-        This answers the question "How many correction predictions
-        are in the confidence interval (CI)?" It also spits out the CI.
+            """
 
-        Parameters
-        ----------
-        batch : tuple
-            The batch being evaluatd
-        samples : int, optional
-            The number of samples of the BNN for calculating the CI
-        std_multiplier : float, optional
-            The Z-score corresponding with the desired CI. Default is
-            1.96, which corresponds with a 95% CI.
+            X, y = batch
 
-        Returns
-        -------
-        tuple of ic_acc, over_ci_lower, under_ci_upper
+            # Sample
+            preds = torch.tensor([self(X) for i in range(samples)])
+            preds = torch.stack(preds)
+            means = preds.mean(axis=0)
+            stds = preds.std(axis=0)
 
-        icc_acc is the percentage within the CI.
+            # Calculate CI
+            ci_upper, ci_lower = self._calc_ci(means, stds, std_multiplier)
+            ic_acc = (ci_lower <= y) * (ci_upper >= y)
+            ic_acc = ic_acc.float().mean()
 
-        """
+            under_ci_upper = (ci_upper >= y).float().mean()
+            over_ci_lower = (ci_lower <= y).float().mean()
 
-        X, y = batch
+            ic_acc = (ci_lower <= y) * (ci_upper >= y)
+            ic_acc = ic_acc.float().mean()
 
-        # Sample
-        preds = torch.tensor([self(X) for i in range(samples)])
-        preds = torch.stack(preds)
-        means = preds.mean(axis=0)
-        stds = preds.std(axis=0)
+            return ic_acc, over_ci_lower, under_ci_upper
 
-        # Calculate CI
-        ci_upper, ci_lower = self._calc_ci(means, stds, std_multiplier)
-        ic_acc = (ci_lower <= y) * (ci_upper >= y)
-        ic_acc = ic_acc.float().mean()
-
-        under_ci_upper = (ci_upper >= y).float().mean()
-        over_ci_lower = (ci_lower <= y).float().mean()
-
-        ic_acc = (ci_lower <= y) * (ci_upper >= y)
-        ic_acc = ic_acc.float().mean()
-
-        return ic_acc, over_ci_lower, under_ci_upper
-
-    def _calc_ci(self, means, stds, std_multiplier=1.96):
-        ci_upper = means + (std_multiplier * stds)
-        ci_lower = means - (std_multiplier * stds)
-        return ci_lower, ci_upper
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=0.01)
-        return optimizer
+        def _calc_ci(self, means, stds, std_multiplier=1.96):
+            ci_upper = means + (std_multiplier * stds)
+            ci_lower = means - (std_multiplier * stds)
+            return ci_lower, ci_upper
 
 
 class ANNRegressor(torch.nn.Module):
@@ -762,38 +798,6 @@ class ANNRegressor(torch.nn.Module):
             x_ = self.hidden_layers(x_)
             x_ = F.relu(x_)
         return self.output_layer(x_)
-
-    def training_step(self, batch, batch_idx, **kwargs):
-        X, y = batch
-        y_hat = self(X)
-        return self.evaluate_loss(y, y_hat, "train")
-
-    def validation_step(self, batch, batch_idx, **kwargs):
-        return self.calculate_loss(batch, "validation")
-
-    def test_step(self, batch, batch_idx, **kwargs):
-        return self.calculate_loss(batch, "test")
-
-    def calculate_loss(self, batch, step, **kwargs):
-        X, y = batch
-        y_hat = self(X)
-        return self.evaluate_loss(y, y_hat, "val")
-
-    def test_step(self, batch, batch_idx, **kwargs):
-        X, y = batch
-        y_hat = self(X)
-        return self.evaluate_loss(y, y_hat, "test")
-
-    def evaluate_loss(self, y_true, y_hat, step):
-        loss = F.mse_loss(y_hat, y_true)
-        self.log(f"_mse", loss)
-        # r2 = r2_score(y_true.detach().numpy(), y_hat.detach().numpy())
-        # self.log(f"{step}_r2_score", r2)
-        return loss
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.parameters(), lr=0.001)
-        return optimizer
 
 
 class RegressorRegistry:
@@ -823,10 +827,6 @@ class RegressorRegistry:
     def register(self, regressor):
         key = regressor.__name__
         self.regressors[key] = regressor
-
-
-# Create global registry
-registry = RegressorRegistry()
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
