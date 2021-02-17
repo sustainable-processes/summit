@@ -8,7 +8,6 @@ import torch.nn.functional as F
 from skorch import NeuralNetRegressor
 from skorch.utils import to_device
 
-
 from sklearn.compose import ColumnTransformer, TransformedTargetRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, FunctionTransformer
@@ -41,13 +40,16 @@ from copy import deepcopy
 from itertools import product
 from collections import defaultdict
 from copy import deepcopy
+import pkg_resources
 import time
+import json
 
 __all__ = [
     "ExperimentalEmulator",
     "ANNRegressor",
     "get_bnn",
     "RegressorRegistry",
+    "registry",
     "ReizmanSuzukiEmulator",
     "BaumgartnerCrossCouplingEmulator",
     "BaumgartnerCrossCouplingDescriptorEmulator",
@@ -323,7 +325,8 @@ class ExperimentalEmulator(Experiment):
             )
         kwargs.update(
             {
-                "regressor_name": self.regressor.__class__.__name__,
+                "model_name": self.model_name,
+                "regressor_name": self.regressor.__name__,
                 "n_features": self.n_features,
                 "n_examples": self.n_examples,
                 "output_variables": self.output_variables,
@@ -343,7 +346,8 @@ class ExperimentalEmulator(Experiment):
 
         """
         params = d["experiment_params"]
-        domain = d["domain"]
+        domain = Domain.from_dict(d["domain"])
+
         # Load regressor
         regressor = registry[params["regressor_name"]]
         d["experiment_params"]["regressor"] = regressor
@@ -356,9 +360,9 @@ class ExperimentalEmulator(Experiment):
                 domain,
                 params["n_features"],
                 params["n_examples"],
-                output_variables=d["output_variables"],
-            ).set_params(predictor_param)
-            for param in predictor_params
+                output_variables=params["output_variables"],
+            ).set_params(**predictor_param)
+            for predictor_param in predictor_params
         ]
         d["experiment_params"]["predictors"] = predictors
 
@@ -378,10 +382,24 @@ class ExperimentalEmulator(Experiment):
     def load_regressor(self, save_dir):
         save_dir = pathlib.Path(save_dir)
         for i, predictor in enumerate(self.predictors):
-            predictor.regressor_.named_steps.net.initialize()
-            predictor.regressor_.named_steps.net.load_params(
-                f_params=save_dir / f"{self.model_name}_predictor_{i}"
+            net = predictor.regressor.named_steps.net
+            net.initialize()
+            predictor.regressor_ = net.load_params(
+                f_params=save_dir / f"{self.model_name}_predictor_{i}.pt"
             )
+
+    def save(self, save_dir):
+        with open(save_dir / f"{self.model_name}.json", "w") as f:
+            json.dump(self.to_dict(), f)
+        self.save(save_dir)
+
+    @classmethod
+    def load(cls, save_dir):
+        with open(save_dir / f"{self.model_name}.json", "r") as f:
+            d = json.load(f)
+        exp = ExperimentalEmulator.from_dict(d)
+        exp.load_regressor(save_dir)
+        return exp
 
     def parity_plot(self, include_test=False, color="#6f3666", clip=None):
         """ Produce a parity plot based on the test data"""
@@ -816,7 +834,7 @@ class RegressorRegistry:
             return reg
         else:
             raise KeyError(
-                f"{key} is not in the registry. Register using the register method."
+                f"{key} is not in the §. Register using the register method."
             )
 
     def __setitem__(self, key, value):
@@ -827,6 +845,15 @@ class RegressorRegistry:
     def register(self, regressor):
         key = regressor.__name__
         self.regressors[key] = regressor
+
+
+# Create global regressor registry
+registry = RegressorRegistry()
+registry.register(ANNRegressor)
+
+
+def get_data_path():
+    return pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
@@ -859,9 +886,11 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     """
 
     def __init__(self, case=1, **kwargs):
-        model_name = "reizman_suzuki_case" + str(case)
+        model_name = f"reizman_suzuki_case_{case}"
         domain = self.setup_domain()
-        super().__init__(domain=domain, model_name=model_name)
+        data_path = get_data_path()
+        ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+        super().__init__(model_name, domain, dataset=ds, **kwargs)
 
     @staticmethod
     def setup_domain():
