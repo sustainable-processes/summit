@@ -71,23 +71,29 @@ class ExperimentalEmulator(Experiment):
         Dataset used for training/validation
     regressor : :classs:`pl.LightningModule`, optional
         Pytorch LightningModule class. Defaults to the BayesianRegressor
-
+    output_variables : str or list, optional
+            The variables that should be trained by the predictor.
+            Defaults to all objectives in the domain.
     """
 
-    def __init__(self, model_name, domain, dataset=None, **kwargs):
+    def __init__(self, model_name, domain, **kwargs):
         super().__init__(domain, **kwargs)
         self.model_name = model_name
         # Data
-        self.ds = dataset
+        self.ds = kwargs.get("dataset")
 
         # Load in previous models
         self.predictors = kwargs.get("predictors")
         if self.ds is not None:
             self.n_features = self._caclulate_input_dimensions(self.domain)
             self.n_examples = self.ds.shape[0]
+        self.output_variables = kwargs.get(
+            "output_variables", [v.name for v in self.domain.output_variables]
+        )
 
         # Create the regressor
         self.regressor = kwargs.get("regressor", ANNRegressor)
+        self.predictor = None
 
     def _run(self, conditions, **kwargs):
 
@@ -101,10 +107,7 @@ class ExperimentalEmulator(Experiment):
         """Train the model on the dataset
 
         Parameters
-        ----------
-        output_variables : str or list, optional
-            The variables that should be trained by the predictor.
-            Defaults to all objectives in the domain.
+        ---------
         test_size : float, optional
             The size of the test as a fraction of the total dataset. Defaults to 0.1.
         cv_folds : int, optional
@@ -129,9 +132,6 @@ class ExperimentalEmulator(Experiment):
             raise ValueError("Dataset is required for training.")
 
         # Create predictor
-        self.output_variables = kwargs.get(
-            "output_variables", [v.name for v in self.domain.output_variables]
-        )
         predictor = self._create_predictor(
             self.regressor,
             self.domain,
@@ -303,20 +303,14 @@ class ExperimentalEmulator(Experiment):
         This does not save the weights and biases of the regressor.
         You need to use save_regressor method.
         """
-        if self.predictors is not None:
-            kwargs.update(
-                {
-                    "predictors": [
-                        predictor.get_params() for predictor in self.predictors
-                    ]
-                }
-            )
-        else:
-            kwargs.update(
-                {
-                    "predictors": None,
-                }
-            )
+        num = self.predictor.regressor.named_steps.preprocessor.named_transformers.num
+        cat = self.predictor.regressor.named_steps.preprocessor.named_transformers.cat
+        input_preprocessor = {
+            "num": {"mean_": num.mean_, "std_": num.std_},
+            "cat": {"categories_": cat.categories_},
+        }
+        out = self.predictor.transformer
+        output_preprocessor = {"mean_": out.mean_, "std_": out.std_}
         kwargs.update(
             {
                 "model_name": self.model_name,
@@ -324,6 +318,8 @@ class ExperimentalEmulator(Experiment):
                 "n_features": self.n_features,
                 "n_examples": self.n_examples,
                 "output_variables": self.output_variables,
+                "input_preprocessor": input_preprocessor,
+                "output_preprocessor": output_preprocessor,
             }
         )
         return super().to_dict(**kwargs)

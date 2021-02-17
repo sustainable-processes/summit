@@ -23,7 +23,7 @@ def test_train():
     domain = ReizmanSuzukiEmulator.setup_domain()
     ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
     exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
-    exp.train(max_epochs=1000, cv_folds=5, random_state=100, test_size=0.2, verbose=1)
+    exp.train(max_epochs=1, cv_folds=5, random_state=100, test_size=0.2, verbose=1)
     # print(exp.predictors[0].regressor.named_steps.preprocessor.named_transformers_)
     # params = {
     #     "regressor__net__max_epochs": [200, 500, 1000]
@@ -34,10 +34,11 @@ def test_train():
     # new_params = exp.predictor.get_params()
     # for key in params.keys():
     #     logging.info(f"Selected number of hidden layers: {new_params[key]}")
-    fig, ax = exp.parity_plot(
-        output_variables="yield", clip={"yield": (0, 100)}, include_test=True
-    )
-    plt.show()
+    # fig, ax = exp.parity_plot(
+    #     output_variables="yield", clip={"yield": (0, 100)}, include_test=True
+    # )
+    # plt.show()
+    print(exp.to_dict())
 
 
 def train_reizman():
