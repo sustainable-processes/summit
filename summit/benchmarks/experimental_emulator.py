@@ -159,29 +159,22 @@ class ExperimentalEmulator(Experiment):
             torch.tensor(self.y_test).float(),
         )
 
-        # Run training
+        # Training
         scoring = kwargs.get("scoring", ["r2", "neg_root_mean_squared_error"])
         folds = kwargs.get("cv_folds", 5)
         search_params = kwargs.get("search_params", {})
+        # Run grid search if requested
         if search_params:
             self.logger.info("Starting grid search.")
             gs = ProgressGridSearchCV(
-                predictor, search_params, refit="r2", cv=folds, scoring=scoring
+                self.predictor, search_params, refit="r2", cv=folds, scoring=scoring
             )
             gs.fit(self.X_train, y_train)
             predictor.set_params(**gs.best_params_)
 
-        self.logger.info("Starting training via cross validation.")
-        res = cross_validate(
-            predictor,
-            self.X_train,
-            y_train,
-            scoring=scoring,
-            cv=folds,
-            return_estimator=True,
-        )
-        self.predictors = res.pop("estimator")
-        return res
+        # Run final training
+        self.logger.info("Starting training.")
+        self.predictor = predictor.fit(self.X_train, y_train)
 
     @classmethod
     def _create_predictor(
@@ -230,27 +223,28 @@ class ExperimentalEmulator(Experiment):
             ]
         )
 
-        return TransformedTargetRegressor(pipe, transformer=StandardScaler())
+        return TransformedTargetRegressor(regressor=pipe, transformer=StandardScaler())
 
-    def ensemble_predict(self, X, **kwargs):
-        """Get an prediction of the ensembled models
+    def predict(self, X, **kwargs):
+        """Get a prediction
 
-        Returns
-        -------
-        mean, std
+        Parameters
+        X : pd.DataFrame
+            A pandas dataframe with inputs to the predictor
+        clip : dict
+            A dictionary with keys of the output variables
+            and values as tuples of lows and highs to clip to.
+            Useful for clipping yields, conversions, etc. to be 0-100.
         """
-        clip = kwargs.pop("clip", None)
-        y_pred = torch.tensor(
-            [estimator.predict(X, **kwargs) for estimator in self.predictors]
-        )
-
+        y_pred = self.predictor.predict(X)
+        clip = kwargs.get("clip")
         if clip is not None:
             for i, v in enumerate(self.domain.output_variables):
                 if clip.get(v.name):
-                    y_pred[:, :, i] = torch.clip(
-                        y_pred[:, :, i], clip[v.name][0], clip[v.name][1]
+                    y_pred[:, i] = np.clip(
+                        y_pred[:, i], clip[v.name][0], clip[v.name][1]
                     )
-        return y_pred.mean(axis=0), y_pred.std(axis=0)
+        return y_pred
 
     @staticmethod
     def _caclulate_input_dimensions(domain):
@@ -401,55 +395,58 @@ class ExperimentalEmulator(Experiment):
         exp.load_regressor(save_dir)
         return exp
 
-    def parity_plot(self, include_test=False, color="#6f3666", clip=None):
-        """ Produce a parity plot based on the test data"""
+    def parity_plot(self, **kwargs):
+        """ Produce a parity plot based for the trained model"""
         import matplotlib.pyplot as plt
         import matplotlib.patches as mpatches
+
+        include_test = kwargs.get("include_test", False)
+        train_color = kwargs.get("train_color", "#6f3666")
+        test_color = kwargs.get("test_color", "#3c328c")
+        clip = kwargs.get("clip")
 
         vars = self.output_variables
         fig, axes = plt.subplots(1, len(vars))
         fig.subplots_adjust(wspace=0.2)
+        # Do predictions
         with torch.no_grad():
-            y_train_pred, y_train_pred_std = self.ensemble_predict(
-                self.X_train, clip=clip
-            )
+            y_train_pred = self.predict(self.X_train, clip=clip)
             if include_test:
-                y_test_pred, y_test_pred_std = self.ensemble_predict(
-                    self.X_test, clip=clip
-                )
+                y_test_pred = self.predict(self.X_test, clip=clip)
 
         for i, var in enumerate(vars):
             # Train
             axes[i].scatter(
-                self.y_train[:, i], y_train_pred[:, i], color=color, alpha=0.5
+                self.y_train[:, i], y_train_pred[:, i], color=train_color, alpha=0.5
             )
-
+            # Test
             if include_test:
                 axes[i].scatter(
-                    self.y_test[:, i], y_test_pred[:, i], color=color, alpha=0.5
+                    self.y_test[:, i], y_test_pred[:, i], color=test_color, alpha=0.5
                 )
 
             # Parity line
             min = np.min(np.concatenate([self.y_train[:, i], y_train_pred[:, i]]))
             max = np.max(np.concatenate([self.y_train[:, i], y_train_pred[:, i]]))
-
+            axes[i].plot([min, max], [min, max], c="#747378")
             # Scores
             handles = []
             r2_train = r2_score(self.y_train[:, i], y_train_pred[:, i])
             r2_train_patch = mpatches.Patch(
-                label=f"Train R2 = {r2_train:.2f}", color=color
+                label=f"Train R2 = {r2_train:.2f}", color=train_color
             )
             handles.append(r2_train_patch)
             if include_test:
                 r2_test = r2_score(self.y_test[:, i], y_test_pred[:, i])
                 r2_test_patch = mpatches.Patch(
-                    label=f"Test R2 = {r2_test:.2f}", color=color
+                    label=f"Test R2 = {r2_test:.2f}", color=test_color
                 )
                 handles.append(r2_test_patch)
-            axes[i].legend(handles=handles, fontsize=12)
 
             # Formatting
-            axes[i].plot([min, max], [min, max], c=color)
+            axes[i].legend(handles=handles, fontsize=12)
+            axes[i].set_xlim(min, max)
+            axes[i].set_ylim(min, max)
             axes[i].set_xlabel("Measured")
             axes[i].set_ylabel("Predicted")
             axes[i].set_title(var)
