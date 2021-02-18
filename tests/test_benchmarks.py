@@ -4,6 +4,8 @@ from summit.utils.dataset import DataSet
 import numpy as np
 import os
 import pathlib
+import shutil
+import pkg_resources
 
 DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
 
@@ -46,17 +48,21 @@ def test_experimental_emulator():
     exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
 
     # Test grid search cross validation and training
-    params = {"regressor__net__max_epochs": [200, 500, 1000]}
+    params = {
+        "regressor__net__max_epochs": [1, 1000],
+        "regressor__net__module__num_hidden_layers": [1, 0],
+    }
     res = exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0)
-    new_params = exp.predictor.get_params()
+    r2 = res["test_r2"].mean()
+    assert r2 > 0.8
 
     # Test plotting
-    fig, ax = exp.parity_plot(
-        output_variables="yield", clip={"yield": (0, 100)}, include_test=True
-    )
-    pp = pprint.PrettyPrinter(indent=4)
-    d = exp.to_dict()
-    exp_2 = ExperimentalEmulator.from_dict(d)
+    fig, ax = exp.parity_plot(output_variables="yield", include_test=True)
+
+    # Test saving/loading
+    exp.save("test_ee")
+    exp_2 = ExperimentalEmulator.load(model_name, "test_ee")
+    shutil.rmtree("test_ee")
 
 
 def test_baumgartner_CC_emulator():

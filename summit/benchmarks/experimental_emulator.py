@@ -2,6 +2,7 @@ from summit.utils.dataset import DataSet
 from summit.domain import *
 from summit.experiment import Experiment
 from summit import get_summit_config_path
+from summit.utils import jsonify_dict, unjsonify_dict
 
 import torch
 import torch.nn.functional as F
@@ -76,6 +77,12 @@ class ExperimentalEmulator(Experiment):
     output_variable_names : str or list, optional
         The names of the variables that should be trained by the predictor.
         Defaults to all objectives in the domain.
+    clip : bool or list
+        Whether to clip predictions to the limits of
+        the objectives in the domain. True (default) means
+        clipping is activated for all outputs and False means
+        it is not activated at all. A list of specific outputs to clip
+        can also be passed.
     """
 
     def __init__(self, model_name, domain, **kwargs):
@@ -95,7 +102,8 @@ class ExperimentalEmulator(Experiment):
 
         # Create the regressor
         self.regressor = kwargs.get("regressor", ANNRegressor)
-        self.predictor = kwargs.get("predictor")
+        self.predictors = kwargs.get("predictors")
+        self.clip = kwargs.get("clip", True)
 
     def _run(self, conditions, **kwargs):
 
@@ -138,15 +146,14 @@ class ExperimentalEmulator(Experiment):
             raise ValueError("Dataset is required for training.")
 
         # Create predictor
-        if self.predictor is None:
-            self.predictor = self._create_predictor(
-                self.regressor,
-                self.domain,
-                self.n_features,
-                self.n_examples,
-                output_variable_names=self.output_variable_names,
-                **kwargs,
-            )
+        predictor = self._create_predictor(
+            self.regressor,
+            self.domain,
+            self.n_features,
+            self.n_examples,
+            output_variable_names=self.output_variable_names,
+            **kwargs,
+        )
 
         # Get data
         input_columns = [v.name for v in self.domain.input_variables]
@@ -174,16 +181,26 @@ class ExperimentalEmulator(Experiment):
         if search_params:
             self.logger.info("Starting grid search.")
             gs = ProgressGridSearchCV(
-                self.predictor, search_params, refit="r2", cv=folds, scoring=scoring
+                predictor, search_params, refit="r2", cv=folds, scoring=scoring
             )
             gs.fit(self.X_train, y_train)
             predictor.set_params(**gs.best_params_)
 
-        # Run final training
+        # Run final training using cross validation
         initializing = kwargs.get("initializing", False)
         if not initializing:
             self.logger.info("Starting training.")
-        self.predictor.fit(self.X_train, y_train)
+        res = cross_validate(
+            predictor,
+            self.X_train,
+            y_train,
+            scoring=scoring,
+            cv=folds,
+            return_estimator=True,
+        )
+        self.predictors = res.pop("estimator")
+        self.metrics = res
+        return res
 
     @classmethod
     def _create_predictor(
@@ -238,22 +255,26 @@ class ExperimentalEmulator(Experiment):
         """Get a prediction
 
         Parameters
+        ----------
         X : pd.DataFrame
             A pandas dataframe with inputs to the predictor
-        clip : dict
-            A dictionary with keys of the output variables
-            and values as tuples of lows and highs to clip to.
-            Useful for clipping yields, conversions, etc. to be 0-100.
+
+        Returns
+        -------
+        mean, std
+        Numpy arrays with the average and standard deviation of the ensemble
+
         """
-        y_pred = self.predictor.predict(X)
-        clip = kwargs.get("clip")
-        if clip is not None:
+        y_pred = np.array(
+            [estimator.predict(X, **kwargs) for estimator in self.predictors]
+        )
+        if self.clip:
             for i, v in enumerate(self.domain.output_variables):
-                if clip.get(v.name):
-                    y_pred[:, i] = np.clip(
-                        y_pred[:, i], clip[v.name][0], clip[v.name][1]
-                    )
-        return y_pred
+                if type(self.clip) == list:
+                    if v.name not in self.clip:
+                        continue
+                y_pred[:, :, i] = np.clip(y_pred[:, :, i], v.lower_bound, v.upper_bound)
+        return y_pred.mean(axis=0), y_pred.std(axis=0)
 
     @staticmethod
     def _caclulate_input_dimensions(domain):
@@ -319,9 +340,28 @@ class ExperimentalEmulator(Experiment):
         You need to use save_regressor method.
 
         """
-        # Preprocessor
-        num = self.predictor.regressor_.named_steps.preprocessor.named_transformers_.num
-        cat = self.predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
+        # Predictors
+        predictors = [
+            self._create_predictor_dict(predictor) for predictor in self.predictors
+        ]
+
+        # Update experiment_params
+        experiment_params.update(
+            {
+                "model_name": self.model_name,
+                "regressor_name": self.regressor.__name__,
+                "n_features": self.n_features,
+                "n_examples": self.n_examples,
+                "output_variable_names": self.output_variable_names,
+                "predictors": predictors,
+            }
+        )
+        return super().to_dict(**experiment_params)
+
+    @staticmethod
+    def _create_predictor_dict(predictor):
+        num = predictor.regressor_.named_steps.preprocessor.named_transformers_.num
+        cat = predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
         input_preprocessor = {
             # Numerical
             "num": {
@@ -332,26 +372,19 @@ class ExperimentalEmulator(Experiment):
             }
             # Categorical is automatic from the domain
         }
-        out = self.predictor.transformer_
+        out = predictor.transformer_
         output_preprocessor = {
             "mean_": out.mean_,
             "var_": out.var_,
             "scale_": num.scale_,
             "n_samples_seen_": num.n_samples_seen_,
         }
-        # Update experiment_params
-        experiment_params.update(
+        return jsonify_dict(
             {
-                "model_name": self.model_name,
-                "regressor_name": self.regressor.__name__,
-                "n_features": self.n_features,
-                "n_examples": self.n_examples,
-                "output_variable_names": self.output_variable_names,
                 "input_preprocessor": input_preprocessor,
                 "output_preprocessor": output_preprocessor,
             }
         )
-        return super().to_dict(**experiment_params)
 
     @classmethod
     def from_dict(cls, d):
@@ -371,15 +404,19 @@ class ExperimentalEmulator(Experiment):
         regressor = registry[params["regressor_name"]]
         d["experiment_params"]["regressor"] = regressor
 
-        # Load predictor
-        predictor = cls._create_predictor(
-            regressor,
-            domain,
-            params["n_features"],
-            params["n_examples"],
-            output_variable_names=params["output_variable_names"],
-        )
-        d["experiment_params"]["predictor"] = predictor
+        # Load predictors
+        predictors_params = params["predictors"]
+        predictors = [
+            cls._create_predictor(
+                regressor,
+                domain,
+                params["n_features"],
+                params["n_examples"],
+                output_variable_names=params["output_variable_names"],
+            )
+            for predictor_params in predictors_params
+        ]
+        d["experiment_params"]["predictor"] = predictors
 
         # Instantiate the class
         exp = super().from_dict(d)
@@ -392,24 +429,34 @@ class ExperimentalEmulator(Experiment):
         exp.ds = generate_data(domain, params["n_features"] + 1)
         exp.train(max_epochs=1, verbose=0, initializing=True)
 
+        # Set parameters on predictors
+        for predictor, predictor_params in zip(exp.predictors, predictors_params):
+            exp.set_predictor_params(predictor, unjsonify_dict(predictor_params))
+
+        return exp
+
+    @staticmethod
+    def set_predictor_params(predictor, predictor_params):
         # Input transforms
-        num = exp.predictor.regressor_.named_steps.preprocessor.named_transformers_.num
-        cat = exp.predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
-        input_preprocessor = RecursiveNamespace(**params["input_preprocessor"])
+        num = predictor.regressor_.named_steps.preprocessor.named_transformers_.num
+        cat = predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
+        input_preprocessor = RecursiveNamespace(
+            **predictor_params["input_preprocessor"]
+        )
         num.mean_ = input_preprocessor.num.mean_
         num.var_ = input_preprocessor.num.var_
         num.scale_ = input_preprocessor.num.scale_
         num.n_samples_seen_ = input_preprocessor.num.n_samples_seen_
 
         # Output transforms
-        out = exp.predictor.transformer_
-        output_preprocessor = RecursiveNamespace(**params["output_preprocessor"])
+        out = predictor.transformer_
+        output_preprocessor = RecursiveNamespace(
+            **predictor_params["output_preprocessor"]
+        )
         out.mean_ = output_preprocessor.mean_
         out.var_ = output_preprocessor.var_
         out.scale_ = output_preprocessor.scale_
         out.n_samples_seen_ = output_preprocessor.n_samples_seen_
-
-        return exp
 
     def save_regressor(self, save_dir):
         """Save the weights and biases of the regressor to disk
@@ -421,13 +468,14 @@ class ExperimentalEmulator(Experiment):
 
         """
         save_dir = pathlib.Path(save_dir)
-        if self.predictor is None:
+        if self.predictors is None:
             raise ValueError(
-                "No predictor available. First, run training using the train method."
+                "No predictors available. First, run training using the train method."
             )
-        self.predictor.regressor_.named_steps.net.save_params(
-            f_params=save_dir / f"{self.model_name}_predictor_{i}"
-        )
+        for i, predictor in enumerate(self.predictors):
+            predictor.regressor_.named_steps.net.save_params(
+                f_params=save_dir / f"{self.model_name}_predictor_{i}.pt"
+            )
 
     def load_regressor(self, save_dir):
         """Load the weights and biases of the regressor from disk
@@ -456,12 +504,14 @@ class ExperimentalEmulator(Experiment):
 
         """
         save_dir = pathlib.Path(save_dir)
+        if not save_dir.exists():
+            save_dir.mkdir()
         with open(save_dir / f"{self.model_name}.json", "w") as f:
             json.dump(self.to_dict(), f)
         self.save_regressor(save_dir)
 
     @classmethod
-    def load(cls, save_dir):
+    def load(cls, model_name, save_dir):
         """Load all the essential parameters of the ExperimentalEmulator to disk
 
         Parameters
@@ -470,7 +520,8 @@ class ExperimentalEmulator(Experiment):
             The directory from which to load emulator files.
 
         """
-        with open(save_dir / f"{self.model_name}.json", "r") as f:
+        save_dir = pathlib.Path(save_dir)
+        with open(save_dir / f"{model_name}.json", "r") as f:
             d = json.load(f)
         exp = ExperimentalEmulator.from_dict(d)
         exp.load_regressor(save_dir)
@@ -490,10 +541,6 @@ class ExperimentalEmulator(Experiment):
             Hex string for the train points. Defaults to "#6f3666"
         test_color : str, optional
             Hex string for the train points. Defaults to "#3c328c"
-        clip : dict, optional
-            A dictionary with keys of the output variables
-            and values as tuples of lows and highs to clip to.
-            Useful for clipping yields, conversions, etc. to be 0-100.
 
         """
         import matplotlib.pyplot as plt
@@ -514,9 +561,9 @@ class ExperimentalEmulator(Experiment):
 
         # Do predictions
         with torch.no_grad():
-            y_train_pred = self.predict(self.X_train, clip=clip)
+            y_train_pred, y_train_pred_std = self.predict(self.X_train)
             if include_test:
-                y_test_pred = self.predict(self.X_test, clip=clip)
+                y_test_pred, y_train_pred_std = self.predict(self.X_test)
 
         plots = 0
         for i, v in enumerate(self.output_variable_names):
@@ -1227,112 +1274,115 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
 
 class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
-    """Baumgartner Cross Coupling Emulator
+    def __init__(self):
+        raise NotImplementedError()
 
-    Virtual experiments representing the Aniline Cross-Coupling reaction
-    similar to Baumgartner et al. (2019). Experimental outcomes are based on an
-    emulator that is trained on the experimental data published by Baumgartner et al.
-
-    The difference with this model is that it uses descriptors for the catalyst and base
-    instead of one-hot encoding the options. The descriptors are the first two
-    sigma moments from COSMO-RS.
-
-
-    Parameters
-    ----------
-
-    Examples
-    --------
-    >>> bemul = BaumgartnerCrossCouplingDescriptorEmulator()
-
-    Notes
-    -----
-    This benchmark is based on data from [Baumgartner]_ et al.
-
-    References
-    ----------
-
-    .. [Baumgartner] L. M. Baumgartner et al., Org. Process Res. Dev., 2019, 23, 1594–1601
-       DOI: `10.1021/acs.oprd.9b00236 <https://doi.org/10.1021/acs.oprd.9b00236>`_
-
-    """
-
-    def __init__(self, **kwargs):
-        model_name = kwargs.get(
-            "model_name", "baumgartner_aniline_cn_crosscoupling_descriptors"
-        )
-        dataset_file = kwargs.get(
-            "dataset_file", "baumgartner_aniline_cn_crosscoupling_descriptors.csv"
-        )
-        domain = self.setup_domain()
-        dataset_file = osp.join(
-            osp.dirname(osp.realpath(__file__)),
-            "experiment_emulator/data/" + dataset_file,
-        )
-        super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
-
-    def setup_domain(self):
-        domain = Domain()
-
-        # Decision variables
-        des_1 = "Catalyst type with descriptors"
-        catalyst_df = DataSet(
-            [
-                [460.7543, 67.2057, 30.8413, 2.3043, 0],  # , 424.64, 421.25040226],
-                [518.8408, 89.8738, 39.4424, 2.5548, 0],  # , 487.7, 781.11247064],
-                [819.933, 129.0808, 83.2017, 4.2959, 0],  # , 815.06, 880.74916884],
-            ],
-            index=["tBuXPhos", "tBuBrettPhos", "AlPhos"],
-            columns=[
-                "area_cat",
-                "M2_cat",
-                "M3_cat",
-                "Macc3_cat",
-                "Mdon3_cat",
-            ],  # ,'mol_weight', 'sol']
-        )
-        domain += CategoricalVariable(
-            name="catalyst", description=des_1, descriptors=catalyst_df
-        )
-
-        des_2 = "Base type with descriptors"
-        base_df = DataSet(
-            [
-                [162.2992, 25.8165, 40.9469, 3.0278, 0],  # 101.19, 642.2973283],
-                [165.5447, 81.4847, 107.0287, 10.215, 0.0169],  # 115.18, 534.01544123],
-                [227.3523, 30.554, 14.3676, 1.1196, 0.0127],  # 171.28, 839.81215],
-                [192.4693, 59.8367, 82.0661, 7.42, 0],  # 152.24, 1055.82799],
-            ],
-            index=["TEA", "TMG", "BTMG", "DBU"],
-            columns=["area", "M2", "M3", "Macc3", "Mdon3"],  # 'mol_weight', 'sol']
-        )
-        domain += CategoricalVariable(
-            name="base", description=des_2, descriptors=base_df
-        )
-
-        des_3 = "Base equivalents"
-        domain += ContinuousVariable(
-            name="base_equivalents", description=des_3, bounds=[1.0, 2.5]
-        )
-
-        des_4 = "Temperature in degrees Celsius (ºC)"
-        domain += ContinuousVariable(
-            name="temperature", description=des_4, bounds=[30, 100]
-        )
-
-        des_5 = "residence time in seconds (s)"
-        domain += ContinuousVariable(name="t_res", description=des_5, bounds=[60, 1800])
-
-        des_6 = "Yield"
-        domain += ContinuousVariable(
-            name="yield",
-            description=des_6,
-            bounds=[0.0, 1.0],
-            is_objective=True,
-            maximize=True,
-        )
-
-        return domain
+    # """Baumgartner Cross Coupling Emulator
+    #
+    # Virtual experiments representing the Aniline Cross-Coupling reaction
+    # similar to Baumgartner et al. (2019). Experimental outcomes are based on an
+    # emulator that is trained on the experimental data published by Baumgartner et al.
+    #
+    # The difference with this model is that it uses descriptors for the catalyst and base
+    # instead of one-hot encoding the options. The descriptors are the first two
+    # sigma moments from COSMO-RS.
+    #
+    #
+    # Parameters
+    # ----------
+    #
+    # Examples
+    # --------
+    # >>> bemul = BaumgartnerCrossCouplingDescriptorEmulator()
+    #
+    # Notes
+    # -----
+    # This benchmark is based on data from [Baumgartner]_ et al.
+    #
+    # References
+    # ----------
+    #
+    # .. [Baumgartner] L. M. Baumgartner et al., Org. Process Res. Dev., 2019, 23, 1594–1601
+    #    DOI: `10.1021/acs.oprd.9b00236 <https://doi.org/10.1021/acs.oprd.9b00236>`_
+    #
+    # """
+    #
+    # def __init__(self, **kwargs):
+    #     model_name = kwargs.get(
+    #         "model_name", "baumgartner_aniline_cn_crosscoupling_descriptors"
+    #     )
+    #     dataset_file = kwargs.get(
+    #         "dataset_file", "baumgartner_aniline_cn_crosscoupling_descriptors.csv"
+    #     )
+    #     domain = self.setup_domain()
+    #     dataset_file = osp.join(
+    #         osp.dirname(osp.realpath(__file__)),
+    #         "experiment_emulator/data/" + dataset_file,
+    #     )
+    #     super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
+    #
+    # def setup_domain(self):
+    #     domain = Domain()
+    #
+    #     # Decision variables
+    #     des_1 = "Catalyst type with descriptors"
+    #     catalyst_df = DataSet(
+    #         [
+    #             [460.7543, 67.2057, 30.8413, 2.3043, 0],  # , 424.64, 421.25040226],
+    #             [518.8408, 89.8738, 39.4424, 2.5548, 0],  # , 487.7, 781.11247064],
+    #             [819.933, 129.0808, 83.2017, 4.2959, 0],  # , 815.06, 880.74916884],
+    #         ],
+    #         index=["tBuXPhos", "tBuBrettPhos", "AlPhos"],
+    #         columns=[
+    #             "area_cat",
+    #             "M2_cat",
+    #             "M3_cat",
+    #             "Macc3_cat",
+    #             "Mdon3_cat",
+    #         ],  # ,'mol_weight', 'sol']
+    #     )
+    #     domain += CategoricalVariable(
+    #         name="catalyst", description=des_1, descriptors=catalyst_df
+    #     )
+    #
+    #     des_2 = "Base type with descriptors"
+    #     base_df = DataSet(
+    #         [
+    #             [162.2992, 25.8165, 40.9469, 3.0278, 0],  # 101.19, 642.2973283],
+    #             [165.5447, 81.4847, 107.0287, 10.215, 0.0169],  # 115.18, 534.01544123],
+    #             [227.3523, 30.554, 14.3676, 1.1196, 0.0127],  # 171.28, 839.81215],
+    #             [192.4693, 59.8367, 82.0661, 7.42, 0],  # 152.24, 1055.82799],
+    #         ],
+    #         index=["TEA", "TMG", "BTMG", "DBU"],
+    #         columns=["area", "M2", "M3", "Macc3", "Mdon3"],  # 'mol_weight', 'sol']
+    #     )
+    #     domain += CategoricalVariable(
+    #         name="base", description=des_2, descriptors=base_df
+    #     )
+    #
+    #     des_3 = "Base equivalents"
+    #     domain += ContinuousVariable(
+    #         name="base_equivalents", description=des_3, bounds=[1.0, 2.5]
+    #     )
+    #
+    #     des_4 = "Temperature in degrees Celsius (ºC)"
+    #     domain += ContinuousVariable(
+    #         name="temperature", description=des_4, bounds=[30, 100]
+    #     )
+    #
+    #     des_5 = "residence time in seconds (s)"
+    #     domain += ContinuousVariable(name="t_res", description=des_5, bounds=[60, 1800])
+    #
+    #     des_6 = "Yield"
+    #     domain += ContinuousVariable(
+    #         name="yield",
+    #         description=des_6,
+    #         bounds=[0.0, 1.0],
+    #         is_objective=True,
+    #         maximize=True,
+    #     )
+    #
+    #     return domain
 
 
 class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulator):

@@ -24,7 +24,11 @@ def test_train():
     domain = ReizmanSuzukiEmulator.setup_domain()
     ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
     exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
-    exp.train(max_epochs=1, cv_folds=5, random_state=100, test_size=0.2, verbose=1)
+    res = exp.train(
+        max_epochs=10, cv_folds=5, random_state=100, test_size=0.2, verbose=0
+    )
+    pp = pprint.PrettyPrinter(indent=4)
+    pp.pprint(res)
     # print(exp.predictors[0].regressor.named_steps.preprocessor.named_transformers_)
     # params = {
     #     "regressor__net__max_epochs": [200, 500, 1000]
@@ -39,10 +43,10 @@ def test_train():
     #     output_variables="yield", clip={"yield": (0, 100)}, include_test=True
     # )
     # plt.show()
-    pp = pprint.PrettyPrinter(indent=4)
-    d = exp.to_dict()
+
+    exp.save("test_ee")
     # pp.pprint(d)
-    exp_2 = ExperimentalEmulator.from_dict(d)
+    exp_2 = ExperimentalEmulator.load(model_name, "test_ee")
 
 
 def train_reizman():
@@ -102,5 +106,5 @@ def reproduce_bug():
 
 
 if __name__ == "__main__":
-    reproduce_bug()
-    # test_train()
+    # reproduce_bug()
+    test_train()
