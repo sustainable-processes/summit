@@ -21,7 +21,11 @@ from sklearn.model_selection import (
 from sklearn.model_selection._search import BaseSearchCV, _check_param_grid
 from sklearn.base import BaseEstimator, is_classifier, clone
 from sklearn.model_selection._split import check_cv
-from sklearn.model_selection._validation import _fit_and_score
+from sklearn.model_selection._validation import (
+    _fit_and_score,
+    _score,
+    _aggregate_score_dicts,
+)
 from sklearn.metrics import r2_score
 from sklearn.utils.validation import (
     _deprecate_positional_args,
@@ -202,9 +206,30 @@ class ExperimentalEmulator(Experiment):
             cv=folds,
             return_estimator=True,
         )
+
         self.predictors = res.pop("estimator")
-        self.metrics = res
+        # Rename from test to validation
+        for name in scoring:
+            scores = res.pop(f"test_{name}")
+            res[f"val_{name}"] = scores
         return res
+
+    def test(self, **kwargs):
+        scoring = kwargs.get("scoring", ["r2", "neg_root_mean_squared_error"])
+        scores_list = []
+        for predictor in self.predictors:
+            if callable(scoring):
+                scorers = scoring
+            elif scoring is None or isinstance(scoring, str):
+                scorers = check_scoring(predictor, scoring)
+            else:
+                scorers = _check_multimetric_scoring(predictor, scoring)
+            scores_list.append(_score(predictor, self.X_test, self.y_test, scorers))
+        scores_dict = _aggregate_score_dicts(scores_list)
+        for name in scoring:
+            scores = scores_dict.pop(name)
+            scores_dict[f"test_{name}"] = scores
+        return scores_dict
 
     @classmethod
     def _create_predictor(
@@ -244,7 +269,7 @@ class ExperimentalEmulator(Experiment):
 
         # Create predictor
         # TODO: also create an inverse function
-        ds_to_tensor = FunctionTransformer(numpy_to_tensor)
+        ds_to_tensor = FunctionTransformer(numpy_to_tensor, check_inverse=False)
         pipe = Pipeline(
             steps=[
                 ("preprocessor", X_preprocessor),
@@ -253,9 +278,11 @@ class ExperimentalEmulator(Experiment):
             ]
         )
 
-        return TransformedTargetRegressor(regressor=pipe, transformer=StandardScaler())
+        return TransformedTargetRegressor(
+            regressor=pipe, transformer=StandardScaler(), check_inverse=False
+        )
 
-    def predict(self, X, **kwargs):
+    def _predict(self, X, **kwargs):
         """Get a prediction
 
         Parameters
@@ -565,9 +592,9 @@ class ExperimentalEmulator(Experiment):
 
         # Do predictions
         with torch.no_grad():
-            y_train_pred, y_train_pred_std = self.predict(self.X_train)
+            y_train_pred, y_train_pred_std = self._predict(self.X_train)
             if include_test:
-                y_test_pred, y_train_pred_std = self.predict(self.X_test)
+                y_test_pred, y_train_pred_std = self._predict(self.X_test)
 
         plots = 0
         for i, v in enumerate(self.output_variable_names):
@@ -1082,8 +1109,8 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     ----------
     case: int, optional, default=1
         Reizman et al. (2016) reported experimental data for 4 different
-        cases. The case number refers to the cases they reported.
-        Please see their paper for more information on the cases.
+        cases. Each case was has a different set of substrates but the
+        same possible catalysts. Please see their paper for more information on the cases.
 
     Examples
     --------
@@ -1101,8 +1128,8 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     """
 
     def __init__(self, case=1, **kwargs):
-        model_name = f"reizman_suzuki_case_{case}"
-        domain = self.setup_domain()
+        model_name = kwargs.get("model_name", f"reizman_suzuki_case_{case}")
+        domain = kwargs.pop("domain", self.setup_domain())
         data_path = get_data_path()
         ds = DataSet.read_csv(data_path / f"{model_name}.csv")
         super().__init__(model_name, domain, dataset=ds, **kwargs)
@@ -1167,7 +1194,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     def to_dict(self):
         """Serialize the class to a dictionary"""
         experiment_params = dict(
-            case=self.emulator.model_name[-1],
+            case=self.model_name[-1],
         )
         return super().to_dict(**experiment_params)
 
@@ -1203,16 +1230,22 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
     def __init__(self, **kwargs):
         model_name = kwargs.get("model_name", "baumgartner_aniline_cn_crosscoupling")
-        dataset_file = kwargs.get(
-            "dataset_file", "baumgartner_aniline_cn_crosscoupling.csv"
+        domain = kwargs.pop("domain", self.setup_domain())
+        data_path = get_data_path()
+        ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+
+        self.mod_domain = self._domain + ContinuousVariable(
+            name="cost",
+            description="cost in USD of 40 uL reaction",
+            bounds=[0.0, 1.0],
+            is_objective=True,
+            maximize=False,
         )
-        domain = self.setup_domain()
-        dataset_file = osp.join(
-            osp.dirname(osp.realpath(__file__)),
-            "experiment_emulator/data/" + dataset_file,
-        )
+        self._domain = self.mod_domain
+
         super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
 
+    @staticmethod
     def setup_domain(self):
         domain = Domain()
 
@@ -1281,159 +1314,6 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         )
 
         return domain
-
-
-class BaumgartnerCrossCouplingDescriptorEmulator(ExperimentalEmulator):
-    def __init__(self):
-        raise NotImplementedError()
-
-    # """Baumgartner Cross Coupling Emulator
-    #
-    # Virtual experiments representing the Aniline Cross-Coupling reaction
-    # similar to Baumgartner et al. (2019). Experimental outcomes are based on an
-    # emulator that is trained on the experimental data published by Baumgartner et al.
-    #
-    # The difference with this model is that it uses descriptors for the catalyst and base
-    # instead of one-hot encoding the options. The descriptors are the first two
-    # sigma moments from COSMO-RS.
-    #
-    #
-    # Parameters
-    # ----------
-    #
-    # Examples
-    # --------
-    # >>> bemul = BaumgartnerCrossCouplingDescriptorEmulator()
-    #
-    # Notes
-    # -----
-    # This benchmark is based on data from [Baumgartner]_ et al.
-    #
-    # References
-    # ----------
-    #
-    # .. [Baumgartner] L. M. Baumgartner et al., Org. Process Res. Dev., 2019, 23, 1594–1601
-    #    DOI: `10.1021/acs.oprd.9b00236 <https://doi.org/10.1021/acs.oprd.9b00236>`_
-    #
-    # """
-    #
-    # def __init__(self, **kwargs):
-    #     model_name = kwargs.get(
-    #         "model_name", "baumgartner_aniline_cn_crosscoupling_descriptors"
-    #     )
-    #     dataset_file = kwargs.get(
-    #         "dataset_file", "baumgartner_aniline_cn_crosscoupling_descriptors.csv"
-    #     )
-    #     domain = self.setup_domain()
-    #     dataset_file = osp.join(
-    #         osp.dirname(osp.realpath(__file__)),
-    #         "experiment_emulator/data/" + dataset_file,
-    #     )
-    #     super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
-    #
-    # def setup_domain(self):
-    #     domain = Domain()
-    #
-    #     # Decision variables
-    #     des_1 = "Catalyst type with descriptors"
-    #     catalyst_df = DataSet(
-    #         [
-    #             [460.7543, 67.2057, 30.8413, 2.3043, 0],  # , 424.64, 421.25040226],
-    #             [518.8408, 89.8738, 39.4424, 2.5548, 0],  # , 487.7, 781.11247064],
-    #             [819.933, 129.0808, 83.2017, 4.2959, 0],  # , 815.06, 880.74916884],
-    #         ],
-    #         index=["tBuXPhos", "tBuBrettPhos", "AlPhos"],
-    #         columns=[
-    #             "area_cat",
-    #             "M2_cat",
-    #             "M3_cat",
-    #             "Macc3_cat",
-    #             "Mdon3_cat",
-    #         ],  # ,'mol_weight', 'sol']
-    #     )
-    #     domain += CategoricalVariable(
-    #         name="catalyst", description=des_1, descriptors=catalyst_df
-    #     )
-    #
-    #     des_2 = "Base type with descriptors"
-    #     base_df = DataSet(
-    #         [
-    #             [162.2992, 25.8165, 40.9469, 3.0278, 0],  # 101.19, 642.2973283],
-    #             [165.5447, 81.4847, 107.0287, 10.215, 0.0169],  # 115.18, 534.01544123],
-    #             [227.3523, 30.554, 14.3676, 1.1196, 0.0127],  # 171.28, 839.81215],
-    #             [192.4693, 59.8367, 82.0661, 7.42, 0],  # 152.24, 1055.82799],
-    #         ],
-    #         index=["TEA", "TMG", "BTMG", "DBU"],
-    #         columns=["area", "M2", "M3", "Macc3", "Mdon3"],  # 'mol_weight', 'sol']
-    #     )
-    #     domain += CategoricalVariable(
-    #         name="base", description=des_2, descriptors=base_df
-    #     )
-    #
-    #     des_3 = "Base equivalents"
-    #     domain += ContinuousVariable(
-    #         name="base_equivalents", description=des_3, bounds=[1.0, 2.5]
-    #     )
-    #
-    #     des_4 = "Temperature in degrees Celsius (ºC)"
-    #     domain += ContinuousVariable(
-    #         name="temperature", description=des_4, bounds=[30, 100]
-    #     )
-    #
-    #     des_5 = "residence time in seconds (s)"
-    #     domain += ContinuousVariable(name="t_res", description=des_5, bounds=[60, 1800])
-    #
-    #     des_6 = "Yield"
-    #     domain += ContinuousVariable(
-    #         name="yield",
-    #         description=des_6,
-    #         bounds=[0.0, 1.0],
-    #         is_objective=True,
-    #         maximize=True,
-    #     )
-    #
-    #     return domain
-
-
-class BaumgartnerCrossCouplingEmulator_Yield_Cost(BaumgartnerCrossCouplingEmulator):
-    """Baumgartner Cross Coupling Emulator
-
-    Virtual experiments representing the Aniline Cross-Coupling reaction
-    similar to Baumgartner et al. (2019). Experimental outcomes are based on an
-    emulator that is trained on the experimental data published by Baumgartner et al.
-
-    This is a multiobjective version for optimizing yield and cost simultaneously.
-
-    Parameters
-    ----------
-
-    Examples
-    --------
-    >>> bemul = BaumgartnerCrossCouplingDescriptorEmulator()
-
-    Notes
-    -----
-    This benchmark is based on data from [Baumgartner]_ et al.
-
-    References
-    ----------
-
-    .. [Baumgartner] L. M. Baumgartner et al., Org. Process Res. Dev., 2019, 23, 1594–1601
-       DOI: `10.1021/acs.oprd.9b00236 <https://doi.org/10.1021/acs.oprd.9b00236>`_
-
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__()
-        self.init_domain = self._domain
-        self.mod_domain = self._domain + ContinuousVariable(
-            name="cost",
-            description="cost in USD of 40 uL reaction",
-            bounds=[0.0, 1.0],
-            is_objective=True,
-            maximize=False,
-        )
-        self._domain = self.mod_domain
 
     def _run(self, conditions, **kwargs):
         # Change to original domain for running predictive model
