@@ -11,6 +11,7 @@ import pathlib
 import uuid
 import json
 import logging
+import pkg_resources
 
 __all__ = ["experiment_from_dict", "Runner", "NeptuneRunner"]
 
@@ -45,11 +46,17 @@ def experiment_from_dict(d):
     elif d["name"] == "BaumgartnerCrossCouplingEmulator":
         return BaumgartnerCrossCouplingEmulator.from_dict(d)
     elif d["name"] == "BaumgartnerCrossCouplingDescriptorEmulator":
-        BaumgartnerCrossCouplingDescriptorEmulator.from_dict(d)
+        raise NotImplementedError(
+            "BaumgartnerCrossCouplingDescriptorEmulator has been deprecated."
+        )
     elif d["name"] == "BaumgartnerCrossCouplingEmulator_Yield_Cost":
-        return BaumgartnerCrossCouplingEmulator_Yield_Cost.from_dict(d)
+        raise NotImplementedError(
+            "BaumgartnerCrossCouplingEmulator_Yield_Cost has been deprecated."
+        )
     elif d["name"] == "BaumgartnerCrossCouplingBenchmark":
-        return BaumgartnerCrossCouplingEmulator.from_dict(d)
+        raise NotImplementedError(
+            "BaumgartnerCrossCouplingBenchmark has been deprecated."
+        )
     else:
         raise ValueError(f"""Experiment {d["name"]} not found.""")
 

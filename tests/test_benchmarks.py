@@ -7,6 +7,7 @@ import os
 import pathlib
 import shutil
 import pkg_resources
+import matplotlib.pyplot as plt
 
 DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
 
@@ -68,45 +69,63 @@ def test_train_experimental_emulator():
     shutil.rmtree("test_ee")
 
 
-def test_reizman_emulator():
-    exp = ReizmanSuzukiEmulator()
-
-
-def test_baumgartner_CC_emulator():
-    """ Test the Baumgartner Cross Coupling emulator"""
-    b = get_pretrained_jbaumgartner_cc_emulator()
+def test_reizman_emulator(show_plots=False):
+    b = get_pretrained_reizman_suzuki_emulator(case=1)
+    b.parity_plot(include_test=True)
+    if show_plots:
+        plt.show()
     columns = [v.name for v in b.domain.variables]
-    # values = {
-    #     ("catalyst", "DATA"): ["tBuXPhos", "tBuBrettPhos"],
-    #     ("base", "DATA"): "DBU",
-    #     ("t_res", "DATA"): 328.717801570892,
-    #     ("temperature", "DATA"): 30,
-    #     ("base_equivalents", "DATA"): 2.18301549894049,
-    #     ("yield", "DATA"): 0.19,
-    # }
+    values = {
+        "catalyst": ["P1-L3"],
+        "t_res": [600],
+        "temperature": [30],
+        "catalyst_loading": [0.498],
+    }
+    conditions = pd.DataFrame(values)
+    conditions = DataSet.from_df(conditions)
+    results = b.run_experiments(conditions, return_std=True)
+
+    for name, value in values.items():
+        if type(value[0]) == str:
+            assert str(results[name].iloc[0]) == value[0]
+        else:
+            assert float(results[name].iloc[0]) == value[0]
+    assert np.isclose(float(results["yield"]), 0.6, atol=15)
+    assert np.isclose(float(results["ton"]), 1.1, atol=15)
+
+    # Test serialization
+    d = b.to_dict()
+    exp = BaumgartnerCrossCouplingEmulator.from_dict(d)
+    return results
+
+
+def test_baumgartner_CC_emulator(show_plots=False):
+    """ Test the Baumgartner Cross Coupling emulator"""
+    b = get_pretrained_baumgartner_cc_emulator()
+    b.parity_plot(include_test=True)
+    if show_plots:
+        plt.show()
+    columns = [v.name for v in b.domain.variables]
     values = {
         "catalyst": ["tBuXPhos"],
         "base": ["DBU"],
         "t_res": [328.717801570892],
         "temperature": [30],
         "base_equivalents": [2.18301549894049],
-        "yield": [0.19],
     }
     conditions = pd.DataFrame(values)
     conditions = DataSet.from_df(conditions)
-    print(conditions)
-    results = b.run_experiments(conditions)
+    results = b.run_experiments(conditions, return_std=True)
 
-    assert str(results["catalyst"].iloc[0]) == values["catalyst"]
-    assert str(results["base"].iloc[0]) == values["base"]
-    assert float(results["t_res"]) == values["t_res"]
-    assert float(results["temperature"]) == values["temperature"]
-    assert np.isclose(float(results["yield"]), 0.173581)
+    assert str(results["catalyst"].iloc[0]) == values["catalyst"][0]
+    assert str(results["base"].iloc[0]) == values["base"][0]
+    assert float(results["t_res"]) == values["t_res"][0]
+    assert float(results["temperature"]) == values["temperature"][0]
+    assert np.isclose(float(results["yield"]), 0.042832638, atol=0.15)
 
     # Test serialization
     d = b.to_dict()
     exp = BaumgartnerCrossCouplingEmulator.from_dict(d)
-
     return results
 
 

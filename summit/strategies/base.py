@@ -64,6 +64,7 @@ class Transform:
             Datasets with the input and output datasets
         """
         from sklearn.preprocessing import OneHotEncoder
+
         copy = kwargs.get("copy", True)
         categorical_method = kwargs.get("categorical_method", "one-hot")
         standardize_inputs = kwargs.get("standardize_inputs", False)
@@ -200,6 +201,7 @@ class Transform:
 
         """
         from sklearn.preprocessing import OneHotEncoder
+
         categorical_method = kwargs.get("categorical_method")
         standardize_inputs = kwargs.get("standardize_inputs", False)
         standardize_outputs = kwargs.get("standardize_outputs", False)
@@ -811,7 +813,7 @@ class Strategy(ABC):
         # You can pass in as keyword arguments any custom parameters
         # for a strategy, which will be stored under the key strategy_params.
         return dict(
-            name=self.__class__.__name__,
+            name=str(self.__class__.__name__),
             transform=self.transform.to_dict(),
             strategy_params=strategy_params,
         )

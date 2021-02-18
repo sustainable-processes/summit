@@ -150,7 +150,7 @@ class Experiment(ABC):
 
         return dict(
             domain=self.domain.to_dict(),
-            name=self.__class__.__name__,
+            name=str(self.__class__.__name__),
             data=self.data.to_dict(),
             experiment_params=experiment_params,
             extras=extras,

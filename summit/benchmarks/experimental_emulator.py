@@ -121,9 +121,15 @@ class ExperimentalEmulator(Experiment):
         y_pred, y_pred_std = self._predict(X)
         return_std = kwargs.get("return_std", False)
         for i, name in enumerate(self.output_variable_names):
-            conditions[(name, "DATA")] = y_pred[:, i]
+            if type(conditions) == pd.Series:
+                y = y_pred[0, i]
+                y_std = y_pred_std[0, i]
+            else:
+                y = y_pred[:, i]
+                y_std = y_pred_std[:, i]
+            conditions.at[(name, "DATA")] = y
             if return_std:
-                conditions[(f"{name}_std", "METADATA")] = y_pred_std[:, i]
+                conditions.at[(f"{name}_std", "METADATA")] = y_std
         return conditions, {}
 
     def _predict(self, X, **kwargs):
@@ -149,6 +155,7 @@ class ExperimentalEmulator(Experiment):
                     if v.name not in self.clip:
                         continue
                 y_pred[:, :, i] = np.clip(y_pred[:, :, i], v.lower_bound, v.upper_bound)
+
         return y_pred.mean(axis=0), y_pred.std(axis=0)
 
     def train(self, **kwargs):
@@ -394,7 +401,7 @@ class ExperimentalEmulator(Experiment):
         experiment_params.update(
             {
                 "model_name": self.model_name,
-                "regressor_name": self.regressor.__name__,
+                "regressor_name": str(self.regressor.__name__),
                 "n_features": self.n_features,
                 "n_examples": self.n_examples,
                 "output_variable_names": self.output_variable_names,
@@ -432,7 +439,7 @@ class ExperimentalEmulator(Experiment):
         )
 
     @classmethod
-    def from_dict(cls, d):
+    def from_dict(cls, d, **kwargs):
         """Create ExperimentalEmulator from a dictionary
 
         Notes
@@ -463,6 +470,10 @@ class ExperimentalEmulator(Experiment):
         ]
         d["experiment_params"]["predictor"] = predictors
 
+        # Dataset
+        dataset = kwargs.get("dataset")
+        d["experiment_params"]["dataset"] = dataset
+
         # Instantiate the class
         exp = super().from_dict(d)
 
@@ -471,7 +482,8 @@ class ExperimentalEmulator(Experiment):
         exp.n_examples = params["n_examples"]
 
         # One round of training to initialize all variables
-        exp.ds = generate_data(domain, params["n_features"] + 1)
+        if exp.ds is None:
+            exp.ds = generate_data(domain, params["n_features"] + 1)
         exp.train(max_epochs=1, verbose=0, initializing=True)
 
         # Set parameters on predictors
@@ -533,7 +545,7 @@ class ExperimentalEmulator(Experiment):
         """
         save_dir = pathlib.Path(save_dir)
         for i, predictor in enumerate(self.predictors):
-            net = predictor.regressor.named_steps.net
+            net = predictor.regressor_.named_steps.net
             net.initialize()
             net.load_params(f_params=save_dir / f"{self.model_name}_predictor_{i}.pt")
 
@@ -566,7 +578,7 @@ class ExperimentalEmulator(Experiment):
         save_dir = pathlib.Path(save_dir)
         with open(save_dir / f"{model_name}.json", "r") as f:
             d = json.load(f)
-        exp = ExperimentalEmulator.from_dict(d)
+        exp = ExperimentalEmulator.from_dict(d, **kwargs)
         exp.load_regressor(save_dir)
         return exp
 
@@ -611,15 +623,20 @@ class ExperimentalEmulator(Experiment):
         plots = 0
         for i, v in enumerate(self.output_variable_names):
             if v in vars:
+                if include_test:
+                    kwargs = dict(
+                        y_test=self.y_test[:, i], y_test_pred=y_test_pred[:, i]
+                    )
+                else:
+                    kwargs = {}
                 make_parity_plot(
                     self.y_train[:, i],
                     y_train_pred[:, i],
-                    y_test=self.y_test[:, i],
-                    y_test_pred=y_test_pred[:, i],
                     ax=axes[plots],
                     train_color=train_color,
                     test_color=test_color,
                     title=v,
+                    **kwargs,
                 )
                 plots += 1
 
@@ -1277,6 +1294,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
         return domain
 
+    @classmethod
     def load(cls, save_dir, case=1):
         model_name = f"reizman_suzuki_case_{case}"
         return super().load(model_name, save_dir)
@@ -1290,14 +1308,15 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         return super().to_dict(**experiment_params)
 
 
-def get_pretrained_baumgartner_cc_emulator(case=1):
+def get_pretrained_baumgartner_cc_emulator(include_cost=False):
     model_name = "baumgartner_aniline_cn_crosscoupling"
     model_path = get_model_path() / model_name
     if not model_path.exists():
         raise NotADirectoryError("Could not initialize from expected path.")
-    exp = BaumgartnerCrossCouplingEmulator.load(model_path)
     data_path = get_data_path()
-    exp.ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+    ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+    exp = BaumgartnerCrossCouplingEmulator.load(model_path, dataset=ds)
+
     return exp
 
 
@@ -1339,11 +1358,11 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
     def __init__(self, include_cost=False, **kwargs):
         # TODO: make it possible to select model based on one-hot encoding or descriptors
-        model_name = kwargs.get("model_name", "baumgartner_aniline_cn_crosscoupling")
-        domain = kwargs.pop("domain", self.setup_domain(include_cost))
+        model_name = kwargs.pop("model_name", "baumgartner_aniline_cn_crosscoupling")
+        self.include_cost = include_cost
+        domain = kwargs.pop("domain", self.setup_domain(self.include_cost))
         data_path = get_data_path()
-        ds = DataSet.read_csv(data_path / f"{model_name}.csv")
-        super().__init__(model_name, domain, dataset=ds, **kwargs)
+        super().__init__(model_name, domain, **kwargs)
 
     @staticmethod
     def setup_domain(include_cost=False):
@@ -1425,7 +1444,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         return domain
 
     @classmethod
-    def load(cls, save_dir):
+    def load(cls, save_dir, **kwargs):
         """Load all the essential parameters of the BaumgartnerCrossCouplingEmulator
         from disc
 
@@ -1436,14 +1455,15 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         """
         model_name = "baumgartner_aniline_cn_crosscoupling"
-        return super().load(model_name, save_dir)
+        return super().load(model_name, save_dir, **kwargs)
 
     def _run(self, conditions, **kwargs):
         conditions, _ = super()._run(conditions=conditions, **kwargs)
 
         # Calculate costs
-        costs = self._calculate_costs(conditions)
-        conditions[("cost", "DATA")] = costs
+        if self.include_cost:
+            costs = self._calculate_costs(conditions)
+            conditions[("cost", "DATA")] = costs
 
         return conditions, {}
 
