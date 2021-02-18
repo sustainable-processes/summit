@@ -83,23 +83,24 @@ def reproduce_bug():
     pipe = Pipeline(steps=[("preprocessor", preprocessor), ("model", model)])
     predictor = TransformedTargetRegressor(regressor=pipe, transformer=StandardScaler())
     X, y = load_boston(return_X_y=True)
-    # res = cross_validate(
-    #     pipe,
-    #     X,
-    #     y,
-    #     return_estimator=True,
-    # )
-    # print(
-    #     res["estimator"][0]
-    #     .regressor.named_steps.preprocessor._transformers[0][1]
-    #     .transform(X)
-    # )
-    predictor.fit(X, y)
-    print(predictor.regressor_.named_steps.preprocessor.named_transformers_.norm1.mean_)
+    res = cross_validate(
+        predictor,
+        X,
+        y,
+        return_estimator=True,
+    )
+    print(
+        res["estimator"][
+            0
+        ].regressor_.named_steps.preprocessor.named_transformers_.norm1.mean_
+    )
+
+    # predictor.fit(X, y)
+    # print(predictor.regressor_.named_steps.preprocessor.named_transformers_.norm1.mean_)
     # pp = pprint.PrettyPrinter(indent=4)
     # pp.pprint(predictor.get_params())
 
 
 if __name__ == "__main__":
-    # reproduce_bug()
-    test_train()
+    reproduce_bug()
+    # test_train()

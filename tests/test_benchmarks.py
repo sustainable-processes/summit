@@ -1,18 +1,11 @@
 import pytest
-from summit.strategies import Strategy
-from summit.experiment import Experiment
-from summit.benchmarks import (
-    SnarBenchmark,
-    DTLZ2,
-    Hartmann3D,
-    Himmelblau,
-    ThreeHumpCamel,
-    ReizmanSuzukiEmulator,
-    BaumgartnerCrossCouplingEmulator,
-)
+from summit.benchmarks import *
 from summit.utils.dataset import DataSet
 import numpy as np
 import os
+import pathlib
+
+DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
 
 
 @pytest.mark.parametrize("noise_level", [0.0, 2.5])
@@ -44,6 +37,26 @@ def test_snar_benchmark(noise_level):
     assert b.noise_level == noise_level
 
     return results
+
+
+def test_experimental_emulator():
+    model_name = f"reizman_suzuki_case_1"
+    domain = ReizmanSuzukiEmulator.setup_domain()
+    ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+    exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
+
+    # Test grid search cross validation and training
+    params = {"regressor__net__max_epochs": [200, 500, 1000]}
+    res = exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0)
+    new_params = exp.predictor.get_params()
+
+    # Test plotting
+    fig, ax = exp.parity_plot(
+        output_variables="yield", clip={"yield": (0, 100)}, include_test=True
+    )
+    pp = pprint.PrettyPrinter(indent=4)
+    d = exp.to_dict()
+    exp_2 = ExperimentalEmulator.from_dict(d)
 
 
 def test_baumgartner_CC_emulator():
@@ -84,4 +97,3 @@ def test_dltz2_benchmark(num_inputs):
     data = b.data
     assert np.isclose(data["y_0"].iloc[0], 0.7071)
     assert np.isclose(data["y_1"].iloc[0], 0.7071)
-

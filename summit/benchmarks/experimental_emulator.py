@@ -44,6 +44,7 @@ from copy import deepcopy
 import pkg_resources
 import time
 import json
+import types
 
 __all__ = [
     "ExperimentalEmulator",
@@ -125,6 +126,10 @@ class ExperimentalEmulator(Experiment):
         verbose : int
             0 for no logging, 1 for logging
 
+        Notes
+        ------
+        If predictor was set in the initialization, it will not be overwritten.
+
         Returns
         -------
         A dictionary containing the results of the training.
@@ -133,14 +138,15 @@ class ExperimentalEmulator(Experiment):
             raise ValueError("Dataset is required for training.")
 
         # Create predictor
-        predictor = self._create_predictor(
-            self.regressor,
-            self.domain,
-            self.n_features,
-            self.n_examples,
-            output_variable_names=self.output_variable_names,
-            **kwargs,
-        )
+        if self.predictor is None:
+            self.predictor = self._create_predictor(
+                self.regressor,
+                self.domain,
+                self.n_features,
+                self.n_examples,
+                output_variable_names=self.output_variable_names,
+                **kwargs,
+            )
 
         # Get data
         input_columns = [v.name for v in self.domain.input_variables]
@@ -177,7 +183,7 @@ class ExperimentalEmulator(Experiment):
         initializing = kwargs.get("initializing", False)
         if not initializing:
             self.logger.info("Starting training.")
-        self.predictor = predictor.fit(self.X_train, y_train)
+        self.predictor.fit(self.X_train, y_train)
 
     @classmethod
     def _create_predictor(
@@ -304,17 +310,20 @@ class ExperimentalEmulator(Experiment):
         ]
         return ColumnTransformer(transformers=transformers)
 
-    def to_dict(self, **kwargs):
+    def to_dict(self, **experiment_params):
         """Convert emulator parameters to dictionary
+
         Notes
         ------
         This does not save the weights and biases of the regressor.
         You need to use save_regressor method.
+
         """
+        # Preprocessor
         num = self.predictor.regressor_.named_steps.preprocessor.named_transformers_.num
         cat = self.predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
         input_preprocessor = {
-            # Numberical
+            # Numerical
             "num": {
                 "mean_": num.mean_,
                 "var_": num.var_,
@@ -330,7 +339,8 @@ class ExperimentalEmulator(Experiment):
             "scale_": num.scale_,
             "n_samples_seen_": num.n_samples_seen_,
         }
-        kwargs.update(
+        # Update experiment_params
+        experiment_params.update(
             {
                 "model_name": self.model_name,
                 "regressor_name": self.regressor.__name__,
@@ -341,7 +351,7 @@ class ExperimentalEmulator(Experiment):
                 "output_preprocessor": output_preprocessor,
             }
         )
-        return super().to_dict(**kwargs)
+        return super().to_dict(**experiment_params)
 
     @classmethod
     def from_dict(cls, d):
@@ -402,17 +412,32 @@ class ExperimentalEmulator(Experiment):
         return exp
 
     def save_regressor(self, save_dir):
+        """Save the weights and biases of the regressor to disk
+
+        Parameters
+        ----------
+        save_dir : str or pathlib.Path
+            The directory used for saving emulator files.
+
+        """
         save_dir = pathlib.Path(save_dir)
-        if self.predictors is None:
+        if self.predictor is None:
             raise ValueError(
-                "No predictors available. First, run training using the train method."
+                "No predictor available. First, run training using the train method."
             )
-        for i, predictor in enumerate(self.predictors):
-            predictor.regressor_.named_steps.net.save_params(
-                f_params=save_dir / f"{self.model_name}_predictor_{i}"
-            )
+        self.predictor.regressor_.named_steps.net.save_params(
+            f_params=save_dir / f"{self.model_name}_predictor_{i}"
+        )
 
     def load_regressor(self, save_dir):
+        """Load the weights and biases of the regressor from disk
+
+        Parameters
+        ----------
+        save_dir : str or pathlib.Path
+            The directory used for saving emulator files.
+
+        """
         save_dir = pathlib.Path(save_dir)
         for i, predictor in enumerate(self.predictors):
             net = predictor.regressor.named_steps.net
@@ -422,12 +447,29 @@ class ExperimentalEmulator(Experiment):
             )
 
     def save(self, save_dir):
+        """Save all the essential parameters of the ExperimentalEmulator to disk
+
+        Parameters
+        ----------
+        save_dir : str or pathlib.Path
+            The directory used for saving emulator files.
+
+        """
+        save_dir = pathlib.Path(save_dir)
         with open(save_dir / f"{self.model_name}.json", "w") as f:
             json.dump(self.to_dict(), f)
-        self.save(save_dir)
+        self.save_regressor(save_dir)
 
     @classmethod
     def load(cls, save_dir):
+        """Load all the essential parameters of the ExperimentalEmulator to disk
+
+        Parameters
+        ----------
+        save_dir : str or pathlib.Path
+            The directory from which to load emulator files.
+
+        """
         with open(save_dir / f"{self.model_name}.json", "r") as f:
             d = json.load(f)
         exp = ExperimentalEmulator.from_dict(d)
@@ -452,6 +494,7 @@ class ExperimentalEmulator(Experiment):
             A dictionary with keys of the output variables
             and values as tuples of lows and highs to clip to.
             Useful for clipping yields, conversions, etc. to be 0-100.
+
         """
         import matplotlib.pyplot as plt
 
@@ -560,9 +603,6 @@ def make_parity_plot(
 def numpy_to_tensor(X):
     """Convert datasets into """
     return torch.tensor(X).float()
-
-
-import types
 
 
 class RecursiveNamespace(types.SimpleNamespace):
