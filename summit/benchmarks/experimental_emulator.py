@@ -19,7 +19,7 @@ from sklearn.model_selection import (
     ParameterGrid,
 )
 from sklearn.model_selection._search import BaseSearchCV, _check_param_grid
-from sklearn.base import BaseEstimator, is_classifier, clone
+from sklearn.base import BaseEstimator, RegressorMixin, is_classifier, clone
 from sklearn.model_selection._split import check_cv
 from sklearn.model_selection._validation import (
     _fit_and_score,
@@ -33,6 +33,7 @@ from sklearn.utils.validation import (
     check_is_fitted,
     _check_fit_params,
 )
+from sklearn.utils import check_array, _safe_indexing
 from sklearn.utils.fixes import delayed
 from sklearn.metrics._scorer import _check_multimetric_scoring
 
@@ -59,8 +60,6 @@ __all__ = [
     "registry",
     "ReizmanSuzukiEmulator",
     "BaumgartnerCrossCouplingEmulator",
-    "BaumgartnerCrossCouplingDescriptorEmulator",
-    "BaumgartnerCrossCouplingEmulator_Yield_Cost",
 ]
 
 
@@ -196,6 +195,7 @@ class ExperimentalEmulator(Experiment):
 
         # Run final training using cross validation
         initializing = kwargs.get("initializing", False)
+
         if not initializing:
             self.logger.info("Starting training.")
         res = cross_validate(
@@ -278,7 +278,11 @@ class ExperimentalEmulator(Experiment):
             ]
         )
 
-        return TransformedTargetRegressor(
+        # output_pipeline = Pipeline(
+        #     steps=[("scaler", StandardScaler()), ("dst", ds_to_tensor)]
+        # )
+
+        return UpdatedTransformedTargetRegressor(
             regressor=pipe, transformer=StandardScaler(), check_inverse=False
         )
 
@@ -681,6 +685,64 @@ def make_parity_plot(
 def numpy_to_tensor(X):
     """Convert datasets into """
     return torch.tensor(X).float()
+
+
+class UpdatedTransformedTargetRegressor(TransformedTargetRegressor):
+    def fit(self, X, y, **fit_params):
+        """Fit the model according to the given training data.
+        Parameters
+        ----------
+        X : {array-like, sparse matrix} of shape (n_samples, n_features)
+            Training vector, where n_samples is the number of samples and
+            n_features is the number of features.
+        y : array-like of shape (n_samples,)
+            Target values.
+        **fit_params : dict
+            Parameters passed to the ``fit`` method of the underlying
+            regressor.
+        Returns
+        -------
+        self : object
+        """
+        y = check_array(
+            y,
+            accept_sparse=False,
+            force_all_finite=True,
+            ensure_2d=False,
+            dtype="numeric",
+        )
+
+        # store the number of dimension of the target to predict an array of
+        # similar shape at predict
+        self._training_dim = y.ndim
+
+        # transformers are designed to modify X which is 2d dimensional, we
+        # need to modify y accordingly.
+        if y.ndim == 1:
+            y_2d = y.reshape(-1, 1)
+        else:
+            y_2d = y
+        self._fit_transformer(y_2d)
+
+        # transform y and convert back to 1d array if needed
+        y_trans = self.transformer_.transform(y_2d)
+        # Remove this stupid line
+        # FIXME: a FunctionTransformer can return a 1D array even when validate
+        # is set to True. Therefore, we need to check the number of dimension
+        # first.
+        # if y_trans.ndim == 2 and y_trans.shape[1] == 1:
+        #     y_trans = y_trans.squeeze(axis=1)
+
+        if self.regressor is None:
+            from ..linear_model import LinearRegression
+
+            self.regressor_ = LinearRegression()
+        else:
+            self.regressor_ = clone(self.regressor)
+
+        self.regressor_.fit(X, y_trans, **fit_params)
+
+        return self
 
 
 class RecursiveNamespace(types.SimpleNamespace):
@@ -1212,6 +1274,13 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
     The categorical variables (catalyst and base) contain descriptors
     calculated using COSMO-RS. Specifically, the descriptors are the first two sigma moments.
 
+    Parameters
+    ----------
+    include_cost : bool, optional
+        Include minimization of cost as an extra objective. Cost is calculated
+        as a deterministic function of the inputs (i.e., no model is trained).
+        Defaults to False.
+
     Examples
     --------
     >>> bemul = BaumgartnerCrossCouplingDescriptorEmulator()
@@ -1228,25 +1297,16 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, include_cost=False, **kwargs):
+        # TODO: make it possible to select model based on one-hot encoding or descriptors
         model_name = kwargs.get("model_name", "baumgartner_aniline_cn_crosscoupling")
-        domain = kwargs.pop("domain", self.setup_domain())
+        domain = kwargs.pop("domain", self.setup_domain(include_cost))
         data_path = get_data_path()
         ds = DataSet.read_csv(data_path / f"{model_name}.csv")
-
-        self.mod_domain = self._domain + ContinuousVariable(
-            name="cost",
-            description="cost in USD of 40 uL reaction",
-            bounds=[0.0, 1.0],
-            is_objective=True,
-            maximize=False,
-        )
-        self._domain = self.mod_domain
-
         super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
 
     @staticmethod
-    def setup_domain(self):
+    def setup_domain(include_cost=False):
         domain = Domain()
 
         # Decision variables
@@ -1306,26 +1366,31 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         des_6 = "Yield"
         domain += ContinuousVariable(
-            name="yld",
+            name="yield",
             description=des_6,
             bounds=[0.0, 1.0],
             is_objective=True,
             maximize=True,
         )
 
+        if include_cost:
+            domain += ContinuousVariable(
+                name="cost",
+                description="cost in USD of 40 uL reaction",
+                bounds=[0.0, 1.0],
+                is_objective=True,
+                maximize=False,
+            )
+
         return domain
 
     def _run(self, conditions, **kwargs):
-        # Change to original domain for running predictive model
-        self._domain = self.init_domain
         conditions, _ = super()._run(conditions=conditions, **kwargs)
 
         # Calculate costs
         costs = self._calculate_costs(conditions)
         conditions[("cost", "DATA")] = costs
 
-        # Change back to modified domain
-        self._domain = self.mod_domain
         return conditions, {}
 
     @classmethod
