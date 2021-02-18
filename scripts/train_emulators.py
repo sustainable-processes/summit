@@ -10,6 +10,7 @@ import logging
 import pkg_resources
 import pathlib
 from tqdm import trange
+import pprint
 
 DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
 MODELS_PATH = pathlib.Path(
@@ -38,7 +39,10 @@ def test_train():
     #     output_variables="yield", clip={"yield": (0, 100)}, include_test=True
     # )
     # plt.show()
-    print(exp.to_dict())
+    pp = pprint.PrettyPrinter(indent=4)
+    d = exp.to_dict()
+    # pp.pprint(d)
+    exp_2 = ExperimentalEmulator.from_dict(d)
 
 
 def train_reizman():
@@ -77,7 +81,7 @@ def reproduce_bug():
     )
     model = LinearRegression()
     pipe = Pipeline(steps=[("preprocessor", preprocessor), ("model", model)])
-    # predictor = TransformedTargetRegressor(regressor=pipe, transformer=StandardScaler())
+    predictor = TransformedTargetRegressor(regressor=pipe, transformer=StandardScaler())
     X, y = load_boston(return_X_y=True)
     # res = cross_validate(
     #     pipe,
@@ -90,10 +94,10 @@ def reproduce_bug():
     #     .regressor.named_steps.preprocessor._transformers[0][1]
     #     .transform(X)
     # )
-    pipe.fit(X, y)
-    # print(res["estimator"][0].named_steps.preprocessor._transformers[0][1].__dict__)
-    print(pipe.named_steps.preprocessor.named_transformers_.norm1.mean_)
-    # pipe.named_steps.preprocessor.named_transformers_
+    predictor.fit(X, y)
+    print(predictor.regressor_.named_steps.preprocessor.named_transformers_.norm1.mean_)
+    # pp = pprint.PrettyPrinter(indent=4)
+    # pp.pprint(predictor.get_params())
 
 
 if __name__ == "__main__":

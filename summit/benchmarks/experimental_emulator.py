@@ -35,6 +35,7 @@ from tqdm.auto import tqdm
 from joblib import Parallel
 import pathlib
 import numpy as np
+from numpy.random import default_rng
 import pandas as pd
 from copy import deepcopy
 from itertools import product
@@ -71,29 +72,29 @@ class ExperimentalEmulator(Experiment):
         Dataset used for training/validation
     regressor : :classs:`pl.LightningModule`, optional
         Pytorch LightningModule class. Defaults to the BayesianRegressor
-    output_variables : str or list, optional
-            The variables that should be trained by the predictor.
-            Defaults to all objectives in the domain.
+    output_variable_names : str or list, optional
+        The names of the variables that should be trained by the predictor.
+        Defaults to all objectives in the domain.
     """
 
     def __init__(self, model_name, domain, **kwargs):
         super().__init__(domain, **kwargs)
         self.model_name = model_name
+
         # Data
         self.ds = kwargs.get("dataset")
-
-        # Load in previous models
-        self.predictors = kwargs.get("predictors")
         if self.ds is not None:
             self.n_features = self._caclulate_input_dimensions(self.domain)
             self.n_examples = self.ds.shape[0]
-        self.output_variables = kwargs.get(
-            "output_variables", [v.name for v in self.domain.output_variables]
+
+        self.output_variable_names = kwargs.get(
+            "output_variable_names",
+            [v.name for v in self.domain.output_variables],
         )
 
         # Create the regressor
         self.regressor = kwargs.get("regressor", ANNRegressor)
-        self.predictor = None
+        self.predictor = kwargs.get("predictor")
 
     def _run(self, conditions, **kwargs):
 
@@ -137,14 +138,14 @@ class ExperimentalEmulator(Experiment):
             self.domain,
             self.n_features,
             self.n_examples,
-            output_variables=self.output_variables,
+            output_variable_names=self.output_variable_names,
             **kwargs,
         )
 
         # Get data
         input_columns = [v.name for v in self.domain.input_variables]
         X = self.ds[input_columns].to_numpy()
-        y = self.ds[self.output_variables].to_numpy().astype(float)
+        y = self.ds[self.output_variable_names].to_numpy().astype(float)
         # Sklearn columntransformer expects a pandas dataframe not a dataset
         X = pd.DataFrame(X, columns=input_columns)
 
@@ -173,7 +174,9 @@ class ExperimentalEmulator(Experiment):
             predictor.set_params(**gs.best_params_)
 
         # Run final training
-        self.logger.info("Starting training.")
+        initializing = kwargs.get("initializing", False)
+        if not initializing:
+            self.logger.info("Starting training.")
         self.predictor = predictor.fit(self.X_train, y_train)
 
     @classmethod
@@ -183,22 +186,22 @@ class ExperimentalEmulator(Experiment):
         domain,
         input_dimensions,
         num_examples,
-        output_variables,
+        output_variable_names,
         **kwargs,
     ):
         # Preprocessors
-        output_variables = kwargs.get(
-            "output_variables", [v.name for v in domain.output_variables]
+        output_variable_names = kwargs.get(
+            "output_variable_names", [v.name for v in domain.output_variables]
         )
         X_preprocessor = cls._create_input_preprocessor(domain)
-        y_preprocessor = cls._create_output_preprocessor(output_variables)
+        y_preprocessor = cls._create_output_preprocessor(output_variable_names)
 
         # Create network
         regressor_kwargs = kwargs.get("regressor_kwargs", {})
         regressor_kwargs.update(
             dict(
                 module__input_dim=input_dimensions,
-                module__output_dim=len(output_variables),
+                module__output_dim=len(output_variable_names),
                 module__n_examples=num_examples,
             )
         )
@@ -271,8 +274,13 @@ class ExperimentalEmulator(Experiment):
         categorical_features = [
             v.name for v in domain.input_variables if v.variable_type == "categorical"
         ]
+        categories = [
+            v.levels for v in domain.input_variables if v.variable_type == "categorical"
+        ]
         if len(categorical_features) > 0:
-            transformers.append(("cat", OneHotEncoder(), categorical_features))
+            transformers.append(
+                ("cat", OneHotEncoder(categories=categories), categorical_features)
+            )
 
         # Create preprocessor
         if len(numeric_features) == 0 and len(categorical_features) > 0:
@@ -288,11 +296,11 @@ class ExperimentalEmulator(Experiment):
         return preprocessor
 
     @staticmethod
-    def _create_output_preprocessor(output_variables):
+    def _create_output_preprocessor(output_variable_names):
         """"Create target preprocessors"""
         transformers = [
-            ("scale", StandardScaler(), output_variables),
-            ("dst", FunctionTransformer(numpy_to_tensor), output_variables),
+            ("scale", StandardScaler(), output_variable_names),
+            ("dst", FunctionTransformer(numpy_to_tensor), output_variable_names),
         ]
         return ColumnTransformer(transformers=transformers)
 
@@ -303,21 +311,32 @@ class ExperimentalEmulator(Experiment):
         This does not save the weights and biases of the regressor.
         You need to use save_regressor method.
         """
-        num = self.predictor.regressor.named_steps.preprocessor.named_transformers.num
-        cat = self.predictor.regressor.named_steps.preprocessor.named_transformers.cat
+        num = self.predictor.regressor_.named_steps.preprocessor.named_transformers_.num
+        cat = self.predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
         input_preprocessor = {
-            "num": {"mean_": num.mean_, "std_": num.std_},
-            "cat": {"categories_": cat.categories_},
+            # Numberical
+            "num": {
+                "mean_": num.mean_,
+                "var_": num.var_,
+                "scale_": num.scale_,
+                "n_samples_seen_": num.n_samples_seen_,
+            }
+            # Categorical is automatic from the domain
         }
-        out = self.predictor.transformer
-        output_preprocessor = {"mean_": out.mean_, "std_": out.std_}
+        out = self.predictor.transformer_
+        output_preprocessor = {
+            "mean_": out.mean_,
+            "var_": out.var_,
+            "scale_": num.scale_,
+            "n_samples_seen_": num.n_samples_seen_,
+        }
         kwargs.update(
             {
                 "model_name": self.model_name,
                 "regressor_name": self.regressor.__name__,
                 "n_features": self.n_features,
                 "n_examples": self.n_examples,
-                "output_variables": self.output_variables,
+                "output_variable_names": self.output_variable_names,
                 "input_preprocessor": input_preprocessor,
                 "output_preprocessor": output_preprocessor,
             }
@@ -342,21 +361,45 @@ class ExperimentalEmulator(Experiment):
         regressor = registry[params["regressor_name"]]
         d["experiment_params"]["regressor"] = regressor
 
-        # Load predictors
-        predictor_params = params["predictors"]
-        predictors = [
-            cls._create_predictor(
-                regressor,
-                domain,
-                params["n_features"],
-                params["n_examples"],
-                output_variables=params["output_variables"],
-            ).set_params(**predictor_param)
-            for predictor_param in predictor_params
-        ]
-        d["experiment_params"]["predictors"] = predictors
+        # Load predictor
+        predictor = cls._create_predictor(
+            regressor,
+            domain,
+            params["n_features"],
+            params["n_examples"],
+            output_variable_names=params["output_variable_names"],
+        )
+        d["experiment_params"]["predictor"] = predictor
 
-        return super().from_dict(d)
+        # Instantiate the class
+        exp = super().from_dict(d)
+
+        # Set runtime parameters
+        exp.n_features = params["n_features"]
+        exp.n_examples = params["n_examples"]
+
+        # One round of training to initialize all variables
+        exp.ds = generate_data(domain, params["n_features"] + 1)
+        exp.train(max_epochs=1, verbose=0, initializing=True)
+
+        # Input transforms
+        num = exp.predictor.regressor_.named_steps.preprocessor.named_transformers_.num
+        cat = exp.predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
+        input_preprocessor = RecursiveNamespace(**params["input_preprocessor"])
+        num.mean_ = input_preprocessor.num.mean_
+        num.var_ = input_preprocessor.num.var_
+        num.scale_ = input_preprocessor.num.scale_
+        num.n_samples_seen_ = input_preprocessor.num.n_samples_seen_
+
+        # Output transforms
+        out = exp.predictor.transformer_
+        output_preprocessor = RecursiveNamespace(**params["output_preprocessor"])
+        out.mean_ = output_preprocessor.mean_
+        out.var_ = output_preprocessor.var_
+        out.scale_ = output_preprocessor.scale_
+        out.n_samples_seen_ = output_preprocessor.n_samples_seen_
+
+        return exp
 
     def save_regressor(self, save_dir):
         save_dir = pathlib.Path(save_dir)
@@ -396,7 +439,7 @@ class ExperimentalEmulator(Experiment):
 
         Parameters
         ---------
-        output_variables : str or list, optional
+        output_variable_names : str or list, optional
             The output variables to plot. Defaults to all.
         include_test : bool, optional
             Include the performance of the model on the test set.
@@ -416,7 +459,7 @@ class ExperimentalEmulator(Experiment):
         train_color = kwargs.get("train_color", "#6f3666")
         test_color = kwargs.get("test_color", "#3c328c")
         clip = kwargs.get("clip")
-        vars = kwargs.get("output_variables", self.output_variables)
+        vars = kwargs.get("output_variable_names", self.output_variable_names)
         if type(vars) == str:
             vars = [vars]
 
@@ -433,7 +476,7 @@ class ExperimentalEmulator(Experiment):
                 y_test_pred = self.predict(self.X_test, clip=clip)
 
         plots = 0
-        for i, v in enumerate(self.output_variables):
+        for i, v in enumerate(self.output_variable_names):
             if v in vars:
                 make_parity_plot(
                     self.y_train[:, i],
@@ -448,6 +491,20 @@ class ExperimentalEmulator(Experiment):
                 plots += 1
 
         return fig, axes
+
+
+def generate_data(domain, n_examples, random_state=None):
+    data = {}
+    random = default_rng(random_state)
+    for v in domain.input_variables:
+        if v.variable_type == "continuous":
+            data[v.name] = random.normal(size=n_examples)
+        elif v.variable_type == "categorical":
+            data[v.name] = random.choice(v.levels, size=n_examples)
+    for v in domain.output_variables:
+        if v.variable_type == "continuous":
+            data[v.name] = random.normal(size=n_examples)
+    return pd.DataFrame(data)
 
 
 def make_parity_plot(
@@ -503,6 +560,24 @@ def make_parity_plot(
 def numpy_to_tensor(X):
     """Convert datasets into """
     return torch.tensor(X).float()
+
+
+import types
+
+
+class RecursiveNamespace(types.SimpleNamespace):
+    # def __init__(self, /, **kwargs):  # better, but Python 3.8+
+    def __init__(self, **kwargs):
+        """Create a SimpleNamespace recursively"""
+        self.__dict__.update({k: self.__elt(v) for k, v in kwargs.items()})
+
+    def __elt(self, elt):
+        """Recurse into elt to create leaf namepace objects"""
+        if type(elt) is dict:
+            return type(self)(**elt)
+        if type(elt) in (list, tuple):
+            return [self.__elt(i) for i in elt]
+        return elt
 
 
 class ProgressParallel(Parallel):
