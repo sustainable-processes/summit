@@ -41,7 +41,7 @@ def test_snar_benchmark(noise_level):
     return results
 
 
-def test_experimental_emulator():
+def test_train_experimental_emulator():
     model_name = f"reizman_suzuki_case_1"
     domain = ReizmanSuzukiEmulator.setup_domain()
     ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
@@ -62,6 +62,10 @@ def test_experimental_emulator():
     exp.save("test_ee")
     exp_2 = ExperimentalEmulator.load(model_name, "test_ee")
     shutil.rmtree("test_ee")
+
+
+def test_reizman_emulator():
+    pass
 
 
 def test_baumgartner_CC_emulator():

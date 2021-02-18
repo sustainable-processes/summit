@@ -14,7 +14,7 @@ MODELS_PATH = pathlib.Path(
     pkg_resources.resource_filename("summit", "benchmarks/models")
 )
 SUMMARY_FILE = "README.md"
-MAX_EPOCHS = 10
+MAX_EPOCHS = 1000
 CV_FOLDS = 5
 
 
@@ -74,6 +74,7 @@ def train_one_reizman(case, show_plots=False, save_plots=True):
 
 def train_baumgartner(show_plots=False):
     # Train model using one-hot encoding for categorical
+    print("Training Baumgartner model")
     result = train_baumgartner_no_descriptors()
     results_average = [
         {f"avg_{score_name}": scores.mean() for score_name, scores in result.items()}
@@ -104,20 +105,20 @@ def train_baumgartner_no_descriptors(show_plots=False, save_plots=True):
     )
 
     # # Run test
-    # res_test = exp.test()
-    # res.update(res_test)
-    #
-    # # Save emulator
-    # model_path = pathlib.Path(MODELS_PATH / model_name)
-    # model_path.mkdir(exist_ok=True)
-    # exp.save(model_path)
-    #
-    # # Make plot for posteriority sake
-    # fig, ax = exp.parity_plot(include_test=True)
-    # if save_plots:
-    #     fig.savefig(f"results/{model_name}.png", dpi=100)
-    # if show_plots:
-    #     plt.show()
+    res_test = exp.test()
+    res.update(res_test)
+
+    # Save emulator
+    model_path = pathlib.Path(MODELS_PATH / model_name)
+    model_path.mkdir(exist_ok=True)
+    exp.save(model_path)
+
+    # Make plot for posteriority sake
+    fig, ax = exp.parity_plot(include_test=True)
+    if save_plots:
+        fig.savefig(f"results/{model_name}.png", dpi=100)
+    if show_plots:
+        plt.show()
 
     return res
 
@@ -172,7 +173,7 @@ if __name__ == "__main__":
 
     # Training
     if not args.bypass_training:
-        # train_reizman()
+        train_reizman()
         train_baumgartner()
 
     # Create report
