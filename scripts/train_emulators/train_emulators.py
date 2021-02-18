@@ -124,7 +124,7 @@ def train_baumgartner_no_descriptors(show_plots=False, save_plots=True):
 
 
 def create_markdown():
-    # Create markdown report
+    """Create markdown report"""
     md = (
         "# Train Emulators\n"
         "<!-- This file is auto-generated. Do not edit directly."

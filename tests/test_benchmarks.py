@@ -2,6 +2,7 @@ import pytest
 from summit.benchmarks import *
 from summit.utils.dataset import DataSet
 import numpy as np
+import pandas as pd
 import os
 import pathlib
 import shutil
@@ -51,7 +52,10 @@ def test_train_experimental_emulator():
     params = {
         "regressor__net__max_epochs": [1, 1000],
     }
-    res = exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0)
+    exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0)
+
+    # Testing
+    res = exp.test()
     r2 = res["test_r2"].mean()
     assert r2 > 0.8
 
@@ -65,29 +69,39 @@ def test_train_experimental_emulator():
 
 
 def test_reizman_emulator():
-    pass
+    exp = ReizmanSuzukiEmulator()
 
 
 def test_baumgartner_CC_emulator():
     """ Test the Baumgartner Cross Coupling emulator"""
-    b = BaumgartnerCrossCouplingEmulator()
+    b = get_pretrained_jbaumgartner_cc_emulator()
     columns = [v.name for v in b.domain.variables]
+    # values = {
+    #     ("catalyst", "DATA"): ["tBuXPhos", "tBuBrettPhos"],
+    #     ("base", "DATA"): "DBU",
+    #     ("t_res", "DATA"): 328.717801570892,
+    #     ("temperature", "DATA"): 30,
+    #     ("base_equivalents", "DATA"): 2.18301549894049,
+    #     ("yield", "DATA"): 0.19,
+    # }
     values = {
-        ("catalyst", "DATA"): "tBuXPhos",
-        ("base", "DATA"): "DBU",
-        ("t_res", "DATA"): 328.717801570892,
-        ("temperature", "DATA"): 30,
-        ("base_equivalents", "DATA"): 2.18301549894049,
-        ("yield", "DATA"): 0.19,
+        "catalyst": ["tBuXPhos"],
+        "base": ["DBU"],
+        "t_res": [328.717801570892],
+        "temperature": [30],
+        "base_equivalents": [2.18301549894049],
+        "yield": [0.19],
     }
-    conditions = DataSet([values], columns=columns)
+    conditions = pd.DataFrame(values)
+    conditions = DataSet.from_df(conditions)
+    print(conditions)
     results = b.run_experiments(conditions)
 
-    assert str(results["catalyst", "DATA"].iloc[0]) == values["catalyst", "DATA"]
-    assert str(results["base", "DATA"].iloc[0]) == values["base", "DATA"]
-    assert float(results["t_res"]) == values["t_res", "DATA"]
-    assert float(results["temperature"]) == values["temperature", "DATA"]
-    assert np.isclose(float(results["yld"]), 0.173581)
+    assert str(results["catalyst"].iloc[0]) == values["catalyst"]
+    assert str(results["base"].iloc[0]) == values["base"]
+    assert float(results["t_res"]) == values["t_res"]
+    assert float(results["temperature"]) == values["temperature"]
+    assert np.isclose(float(results["yield"]), 0.173581)
 
     # Test serialization
     d = b.to_dict()

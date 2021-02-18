@@ -1,0 +1,2 @@
+case,avg_fit_time,avg_score_time,avg_val_r2,avg_val_neg_root_mean_squared_error,avg_test_r2,avg_test_neg_root_mean_squared_error
+one-hot,8.43237853050232,0.0061893463134765625,0.8130802170821865,-0.17386471927165986,0.8788791513272004,-0.13320153332761886

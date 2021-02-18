@@ -1,3 +1,4 @@
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -111,6 +112,7 @@ venv.bak/
 ~*.xlsx
 *.DS_STORE
 .vscode/
+.idea/
 
 # TSEMO
 .TSEMO_DATA

@@ -51,6 +51,7 @@ import pkg_resources
 import time
 import json
 import types
+import warnings
 
 __all__ = [
     "ExperimentalEmulator",
@@ -58,6 +59,8 @@ __all__ = [
     "get_bnn",
     "RegressorRegistry",
     "registry",
+    "get_pretrained_reizman_suzuki_emulator",
+    "get_pretrained_baumgartner_cc_emulator",
     "ReizmanSuzukiEmulator",
     "BaumgartnerCrossCouplingEmulator",
 ]
@@ -86,6 +89,7 @@ class ExperimentalEmulator(Experiment):
         clipping is activated for all outputs and False means
         it is not activated at all. A list of specific outputs to clip
         can also be passed.
+
     """
 
     def __init__(self, model_name, domain, **kwargs):
@@ -109,12 +113,43 @@ class ExperimentalEmulator(Experiment):
         self.clip = kwargs.get("clip", True)
 
     def _run(self, conditions, **kwargs):
+        input_columns = [v.name for v in self.domain.input_variables]
+        X = conditions[input_columns].to_numpy()
+        if X.shape[0] == len(input_columns):
+            X = X[np.newaxis, :]
+        X = pd.DataFrame(X, columns=input_columns)
+        y_pred, y_pred_std = self._predict(X)
+        return_std = kwargs.get("return_std", False)
+        for i, name in enumerate(self.output_variable_names):
+            conditions[(name, "DATA")] = y_pred[:, i]
+            if return_std:
+                conditions[(f"{name}_std", "METADATA")] = y_pred_std[:, i]
+        return conditions, {}
 
-        if self.datamodule.normalize:
-            y = self.datamodule.output_scaler.inverse_transform(y)
-        for i, v in enumerate(self.domain.output_variables):
-            conditions[v.name] = y[:, i]
-        return conditions
+    def _predict(self, X, **kwargs):
+        """Get a prediction
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            A pandas dataframe with inputs to the predictor
+
+        Returns
+        -------
+        mean, std
+        Numpy arrays with the average and standard deviation of the ensemble
+
+        """
+        y_pred = np.array(
+            [estimator.predict(X, **kwargs) for estimator in self.predictors]
+        )
+        if self.clip:
+            for i, v in enumerate(self.domain.output_variables):
+                if type(self.clip) == list:
+                    if v.name not in self.clip:
+                        continue
+                y_pred[:, :, i] = np.clip(y_pred[:, :, i], v.lower_bound, v.upper_bound)
+        return y_pred.mean(axis=0), y_pred.std(axis=0)
 
     def train(self, **kwargs):
         """Train the model on the dataset
@@ -286,31 +321,6 @@ class ExperimentalEmulator(Experiment):
             regressor=pipe, transformer=StandardScaler(), check_inverse=False
         )
 
-    def _predict(self, X, **kwargs):
-        """Get a prediction
-
-        Parameters
-        ----------
-        X : pd.DataFrame
-            A pandas dataframe with inputs to the predictor
-
-        Returns
-        -------
-        mean, std
-        Numpy arrays with the average and standard deviation of the ensemble
-
-        """
-        y_pred = np.array(
-            [estimator.predict(X, **kwargs) for estimator in self.predictors]
-        )
-        if self.clip:
-            for i, v in enumerate(self.domain.output_variables):
-                if type(self.clip) == list:
-                    if v.name not in self.clip:
-                        continue
-                y_pred[:, :, i] = np.clip(y_pred[:, :, i], v.lower_bound, v.upper_bound)
-        return y_pred.mean(axis=0), y_pred.std(axis=0)
-
     @staticmethod
     def _caclulate_input_dimensions(domain):
         num_dimensions = 0
@@ -411,8 +421,8 @@ class ExperimentalEmulator(Experiment):
         output_preprocessor = {
             "mean_": out.mean_,
             "var_": out.var_,
-            "scale_": num.scale_,
-            "n_samples_seen_": num.n_samples_seen_,
+            "scale_": out.scale_,
+            "n_samples_seen_": out.n_samples_seen_,
         }
         return jsonify_dict(
             {
@@ -525,9 +535,7 @@ class ExperimentalEmulator(Experiment):
         for i, predictor in enumerate(self.predictors):
             net = predictor.regressor.named_steps.net
             net.initialize()
-            predictor.regressor_ = net.load_params(
-                f_params=save_dir / f"{self.model_name}_predictor_{i}.pt"
-            )
+            net.load_params(f_params=save_dir / f"{self.model_name}_predictor_{i}.pt")
 
     def save(self, save_dir):
         """Save all the essential parameters of the ExperimentalEmulator to disk
@@ -546,7 +554,7 @@ class ExperimentalEmulator(Experiment):
         self.save_regressor(save_dir)
 
     @classmethod
-    def load(cls, model_name, save_dir):
+    def load(cls, model_name, save_dir, **kwargs):
         """Load all the essential parameters of the ExperimentalEmulator to disk
 
         Parameters
@@ -1160,6 +1168,21 @@ def get_data_path():
     return pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
 
 
+def get_model_path():
+    return pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/models"))
+
+
+def get_pretrained_reizman_suzuki_emulator(case=1):
+    model_name = f"reizman_suzuki_case_{case}"
+    model_path = get_model_path() / model_name
+    if not model_path.exists():
+        raise NotADirectoryError("Could not initialize from expected path.")
+    exp = ReizmanSuzukiEmulator.load(model_path, case=case)
+    data_path = get_data_path()
+    exp.ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+    return exp
+
+
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
     """Reizman Suzuki Emulator
 
@@ -1190,6 +1213,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     """
 
     def __init__(self, case=1, **kwargs):
+        # Initialization
         model_name = kwargs.get("model_name", f"reizman_suzuki_case_{case}")
         domain = kwargs.pop("domain", self.setup_domain())
         data_path = get_data_path()
@@ -1253,12 +1277,28 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
         return domain
 
+    def load(cls, save_dir, case=1):
+        model_name = f"reizman_suzuki_case_{case}"
+        return super().load(model_name, save_dir)
+
+    @classmethod
     def to_dict(self):
         """Serialize the class to a dictionary"""
         experiment_params = dict(
             case=self.model_name[-1],
         )
         return super().to_dict(**experiment_params)
+
+
+def get_pretrained_baumgartner_cc_emulator(case=1):
+    model_name = "baumgartner_aniline_cn_crosscoupling"
+    model_path = get_model_path() / model_name
+    if not model_path.exists():
+        raise NotADirectoryError("Could not initialize from expected path.")
+    exp = BaumgartnerCrossCouplingEmulator.load(model_path)
+    data_path = get_data_path()
+    exp.ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+    return exp
 
 
 class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
@@ -1283,7 +1323,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
     Examples
     --------
-    >>> bemul = BaumgartnerCrossCouplingDescriptorEmulator()
+    >>> bemul = BaumgartnerCrossCouplingEmulator()
 
     Notes
     -----
@@ -1303,7 +1343,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         domain = kwargs.pop("domain", self.setup_domain(include_cost))
         data_path = get_data_path()
         ds = DataSet.read_csv(data_path / f"{model_name}.csv")
-        super().__init__(domain=domain, csv_dataset=dataset_file, model_name=model_name)
+        super().__init__(model_name, domain, dataset=ds, **kwargs)
 
     @staticmethod
     def setup_domain(include_cost=False):
@@ -1383,6 +1423,20 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
             )
 
         return domain
+
+    @classmethod
+    def load(cls, save_dir):
+        """Load all the essential parameters of the BaumgartnerCrossCouplingEmulator
+        from disc
+
+        Parameters
+        ----------
+        save_dir : str or pathlib.Path
+            The directory from which to load emulator files.
+
+        """
+        model_name = "baumgartner_aniline_cn_crosscoupling"
+        return super().load(model_name, save_dir)
 
     def _run(self, conditions, **kwargs):
         conditions, _ = super()._run(conditions=conditions, **kwargs)
