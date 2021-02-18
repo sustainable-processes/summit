@@ -74,12 +74,14 @@ class ExperimentalEmulator(Experiment):
 
     Parameters
     ----------
+    model_name : str
+        Name of the model, ideally with no spaces
     domain : :class:`~summit.domain.Domain`
         The domain of the emulator
     dataset : :class:`~summit.dataset.Dataset`, optional
         Dataset used for training/validation
-    regressor : :classs:`pl.LightningModule`, optional
-        Pytorch LightningModule class. Defaults to the BayesianRegressor
+    regressor : :classs:`torch.nn.Module`, optional
+        Pytorch LightningModule class. Defaults to the ANNRegressor
     output_variable_names : str or list, optional
         The names of the variables that should be trained by the predictor.
         Defaults to all objectives in the domain.
