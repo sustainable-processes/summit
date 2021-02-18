@@ -50,7 +50,6 @@ def test_experimental_emulator():
     # Test grid search cross validation and training
     params = {
         "regressor__net__max_epochs": [1, 1000],
-        "regressor__net__module__num_hidden_layers": [1, 0],
     }
     res = exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0)
     r2 = res["test_r2"].mean()

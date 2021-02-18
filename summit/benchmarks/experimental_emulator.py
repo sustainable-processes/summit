@@ -184,7 +184,11 @@ class ExperimentalEmulator(Experiment):
                 predictor, search_params, refit="r2", cv=folds, scoring=scoring
             )
             gs.fit(self.X_train, y_train)
-            predictor.set_params(**gs.best_params_)
+            best_params = gs.best_params_
+            params = {}
+            for param in search_params.keys():
+                params[param] = best_params[param]
+            predictor.set_params(**params)
 
         # Run final training using cross validation
         initializing = kwargs.get("initializing", False)
@@ -1001,19 +1005,25 @@ def get_bnn():
 
 
 class ANNRegressor(torch.nn.Module):
-    def __init__(
-        self, input_dim, output_dim, hidden_units=512, num_hidden_layers=0, **kwargs
-    ):
+    """Artificial Neural Network Regressor
+
+    Parameters
+    -----------
+    input_dim : int
+        The number of features in the input
+    output_dim : int
+        The number of outputs in the targets
+    hidden_units : int, optional
+        The number of hidden units. Default is 512.
+
+    """
+
+    def __init__(self, input_dim, output_dim, hidden_units=512, **kwargs):
         super().__init__()
 
         self.num_hidden_layers = 1
         self.input_layer = torch.nn.Linear(input_dim, hidden_units)
-        if num_hidden_layers > 0:
-            self.hidden_layers = torch.nn.Sequential(
-                *[torch.nn.Linear(hidden_units, hidden_units)]
-            )
         self.output_layer = torch.nn.Linear(hidden_units, output_dim)
-        self.criterion = torch.nn.MSELoss()
 
     def forward(self, x, **kwargs):
         x_ = F.relu(self.input_layer(x))
