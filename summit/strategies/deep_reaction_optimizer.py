@@ -16,10 +16,6 @@ import uuid
 from collections import namedtuple
 from copy import deepcopy
 
-IGNORE_CHEMOPT = (
-    True  # Global variable to ignore issues with tensorflow just for sake of analysis
-)
-
 
 class DRO(Strategy):
     """Deep Reaction Optimizer (DRO)
@@ -105,13 +101,6 @@ class DRO(Strategy):
     ):
         Strategy.__init__(self, domain, transform)
 
-        import tensorflow as tf
-
-        if tf.__version__ != "1.13.1" and not IGNORE_CHEMOPT:
-            raise ImportError(
-                "Tensorflow version 1.13.1 needed for DRO, which is different than the versions needed for other strategies. We suggest using the docker container marcosfelt/summit:dro."
-            )
-
         # Create directories to store temporary files
         summit_config_path = get_summit_config_path()
         self.uuid_val = uuid.uuid4()  # Unique identifier for this run
@@ -146,15 +135,14 @@ class DRO(Strategy):
 
 
         """
-
-        # if tf.__version__ != "1.13.1":
-        #     raise ImportError(
-        #         """Tensorflow version 1.13.1 needed for DRO, which is different than the versions
-        #         needed for other strategies. We suggest using the docker container marcosfelt/summit:dro.
-        #         """
-        #     )
-
         import tensorflow as tf
+
+        if tf.__version__ != "1.13.1":
+            raise ImportError(
+                """Tensorflow version 1.13.1 needed for DRO, which is different than the versions
+                needed for other strategies. We suggest using the docker container marcosfelt/summit:dro.
+                """
+            )
 
         # Extract dimension of input domain
         self.dim = self.domain.num_continuous_dimensions()

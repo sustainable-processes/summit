@@ -10,6 +10,7 @@
 
 Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions.
 
+
 ## What is Summit?
 Currently, reaction optimisation in the fine chemicals industry is done by intuition or design of experiments.  Both scale poorly with the complexity of the problem. 
 

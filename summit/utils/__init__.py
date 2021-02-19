@@ -1,5 +1,6 @@
 import numpy as np
 from copy import deepcopy
+import numpy as np
 
 
 def jsonify_dict(d, copy=True):
@@ -13,6 +14,10 @@ def jsonify_dict(d, copy=True):
             d[k] = jsonify_list(v)
         elif type(v) == dict:
             d[k] = jsonify_dict(v)
+        elif type(v) in (np.int64, np.int32, np.int8):
+            d[k] = int(v)
+        elif type(v) in (np.float16, np.float32, np.float64, np.float128):
+            d[k] = float(v)
         elif type(v) in [str, int, float, bool, tuple] or v is None:
             pass
         else:

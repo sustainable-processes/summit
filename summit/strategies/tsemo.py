@@ -145,7 +145,7 @@ class TSEMO(Strategy):
             A Dataset object with the suggested experiments
         """
         from GPy.models import GPRegression as gpr
-        from GPy.priors import LogGaussian
+        from GPy.core.parameterization.priors import LogGaussian
         from GPy.kern import Exponential, Matern32, Matern52, RBF
         import pyrff
         from pymoo.algorithms.nsga2 import NSGA2
