@@ -12,8 +12,8 @@ SnAr Benchmark
    :members:
 
 
-C-N Benchmark
--------------
+Cross-Coupling Emulator Benchmarks
+----------------------------------
 
 .. autoclass:: summit.benchmarks.ReizmanSuzukiEmulator
    :inherited-members:
@@ -21,13 +21,5 @@ C-N Benchmark
 
 
 .. autoclass:: summit.benchmarks.BaumgartnerCrossCouplingEmulator
-   :inherited-members:
-   :members:
-
-.. autoclass:: summit.benchmarks.BaumgartnerCrossCouplingDescriptorEmulator
-   :inherited-members:
-   :members:
-
-.. autoclass:: summit.benchmarks.BaumgartnerCrossCouplingEmulator_Yield_Cost
    :inherited-members:
    :members:

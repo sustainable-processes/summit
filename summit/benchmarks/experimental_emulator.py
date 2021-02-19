@@ -80,7 +80,7 @@ class ExperimentalEmulator(Experiment):
         The domain of the emulator
     dataset : :class:`~summit.dataset.Dataset`, optional
         Dataset used for training/validation
-    regressor : :classs:`torch.nn.Module`, optional
+    regressor : :class:`torch.nn.Module`, optional
         Pytorch LightningModule class. Defaults to the ANNRegressor
     output_variable_names : str or list, optional
         The names of the variables that should be trained by the predictor.

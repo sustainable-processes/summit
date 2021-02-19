@@ -13,6 +13,7 @@
 import os
 import sys
 import subprocess
+import pkg_resources
 
 sys.path.insert(0, os.path.abspath("../.."))
 
@@ -24,7 +25,7 @@ copyright = "2020, Kobi Felton, Jan Rittig"
 author = "Kobi Felton, Jan Rittig"
 
 # The full version, including alpha/beta/rc tags
-release = "0.5.0"
+release = pkg_resources.get_distribution("summit").version
 
 
 # -- General configuration ---------------------------------------------------

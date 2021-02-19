@@ -28,7 +28,6 @@ To learn more about BO, we suggest reading the review by `Shahriari et al. <http
 The BO strategies available in Summit are:
 
 * TSEMO_
-* GRYFFIN_
 * SOBO_
 
 
@@ -41,14 +40,6 @@ TSEMO
 .. autoclass:: summit.strategies.tsemo.TSEMO
    :members:
 
-
-GRYFFIN
-^^^^^^^
-
-.. _GRYFFIN:
-
-.. autoclass:: summit.strategies.gryffin.GRYFFIN
-   :members:
 
 SOBO
 ^^^^
