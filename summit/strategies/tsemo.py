@@ -75,6 +75,12 @@ class TSEMO(Strategy):
     Each of these conditions are evaluated using the hypervolume improvement (HVI) criterion, and the one(s) that offer the best
     HVI are suggested as the next experiments. More details about TSEMO can be found in the original paper [Bradford]_.
 
+    The number of spectral points is the parameter that most affects TSEMO performance. By default, it's set at 1500,
+    but increase it to around 4000 to get the best performance at the cost of longer computational times.  You can change it using the n_spectral_points keyword argument.
+
+    The other two parameters are the number of generations and population size used in NSGA-II. Increasing their values can improve
+    performance in some cases.
+
     References
     ----------
 
