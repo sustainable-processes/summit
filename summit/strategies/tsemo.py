@@ -150,13 +150,10 @@ class TSEMO(Strategy):
         next_experiments : :class:`~summit.utils.data.DataSet`
             A Dataset object with the suggested experiments
         """
-        from GPy.models import GPRegression as gpr
-        from GPy.core.parameterization.priors import LogGaussian
-        from GPy.kern import Exponential, Matern32, Matern52, RBF
-        import pyrff
         from pymoo.algorithms.nsga2 import NSGA2
         from pymoo.optimize import minimize
         from pymoo.factory import get_termination
+        import pyrff
 
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
@@ -197,122 +194,39 @@ class TSEMO(Strategy):
             outputs - self.output_mean.to_numpy()
         ) / self.output_std.to_numpy()
 
-        # Set up models
-        input_dim = self.kern_dim
-        self.models = {
-            v.name: gpr(
+        # train and sample
+        n_outputs = len(self.domain.output_variables)
+        train_results = [0] * n_outputs
+        rmse_train_spectral = np.zeros(n_outputs)
+        for i, v in enumerate(self.domain.output_variables):
+            # Training
+            train_results[i] = self._train_sample(
+                v.name,
                 inputs_scaled.to_numpy(),
                 outputs_scaled[[v.name]].to_numpy(),
-                kernel=self.kernel(input_dim=input_dim, ARD=True),
-            )
-            for v in self.domain.output_variables
-        }
-
-        output_dim = len(self.domain.output_variables)
-        rmse_train = np.zeros(output_dim)
-        rmse_train_spectral = np.zeros(output_dim)
-        lengthscales = [None for _ in range(output_dim)]
-        variances = [None for _ in range(output_dim)]
-        noises = [None for _ in range(output_dim)]
-        rffs = [None for _ in range(output_dim)]
-        i = 0
-        num_restarts = kwargs.get(
-            "num_restarts", 100
-        )  # This is a kwarg solely for debugging
-        self.logger.debug(
-            f"Fitting models (number of optimization restarts={num_restarts})\n"
-        )
-        for name, model in self.models.items():
-            # Constrain hyperparameters
-            model.kern.lengthscale.constrain_bounded(
-                np.sqrt(1e-3), np.sqrt(1e3), warning=False
-            )
-            model.kern.lengthscale.set_prior(LogGaussian(0, 10), warning=False)
-            model.kern.variance.constrain_bounded(
-                np.sqrt(1e-3), np.sqrt(1e3), warning=False
-            )
-            model.kern.variance.set_prior(LogGaussian(-6, 10), warning=False)
-            model.Gaussian_noise.constrain_bounded(np.exp(-6), 1, warning=False)
-
-            # Train model
-            model.optimize_restarts(
-                num_restarts=num_restarts, max_iters=10000, parallel=True, verbose=False
+                n_retries=self.n_retries,
             )
 
-            # self.logger.info model hyperparameters
-            lengthscales[i] = model.kern.lengthscale.values
-            variances[i] = model.kern.variance.values[0]
-            noises[i] = model.Gaussian_noise.variance.values[0]
-            self.logger.debug(f"Model {name} lengthscales: {lengthscales[i]}")
-            self.logger.debug(f"Model {name} variance: {variances[i]}")
-            self.logger.debug(f"Model {name} noise: {noises[i]}")
-
-            # Model validation
-            rmse_train[i] = rmse(
-                model.predict(inputs_scaled.to_numpy())[0],
-                outputs_scaled[[name]].to_numpy(),
-                mean=self.output_mean[name].values[0],
-                std=self.output_std[name].values[0],
-            )
-            self.logger.debug(f"RMSE train {name} = {rmse_train[i].round(2)}")
-
-            # Spectral sampling
-            self.logger.debug(
-                f"Spectral sampling {name} with {self.n_spectral_points} spectral points."
-            )
-            if type(model.kern) == Exponential:
-                matern_nu = 1
-            elif type(model.kern) == Matern32:
-                matern_nu = 3
-            elif type(model.kern) == Matern52:
-                matern_nu = 5
-            elif type(model.kern) == RBF:
-                matern_nu = np.inf
-            else:
-                raise TypeError(
-                    "Spectral sample currently only works with Matern type kernels, including RBF."
-                )
-
-            for _ in range(self.n_retries):
-                try:
-                    rffs[i] = pyrff.sample_rff(
-                        lengthscales=lengthscales[i],
-                        scaling=np.sqrt(variances[i]),
-                        noise=noises[i],
-                        kernel_nu=matern_nu,
-                        X=inputs_scaled.to_numpy(),
-                        Y=outputs_scaled[[name]].to_numpy()[:, 0],
-                        M=self.n_spectral_points,
-                    )
-                    break
-                except np.linalg.LinAlgError as e:
-                    self.logger.error(e)
-                except ValueError as e:
-                    self.logger.error(e)
-            if rffs[i] is None:
-                raise RuntimeError(
-                    f"Spectral sampling failed after {self.n_retries} retries."
-                )
-            sample_f = lambda x: np.atleast_2d(rffs[i](x)).T
-
+            # Evaluate spectral samples
+            rff = train_results[i]["rff"]
+            sample_f = lambda x: np.atleast_2d(rff(x)).T
             rmse_train_spectral[i] = rmse(
                 sample_f(inputs_scaled.to_numpy()),
-                outputs_scaled[[name]].to_numpy(),
-                mean=self.output_mean[name].values[0],
-                std=self.output_std[name].values[0],
+                outputs_scaled[[v.name]].to_numpy(),
+                mean=self.output_mean[v.name].values[0],
+                std=self.output_std[v.name].values[0],
             )
             self.logger.debug(
-                f"RMSE train spectral {name} = {rmse_train_spectral[i].round(2)}"
+                f"RMSE train spectral {v.name} = {rmse_train_spectral[i].round(2)}"
             )
 
-            i += 1
-
         # Save spectral samples
+        rffs = [train_result["rff"] for train_result in train_results]
         dp_results = get_summit_config_path() / "tsemo" / str(self.uuid_val)
         os.makedirs(dp_results, exist_ok=True)
         pyrff.save_rffs(rffs, pathlib.Path(dp_results, "models.h5"))
 
-        # NSGAII internal optimisation
+        # NSGAII internal optimisation with spectral samples
         self.logger.info("Optimizing models using NSGAII.")
         optimizer = NSGA2(pop_size=self.pop_size)
         problem = TSEMOInternalWrapper(
@@ -352,19 +266,80 @@ class TSEMO(Strategy):
 
             # Add model hyperparameters as metadata columns
             self.iterations += 1
-            i = 0
-            for name, model in self.models.items():
-                result[(f"{name}_variance", "METADATA")] = variances[i]
-                result[(f"{name}_noise", "METADATA")] = noises[i]
-                for var, l in zip(self.domain.input_variables, lengthscales[i]):
+            for res in train_results:
+                name = res["model_name"]
+                result[(f"{name}_variance", "METADATA")] = res["outputscale"]
+                result[(f"{name}_noise", "METADATA")] = res["noise"]
+                for var, l in zip(self.domain.input_variables, res["lengthscales"]):
                     result[(f"{name}_{var.name}_lengthscale", "METADATA")] = l
-                result[("iterations", "METADATA")] = self.iterations
-                i += 1
+            result[("iterations", "METADATA")] = self.iterations
             return result
         else:
             self.logger.warning("No suggestions found.")
             self.iterations += 1
             return None
+
+    def _train_sample(self, model_name, X, y, **kwargs):
+        """Train model and take spectral samples"""
+        from botorch.models import SingleTaskGP
+        from botorch.fit import fit_gpytorch_model
+        from gpytorch.mlls.exact_marginal_log_likelihood import (
+            ExactMarginalLogLikelihood,
+        )
+        import pyrff
+        import torch
+
+        # Convert to tensors
+        X = torch.from_numpy(X)
+        y = torch.from_numpy(y)
+
+        # Train the model
+        model = SingleTaskGP(X, y)
+        mll = ExactMarginalLogLikelihood(model.likelihood, model)
+        fit_gpytorch_model(mll)
+
+        # self.logger.info model hyperparameters
+        lengthscales = model.covar_module.base_kernel.lengthscale.detach()[0].numpy()
+        outputscale = model.covar_module.outputscale.detach().numpy()
+        noise = model.likelihood.noise_covar.noise.detach().numpy()[0]
+        self.logger.debug(f"Model {model_name} lengthscales: {lengthscales}")
+        self.logger.debug(f"Model {model_name} variance: {outputscale}")
+        self.logger.debug(f"Model {model_name} noise: {noise}")
+
+        # Spectral sampling
+        n_spectral_points = kwargs.get("n_spectral_points", 1500)
+        n_retries = kwargs.get("n_retries", 10)
+        self.logger.debug(
+            f"Spectral sampling {model_name} with {n_spectral_points} spectral points."
+        )
+        rff = None
+        nu = model.covar_module.base_kernel.nu
+        for _ in range(n_retries):
+            try:
+                rff = pyrff.sample_rff(
+                    lengthscales=lengthscales,
+                    scaling=np.sqrt(outputscale),
+                    noise=noise,
+                    kernel_nu=nu,
+                    X=X.numpy(),
+                    Y=y[:, 0].numpy(),
+                    M=n_spectral_points,
+                )
+                break
+            except np.linalg.LinAlgError as e:
+                self.logger.error(e)
+            except ValueError as e:
+                self.logger.error(e)
+        if rff is None:
+            raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
+
+        return dict(
+            model_name=model_name,
+            rff=rff,
+            lengthscales=lengthscales,
+            outputscale=outputscale,
+            noise=noise,
+        )
 
     def reset(self):
         """Reset TSEMO state"""
