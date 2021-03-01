@@ -87,12 +87,40 @@ class ExperimentalEmulator(Experiment):
     output_variable_names : str or list, optional
         The names of the variables that should be trained by the predictor.
         Defaults to all objectives in the domain.
-    clip : bool or list
+    descriptors_features : list, optional
+        A list of input categorical variable names that should be transformed
+        into their descriptors instead of using one-hot encoding.
+    clip : bool or list, optional
         Whether to clip predictions to the limits of
         the objectives in the domain. True (default) means
         clipping is activated for all outputs and False means
         it is not activated at all. A list of specific outputs to clip
         can also be passed.
+
+    Notes
+    -----
+    By default, categorical features are pre-processed using one-hot encoding.
+    If descriptors are avaialble, they can be used on a feature-by-feature basis
+    by specifying names of categorical variables in the descriptors_features keyword
+    argument.
+
+    Examples
+    --------
+    >>> from summit.benchmarks import ExperimentalEmulator, ReizmanSuzukiEmulator
+    >>> from summit.utils.dataset import DataSet
+    >>> import matplotlib.pyplot as plt
+    >>> import pathlib
+    >>> import pkg_resources
+    >>> # Steal domain and ata from Reizman example
+    >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
+    >>> model_name = f"reizman_suzuki_case_1"
+    >>> domain = ReizmanSuzukiEmulator.setup_domain()
+    >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+    >>> # Create emulator and train
+    >>> exp = ExperimentalEmulator(model_name,domain,dataset=ds)
+    >>> res = exp.train(max_epochs=1000, cv_folds=2, random_state=100, test_size=0.2)
+    >>> fig, ax = exp.parity_plot(include_test=True)
+    >>> plt.show()
 
     """
 
@@ -102,8 +130,11 @@ class ExperimentalEmulator(Experiment):
 
         # Data
         self.ds = kwargs.get("dataset")
+        self.descriptors_features = kwargs.get("descriptors_features", [])
         if self.ds is not None:
-            self.n_features = self._caclulate_input_dimensions(self.domain)
+            self.n_features = self._caclulate_input_dimensions(
+                self.domain, self.descriptors_features
+            )
             self.n_examples = self.ds.shape[0]
 
         self.output_variable_names = kwargs.get(
@@ -201,6 +232,7 @@ class ExperimentalEmulator(Experiment):
             self.n_features,
             self.n_examples,
             output_variable_names=self.output_variable_names,
+            descriptors_features=self.descriptors_features,
             **kwargs,
         )
 
@@ -291,7 +323,7 @@ class ExperimentalEmulator(Experiment):
         output_variable_names = kwargs.get(
             "output_variable_names", [v.name for v in domain.output_variables]
         )
-        X_preprocessor = cls._create_input_preprocessor(domain)
+        X_preprocessor = cls._create_input_preprocessor(domain, **kwargs)
         y_preprocessor = cls._create_output_preprocessor(output_variable_names)
 
         # Create network
@@ -329,17 +361,29 @@ class ExperimentalEmulator(Experiment):
         )
 
     @staticmethod
-    def _caclulate_input_dimensions(domain):
+    def _caclulate_input_dimensions(domain: Domain, descriptors_features):
         num_dimensions = 0
         for v in domain.input_variables:
             if v.variable_type == "continuous":
                 num_dimensions += 1
             elif v.variable_type == "categorical":
-                num_dimensions += len(v.levels)
+                if v.name in descriptors_features:
+                    if v.ds is not None:
+                        num_dimensions += len(v.ds.data_columns)
+                    else:
+                        raise DomainError(
+                            (
+                                f"Descriptors not available for {v.name}),"
+                                f" but it is list in descriptors_features."
+                                "Make sure descriptors is set on the categorical variable."
+                            )
+                        )
+                else:
+                    num_dimensions += len(v.levels)
         return num_dimensions
 
     @staticmethod
-    def _create_input_preprocessor(domain):
+    def _create_input_preprocessor(domain, **kwargs):
         """Create feature preprocessors """
         transformers = []
         # Numeric transforms
@@ -350,15 +394,35 @@ class ExperimentalEmulator(Experiment):
             transformers.append(("num", StandardScaler(), numeric_features))
 
         # Categorical transforms
+        descriptors_features = kwargs.get("descriptors_features", [])
         categorical_features = [
-            v.name for v in domain.input_variables if v.variable_type == "categorical"
+            v.name
+            for v in domain.input_variables
+            if (v.variable_type == "categorical")
+            and (v.name not in descriptors_features)
         ]
         categories = [
-            v.levels for v in domain.input_variables if v.variable_type == "categorical"
+            v.levels
+            for v in domain.input_variables
+            if (v.variable_type == "categorical")
+            and (v.name not in descriptors_features)
         ]
         if len(categorical_features) > 0:
             transformers.append(
                 ("cat", OneHotEncoder(categories=categories), categorical_features)
+            )
+        if len(descriptors_features) > 0:
+            datasets = [
+                v.ds for v in domain.input_variables if v.name in descriptors_features
+            ]
+            transformers.append(
+                (
+                    "descriptor",
+                    FunctionTransformer(
+                        cat_to_descriptor, kw_args=dict(datasets=datasets)
+                    ),
+                    descriptors_features,
+                )
             )
 
         # Create preprocessor
@@ -681,6 +745,7 @@ def make_parity_plot(
     min = np.min(np.concatenate([y_train, y_train_pred]))
     max = np.max(np.concatenate([y_train, y_train_pred]))
     ax.plot([min, max], [min, max], c="#747378")
+
     # Scores
     handles = []
     r2_train = r2_score(y_train, y_train_pred)
@@ -712,6 +777,33 @@ def numpy_to_tensor(X):
     if issparse(X):
         X = X.todense()
     return torch.tensor(X).float()
+
+
+def cat_to_descriptor(X, datasets):
+    """Convert categorical variables into descriptors
+
+    Parameters
+    ----------
+    X : np.ndarray
+        An array of labels to be converted to descriptors
+    datasets : list of DataSet
+        The dataset in datasets[i] should contain an index
+        matching the label in column i of X.
+    """
+
+    n_descriptors = sum([len(ds.data_columns) for ds in datasets])
+    X_new = np.zeros([X.shape[0], n_descriptors])
+    col = 0
+    for i, ds in enumerate(datasets):
+        if type(X) == pd.DataFrame:
+            labels = X.iloc[:, i]
+        else:
+            labels = X[:, i]
+        descriptors = ds.loc[labels, :].data_to_numpy()
+        n_descriptors = descriptors.shape[1]
+        X_new[:, col : col + n_descriptors] = descriptors
+        col += n_descriptors
+    return X_new
 
 
 class UpdatedTransformedTargetRegressor(TransformedTargetRegressor):
