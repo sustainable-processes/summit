@@ -37,6 +37,8 @@ from sklearn.utils import check_array, _safe_indexing
 from sklearn.utils.fixes import delayed
 from sklearn.metrics._scorer import _check_multimetric_scoring
 
+from scipy.sparse import issparse
+
 from tqdm.auto import tqdm
 from joblib import Parallel
 import pathlib
@@ -321,10 +323,6 @@ class ExperimentalEmulator(Experiment):
                 ("net", net),
             ]
         )
-
-        # output_pipeline = Pipeline(
-        #     steps=[("scaler", StandardScaler()), ("dst", ds_to_tensor)]
-        # )
 
         return UpdatedTransformedTargetRegressor(
             regressor=pipe, transformer=StandardScaler(), check_inverse=False
@@ -711,6 +709,8 @@ def make_parity_plot(
 
 def numpy_to_tensor(X):
     """Convert datasets into """
+    if issparse(X):
+        X = X.todense()
     return torch.tensor(X).float()
 
 

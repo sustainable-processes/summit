@@ -84,7 +84,7 @@ def test_no_transform(strategy):
 
 
 # Run experiments
-@pytest.mark.parametrize("strategy", [DRO, NelderMead, SNOBFIT, SOBO, GRYFFIN])
+@pytest.mark.parametrize("strategy", [DRO, NelderMead, SNOBFIT, SOBO])
 @pytest.mark.parametrize("transform", transforms)
 def test_snar_experiment(strategy, transform):
     warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -131,4 +131,3 @@ def test_snar_experiment(strategy, transform):
             hypervolume_ref=[-2957, 10.7],
         )
         r.run(save_at_end=True)
-
