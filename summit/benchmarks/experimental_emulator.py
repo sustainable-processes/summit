@@ -1286,6 +1286,22 @@ def get_model_path():
 
 
 def get_pretrained_reizman_suzuki_emulator(case=1):
+    """Get the pretrained Reziman Suzuki Emulator
+
+    Parameters
+    ----------
+    case: int, optional, default=1
+        Reizman et al. (2016) reported experimental data for 4 different
+        cases. Each case was has a different set of substrates but the
+        same possible catalysts. Please see their paper for more information on the cases.
+
+
+    Examples
+    ---------
+
+    >>> exp = get_pretrained_reizman_suzuki_emulator(case=1)
+
+    """
     model_name = f"reizman_suzuki_case_{case}"
     model_path = get_model_path() / model_name
     if not model_path.exists():
@@ -1303,6 +1319,8 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     similar to Reizman et al. (2016). Experimental outcomes are based on an
     emulator that is trained on the experimental data published by Reizman et al.
 
+    You should use get_pretrained_reizman_suzuki_emulator to get a pretrained verison.
+
     Parameters
     ----------
     case: int, optional, default=1
@@ -1317,6 +1335,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     Notes
     -----
     This benchmark is based on data from [Reizman]_ et al.
+
 
     References
     ----------
@@ -1404,15 +1423,34 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         return super().to_dict(**experiment_params)
 
 
-def get_pretrained_baumgartner_cc_emulator(include_cost=False):
+def get_pretrained_baumgartner_cc_emulator(include_cost=False, use_descriptors=False):
+    """Get a pretrained BaumgartnerCrossCouplingEmulator
+
+    Parameters
+    ----------
+    include_cost : bool, optional
+        Include minimization of cost as an extra objective. Cost is calculated
+        as a deterministic function of the inputs (i.e., no model is trained).
+        Defaults to False.
+    use_descriptors : bool, optional
+        Use descriptors for the catalyst and base instead of one-hot encoding (defaults to False). T
+        The descriptors been pre-calculated using COSMO-RS. To only use descriptors with
+        a single feature, pass descriptors_features a list where
+        the only item is the name of the desired categorical variable.
+
+    """
     model_name = "baumgartner_aniline_cn_crosscoupling"
     model_path = get_model_path() / model_name
     if not model_path.exists():
         raise NotADirectoryError("Could not initialize from expected path.")
     data_path = get_data_path()
     ds = DataSet.read_csv(data_path / f"{model_name}.csv")
-    exp = BaumgartnerCrossCouplingEmulator.load(model_path, dataset=ds)
-
+    exp = BaumgartnerCrossCouplingEmulator.load(
+        model_path,
+        dataset=ds,
+        include_cost=include_cost,
+        use_descriptors=use_descriptors,
+    )
     return exp
 
 
@@ -1429,12 +1467,19 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
     The categorical variables (catalyst and base) contain descriptors
     calculated using COSMO-RS. Specifically, the descriptors are the first two sigma moments.
 
+    To use the pretrained version, call get_pretrained_baumgartner_cc_emulator
+
     Parameters
     ----------
     include_cost : bool, optional
         Include minimization of cost as an extra objective. Cost is calculated
         as a deterministic function of the inputs (i.e., no model is trained).
         Defaults to False.
+    use_descriptors : bool, optional
+        Use descriptors for the catalyst and base instead of one-hot encoding (defaults to False). T
+        The descriptors been pre-calculated using COSMO-RS. To only use descriptors with
+        a single feature, pass descriptors_features a list where
+        the only item is the name of the desired categorical variable.
 
     Examples
     --------
@@ -1452,12 +1497,14 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
     """
 
-    def __init__(self, include_cost=False, **kwargs):
+    def __init__(self, include_cost=False, use_descriptors=False, **kwargs):
         # TODO: make it possible to select model based on one-hot encoding or descriptors
         model_name = kwargs.pop("model_name", "baumgartner_aniline_cn_crosscoupling")
         self.include_cost = include_cost
+        if use_descriptors:
+            descriptors_features = ["catalyst", "base"]
+            kwargs["descriptors_features"] = descriptors_features
         domain = kwargs.pop("domain", self.setup_domain(self.include_cost))
-        data_path = get_data_path()
         super().__init__(model_name, domain, **kwargs)
 
     @staticmethod
@@ -1540,7 +1587,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         return domain
 
     @classmethod
-    def load(cls, save_dir, **kwargs):
+    def load(cls, save_dir, include_descriptors, **kwargs):
         """Load all the essential parameters of the BaumgartnerCrossCouplingEmulator
         from disc
 

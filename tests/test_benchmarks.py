@@ -99,9 +99,11 @@ def test_reizman_emulator(show_plots=False):
     return results
 
 
-def test_baumgartner_CC_emulator(show_plots=False):
+@pytest.mark.parametrize("use_descriptors", [True, False])
+@pytest.mark.parametrize("include_cost", [True, False])
+def test_baumgartner_CC_emulator(use_descriptors, include_cost, show_plots=False):
     """ Test the Baumgartner Cross Coupling emulator"""
-    b = get_pretrained_baumgartner_cc_emulator()
+    b = get_pretrained_baumgartner_cc_emulator(use_descriptors)
     b.parity_plot(include_test=True)
     if show_plots:
         plt.show()

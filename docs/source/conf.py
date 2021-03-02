@@ -14,6 +14,7 @@ import os
 import sys
 import subprocess
 import pkg_resources
+import datetime
 
 sys.path.insert(0, os.path.abspath("../.."))
 
@@ -21,8 +22,10 @@ sys.path.insert(0, os.path.abspath("../.."))
 # -- Project information -----------------------------------------------------
 
 project = "Summit"
-copyright = "2020, Kobi Felton, Jan Rittig"
-author = "Kobi Felton, Jan Rittig"
+dt = datetime.datetime.today()
+year = dt.year
+copyright = f"{year}, Summit Authors"
+author = "Kobi Felton and Summit Authors"
 
 # The full version, including alpha/beta/rc tags
 release = pkg_resources.get_distribution("summit").version
@@ -48,6 +51,11 @@ extensions = [
     "sphinx.ext.intersphinx",
     # read the docs theme
     "sphinx_rtd_theme",
+    # show plots
+    "matplotlib.sphinxext.mathmpl",
+    "matplotlib.sphinxext.plot_directive",
+    # Doctest
+    "sphinx.ext.doctest",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
