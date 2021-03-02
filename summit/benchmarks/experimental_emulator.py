@@ -468,6 +468,7 @@ class ExperimentalEmulator(Experiment):
                 "regressor_name": str(self.regressor.__name__),
                 "n_features": self.n_features,
                 "n_examples": self.n_examples,
+                "descriptors_features": self.descriptors_features,
                 "output_variable_names": self.output_variable_names,
                 "predictors": predictors,
             }
@@ -529,6 +530,7 @@ class ExperimentalEmulator(Experiment):
                 params["n_features"],
                 params["n_examples"],
                 output_variable_names=params["output_variable_names"],
+                desccriptors_features=params["descriptors_features"],
             )
             for predictor_params in predictors_params
         ]
