@@ -417,7 +417,7 @@ class ExperimentalEmulator(Experiment):
             ]
             transformers.append(
                 (
-                    "descriptor",
+                    "des",
                     FunctionTransformer(
                         cat_to_descriptor, kw_args=dict(datasets=datasets)
                     ),
@@ -478,7 +478,6 @@ class ExperimentalEmulator(Experiment):
     @staticmethod
     def _create_predictor_dict(predictor):
         num = predictor.regressor_.named_steps.preprocessor.named_transformers_.num
-        cat = predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
         input_preprocessor = {
             # Numerical
             "num": {
@@ -487,7 +486,7 @@ class ExperimentalEmulator(Experiment):
                 "scale_": num.scale_,
                 "n_samples_seen_": num.n_samples_seen_,
             }
-            # Categorical is automatic from the domain
+            # Categorical and descriptors is automatic from the domain / kwargs
         }
         out = predictor.transformer_
         output_preprocessor = {
@@ -530,7 +529,7 @@ class ExperimentalEmulator(Experiment):
                 params["n_features"],
                 params["n_examples"],
                 output_variable_names=params["output_variable_names"],
-                desccriptors_features=params["descriptors_features"],
+                descriptors_features=params["descriptors_features"],
             )
             for predictor_params in predictors_params
         ]
@@ -562,7 +561,6 @@ class ExperimentalEmulator(Experiment):
     def set_predictor_params(predictor, predictor_params):
         # Input transforms
         num = predictor.regressor_.named_steps.preprocessor.named_transformers_.num
-        cat = predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
         input_preprocessor = RecursiveNamespace(
             **predictor_params["input_preprocessor"]
         )
@@ -1587,7 +1585,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         return domain
 
     @classmethod
-    def load(cls, save_dir, include_descriptors, **kwargs):
+    def load(cls, save_dir, use_descriptors=False, **kwargs):
         """Load all the essential parameters of the BaumgartnerCrossCouplingEmulator
         from disc
 
