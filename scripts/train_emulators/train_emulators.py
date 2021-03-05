@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import logging
 import pkg_resources
 import pathlib
-from tqdm import trange
+from tqdm import trange, tqdm
 import argparse
 
 DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
@@ -74,37 +74,42 @@ def train_one_reizman(case, show_plots=False, save_plots=True):
 
 def train_baumgartner(show_plots=False):
     # Train model using one-hot encoding for categorical
-    print("Training Baumgartner model")
-    result = train_baumgartner_no_descriptors()
+    results = [
+        _train_baumgartner(use_descriptors=include)
+        for include in tqdm([False, True], desc="Baumgartner")
+    ]
     results_average = [
         {f"avg_{score_name}": scores.mean() for score_name, scores in result.items()}
+        for result in results
     ]
 
-    index = ["one-hot"]
+    index = ["one-hot", "descriptors"]
     results_df = pd.DataFrame.from_records(results_average, index=index)
     results_df.index.rename("case", inplace=True)
     results_df.to_csv(f"results/baumgartner_aniline_cn_crosscoupling_scores.csv")
 
 
-def train_baumgartner_no_descriptors(show_plots=False, save_plots=True):
+def _train_baumgartner(use_descriptors=False, show_plots=False, save_plots=True):
     # Setup
     model_name = f"baumgartner_aniline_cn_crosscoupling"
     domain = BaumgartnerCrossCouplingEmulator.setup_domain()
     ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
 
     # Create emulator and train
+    model_name += "_descriptors" if use_descriptors else ""
     exp = ExperimentalEmulator(
         model_name,
         domain,
         dataset=ds,
         regressor=ANNRegressor,
         output_variable_names=["yield"],
+        descriptors_features=["catalyst", "base"] if use_descriptors else [],
     )
     res = exp.train(
         max_epochs=MAX_EPOCHS, cv_folds=CV_FOLDS, random_state=100, test_size=0.2
     )
 
-    # # Run test
+    # Run test
     res_test = exp.test()
     res.update(res_test)
 

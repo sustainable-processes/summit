@@ -10,6 +10,7 @@ import locale
 import re
 from socket import timeout as SocketTimeout
 import types
+import time
 
 
 class SlurmRunner(NeptuneRunner):

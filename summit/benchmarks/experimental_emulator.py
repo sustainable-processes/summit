@@ -19,7 +19,13 @@ from sklearn.model_selection import (
     ParameterGrid,
 )
 from sklearn.model_selection._search import BaseSearchCV, _check_param_grid
-from sklearn.base import BaseEstimator, RegressorMixin, is_classifier, clone
+from sklearn.base import (
+    BaseEstimator,
+    RegressorMixin,
+    is_classifier,
+    clone,
+    TransformerMixin,
+)
 from sklearn.model_selection._split import check_cv
 from sklearn.model_selection._validation import (
     _fit_and_score,
@@ -36,6 +42,8 @@ from sklearn.utils.validation import (
 from sklearn.utils import check_array, _safe_indexing
 from sklearn.utils.fixes import delayed
 from sklearn.metrics._scorer import _check_multimetric_scoring
+
+from scipy.sparse import issparse
 
 from tqdm.auto import tqdm
 from joblib import Parallel
@@ -85,12 +93,40 @@ class ExperimentalEmulator(Experiment):
     output_variable_names : str or list, optional
         The names of the variables that should be trained by the predictor.
         Defaults to all objectives in the domain.
-    clip : bool or list
+    descriptors_features : list, optional
+        A list of input categorical variable names that should be transformed
+        into their descriptors instead of using one-hot encoding.
+    clip : bool or list, optional
         Whether to clip predictions to the limits of
         the objectives in the domain. True (default) means
         clipping is activated for all outputs and False means
         it is not activated at all. A list of specific outputs to clip
         can also be passed.
+
+    Notes
+    -----
+    By default, categorical features are pre-processed using one-hot encoding.
+    If descriptors are avaialble, they can be used on a feature-by-feature basis
+    by specifying names of categorical variables in the descriptors_features keyword
+    argument.
+
+    Examples
+    --------
+    >>> from summit.benchmarks import ExperimentalEmulator, ReizmanSuzukiEmulator
+    >>> from summit.utils.dataset import DataSet
+    >>> import matplotlib.pyplot as plt
+    >>> import pathlib
+    >>> import pkg_resources
+    >>> # Steal domain and ata from Reizman example
+    >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
+    >>> model_name = f"reizman_suzuki_case_1"
+    >>> domain = ReizmanSuzukiEmulator.setup_domain()
+    >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+    >>> # Create emulator and train
+    >>> exp = ExperimentalEmulator(model_name,domain,dataset=ds)
+    >>> res = exp.train(max_epochs=1000, cv_folds=2, random_state=100, test_size=0.2)
+    >>> fig, ax = exp.parity_plot(include_test=True)
+    >>> plt.show()
 
     """
 
@@ -100,8 +136,11 @@ class ExperimentalEmulator(Experiment):
 
         # Data
         self.ds = kwargs.get("dataset")
+        self.descriptors_features = kwargs.get("descriptors_features", [])
         if self.ds is not None:
-            self.n_features = self._caclulate_input_dimensions(self.domain)
+            self.n_features = self._caclulate_input_dimensions(
+                self.domain, self.descriptors_features
+            )
             self.n_examples = self.ds.shape[0]
 
         self.output_variable_names = kwargs.get(
@@ -199,6 +238,7 @@ class ExperimentalEmulator(Experiment):
             self.n_features,
             self.n_examples,
             output_variable_names=self.output_variable_names,
+            descriptors_features=self.descriptors_features,
             **kwargs,
         )
 
@@ -289,7 +329,7 @@ class ExperimentalEmulator(Experiment):
         output_variable_names = kwargs.get(
             "output_variable_names", [v.name for v in domain.output_variables]
         )
-        X_preprocessor = cls._create_input_preprocessor(domain)
+        X_preprocessor = cls._create_input_preprocessor(domain, **kwargs)
         y_preprocessor = cls._create_output_preprocessor(output_variable_names)
 
         # Create network
@@ -322,26 +362,34 @@ class ExperimentalEmulator(Experiment):
             ]
         )
 
-        # output_pipeline = Pipeline(
-        #     steps=[("scaler", StandardScaler()), ("dst", ds_to_tensor)]
-        # )
-
         return UpdatedTransformedTargetRegressor(
             regressor=pipe, transformer=StandardScaler(), check_inverse=False
         )
 
     @staticmethod
-    def _caclulate_input_dimensions(domain):
+    def _caclulate_input_dimensions(domain: Domain, descriptors_features):
         num_dimensions = 0
         for v in domain.input_variables:
             if v.variable_type == "continuous":
                 num_dimensions += 1
             elif v.variable_type == "categorical":
-                num_dimensions += len(v.levels)
+                if v.name in descriptors_features:
+                    if v.ds is not None:
+                        num_dimensions += len(v.ds.data_columns)
+                    else:
+                        raise DomainError(
+                            (
+                                f"Descriptors not available for {v.name}),"
+                                f" but it is list in descriptors_features."
+                                "Make sure descriptors is set on the categorical variable."
+                            )
+                        )
+                else:
+                    num_dimensions += len(v.levels)
         return num_dimensions
 
     @staticmethod
-    def _create_input_preprocessor(domain):
+    def _create_input_preprocessor(domain, **kwargs):
         """Create feature preprocessors """
         transformers = []
         # Numeric transforms
@@ -352,15 +400,33 @@ class ExperimentalEmulator(Experiment):
             transformers.append(("num", StandardScaler(), numeric_features))
 
         # Categorical transforms
+        descriptors_features = kwargs.get("descriptors_features", [])
         categorical_features = [
-            v.name for v in domain.input_variables if v.variable_type == "categorical"
+            v.name
+            for v in domain.input_variables
+            if (v.variable_type == "categorical")
+            and (v.name not in descriptors_features)
         ]
         categories = [
-            v.levels for v in domain.input_variables if v.variable_type == "categorical"
+            v.levels
+            for v in domain.input_variables
+            if (v.variable_type == "categorical")
+            and (v.name not in descriptors_features)
         ]
         if len(categorical_features) > 0:
             transformers.append(
                 ("cat", OneHotEncoder(categories=categories), categorical_features)
+            )
+        if len(descriptors_features) > 0:
+            datasets = [
+                v.ds for v in domain.input_variables if v.name in descriptors_features
+            ]
+            transformers.append(
+                (
+                    "des",
+                    DescriptorEncoder(datasets=datasets),
+                    descriptors_features,
+                )
             )
 
         # Create preprocessor
@@ -368,7 +434,11 @@ class ExperimentalEmulator(Experiment):
             raise DomainError(
                 "With only categorical features, you can do a simple lookup."
             )
-        elif len(numeric_features) > 0 or len(categorical_features) > 0:
+        elif (
+            len(numeric_features) > 0
+            or len(categorical_features) > 0
+            or len(descriptors_features) > 0
+        ):
             preprocessor = ColumnTransformer(transformers=transformers)
         else:
             raise DomainError(
@@ -406,6 +476,7 @@ class ExperimentalEmulator(Experiment):
                 "regressor_name": str(self.regressor.__name__),
                 "n_features": self.n_features,
                 "n_examples": self.n_examples,
+                "descriptors_features": self.descriptors_features,
                 "output_variable_names": self.output_variable_names,
                 "predictors": predictors,
             }
@@ -415,7 +486,6 @@ class ExperimentalEmulator(Experiment):
     @staticmethod
     def _create_predictor_dict(predictor):
         num = predictor.regressor_.named_steps.preprocessor.named_transformers_.num
-        cat = predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
         input_preprocessor = {
             # Numerical
             "num": {
@@ -424,7 +494,7 @@ class ExperimentalEmulator(Experiment):
                 "scale_": num.scale_,
                 "n_samples_seen_": num.n_samples_seen_,
             }
-            # Categorical is automatic from the domain
+            # Categorical and descriptors is automatic from the domain / kwargs
         }
         out = predictor.transformer_
         output_preprocessor = {
@@ -467,6 +537,7 @@ class ExperimentalEmulator(Experiment):
                 params["n_features"],
                 params["n_examples"],
                 output_variable_names=params["output_variable_names"],
+                descriptors_features=params["descriptors_features"],
             )
             for predictor_params in predictors_params
         ]
@@ -498,7 +569,6 @@ class ExperimentalEmulator(Experiment):
     def set_predictor_params(predictor, predictor_params):
         # Input transforms
         num = predictor.regressor_.named_steps.preprocessor.named_transformers_.num
-        cat = predictor.regressor_.named_steps.preprocessor.named_transformers_.cat
         input_preprocessor = RecursiveNamespace(
             **predictor_params["input_preprocessor"]
         )
@@ -683,6 +753,7 @@ def make_parity_plot(
     min = np.min(np.concatenate([y_train, y_train_pred]))
     max = np.max(np.concatenate([y_train, y_train_pred]))
     ax.plot([min, max], [min, max], c="#747378")
+
     # Scores
     handles = []
     r2_train = r2_score(y_train, y_train_pred)
@@ -711,7 +782,107 @@ def make_parity_plot(
 
 def numpy_to_tensor(X):
     """Convert datasets into """
+    if issparse(X):
+        X = X.todense()
     return torch.tensor(X).float()
+
+
+class DescriptorEncoder(StandardScaler):
+    """
+    Convert categorical variables to descriptors.
+
+    Parameters
+    -----------
+    datasets : list of DataSet
+        The dataset in datasets[i] should contain an index
+        matching the label in column i of X.
+    copy : bool, default=True
+        If False, try to avoid a copy and do inplace scaling instead.
+        This is not guaranteed to always work inplace; e.g. if the data is
+        not a NumPy array or scipy.sparse CSR matrix, a copy may still be
+        returned.
+    with_mean : bool, default=True
+        If True, center the data before scaling.
+        This does not work (and will raise an exception) when attempted on
+        sparse matrices, because centering them entails building a dense
+        matrix which in common use cases is likely to be too large to fit in
+        memory.
+    with_std : bool, default=True
+        If True, scale the data to unit variance (or equivalently,
+        unit standard deviation).
+
+    Attributes
+    ----------
+    scale_ : ndarray of shape (n_features,) or None
+        Per feature relative scaling of the data to achieve zero mean and unit
+        variance. Generally this is calculated using `np.sqrt(var_)`. If a
+        variance is zero, we can't achieve unit variance, and the data is left
+        as-is, giving a scaling factor of 1. `scale_` is equal to `None`
+        when `with_std=False`.
+        .. versionadded:: 0.17
+           *scale_*
+    mean_ : ndarray of shape (n_features,) or None
+        The mean value for each feature in the training set.
+        Equal to ``None`` when ``with_mean=False``.
+    var_ : ndarray of shape (n_features,) or None
+        The variance for each feature in the training set. Used to compute
+        `scale_`. Equal to ``None`` when ``with_std=False``.
+    n_samples_seen_ : int or ndarray of shape (n_features,)
+        The number of samples processed by the estimator for each feature.
+        If there are no missing samples, the ``n_samples_seen`` will be an
+        integer, otherwise it will be an array of dtype int. If
+        `sample_weights` are used it will be a float (if no missing data)
+        or an array of dtype float that sums the weights seen so far.
+        Will be reset on new calls to fit, but increments across
+        ``partial_fit`` calls.
+
+
+    """
+
+    @_deprecate_positional_args
+    def __init__(self, datasets, *, copy=True, with_mean=True, with_std=True):
+        self.datasets = datasets
+        super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
+
+    def fit(self, X, y=None, sample_weight=None):
+        X_new = self._cat_to_descriptor(X, self.datasets)
+        return super().fit(X_new, y=y, sample_weight=sample_weight)
+
+    def transform(self, X, copy=None):
+        X_new = self._cat_to_descriptor(X, self.datasets)
+        return super().transform(X_new, copy=copy)
+
+    def inverse_transform(self, X, copy=None):
+        raise NotImplementedError(
+            "Inverse transform not implemented for DescriptorsEncoder"
+        )
+
+    @staticmethod
+    def _cat_to_descriptor(X, datasets):
+        """Convert categorical variables into descriptors
+
+        Parameters
+        ----------
+        X : np.ndarray
+            An array of labels to be converted to descriptors
+        datasets : list of DataSet
+            The dataset in datasets[i] should contain an index
+            matching the label in column i of X.
+        """
+
+        n_descriptors = sum([len(ds.data_columns) for ds in datasets])
+        X_new = np.zeros([X.shape[0], n_descriptors])
+        col = 0
+        for i, ds in enumerate(datasets):
+            if type(X) == pd.DataFrame:
+                labels = X.iloc[:, i]
+            else:
+                labels = X[:, i]
+            descriptors = ds.loc[labels, :].data_to_numpy()
+            n_descriptors = descriptors.shape[1]
+            X_new[:, col : col + n_descriptors] = descriptors
+            col += n_descriptors
+        return X_new
 
 
 class UpdatedTransformedTargetRegressor(TransformedTargetRegressor):
@@ -1192,6 +1363,22 @@ def get_model_path():
 
 
 def get_pretrained_reizman_suzuki_emulator(case=1):
+    """Get the pretrained Reziman Suzuki Emulator
+
+    Parameters
+    ----------
+    case: int, optional, default=1
+        Reizman et al. (2016) reported experimental data for 4 different
+        cases. Each case was has a different set of substrates but the
+        same possible catalysts. Please see their paper for more information on the cases.
+
+
+    Examples
+    ---------
+
+    >>> exp = get_pretrained_reizman_suzuki_emulator(case=1)
+
+    """
     model_name = f"reizman_suzuki_case_{case}"
     model_path = get_model_path() / model_name
     if not model_path.exists():
@@ -1209,6 +1396,8 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     similar to Reizman et al. (2016). Experimental outcomes are based on an
     emulator that is trained on the experimental data published by Reizman et al.
 
+    You should use get_pretrained_reizman_suzuki_emulator to get a pretrained verison.
+
     Parameters
     ----------
     case: int, optional, default=1
@@ -1223,6 +1412,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
     Notes
     -----
     This benchmark is based on data from [Reizman]_ et al.
+
 
     References
     ----------
@@ -1310,15 +1500,34 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         return super().to_dict(**experiment_params)
 
 
-def get_pretrained_baumgartner_cc_emulator(include_cost=False):
+def get_pretrained_baumgartner_cc_emulator(include_cost=False, use_descriptors=False):
+    """Get a pretrained BaumgartnerCrossCouplingEmulator
+
+    Parameters
+    ----------
+    include_cost : bool, optional
+        Include minimization of cost as an extra objective. Cost is calculated
+        as a deterministic function of the inputs (i.e., no model is trained).
+        Defaults to False.
+    use_descriptors : bool, optional
+        Use descriptors for the catalyst and base instead of one-hot encoding (defaults to False). T
+        The descriptors been pre-calculated using COSMO-RS. To only use descriptors with
+        a single feature, pass descriptors_features a list where
+        the only item is the name of the desired categorical variable.
+
+    """
     model_name = "baumgartner_aniline_cn_crosscoupling"
     model_path = get_model_path() / model_name
     if not model_path.exists():
         raise NotADirectoryError("Could not initialize from expected path.")
     data_path = get_data_path()
     ds = DataSet.read_csv(data_path / f"{model_name}.csv")
-    exp = BaumgartnerCrossCouplingEmulator.load(model_path, dataset=ds)
-
+    exp = BaumgartnerCrossCouplingEmulator.load(
+        model_path,
+        dataset=ds,
+        include_cost=include_cost,
+        use_descriptors=use_descriptors,
+    )
     return exp
 
 
@@ -1335,12 +1544,19 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
     The categorical variables (catalyst and base) contain descriptors
     calculated using COSMO-RS. Specifically, the descriptors are the first two sigma moments.
 
+    To use the pretrained version, call get_pretrained_baumgartner_cc_emulator
+
     Parameters
     ----------
     include_cost : bool, optional
         Include minimization of cost as an extra objective. Cost is calculated
         as a deterministic function of the inputs (i.e., no model is trained).
         Defaults to False.
+    use_descriptors : bool, optional
+        Use descriptors for the catalyst and base instead of one-hot encoding (defaults to False). T
+        The descriptors been pre-calculated using COSMO-RS. To only use descriptors with
+        a single feature, pass descriptors_features a list where
+        the only item is the name of the desired categorical variable.
 
     Examples
     --------
@@ -1358,12 +1574,14 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
     """
 
-    def __init__(self, include_cost=False, **kwargs):
+    def __init__(self, include_cost=False, use_descriptors=False, **kwargs):
         # TODO: make it possible to select model based on one-hot encoding or descriptors
         model_name = kwargs.pop("model_name", "baumgartner_aniline_cn_crosscoupling")
         self.include_cost = include_cost
+        if use_descriptors:
+            descriptors_features = ["catalyst", "base"]
+            kwargs["descriptors_features"] = descriptors_features
         domain = kwargs.pop("domain", self.setup_domain(self.include_cost))
-        data_path = get_data_path()
         super().__init__(model_name, domain, **kwargs)
 
     @staticmethod
@@ -1446,7 +1664,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         return domain
 
     @classmethod
-    def load(cls, save_dir, **kwargs):
+    def load(cls, save_dir, include_cost=False, use_descriptors=False, **kwargs):
         """Load all the essential parameters of the BaumgartnerCrossCouplingEmulator
         from disc
 
@@ -1457,7 +1675,13 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         """
         model_name = "baumgartner_aniline_cn_crosscoupling"
-        return super().load(model_name, save_dir, **kwargs)
+        save_dir = pathlib.Path(save_dir)
+        with open(save_dir / f"{model_name}.json", "r") as f:
+            d = json.load(f)
+        d["experiment_params"]["include_cost"] = include_cost
+        exp = ExperimentalEmulator.from_dict(d, **kwargs)
+        exp.load_regressor(save_dir)
+        return exp
 
     def _run(self, conditions, **kwargs):
         conditions, _ = super()._run(conditions=conditions, **kwargs)
