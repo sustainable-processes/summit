@@ -1664,7 +1664,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         return domain
 
     @classmethod
-    def load(cls, save_dir, use_descriptors=False, **kwargs):
+    def load(cls, save_dir, include_cost=False, use_descriptors=False, **kwargs):
         """Load all the essential parameters of the BaumgartnerCrossCouplingEmulator
         from disc
 
@@ -1675,7 +1675,13 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         """
         model_name = "baumgartner_aniline_cn_crosscoupling"
-        return super().load(model_name, save_dir, **kwargs)
+        save_dir = pathlib.Path(save_dir)
+        with open(save_dir / f"{model_name}.json", "r") as f:
+            d = json.load(f)
+        d["experiment_params"]["include_cost"] = include_cost
+        exp = ExperimentalEmulator.from_dict(d, **kwargs)
+        exp.load_regressor(save_dir)
+        return exp
 
     def _run(self, conditions, **kwargs):
         conditions, _ = super()._run(conditions=conditions, **kwargs)
