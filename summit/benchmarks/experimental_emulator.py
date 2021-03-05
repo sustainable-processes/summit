@@ -19,7 +19,13 @@ from sklearn.model_selection import (
     ParameterGrid,
 )
 from sklearn.model_selection._search import BaseSearchCV, _check_param_grid
-from sklearn.base import BaseEstimator, RegressorMixin, is_classifier, clone
+from sklearn.base import (
+    BaseEstimator,
+    RegressorMixin,
+    is_classifier,
+    clone,
+    TransformerMixin,
+)
 from sklearn.model_selection._split import check_cv
 from sklearn.model_selection._validation import (
     _fit_and_score,
@@ -418,9 +424,7 @@ class ExperimentalEmulator(Experiment):
             transformers.append(
                 (
                     "des",
-                    FunctionTransformer(
-                        cat_to_descriptor, kw_args=dict(datasets=datasets)
-                    ),
+                    DescriptorEncoder(datasets=datasets),
                     descriptors_features,
                 )
             )
@@ -430,7 +434,11 @@ class ExperimentalEmulator(Experiment):
             raise DomainError(
                 "With only categorical features, you can do a simple lookup."
             )
-        elif len(numeric_features) > 0 or len(categorical_features) > 0:
+        elif (
+            len(numeric_features) > 0
+            or len(categorical_features) > 0
+            or len(descriptors_features) > 0
+        ):
             preprocessor = ColumnTransformer(transformers=transformers)
         else:
             raise DomainError(
@@ -779,31 +787,102 @@ def numpy_to_tensor(X):
     return torch.tensor(X).float()
 
 
-def cat_to_descriptor(X, datasets):
-    """Convert categorical variables into descriptors
+class DescriptorEncoder(StandardScaler):
+    """
+    Convert categorical variables to descriptors.
 
     Parameters
-    ----------
-    X : np.ndarray
-        An array of labels to be converted to descriptors
+    -----------
     datasets : list of DataSet
         The dataset in datasets[i] should contain an index
         matching the label in column i of X.
+    copy : bool, default=True
+        If False, try to avoid a copy and do inplace scaling instead.
+        This is not guaranteed to always work inplace; e.g. if the data is
+        not a NumPy array or scipy.sparse CSR matrix, a copy may still be
+        returned.
+    with_mean : bool, default=True
+        If True, center the data before scaling.
+        This does not work (and will raise an exception) when attempted on
+        sparse matrices, because centering them entails building a dense
+        matrix which in common use cases is likely to be too large to fit in
+        memory.
+    with_std : bool, default=True
+        If True, scale the data to unit variance (or equivalently,
+        unit standard deviation).
+
+    Attributes
+    ----------
+    scale_ : ndarray of shape (n_features,) or None
+        Per feature relative scaling of the data to achieve zero mean and unit
+        variance. Generally this is calculated using `np.sqrt(var_)`. If a
+        variance is zero, we can't achieve unit variance, and the data is left
+        as-is, giving a scaling factor of 1. `scale_` is equal to `None`
+        when `with_std=False`.
+        .. versionadded:: 0.17
+           *scale_*
+    mean_ : ndarray of shape (n_features,) or None
+        The mean value for each feature in the training set.
+        Equal to ``None`` when ``with_mean=False``.
+    var_ : ndarray of shape (n_features,) or None
+        The variance for each feature in the training set. Used to compute
+        `scale_`. Equal to ``None`` when ``with_std=False``.
+    n_samples_seen_ : int or ndarray of shape (n_features,)
+        The number of samples processed by the estimator for each feature.
+        If there are no missing samples, the ``n_samples_seen`` will be an
+        integer, otherwise it will be an array of dtype int. If
+        `sample_weights` are used it will be a float (if no missing data)
+        or an array of dtype float that sums the weights seen so far.
+        Will be reset on new calls to fit, but increments across
+        ``partial_fit`` calls.
+
+
     """
 
-    n_descriptors = sum([len(ds.data_columns) for ds in datasets])
-    X_new = np.zeros([X.shape[0], n_descriptors])
-    col = 0
-    for i, ds in enumerate(datasets):
-        if type(X) == pd.DataFrame:
-            labels = X.iloc[:, i]
-        else:
-            labels = X[:, i]
-        descriptors = ds.loc[labels, :].data_to_numpy()
-        n_descriptors = descriptors.shape[1]
-        X_new[:, col : col + n_descriptors] = descriptors
-        col += n_descriptors
-    return X_new
+    @_deprecate_positional_args
+    def __init__(self, datasets, *, copy=True, with_mean=True, with_std=True):
+        self.datasets = datasets
+        super().__init__(copy=copy, with_mean=with_mean, with_std=with_std)
+
+    def fit(self, X, y=None, sample_weight=None):
+        X_new = self._cat_to_descriptor(X, self.datasets)
+        return super().fit(X_new, y=y, sample_weight=sample_weight)
+
+    def transform(self, X, copy=None):
+        X_new = self._cat_to_descriptor(X, self.datasets)
+        return super().transform(X_new, copy=copy)
+
+    def inverse_transform(self, X, copy=None):
+        raise NotImplementedError(
+            "Inverse transform not implemented for DescriptorsEncoder"
+        )
+
+    @staticmethod
+    def _cat_to_descriptor(X, datasets):
+        """Convert categorical variables into descriptors
+
+        Parameters
+        ----------
+        X : np.ndarray
+            An array of labels to be converted to descriptors
+        datasets : list of DataSet
+            The dataset in datasets[i] should contain an index
+            matching the label in column i of X.
+        """
+
+        n_descriptors = sum([len(ds.data_columns) for ds in datasets])
+        X_new = np.zeros([X.shape[0], n_descriptors])
+        col = 0
+        for i, ds in enumerate(datasets):
+            if type(X) == pd.DataFrame:
+                labels = X.iloc[:, i]
+            else:
+                labels = X[:, i]
+            descriptors = ds.loc[labels, :].data_to_numpy()
+            n_descriptors = descriptors.shape[1]
+            X_new[:, col : col + n_descriptors] = descriptors
+            col += n_descriptors
+        return X_new
 
 
 class UpdatedTransformedTargetRegressor(TransformedTargetRegressor):
