@@ -51,11 +51,8 @@ extensions = [
     "sphinx.ext.intersphinx",
     # read the docs theme
     "sphinx_rtd_theme",
-    # show plots
-    "matplotlib.sphinxext.mathmpl",
-    "matplotlib.sphinxext.plot_directive",
-    # Doctest
-    "sphinx.ext.doctest",
+    # Redirects
+    "sphinx_reredirects",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -115,6 +112,13 @@ def linkcode_resolve(domain, info):
     filename = info["module"].replace(".", "/")
     return "https://somesite/sourcerepo/%s.py" % filename
 
+
+# -- Options for redirects----------------------------------------------------
+
+redirects = {
+    "tutorial": "tutorials/intro.html",
+    "experiments_benchmarks/new_benchmarks": "../tutorials/new_benchmarks.html",
+}
 
 # -- Options for HTML output -------------------------------------------------
 
