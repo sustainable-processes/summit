@@ -117,14 +117,15 @@ class ExperimentalEmulator(Experiment):
     >>> import matplotlib.pyplot as plt
     >>> import pathlib
     >>> import pkg_resources
-    >>> # Steal domain and ata from Reizman example
+    >>> # Steal domain and data from Reizman example
     >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
     >>> model_name = f"reizman_suzuki_case_1"
     >>> domain = ReizmanSuzukiEmulator.setup_domain()
     >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
-    >>> # Create emulator and train
+    >>> # Create emulator and train (bump max_epochs to 1000 to get better training)
     >>> exp = ExperimentalEmulator(model_name,domain,dataset=ds)
-    >>> res = exp.train(max_epochs=1000, cv_folds=2, random_state=100, test_size=0.2)
+    >>> res = exp.train(max_epochs=10, cv_folds=2, random_state=100, test_size=0.2)
+    >>> # Plot to show the quality of the fit
     >>> fig, ax = exp.parity_plot(include_test=True)
     >>> plt.show()
 
@@ -201,6 +202,9 @@ class ExperimentalEmulator(Experiment):
 
     def train(self, **kwargs):
         """Train the model on the dataset
+
+        This will automatically do a train-test split and then train via
+        cross-validation on the train set.
 
         Parameters
         ---------
@@ -299,6 +303,18 @@ class ExperimentalEmulator(Experiment):
         return res
 
     def test(self, **kwargs):
+        """Get test results
+
+        This requires that train has already been called or
+        the ExperimentalEmulator was initialized from a pretrained model.
+
+        Parameters
+        ----------
+        scoring : str or list, optional
+            A list of scoring functions or names of them. Defaults to R2 and MSE.
+            See here for more https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
+
+        """
         scoring = kwargs.get("scoring", ["r2", "neg_root_mean_squared_error"])
         scores_list = []
         for predictor in self.predictors:
@@ -639,7 +655,7 @@ class ExperimentalEmulator(Experiment):
 
     @classmethod
     def load(cls, model_name, save_dir, **kwargs):
-        """Load all the essential parameters of the ExperimentalEmulator to disk
+        """Load all the essential parameters of the ExperimentalEmulator from disk
 
         Parameters
         ----------
@@ -680,7 +696,8 @@ class ExperimentalEmulator(Experiment):
         if type(vars) == str:
             vars = [vars]
 
-        fig, axes = plt.subplots(1, len(vars))
+        fig, axes = plt.subplots(1, len(vars), figsize=(10, 5))
+        fig.subplots_adjust(wspace=0.5)
         if len(vars) > 1:
             fig.subplots_adjust(wspace=0.2)
         if type(axes) != np.ndarray:
@@ -1323,8 +1340,13 @@ class ANNRegressor(torch.nn.Module):
 class RegressorRegistry:
     """Registry for Regressors
 
-    Models registered using the register method
-    are saved as the class name.
+    The registry stores regressors that can be used with the
+    :class:~`summit.benchmarks.ExperimentalEmulator`. A regressor can be
+    any `torch.nn.Module` that takes the parameeters `input_dim` and `output_dim` for
+    the input and output dimensions respectively.
+
+    Registering a regressor means that it can be serialized and deserialized
+    using the save/load functionality of the emulator.
 
     """
 
@@ -1345,6 +1367,14 @@ class RegressorRegistry:
             self.regressors[key] = value
 
     def register(self, regressor):
+        """Register a new regresssor
+
+        Parameters
+        ---------
+        regressor: torch.nn.Module
+            A torch neural network module
+
+        """
         key = regressor.__name__
         self.regressors[key] = regressor
 
@@ -1376,8 +1406,18 @@ def get_pretrained_reizman_suzuki_emulator(case=1):
     Examples
     ---------
 
-    >>> exp = get_pretrained_reizman_suzuki_emulator(case=1)
-
+    >>> import matplotlib.pyplot as plt
+    >>> from summit.benchmarks import get_pretrained_reizman_suzuki_emulator
+    >>> from summit.utils.dataset import DataSet
+    >>> import pandas as pd
+    >>> b = get_pretrained_reizman_suzuki_emulator(case=1)
+    >>> fig, ax = b.parity_plot(include_test=True)
+    >>> plt.show()
+    >>> columns = [v.name for v in b.domain.variables]
+    >>> values = { "catalyst": ["P1-L3"], "t_res": [600], "temperature": [30],"catalyst_loading": [0.498],}
+    >>> conditions = pd.DataFrame(values)
+    >>> conditions = DataSet.from_df(conditions)
+    >>> results = b.run_experiments(conditions, return_std=True)
     """
     model_name = f"reizman_suzuki_case_{case}"
     model_path = get_model_path() / model_name
@@ -1515,13 +1555,31 @@ def get_pretrained_baumgartner_cc_emulator(include_cost=False, use_descriptors=F
         a single feature, pass descriptors_features a list where
         the only item is the name of the desired categorical variable.
 
+
+    Examples
+    --------
+
+    >>> import matplotlib.pyplot as plt
+    >>> from summit.benchmarks import get_pretrained_baumgartner_cc_emulator
+    >>> from summit.utils.dataset import DataSet
+    >>> import pandas as pd
+    >>> b = get_pretrained_baumgartner_cc_emulator(include_cost=True, use_descriptors=False)
+    >>> fig, ax = b.parity_plot(include_test=True)
+    >>> plt.show()
+    >>> columns = [v.name for v in b.domain.variables]
+    >>> values = { "catalyst": ["tBuXPhos"], "base": ["DBU"], "t_res": [328.717801570892],"temperature": [30],"base_equivalents": [2.18301549894049]}
+    >>> conditions = pd.DataFrame(values)
+    >>> conditions = DataSet.from_df(conditions)
+    >>> results = b.run_experiments(conditions, return_std=True)
+
     """
     model_name = "baumgartner_aniline_cn_crosscoupling"
+    data_path = get_data_path()
+    ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+    model_name += "_descriptors" if use_descriptors else ""
     model_path = get_model_path() / model_name
     if not model_path.exists():
         raise NotADirectoryError("Could not initialize from expected path.")
-    data_path = get_data_path()
-    ds = DataSet.read_csv(data_path / f"{model_name}.csv")
     exp = BaumgartnerCrossCouplingEmulator.load(
         model_path,
         dataset=ds,
@@ -1672,9 +1730,21 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
         ----------
         save_dir : str or pathlib.Path
             The directory from which to load emulator files.
+        include_cost : bool, optional
+            Include minimization of cost as an extra objective. Cost is calculated
+            as a deterministic function of the inputs (i.e., no model is trained).
+            Defaults to False.
+        use_descriptors : bool, optional
+            Use descriptors for the catalyst and base instead of one-hot encoding (defaults to False). T
+            The descriptors been pre-calculated using COSMO-RS. To only use descriptors with
+            a single feature, pass descriptors_features a list where
+            the only item is the name of the desired categorical variable.
 
         """
-        model_name = "baumgartner_aniline_cn_crosscoupling"
+        if use_descriptors:
+            model_name = "baumgartner_aniline_cn_crosscoupling_descriptors"
+        else:
+            model_name = "baumgartner_aniline_cn_crosscoupling"
         save_dir = pathlib.Path(save_dir)
         with open(save_dir / f"{model_name}.json", "r") as f:
             d = json.load(f)

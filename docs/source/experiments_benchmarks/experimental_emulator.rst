@@ -7,3 +7,6 @@ Experimental Emulator API
 
 .. autoclass:: summit.benchmarks.ANNRegressor
     :members:
+
+.. autoclass:: summit.benchmarks.RegressorRegistry
+    :members:
