@@ -117,7 +117,7 @@ class ExperimentalEmulator(Experiment):
     >>> import matplotlib.pyplot as plt
     >>> import pathlib
     >>> import pkg_resources
-    >>> # Steal domain and ata from Reizman example
+    >>> # Steal domain and data from Reizman example
     >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
     >>> model_name = f"reizman_suzuki_case_1"
     >>> domain = ReizmanSuzukiEmulator.setup_domain()
@@ -125,6 +125,7 @@ class ExperimentalEmulator(Experiment):
     >>> # Create emulator and train (bump max_epochs to 1000 to get better training)
     >>> exp = ExperimentalEmulator(model_name,domain,dataset=ds)
     >>> res = exp.train(max_epochs=10, cv_folds=2, random_state=100, test_size=0.2)
+    >>> # Plot to show the quality of the fit
     >>> fig, ax = exp.parity_plot(include_test=True)
     >>> plt.show()
 
@@ -654,7 +655,7 @@ class ExperimentalEmulator(Experiment):
 
     @classmethod
     def load(cls, model_name, save_dir, **kwargs):
-        """Load all the essential parameters of the ExperimentalEmulator to disk
+        """Load all the essential parameters of the ExperimentalEmulator from disk
 
         Parameters
         ----------
@@ -1396,7 +1397,7 @@ def get_pretrained_reizman_suzuki_emulator(case=1):
     >>> from summit.utils.dataset import DataSet
     >>> import pandas as pd
     >>> b = get_pretrained_reizman_suzuki_emulator(case=1)
-    >>> b.parity_plot(include_test=True)
+    >>> fig, ax = b.parity_plot(include_test=True)
     >>> plt.show()
     >>> columns = [v.name for v in b.domain.variables]
     >>> values = { "catalyst": ["P1-L3"], "t_res": [600], "temperature": [30],"catalyst_loading": [0.498],}
@@ -1549,7 +1550,7 @@ def get_pretrained_baumgartner_cc_emulator(include_cost=False, use_descriptors=F
     >>> from summit.utils.dataset import DataSet
     >>> import pandas as pd
     >>> b = get_pretrained_baumgartner_cc_emulator(include_cost=True, use_descriptors=False)
-    >>> b.parity_plot(include_test=True)
+    >>> fig, ax = b.parity_plot(include_test=True)
     >>> plt.show()
     >>> columns = [v.name for v in b.domain.variables]
     >>> values = { "catalyst": ["tBuXPhos"], "base": ["DBU"], "t_res": [328.717801570892],"temperature": [30],"base_equivalents": [2.18301549894049]}
