@@ -1561,11 +1561,12 @@ def get_pretrained_baumgartner_cc_emulator(include_cost=False, use_descriptors=F
 
     """
     model_name = "baumgartner_aniline_cn_crosscoupling"
+    data_path = get_data_path()
+    ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+    model_name += "_descriptors" if use_descriptors else ""
     model_path = get_model_path() / model_name
     if not model_path.exists():
         raise NotADirectoryError("Could not initialize from expected path.")
-    data_path = get_data_path()
-    ds = DataSet.read_csv(data_path / f"{model_name}.csv")
     exp = BaumgartnerCrossCouplingEmulator.load(
         model_path,
         dataset=ds,
