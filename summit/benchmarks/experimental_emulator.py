@@ -1340,8 +1340,13 @@ class ANNRegressor(torch.nn.Module):
 class RegressorRegistry:
     """Registry for Regressors
 
-    Models registered using the register method
-    are saved as the class name.
+    The registry stores regressors that can be used with the
+    :class:~`summit.benchmarks.ExperimentalEmulator`. A regressor can be
+    any `torch.nn.Module` that takes the parameeters `input_dim` and `output_dim` for
+    the input and output dimensions respectively.
+
+    Registering a regressor means that it can be serialized and deserialized
+    using the save/load functionality of the emulator.
 
     """
 
@@ -1362,6 +1367,14 @@ class RegressorRegistry:
             self.regressors[key] = value
 
     def register(self, regressor):
+        """Register a new regresssor
+
+        Parameters
+        ---------
+        regressor: torch.nn.Module
+            A torch neural network module
+
+        """
         key = regressor.__name__
         self.regressors[key] = regressor
 
