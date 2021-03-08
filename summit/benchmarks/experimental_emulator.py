@@ -696,7 +696,8 @@ class ExperimentalEmulator(Experiment):
         if type(vars) == str:
             vars = [vars]
 
-        fig, axes = plt.subplots(1, len(vars))
+        fig, axes = plt.subplots(1, len(vars), figsize=(10, 5))
+        fig.subplots_adjust(wspace=0.5)
         if len(vars) > 1:
             fig.subplots_adjust(wspace=0.2)
         if type(axes) != np.ndarray:
