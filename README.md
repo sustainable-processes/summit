@@ -29,9 +29,14 @@ To install summit, use the following command:
 
 ```pip install summit```
 
+## News
+
+* Kobi ([@marcosfelt](https://github.com/marcosfelt)) will give a tutorial on Summit at the online Autonomous Discovery Symposium on Wednesday 21 April 2021. [Register now for free](https://autonomous-discovery.lbl.gov/home)!
+
 ## Quick Start
 
 Below, we show how to use the Nelder-Mead  strategy to optimise a benchmark representing a nucleophlic aromatic substitution (SnAr) reaction.
+
 ```python
 # Import summit
 from summit.benchmarks import SnarBenchmark
