@@ -123,6 +123,11 @@ def test_doe():
     domain += ContinuousVariable(
         name="flowrate_b", description="flow of reactant b in mL/min", bounds=[0.1, 0.5]
     )
+    domain += CategoricalVariable(
+        name="catalyst",
+        description="catalyst for the reaction",
+        levels=["C1", "C2", "C3"],
+    )
     domain += ContinuousVariable(
         name="yield_", description="", bounds=[0, 100], is_objective=True, maximize=True
     )
@@ -135,7 +140,12 @@ def test_doe():
     )
 
     strategy = FullFactorial(domain)
-    levels = dict(temperature=[50, 100], flowrate_a=[0.1, 0.5], flowrate_b=[0.1, 0.5])
+    levels = dict(
+        temperature=[50, 100],
+        flowrate_a=[0.1, 0.5],
+        flowrate_b=[0.1, 0.5],
+        catalyst=["C1", "C2", "C3"],
+    )
     experiments = strategy.suggest_experiments(levels)
     return experiments
 
