@@ -954,7 +954,12 @@ class Design:
         """
         df = pd.DataFrame([])
         for i, variable in enumerate(self._domain.input_variables):
-            values = self.get_values(variable.name)[:, 0]
+            if isinstance(variable, ContinuousVariable):
+                values = self.get_values(variable.name)[:, 0]
+            elif isinstance(variable, CategoricalVariable):
+                values = [
+                    variable.levels[i] for i in self.get_indices(variable.name)[:, 0]
+                ]
             df.insert(i, variable.name, values)
 
         return DataSet.from_df(df)

@@ -71,9 +71,7 @@ class Random(Strategy):
         """
         design = Design(self.domain, num_experiments, "random")
 
-        for variable in self.domain.variables:
-            if variable.is_objective:
-                continue
+        for variable in self.domain.input_variables:
             if isinstance(variable, ContinuousVariable):
                 values = self._random_continuous(variable, num_experiments)
                 indices = None
