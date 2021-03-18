@@ -77,7 +77,7 @@ class FullFactorial(Strategy):
             indices = indices.astype(np.int)
             values = np.array([levels_dict[v.name][i] for i in indices])
             values = np.atleast_2d(values)
-            design.add_variable(v.name, values)
+            design.add_variable(v.name, values, indices=indices[:, np.newaxis])
 
         ds = design.to_dataset()
         ds[("strategy", "METADATA")] = "FullFactorial"

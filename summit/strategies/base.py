@@ -953,18 +953,14 @@ class Design:
         ds: summit.utils.dataset.Dataset
         """
         df = pd.DataFrame([])
-        i = 0
-        for variable in self._domain.variables:
-            if variable.is_objective or variable.name in self.exclude:
-                continue
-            elif isinstance(variable, ContinuousVariable):
+        for i, variable in enumerate(self._domain.input_variables):
+            if isinstance(variable, ContinuousVariable):
                 values = self.get_values(variable.name)[:, 0]
             elif isinstance(variable, CategoricalVariable):
                 values = [
                     variable.levels[i] for i in self.get_indices(variable.name)[:, 0]
                 ]
             df.insert(i, variable.name, values)
-            i += 1
 
         return DataSet.from_df(df)
 
