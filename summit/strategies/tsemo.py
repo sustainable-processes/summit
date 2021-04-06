@@ -81,6 +81,7 @@ class TSEMO(Strategy):
     The other two parameters are the number of generations and population size used in NSGA-II. Increasing their values can improve
     performance in some cases.
 
+
     References
     ----------
 
@@ -149,6 +150,11 @@ class TSEMO(Strategy):
         -------
         next_experiments : :class:`~summit.utils.data.DataSet`
             A Dataset object with the suggested experiments
+            The lengthscales column tells the significance of each variable (assuming automatic relevance detection is turned on, which it is in Botorch).
+            Smaller values mean significant changes in output happen on a smaller change in the input, suggesting a more important input.
+            The variance column scales the output of the posterior of the kernel to the correct scale for your objective
+            The noise column is the constant noise in outputs (e.g., assumed uniform experiment error)
+
         """
         from pymoo.algorithms.nsga2 import NSGA2
         from pymoo.optimize import minimize
