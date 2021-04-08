@@ -666,7 +666,7 @@ class ExperimentalEmulator(Experiment):
         save_dir = pathlib.Path(save_dir)
         with open(save_dir / f"{model_name}.json", "r") as f:
             d = json.load(f)
-        exp = ExperimentalEmulator.from_dict(d, **kwargs)
+        exp = cls.from_dict(d, **kwargs)
         exp.load_regressor(save_dir)
         return exp
 
@@ -1467,6 +1467,13 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         domain = kwargs.pop("domain", self.setup_domain())
         data_path = get_data_path()
         ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+        if "dataset" in kwargs.keys():
+            kwargs.pop("dataset")
+        if "model_name" in kwargs.keys():
+            kwargs.pop("model_name")
+        if "domain" in kwargs.keys():
+            kwargs.pop("domain")
+
         super().__init__(model_name, domain, dataset=ds, **kwargs)
 
     @staticmethod

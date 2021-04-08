@@ -54,9 +54,9 @@ class Transform:
         standardize_outputs : bool, optional
             Standardize all output continuous variables. Default is False.
         categorical_method : str, optional
-            The method for transforming categorical variables. Either
+            The method for transforming categorical variables. Either None,
             "one-hot" or "descriptors". Descriptors must be included in the
-            categorical variables for the later.
+            categorical variables for the later. Defaults to one-hot.
 
         Returns
         -------
@@ -66,7 +66,7 @@ class Transform:
         from sklearn.preprocessing import OneHotEncoder
 
         copy = kwargs.get("copy", True)
-        categorical_method = kwargs.get("categorical_method", "one-hot")
+        categorical_method = kwargs.get("categorical_method")
         standardize_inputs = kwargs.get("standardize_inputs", False)
         standardize_outputs = kwargs.get("standardize_outputs", False)
 
@@ -134,7 +134,10 @@ class Transform:
                 # Drop old categorical column, then write as metadata
                 new_ds = new_ds.drop(variable.name, axis=1)
                 new_ds[variable.name, "METADATA"] = values
-
+            elif (
+                isinstance(variable, CategoricalVariable) and categorical_method == None
+            ):
+                input_columns.append(variable.name)
             elif isinstance(variable, ContinuousVariable):
                 if standardize_inputs:
                     values, mean, std = self.standardize_column(
