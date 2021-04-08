@@ -18,3 +18,4 @@ from summit.domain import *
 from summit.experiment import *
 from summit.run import *
 from summit.strategies import *
+from summit.utils.dataset import DataSet
