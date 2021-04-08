@@ -64,6 +64,27 @@ class DataSet(pd.core.frame.DataFrame):
         if units:
             names.append("UNITS")
 
+        if type(data) is dict:
+            column_tuples = [key for key in list(data.keys())]
+            columns = []
+            metadata_columns = []
+            new_data = {}
+            for column_tuple in column_tuples:
+                if type(column_tuple) not in [list, tuple]:
+                    raise ValueError(
+                        "Dictionary keys must have the column name and column type as a tuple"
+                    )
+                elif column_tuple[1] == "DATA":
+                    columns.append(column_tuple[0])
+                elif column_tuple[1] == "METADATA":
+                    metadata_columns.append(column_tuple[0])
+                else:
+                    raise ValueError(
+                        f"{column_tuple} must be either a DATA or METADATA column"
+                    )
+            #     new_data[column_tuple[0]] = data[column_tuple]
+            # data = new_data
+
         if isinstance(columns, pd.MultiIndex):
             pass
         elif columns is not None:
