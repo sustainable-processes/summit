@@ -167,15 +167,16 @@ class TSEMO(Strategy):
             self.iterations += 1
             k = num_experiments if num_experiments > 1 else 2
             return lhs.suggest_experiments(k, criterion="maximin")
-        elif self.iterations == 1 and len(prev_res) == 1:
-            lhs = LHS(self.domain)
-            self.iterations += 1
-            self.all_experiments = prev_res
-            return lhs.suggest_experiments(num_experiments)
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
             self.all_experiments = self.all_experiments.append(prev_res)
+
+        if self.all_experiments.shape[0] <= len(self.columns):
+            lhs = LHS(self.domain)
+            self.iterations += 1
+            self.all_experiments = prev_res
+            return lhs.suggest_experiments(num_experiments)
 
         # Get inputs (decision variables) and outputs (objectives)
         inputs, outputs = self.transform.transform_inputs_outputs(
@@ -242,10 +243,11 @@ class TSEMO(Strategy):
         self.internal_res = minimize(
             problem, optimizer, termination, seed=1, verbose=False
         )
-        X = DataSet(self.internal_res.X, columns=self.columns)
-        y = DataSet(
-            self.internal_res.F, columns=[v.name for v in self.domain.output_variables]
-        )
+
+        X = np.atleast_2d(self.internal_res.X)
+        y = np.atleast_2d(self.internal_res.F)
+        X = DataSet(X, columns=self.columns)
+        y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
 
         # Select points that give maximum hypervolume improvement
         if X.shape[0] != 0 and y.shape[0] != 0:

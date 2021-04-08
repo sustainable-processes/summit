@@ -109,11 +109,11 @@ def test_runner_so_integration(strategy, experiment):
 @pytest.mark.parametrize(
     "experiment",
     [
-        SnarBenchmark,
         get_pretrained_baumgartner_cc_emulator(include_cost=True),
         get_pretrained_reizman_suzuki_emulator(),
         DTLZ2,
         VLMOP2,
+        SnarBenchmark,
     ],
 )
 def test_runner_mo_integration(strategy, experiment):
@@ -122,11 +122,14 @@ def test_runner_mo_integration(strategy, experiment):
     else:
         exp = experiment
 
-    if experiment == ReizmanSuzukiEmulator and strategy not in [SOBO]:
+    if experiment.__class__.__name__ == "ReizmanSuzukiEmulator" and strategy not in [
+        SOBO
+    ]:
         # only run on strategies that work with categorical variables deireclty
         return
     elif strategy == TSEMO:
         s = strategy(exp.domain)
+        iterations = 10
     else:
         hierarchy = {
             v.name: {"hierarchy": i, "tolerance": 1}
@@ -134,8 +137,9 @@ def test_runner_mo_integration(strategy, experiment):
         }
         transform = Chimera(exp.domain, hierarchy)
         s = strategy(exp.domain, transform=transform)
+        iterations = 3
 
-    r = Runner(strategy=s, experiment=exp, max_iterations=3, batch_size=1)
+    r = Runner(strategy=s, experiment=exp, max_iterations=iterations, batch_size=1)
     r.run()
 
     # Try saving and loading

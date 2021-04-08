@@ -38,7 +38,7 @@ jobs:
       run: poetry install -E experiments
 
     - name: Run pytest
-      run: poetry run pytest --doctest-modules --ignore=case_studies --ignore=experiments
+      run: poetry run pytest --doctest-modules --ignore=case_studies --ignore=experiments --disable-warnings
 
     - name: Build package
       run: poetry build
