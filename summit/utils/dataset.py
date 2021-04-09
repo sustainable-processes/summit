@@ -44,6 +44,21 @@ class DataSet(pd.core.frame.DataFrame):
     DataFrame.from_items : From sequence of (key, value) pairs
         pandas.read_csv, pandas.read_table, pandas.read_clipboard.
 
+    Examples
+    --------
+    >>> data_columns = ["tau", "equiv_pldn", "conc_dfnb", "temperature"]
+    >>> metadata_columns = ["strategy"]
+    >>> columns = data_columns + metadata_columns
+    >>> values = [[1.5, 0.5, 0.1, 30.0, "test"]]
+    >>> ds = DataSet(values, columns=columns, metadata_columns="strategy")
+    >>> values = {("tau", "DATA"): [1.5, 10.0], \
+                  ("equiv_pldn", "DATA"): [0.5, 3.0], \
+                  ("conc_dfnb", "DATA"): [0.1, 4.0], \
+                  ("temperature", "DATA"): [30.0, 100.0], \
+                  ("strategy", "METADATA"): ["test", "test"]}
+    >>> ds = DataSet(values)
+
+
     Notes
     ----
     Based on https://notes.mikejarrett.ca/storing-metadata-in-pandas-dataframes/
