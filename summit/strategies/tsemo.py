@@ -172,7 +172,7 @@ class TSEMO(Strategy):
         elif prev_res is not None and self.all_experiments is not None:
             self.all_experiments = self.all_experiments.append(prev_res)
 
-        if self.all_experiments.shape[0] <= len(self.columns):
+        if self.all_experiments.shape[0] <= 3:
             lhs = LHS(self.domain)
             self.iterations += 1
             self.all_experiments = prev_res
