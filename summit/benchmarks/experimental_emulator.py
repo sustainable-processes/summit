@@ -1474,7 +1474,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         if "domain" in kwargs.keys():
             kwargs.pop("domain")
 
-        super().__init__(model_name, domain, dataset=ds, **kwargs)
+        super().__init__(model_name=model_name, domain=domain, dataset=ds, **kwargs)
 
     @staticmethod
     def setup_domain():
@@ -1538,7 +1538,6 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         model_name = f"reizman_suzuki_case_{case}"
         return super().load(model_name, save_dir)
 
-    @classmethod
     def to_dict(self):
         """Serialize the class to a dictionary"""
         experiment_params = dict(

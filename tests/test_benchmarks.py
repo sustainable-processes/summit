@@ -95,7 +95,7 @@ def test_reizman_emulator(show_plots=False):
 
     # Test serialization
     d = b.to_dict()
-    exp = BaumgartnerCrossCouplingEmulator.from_dict(d)
+    exp = ReizmanSuzukiEmulator.from_dict(d)
     return results
 
 
