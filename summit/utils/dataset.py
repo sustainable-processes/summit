@@ -97,25 +97,6 @@ class DataSet(pd.core.frame.DataFrame):
                         f"{column_tuple} must be either a DATA or METADATA column"
                     )
 
-        if type(data) is list:
-            if type(data[0]) is dict:
-                column_tuples = [key for key in list(data[0].keys())]
-                columns = []
-                metadata_columns = []
-                new_data = {}
-                for column_tuple in column_tuples:
-                    if type(column_tuple) not in [list, tuple]:
-                        raise ValueError(
-                            "Dictionary keys must have the column name and column type as a tuple"
-                        )
-                    columns.append(column_tuple[0])
-                    if column_tuple[1] == "METADATA":
-                        metadata_columns.append(column_tuple[0])
-                    elif column_tuple[1] not in ["DATA", "METADATA"]:
-                        raise ValueError(
-                            f"{column_tuple} must be either a DATA or METADATA column"
-                        )
-
         if isinstance(columns, pd.MultiIndex):
             pass
         elif columns is not None:

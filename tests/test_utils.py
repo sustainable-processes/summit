@@ -26,25 +26,3 @@ def test_dataset():
     assert all(ds.columns.get_level_values("NAME").tolist()) == all(columns)
     assert all(ds.data_columns) == all(data_columns)
     assert all(ds.metadata_columns) == all(metadata_columns)
-
-    # Test creating dataset with list dictionary
-    values = [
-        {
-            ("tau", "DATA"): 1.5,
-            ("equiv_pldn", "DATA"): 0.5,
-            ("conc_dfnb", "DATA"): 0.1,
-            ("temperature", "DATA"): 30.0,
-            ("strategy", "METADATA"): "Kobi",
-        },
-        {
-            ("tau", "DATA"): 1.5,
-            ("equiv_pldn", "DATA"): 0.5,
-            ("conc_dfnb", "DATA"): 0.1,
-            ("temperature", "DATA"): 30.0,
-            ("strategy", "METADATA"): "Kobi",
-        },
-    ]
-    ds = DataSet(values)
-    assert all(ds.columns.get_level_values("NAME").tolist()) == all(columns)
-    assert all(ds.data_columns) == all(data_columns)
-    assert all(ds.metadata_columns) == all(metadata_columns)
