@@ -93,7 +93,8 @@ class Runner:
     >>> benchmark = SnarBenchmark()
     >>> strategy = Random(benchmark.domain)
     >>> r = Runner(strategy=strategy, experiment=benchmark, max_iterations=10)
-    >>> r.run()
+    >>> # Turn progress bar on by setting to True below
+    >>> r.run(progress_bar=False)
 
     """
 
@@ -148,7 +149,11 @@ class Runner:
         prev_res = None
         self.restarts = 0
 
-        for i in progress_bar(range(self.max_iterations)):
+        if kwargs.get("progress_bar", True):
+            bar = progress_bar(range(self.max_iterations))
+        else:
+            bar = range(self.max_iterations)
+        for i in bar:
             # Get experiment suggestions
             if i == 0:
                 k = self.n_init if self.n_init is not None else self.batch_size
@@ -354,7 +359,11 @@ class NeptuneRunner(Runner):
             neptune_exp = self.neptune_exp
 
         # Run optimization loop
-        for i in progress_bar(range(self.max_iterations)):
+        if kwargs.get("progress_bar", True):
+            bar = progress_bar(range(self.max_iterations))
+        else:
+            bar = range(self.max_iterations)
+        for i in bar:
             # Get experiment suggestions
             if i == 0:
                 k = self.n_init if self.n_init is not None else self.batch_size
