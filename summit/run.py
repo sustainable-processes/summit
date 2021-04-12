@@ -66,15 +66,12 @@ class Runner:
 
     Parameters
     ----------
-    strategy: `summit.strategies.Strategy`
+    strategy : :class:`~summit.strategies.Strategy`
         The summit strategy to be used. Note this should be an object
         (i.e., you need to call the strategy and then pass it). This allows
         you to add any transforms, options in advance.
-    experiment: `summit.experiment.Experiment`, optional
-        The experiment class to use for running experiments. If None,
-        the ExternalExperiment class will be used, which assumes that
-        data from each experimental run will be added as a keyword
-        argument to the `run` method.
+    experiment : :class:`~summit.experiment.Experiment`
+        The experiment or benchmark class to use for running experiments
     max_iterations: int, optional
         The maximum number of iterations to run. By default this is None.
     num_initial_experiments : int, optional
@@ -89,8 +86,15 @@ class Runner:
         The number of allowed iterations where the objectives don't improve by more than f_tol. Default is None.
     max_restarts : int, optional
         Number of restarts if max_same where is violated. Default is 0.
+
     Examples
     --------
+    >>> from summit import *
+    >>> benchmark = SnarBenchmark()
+    >>> strategy = Random(benchmark.domain)
+    >>> r = Runner(strategy=strategy, experiment=benchmark, max_iterations=10)
+    >>> # Turn progress bar on by setting to True below
+    >>> r.run(progress_bar=False)
 
     """
 
@@ -145,7 +149,11 @@ class Runner:
         prev_res = None
         self.restarts = 0
 
-        for i in progress_bar(range(self.max_iterations)):
+        if kwargs.get("progress_bar", True):
+            bar = progress_bar(range(self.max_iterations))
+        else:
+            bar = range(self.max_iterations)
+        for i in bar:
             # Get experiment suggestions
             if i == 0:
                 k = self.n_init if self.n_init is not None else self.batch_size
@@ -232,19 +240,18 @@ class Runner:
 
 
 class NeptuneRunner(Runner):
-    """Run a closed-loop strategy and experiment cycle
+    """Run a closed-loop strategy and experiment cycle with logging to Neptune
+
+
 
     Parameters
     ----------
-    strategy : `summit.strategies.Strategy`
+    strategy : :class:`~summit.strategies.base.Strategy`
         The summit strategy to be used. Note this should be an object
         (i.e., you need to call the strategy and then pass it). This allows
         you to add any transforms, options in advance.
-    experiment : `summit.experiment.Experiment`, optional
-        The experiment class to use for running experiments. If None,
-        the ExternalExperiment class will be used, which assumes that
-        data from each experimental run will be added as a keyword
-        argument to the `run` method.
+    experiment : :class:`~summit.experiment.Experiment`
+        The experiment or benchmark class to use for running experiments
     neptune_project : str
         The name of the Neptune project to log data to
     neptune_experiment_name : str
@@ -267,9 +274,6 @@ class NeptuneRunner(Runner):
     hypervolume_ref : array-like, optional
         The reference for the hypervolume calculation if it is a multiobjective problem.
         Should be an array of length the number of objectives. Default is at the origin.
-    Examples
-    --------
-
     """
 
     def __init__(
@@ -355,7 +359,11 @@ class NeptuneRunner(Runner):
             neptune_exp = self.neptune_exp
 
         # Run optimization loop
-        for i in progress_bar(range(self.max_iterations)):
+        if kwargs.get("progress_bar", True):
+            bar = progress_bar(range(self.max_iterations))
+        else:
+            bar = range(self.max_iterations)
+        for i in bar:
             # Get experiment suggestions
             if i == 0:
                 k = self.n_init if self.n_init is not None else self.batch_size
