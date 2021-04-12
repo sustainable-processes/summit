@@ -29,6 +29,7 @@ The BO strategies available in Summit are:
 
 * TSEMO_
 * SOBO_
+* MTBO_
 
 
 
@@ -48,6 +49,15 @@ SOBO
 
 .. autoclass:: summit.strategies.sobo.SOBO
    :members:
+
+MTBO
+^^^^
+
+.. _MTBO:
+
+.. autoclass:: summit.strategies.MTBO
+    :members:
+    :inherited-members:
 
 Reinforcement Learning
 ----------------------

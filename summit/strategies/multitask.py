@@ -41,11 +41,15 @@ class MTBO(Strategy):
     Notes
     -----
 
+    This strategy is based on a paper from the NIPs2020 ML4Molecules workshop by Felton_. See
+    Swersky_ for more information on multitask Bayesian optimization.
 
     References
     ----------
 
+    .. [Felton] K. Felton, et al, in `ML4 Molecules 2020 workshop <https://chemrxiv.org/articles/preprint/Multi-task_Bayesian_Optimization_of_Chemical_Reactions/13250216>`_.
     .. [Swersky] K. Swersky et al., in `NIPS Proceedings <http://papers.neurips.cc/paper/5086-multi-task-bayesian-optimization>`_, 2013, pp. 2004–2012.
+
 
     Examples
     --------
@@ -70,7 +74,7 @@ class MTBO(Strategy):
     def __init__(
         self,
         domain: Domain,
-        pretraining_data=None,
+        pretraining_data: DataSet = None,
         transform: Transform = None,
         task: int = 1,
         categorical_method: str = "one-hot",
@@ -87,6 +91,41 @@ class MTBO(Strategy):
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
+        """Suggest experiments using MTBO
+
+        Parameters
+        ----------
+        num_experiments : int
+            The number of experiments (i.e., samples) to generate
+        prev_res : :class:`~summit.utils.data.DataSet`, optional
+            Dataset with data from previous experiments.
+            If no data is passed, then latin hypercube sampling will
+            be used to suggest an initial design.
+
+        Returns
+        -------
+        next_experiments : :class:`~summit.utils.data.DataSet`
+            A Dataset object with the suggested experiments
+
+        Examples
+        --------
+        >>> from summit.benchmarks import MIT_case1, MIT_case2
+        >>> from summit.strategies import LHS, MTBO
+        >>> from summit import Runner
+        >>> # Get pretraining data
+        >>> exp_pt = MIT_case1(noise_level=1)
+        >>> lhs = LHS(exp_pt.domain)
+        >>> conditions = lhs.suggest_experiments(10)
+        >>> pt_data = exp_pt.run_experiments((conditions))
+        >>> pt_data[("task", "METADATA")] = 0
+        >>> # Use MTBO on a new mechanism
+        >>> exp = MIT_case2(noise_level=1)
+        >>> data = exp.run_experiments(conditions)
+        >>> data[("task", "METADATA")] = 1
+        >>> strategy = MTBO(exp.domain,pretraining_data=pt_data, categorical_method="one-hot",task=1)
+        >>> res = strategy.suggest_experiments(2, prev_res=data)
+
+        """
         from botorch.models import MultiTaskGP
         from botorch.fit import fit_gpytorch_model
         from botorch.optim import optimize_acqf
