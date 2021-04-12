@@ -74,7 +74,7 @@ class MTBO(Strategy):
         transform: Transform = None,
         task: int = 1,
         categorical_method: str = "one-hot",
-        **kwargs
+        **kwargs,
     ):
         Strategy.__init__(self, domain, transform, **kwargs)
         self.pretraining_data = pretraining_data
@@ -234,7 +234,6 @@ class CategoricalEI(EI):
     def round_to_one_hot(X, domain: Domain):
         """Round all categorical variables to a one-hot encoding"""
         c = 0
-        # X = X.detach().cpu().numpy()
         for v in domain.input_variables:
             if isinstance(v, CategoricalVariable):
 
@@ -243,11 +242,18 @@ class CategoricalEI(EI):
                 X[:, :, c : c + n_levels] = 0
                 for j, l in zip(range(X.shape[0]), levels_selected):
                     X[j, :, int(c + l)] = 1
-                assert int(X.squeeze()[:, c : c + n_levels].sum()) == X.shape[0]
+
+                check = int(X.squeeze()[:, c : c + n_levels].sum()) == X.shape[0]
+                if not check:
+                    raise ValueError(
+                        (
+                            f"Rounding to a one-hot encoding is not properly working. Please report this bug at "
+                            f"https://github.com/sustainable-processes/summit/issues. Tensor: \n {X[:, :, c : c + n_levels]}"
+                        )
+                    )
                 c += n_levels
             else:
                 c += 1
-
         return X
 
 
@@ -309,7 +315,7 @@ class STBO(Strategy):
         domain: Domain,
         transform: Transform = None,
         categorical_method: str = "one-hot",
-        **kwargs
+        **kwargs,
     ):
         Strategy.__init__(self, domain, transform, **kwargs)
         self.categorical_method = categorical_method
