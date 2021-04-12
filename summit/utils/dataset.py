@@ -44,6 +44,21 @@ class DataSet(pd.core.frame.DataFrame):
     DataFrame.from_items : From sequence of (key, value) pairs
         pandas.read_csv, pandas.read_table, pandas.read_clipboard.
 
+    Examples
+    --------
+    >>> data_columns = ["tau", "equiv_pldn", "conc_dfnb", "temperature"]
+    >>> metadata_columns = ["strategy"]
+    >>> columns = data_columns + metadata_columns
+    >>> values = [[1.5, 0.5, 0.1, 30.0, "test"]]
+    >>> ds = DataSet(values, columns=columns, metadata_columns="strategy")
+    >>> values = {("tau", "DATA"): [1.5, 10.0], \
+                  ("equiv_pldn", "DATA"): [0.5, 3.0], \
+                  ("conc_dfnb", "DATA"): [0.1, 4.0], \
+                  ("temperature", "DATA"): [30.0, 100.0], \
+                  ("strategy", "METADATA"): ["test", "test"]}
+    >>> ds = DataSet(values)
+
+
     Notes
     ----
     Based on https://notes.mikejarrett.ca/storing-metadata-in-pandas-dataframes/
@@ -74,16 +89,13 @@ class DataSet(pd.core.frame.DataFrame):
                     raise ValueError(
                         "Dictionary keys must have the column name and column type as a tuple"
                     )
-                elif column_tuple[1] == "DATA":
-                    columns.append(column_tuple[0])
-                elif column_tuple[1] == "METADATA":
+                columns.append(column_tuple[0])
+                if column_tuple[1] == "METADATA":
                     metadata_columns.append(column_tuple[0])
-                else:
+                elif column_tuple[1] not in ["DATA", "METADATA"]:
                     raise ValueError(
                         f"{column_tuple} must be either a DATA or METADATA column"
                     )
-            #     new_data[column_tuple[0]] = data[column_tuple]
-            # data = new_data
 
         if isinstance(columns, pd.MultiIndex):
             pass
