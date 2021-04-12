@@ -25,12 +25,12 @@ class MTBO(Strategy):
 
     domain : :class:`~summit.domain.Domain`
         The domain of the optimization
+    pretraining_data : :class:`~summit.utils.data.DataSet`, optional
+        A DataSet with pretraining data. Must contain a metadata column named "task"
+        that specfies the task for all data.
     transform : :class:`~summit.strategies.base.Transform`, optional
         A transform object. By default, no transformation will be done
         on the input variables or objectives.
-    pretraining_data : :class:`~summit.utils.data.DataSet`
-        A DataSet with pretraining data. Must contain a metadata column named "task"
-        that specfies the task for all data.
     task : int, optional
         The index of the task being optimized. Defaults to 1.
     categorical_method : str, optional
@@ -50,20 +50,20 @@ class MTBO(Strategy):
     Examples
     --------
 
-    >>> from summit.domain import Domain, ContinuousVariable
-    >>> from summit.strategies import NelderMead
-    >>> domain = Domain()
-    >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 1])
-    >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
-    >>> domain += ContinuousVariable(name='yield', description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
-    >>> strategy = NelderMead(domain)
-    >>> next_experiments  = strategy.suggest_experiments()
-    >>> print(next_experiments)
-    NAME temperature flowrate_a             strategy
-    TYPE        DATA       DATA             METADATA
-    0          0.500      0.500  Nelder-Mead Simplex
-    1          0.625      0.500  Nelder-Mead Simplex
-    2          0.500      0.625  Nelder-Mead Simplex
+    >>> from summit.benchmarks import MIT_case1, MIT_case2
+    >>> from summit.strategies import LHS, MTBO
+    >>> from summit import Runner
+    >>> # Get pretraining data
+    >>> exp_pt = MIT_case1(noise_level=1)
+    >>> lhs = LHS(exp_pt.domain)
+    >>> conditions = lhs.suggest_experiments(10)
+    >>> pt_data = exp_pt.run_experiments((conditions))
+    >>> pt_data[("task", "METADATA")] = 0
+    >>> # Use MTBO on a new mechanism
+    >>> exp = MIT_case2(noise_level=1)
+    >>> strategy = MTBO(exp.domain,pretraining_data=pt_data, categorical_method="one-hot",task=1)
+    >>> r = Runner(strategy=strategy, experiment=exp, max_iterations=2)
+    >>> r.run(progress_bar=False)
 
     """
 
@@ -234,16 +234,20 @@ class CategoricalEI(EI):
     def round_to_one_hot(X, domain: Domain):
         """Round all categorical variables to a one-hot encoding"""
         c = 0
+        # X = X.detach().cpu().numpy()
         for v in domain.input_variables:
             if isinstance(v, CategoricalVariable):
+
                 n_levels = len(v.levels)
-                levels_selected = X[:, :, c : c + n_levels].argmax(axis=1)
+                levels_selected = X[:, :, c : c + n_levels].squeeze().argmax(axis=1)
                 X[:, :, c : c + n_levels] = 0
-                for j, l in enumerate(levels_selected):
-                    X[j, :, l] = 1
+                for j, l in zip(range(X.shape[0]), levels_selected):
+                    X[j, :, int(c + l)] = 1
+                assert int(X.squeeze()[:, c : c + n_levels].sum()) == X.shape[0]
                 c += n_levels
             else:
                 c += 1
+
         return X
 
 
