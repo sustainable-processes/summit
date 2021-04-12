@@ -59,6 +59,7 @@ Below is a quick start that demonstrates the functionality of Summit:
    domains
    experiments_benchmarks/index
    strategies
+   runner
    transforms
    utils
 
