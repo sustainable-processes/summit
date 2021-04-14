@@ -3,9 +3,9 @@ from .random import LHS
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
-# from botorch.models.model import Model
-# from botorch.acquisition.objective import ScalarizedObjective
 from botorch.acquisition import ExpectedImprovement as EI
+
+# from botorch.acquisition import qExpectedImprovement as qEI
 
 import numpy as np
 from typing import Type, Tuple, Union, Optional
@@ -53,7 +53,6 @@ class MTBO(Strategy):
 
     Examples
     --------
-
     >>> from summit.benchmarks import MIT_case1, MIT_case2
     >>> from summit.strategies import LHS, MTBO
     >>> from summit import Runner
@@ -116,11 +115,12 @@ class MTBO(Strategy):
         >>> exp_pt = MIT_case1(noise_level=1)
         >>> lhs = LHS(exp_pt.domain)
         >>> conditions = lhs.suggest_experiments(10)
-        >>> pt_data = exp_pt.run_experiments((conditions))
-        >>> pt_data[("task", "METADATA")] = 0
+        >>> pt_data = exp_pt.run_experiments(conditions)
+        >>> pt_data["task", "METADATA"] = 0
         >>> # Use MTBO on a new mechanism
         >>> exp = MIT_case2(noise_level=1)
-        >>> data = exp.run_experiments(conditions)
+        >>> new_conditions = lhs.suggest_experiments(10)
+        >>> data = exp.run_experiments(new_conditions)
         >>> data[("task", "METADATA")] = 1
         >>> strategy = MTBO(exp.domain,pretraining_data=pt_data, categorical_method="one-hot",task=1)
         >>> res = strategy.suggest_experiments(2, prev_res=data)
@@ -132,6 +132,11 @@ class MTBO(Strategy):
         from gpytorch.mlls.exact_marginal_log_likelihood import (
             ExactMarginalLogLikelihood,
         )
+
+        if num_experiments != 1:
+            raise NotImplementedError(
+                "Multitask does not support batch optimization yet. See https://github.com/sustainable-processes/summit/issues/119#"
+            )
 
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
@@ -267,8 +272,9 @@ class CategoricalEI(EI):
         best_f,
         objective=None,
         maximize: bool = True,
+        **kwargs,
     ) -> None:
-        super().__init__(model, best_f, objective, maximize)
+        super().__init__(model, best_f, objective, maximize, **kwargs)
         self._domain = domain
 
     def forward(self, X):
@@ -278,27 +284,28 @@ class CategoricalEI(EI):
     @staticmethod
     def round_to_one_hot(X, domain: Domain):
         """Round all categorical variables to a one-hot encoding"""
-        c = 0
-        for v in domain.input_variables:
-            if isinstance(v, CategoricalVariable):
+        num_experiments = X.shape[1]
+        for q in range(num_experiments):
+            c = 0
+            for v in domain.input_variables:
+                if isinstance(v, CategoricalVariable):
+                    n_levels = len(v.levels)
+                    levels_selected = X[:, q, c : c + n_levels].argmax(axis=1)
+                    X[:, q, c : c + n_levels] = 0
+                    for j, l in zip(range(X.shape[0]), levels_selected):
+                        X[j, q, int(c + l)] = 1
 
-                n_levels = len(v.levels)
-                levels_selected = X[:, :, c : c + n_levels].squeeze().argmax(axis=1)
-                X[:, :, c : c + n_levels] = 0
-                for j, l in zip(range(X.shape[0]), levels_selected):
-                    X[j, :, int(c + l)] = 1
-
-                check = int(X.squeeze()[:, c : c + n_levels].sum()) == X.shape[0]
-                if not check:
-                    raise ValueError(
-                        (
-                            f"Rounding to a one-hot encoding is not properly working. Please report this bug at "
-                            f"https://github.com/sustainable-processes/summit/issues. Tensor: \n {X[:, :, c : c + n_levels]}"
+                    check = int(X[:, q, c : c + n_levels].sum()) == X.shape[0]
+                    if not check:
+                        raise ValueError(
+                            (
+                                f"Rounding to a one-hot encoding is not properly working. Please report this bug at "
+                                f"https://github.com/sustainable-processes/summit/issues. Tensor: \n {X[:, :, c : c + n_levels]}"
+                            )
                         )
-                    )
-                c += n_levels
-            else:
-                c += 1
+                    c += n_levels
+                else:
+                    c += 1
         return X
 
 
