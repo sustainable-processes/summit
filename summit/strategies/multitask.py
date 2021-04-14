@@ -285,6 +285,7 @@ class CategoricalEI(EI):
     def round_to_one_hot(X, domain: Domain):
         """Round all categorical variables to a one-hot encoding"""
         num_experiments = X.shape[1]
+        X = X.clone()
         for q in range(num_experiments):
             c = 0
             for v in domain.input_variables:
