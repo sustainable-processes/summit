@@ -29,7 +29,7 @@ The BO strategies available in Summit are:
 
 * TSEMO_
 * SOBO_
-
+* ENTMOOT_
 
 
 TSEMO
@@ -47,6 +47,14 @@ SOBO
 .. _SOBO:
 
 .. autoclass:: summit.strategies.sobo.SOBO
+   :members:
+
+ENTMOOT
+^^^^^^^
+
+.. _ENTMOOT:
+
+.. autoclass:: summit.strategies.ENTMOOT
    :members:
 
 Reinforcement Learning
