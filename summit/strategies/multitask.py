@@ -123,7 +123,7 @@ class MTBO(Strategy):
         >>> data = exp.run_experiments(new_conditions)
         >>> data[("task", "METADATA")] = 1
         >>> strategy = MTBO(exp.domain,pretraining_data=pt_data, categorical_method="one-hot",task=1)
-        >>> res = strategy.suggest_experiments(2, prev_res=data)
+        >>> res = strategy.suggest_experiments(1, prev_res=data)
 
         """
         from botorch.models import MultiTaskGP
