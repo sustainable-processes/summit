@@ -148,6 +148,10 @@ class MTBO(Strategy):
         self.iterations += 1
 
         # Combine pre-training and experiment data
+        if "task" not in self.pretraining_data.metadata_columns:
+            raise ValueError(
+                """The pretraining data must have a METADATA column called "task" with the task number."""
+            )
         data = self.all_experiments.append(self.pretraining_data)
 
         # Get inputs (decision variables) and outputs (objectives)
@@ -159,7 +163,9 @@ class MTBO(Strategy):
         )
 
         # Add column to inputs indicating task
-        task_data = data["task"].to_numpy()
+        task_data = data["task"].dropna().to_numpy()
+        if data.shape[0] != data.shape[0]:
+            raise ValueError("Pretraining data must have a task for every row.")
         task_data = np.atleast_2d(task_data).T
         inputs_task = np.append(inputs.data_to_numpy(), task_data, axis=1).astype(
             np.float
@@ -185,7 +191,7 @@ class MTBO(Strategy):
             maximize = False
         ei = CategoricalEI(self.domain, model, best_f=fbest_scaled, maximize=maximize)
 
-        # Optimize acquisitio function
+        # Optimize acquisition function
         results, _ = optimize_acqf(
             acq_function=ei,
             bounds=self._get_bounds(),
