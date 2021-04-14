@@ -638,17 +638,16 @@ def test_sobo(
 
 
 @pytest.mark.parametrize(
-    "batch_size, max_num_exp, maximize, constraint",
+    "max_num_exp, maximize, constraint",
     [
-        [1, 1, True, True],
-        [1, 200, True, True],
-        [4, 200, False, True],
-        [1, 200, True, False],
-        [4, 200, False, False],
+        [1, True, True],
+        [200, True, True],
+        [200, False, True],
+        [200, True, False],
+        [200, False, False],
     ],
 )
 def test_mtbo(
-    batch_size,
     max_num_exp,
     maximize,
     constraint,
@@ -664,6 +663,7 @@ def test_mtbo(
     results = hartmann3D.run_experiments(conditions)
     results["task", "METADATA"] = 0
     strategy = MTBO(domain=hartmann3D.domain, pretraining_data=results)
+    batch_size = 1
 
     # run SOBO loop for fixed <num_iter> number of iteration
     num_iter = max_num_exp // batch_size  # maximum number of iterations

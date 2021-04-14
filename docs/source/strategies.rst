@@ -21,14 +21,15 @@ With the updated model, we use one of two classes of techniques to select our ne
    :height: 300 px
    :figclass: align-center
 
-   Illustration of how acquisition functions eanble BO strategies to reduce uncertainty and maximise objective simulataneously. Dotted line is actual objective and solid line is posterior of surrogate model. Acquisition function is high where objective to be optimal (exploration) and where there is high uncertainty (exploitation). Adapted from `Shahriari et al. <https://www.cs.ox.ac.uk/people/nando.defreitas/publications/BayesOptLoop.pdf>`_
+   Illustration of how acquisition functions eanble BO strategies to reduce uncertainty and maximise objective simulataneously. Dotted line is actual objective and solid line is posterior of surrogate model. Acquisition function is high where objective to be optimal (exploration) and where there is high uncertainty (exploitation). Adapted from `Shahriari et al. <https://ieeexplore.ieee.org/document/7352306>`_
 
-To learn more about BO, we suggest reading the review by `Shahriari et al. <https://www.cs.ox.ac.uk/people/nando.defreitas/publications/BayesOptLoop.pdf>`_
+To learn more about BO, we suggest reading the review by `Shahriari et al. <https://ieeexplore.ieee.org/document/7352306>`_
 
 The BO strategies available in Summit are:
 
 * TSEMO_
 * SOBO_
+* MTBO_
 * ENTMOOT_
 
 
@@ -49,6 +50,16 @@ SOBO
 .. autoclass:: summit.strategies.sobo.SOBO
    :members:
 
+
+MTBO
+^^^^
+
+.. _MTBO:
+
+.. autoclass:: summit.strategies.MTBO
+    :members:
+    :inherited-members:
+
 ENTMOOT
 ^^^^^^^
 
@@ -56,6 +67,7 @@ ENTMOOT
 
 .. autoclass:: summit.strategies.ENTMOOT
    :members:
+
 
 Reinforcement Learning
 ----------------------
