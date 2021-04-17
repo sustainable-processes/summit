@@ -67,16 +67,16 @@ jobs:
    - name: Install toml
      run: pip install toml
 
-#   - name: Check for version bump and tag
-#     id: version_check
-#     uses: salsify/action-detect-and-tag-new-version@v2
-#     with:
-##       create-tag: $ {{ github.ref == 'refs/heads/master' }} # only create new tag on master
-#       version-command: |
-#         python get_version.py
-
+   - name: Check for version bump and tag
+     id: version_check
+     uses: salsify/action-detect-and-tag-new-version@v2
+     with:
+       create-tag: $ {{ github.ref == 'refs/heads/master' }} # only create new tag on master
+       version-command: |
+         python get_version.py
 
    - name: Publish
      # Only publish if there is a new tag
-#     if: ${{ steps.version_check.tag }}
-     run:  poetry config repositories.testpypi https://test.pypi.org/legacy/ && poetry publish --build -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -r testpypi
+     if: ${{ steps.version_check.tag }}
+     run: echo "Hello"
+#     run: poetry publish --build -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -r testpypi
