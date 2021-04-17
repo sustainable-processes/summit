@@ -71,7 +71,7 @@ jobs:
      id: version_check
      uses: salsify/action-detect-and-tag-new-version@v2
      with:
-       tag-template: {VERSION}
+       tag-template: "{VERSION}"
        create-tag: ${{ github.ref == 'refs/heads/master' }} # only create new tag on master
        version-command: |
          python get_version.py
