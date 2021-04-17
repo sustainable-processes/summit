@@ -88,4 +88,4 @@ jobs:
    - name: Publish
      # Only publish if there is a new tag
 #     if: ${{ steps.version_check.tag }}
-     run:  poetry config repositories.testpypi https://test.pypi.org/legacy/ && poetry publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -r
+     run:  poetry config repositories.testpypi https://test.pypi.org/legacy/ && poetry publish -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }} -r testpypi
