@@ -37,8 +37,8 @@ jobs:
     - name: Install dependencies
       run: poetry install -E experiments
 
-    - name: Run pytest
-      run: poetry run pytest --doctest-modules --ignore=experiments --disable-warnings
+#    - name: Run pytest
+#      run: poetry run pytest --doctest-modules --ignore=experiments --disable-warnings
 
     # Check that the build process works correctly
     - name: Build package
