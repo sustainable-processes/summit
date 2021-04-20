@@ -54,6 +54,7 @@ jobs:
      with:
        # Make sure to fetch the last two commits
        # Needed forthe version bump and tag
+       ref: "master"
        fetch-depth: 2
 
    - name: Install python

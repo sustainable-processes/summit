@@ -189,10 +189,10 @@ class MTBO(Strategy):
         # Create acquisition function
         objective = self.domain.output_variables[0]
         if objective.maximize:
-            fbest_scaled = data[data["task"] == self.task].max()[objective.name]
+            fbest_scaled = output[output["task"] == self.task].max()[objective.name]
             maximize = True
         else:
-            fbest_scaled = data[data["task"] == self.task].min()[objective.name]
+            fbest_scaled = output[output["task"] == self.task].min()[objective.name]
             maximize = False
         ei = CategoricalEI(self.domain, model, best_f=fbest_scaled, maximize=maximize)
 
@@ -420,10 +420,10 @@ class STBO(Strategy):
         # Create acquisition function
         objective = self.domain.output_variables[0]
         if objective.maximize:
-            fbest_scaled = data.max()[objective.name]
+            fbest_scaled = output.max()[objective.name]
             maximize = True
         else:
-            fbest_scaled = data.min()[objective.name]
+            fbest_scaled = output.min()[objective.name]
             maximize = False
         ei = CategoricalEI(self.domain, model, best_f=fbest_scaled, maximize=maximize)
 
