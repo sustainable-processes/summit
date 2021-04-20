@@ -20,3 +20,4 @@ from summit.run import *
 from summit.strategies import *
 from summit.benchmarks import *
 from summit.utils.dataset import DataSet
+from summit.utils.multiobjective import pareto_efficient, hypervolume
