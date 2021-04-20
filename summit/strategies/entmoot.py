@@ -8,75 +8,63 @@ import pandas as pd
 
 
 class ENTMOOT(Strategy):
-    """Single-objective Bayesian optimization, using gradient-boosted trees
-        instead of Gaussian processes, via ENTMOOT (ENsemble Tree MOdel
-                                                    Optimization Tool)
+    """
+    Single-objective Bayesian optimization, using gradient-boosted trees
+    instead of Gaussian processes, via ENTMOOT (ENsemble Tree MOdel Optimization Tool)
 
+    This is currently an experimental feature and requires Gurobipy to be installed.
 
-        Parameters
-        ----------
-        domain: :class:`~summit.domain.Domain`
-            The Summit domain describing the optimization problem.
-        transform : :class:`~summit.strategies.base.Transform`, optional
-            A transform object. By default no transformation will be done
-            on the input variables or objectives.
-        estimator_type: string, optional
-            The ENTMOOT base_estimator type.
-            By default, Gradient-Boosted Regression
-        std_estimator_type: string, optional
-            The ENTMOOT std_estimator
-            By default, bounded data distance
-        acquisition_type: string, optional
-            The acquisition function type from ENTMOOT. See notes for options.
-            By default, Lower Confidence Bound.
-        optimizer_type: string, optional
-            The optimizer used in ENTMOOT for maximization of the acquisition function.
-            By default, sampling will be used.
-        generator_type: string, optional
-            The method for generating initial points before a model can be trained.
-            By default, uniform random points will be used.
-        initial_points: int, optional
-            How many points to require before training models
-        min_child_samples: int, optional
-            Minimum size of a leaf in tree models
+    Parameters
+    ----------
+    domain: :class:`~summit.domain.Domain`
+        The Summit domain describing the optimization problem.
+    transform : :class:`~summit.strategies.base.Transform`, optional
+        A transform object. By default no transformation will be done
+        on the input variables or objectives.
+    estimator_type: string, optional
+        The ENTMOOT base_estimator type.
+        By default, Gradient-Boosted Regression
+    std_estimator_type: string, optional
+        The ENTMOOT std_estimator
+        By default, bounded data distance
+    acquisition_type: string, optional
+        The acquisition function type from ENTMOOT. See notes for options.
+        By default, Lower Confidence Bound.
+    optimizer_type: string, optional
+        The optimizer used in ENTMOOT for maximization of the acquisition function.
+        By default, sampling will be used.
+    generator_type: string, optional
+        The method for generating initial points before a model can be trained.
+        By default, uniform random points will be used.
+    initial_points: int, optional
+        How many points to require before training models
+    min_child_samples: int, optional
+        Minimum size of a leaf in tree models
 
-    [note: do we need these ones?]
-        use_descriptors : bool, optional
-            Whether to use descriptors of categorical variables. Defaults to False.
-        exact_feval: boolean, optional
-            Whether the function evaluations are exact (True) or noisy (False).
-            By default: False.
-        ARD: boolean, optional
-            Whether automatic relevance determination should be applied (True).
-            By default: True.
-        standardize_outputs: boolean, optional
-            Whether the outputs should be standardized (True).
-            By default: True.
+    Examples
+    --------
+    >>> from summit.domain import *
+    >>> from summit.strategies.entmoot import ENTMOOT
+    >>> import numpy as np
+    >>> domain = Domain()
+    >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
+    >>> domain += CategoricalVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
+    >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
+    >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
+    >>> # strategy = ENTMOOT(domain)
+    >>> # next_experiments = strategy.suggest_experiments(5)
 
-        Examples
-        --------
-        >>> from summit.domain import *
-        >>> from summit.strategies.entmoot import ENTMOOT
-        >>> import numpy as np
-        >>> domain = Domain()
-        >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
-        >>> domain += CategoricalVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
-        >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.5])
-        >>> domain += ContinuousVariable(name='yield', description='yield of reaction', bounds=[0,100], is_objective=True)
-        >>> # strategy = ENTMOOT(domain)
-        >>> # next_experiments = strategy.suggest_experiments(5)
+    Notes
+    ----------
 
-        Notes
-        ----------
+    Estimator type can either by GBRT (Gradient-boosted regression trees) or RF (random forest from scikit-learn).
 
-        Estimator type
-            GBRT: Gradient-boosted regression trees
+    Acquisition function type can only be LCB (lower confidence bound).
 
-            RF: random forest (scikit-learn)
+    Based on the paper from [Thebelt]_ et al.
 
-        Acquisition function type
-            LCB: lower confidence bound
-
+    .. [Thebelt] A. Thebelt et al.
+       "ENTMOOT: A Framework for Optimization over Ensemble Tree Models", `ArXiv <https://arxiv.org/abs/2003.04774>`_
 
     """
 

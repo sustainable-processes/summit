@@ -636,6 +636,7 @@ class ExperimentalEmulator(Experiment):
             net = predictor.regressor_.named_steps.net
             net.initialize()
             net.load_params(f_params=save_dir / f"{self.model_name}_predictor_{i}.pt")
+            predictor.regressor_.named_steps.net = net
 
     def save(self, save_dir):
         """Save all the essential parameters of the ExperimentalEmulator to disk

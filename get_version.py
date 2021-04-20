@@ -1,8 +1,8 @@
-# import toml
+import toml
 
-# with open("pyproject.toml", "r") as f:
-#     text = f.read()
+with open("pyproject.toml", "r") as f:
+    text = f.read()
 
-# toml_dict = toml.loads(text)
+toml_dict = toml.loads(text)
 
-# print(toml_dict["tool"]["poetry"]["version"])
+print(toml_dict["tool"]["poetry"]["version"])
