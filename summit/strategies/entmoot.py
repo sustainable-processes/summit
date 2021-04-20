@@ -144,7 +144,7 @@ class ENTMOOT(Strategy):
 
         # TODO: how to handle equality constraints? Could we remove '==' from constraint types as each equality
         #  constraint reduces the degrees of freedom?
-        if self.domain.constraints is not None:
+        if len(self.domain.constraints) != 0:
             self.constraints = self.constr_wrapper(self.domain)
         else:
             self.constraints = None
@@ -192,7 +192,7 @@ class ENTMOOT(Strategy):
         else:
             self.optimizer_type = "sampling"  # default optimizer: sampling
 
-        if self.optimizer_type == "sampling" & self.constraints is not None:
+        if (self.optimizer_type == "sampling") & (self.constraints is not None):
             raise ValueError(
                 "Constraints can only be applied when ENTMOOT is using"
                 "global solver. Set optimizer_type = global or remove"
@@ -252,10 +252,6 @@ class ENTMOOT(Strategy):
         """
         from entmoot.optimizer.optimizer import Optimizer
         from entmoot.space.space import Space
-        from entmoot.optimizer.gurobi_utils import get_core_gurobi_model
-
-        if not self.gurobi_missing:
-            from gurobipy import LinExpr
 
         param = None
         xbest = np.zeros(self.domain.num_continuous_dimensions())
@@ -264,18 +260,25 @@ class ENTMOOT(Strategy):
         fbest = float("inf")
 
         bounds = [k["domain"] for k in self.input_domain]
-
         space = Space(bounds)
-        core_model = get_core_gurobi_model(space)
-        gvars = core_model.getVars()
 
-        for c in self.constraints:
-            left = LinExpr()
-            left.addTerms(c[0], gvars)
-            left.addConstant(c[1])
-            core_model.addLConstr(left, c[2], 0)
+        if not self.gurobi_missing:
+            from gurobipy import LinExpr
+            from entmoot.optimizer.gurobi_utils import get_core_gurobi_model
 
-        core_model.update()
+            core_model = get_core_gurobi_model(space)
+            gvars = core_model.getVars()
+
+            for c in self.constraints:
+                left = LinExpr()
+                left.addTerms(c[0], gvars)
+                left.addConstant(c[1])
+                core_model.addLConstr(left, c[2], 0)
+
+            core_model.update()
+            acq_optimizer_kwargs = {"add_model_core": core_model}
+        else:
+            acq_optimizer_kwargs = None
 
         entmoot_model = Optimizer(
             dimensions=bounds,
@@ -287,7 +290,7 @@ class ENTMOOT(Strategy):
             acq_optimizer=self.optimizer_type,
             random_state=None,
             acq_func_kwargs=None,
-            acq_optimizer_kwargs={"add_model_core": core_model},
+            acq_optimizer_kwargs=acq_optimizer_kwargs,
             base_estimator_kwargs={"min_child_samples": self.min_child_samples},
             std_estimator_kwargs=None,
             model_queue_size=None,

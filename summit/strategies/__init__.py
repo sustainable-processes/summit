@@ -17,6 +17,7 @@ __all__ = [
     "TSEMO",
     "NelderMead",
     "SNOBFIT",
+    "ENTMOOT",
     "MTBO",
     "STBO",
     "SOBO",
