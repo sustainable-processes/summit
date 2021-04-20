@@ -175,7 +175,7 @@ class TSEMO(Strategy):
         if self.all_experiments.shape[0] <= 3:
             lhs = LHS(self.domain)
             self.iterations += 1
-            self.all_experiments = prev_res
+            self.all_experiments.append(prev_res)
             return lhs.suggest_experiments(num_experiments)
 
         # Get inputs (decision variables) and outputs (objectives)
