@@ -163,7 +163,7 @@ class TSEMO(Strategy):
 
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
-            lhs = LHS(self.domain)
+            lhs = LHS(self.domain, categorical_method="descriptors")
             self.iterations += 1
             k = num_experiments if num_experiments > 1 else 2
             return lhs.suggest_experiments(k, criterion="maximin")
@@ -173,9 +173,8 @@ class TSEMO(Strategy):
             self.all_experiments = self.all_experiments.append(prev_res)
 
         if self.all_experiments.shape[0] <= 3:
-            lhs = LHS(self.domain)
+            lhs = LHS(self.domain, categorical_method="descriptors")
             self.iterations += 1
-            self.all_experiments = prev_res
             return lhs.suggest_experiments(num_experiments)
 
         # Get inputs (decision variables) and outputs (objectives)
