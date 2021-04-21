@@ -31,7 +31,7 @@ To install summit, use the following command:
 
 ## News
 
-* Kobi ([@marcosfelt](https://github.com/marcosfelt)) will give a tutorial on Summit at the online Autonomous Discovery Symposium on Wednesday 21 April 2021. The tutorial can be found [here](https://colab.research.google.com/drive/1E_KVm-aZMqMm3memvesn3FIzGiXKHwJz#scrollTo=Wxg4TiHLV0Kd&uniqifier=2).
+* Kobi ([@marcosfelt](https://github.com/marcosfelt)) gave a tutorial on Summit at the online Autonomous Discovery Symposium on Wednesday 21 April 2021. The tutorial can be found [here](https://colab.research.google.com/drive/1E_KVm-aZMqMm3memvesn3FIzGiXKHwJz#scrollTo=Wxg4TiHLV0Kd&uniqifier=2).
 
 ## Quick Start
 
