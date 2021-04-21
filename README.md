@@ -8,7 +8,7 @@
 <a href="https://pypi.org/project/nsummit/"><img alt="PyPI" src="https://img.shields.io/pypi/v/summit"></a>
 </p>
 
-Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions.
+Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions. Go through a tutorial [here](https://colab.research.google.com/drive/1E_KVm-aZMqMm3memvesn3FIzGiXKHwJz#scrollTo=Wxg4TiHLV0Kd&uniqifier=2)!
 
 
 ## What is Summit?
@@ -31,7 +31,7 @@ To install summit, use the following command:
 
 ## News
 
-* Kobi ([@marcosfelt](https://github.com/marcosfelt)) will give a tutorial on Summit at the online Autonomous Discovery Symposium on Wednesday 21 April 2021. [Register now for free](https://autonomous-discovery.lbl.gov/home)!
+* Kobi ([@marcosfelt](https://github.com/marcosfelt)) will give a tutorial on Summit at the online Autonomous Discovery Symposium on Wednesday 21 April 2021. The tutorial can be found [here](https://colab.research.google.com/drive/1E_KVm-aZMqMm3memvesn3FIzGiXKHwJz#scrollTo=Wxg4TiHLV0Kd&uniqifier=2).
 
 ## Quick Start
 
