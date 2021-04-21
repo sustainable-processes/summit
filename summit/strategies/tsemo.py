@@ -170,12 +170,13 @@ class TSEMO(Strategy):
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
-            self.all_experiments = self.all_experiments.append(prev_res)
+            self.all_experiments = self.all_experiments.append(
+                prev_res, ignore_index=True
+            )
 
-        if self.all_experiments.shape[0] <= 3:
+        if self.all_experiments.shape[0] < 3:
             lhs = LHS(self.domain)
             self.iterations += 1
-            self.all_experiments.append(prev_res)
             return lhs.suggest_experiments(num_experiments)
 
         # Get inputs (decision variables) and outputs (objectives)

@@ -72,6 +72,7 @@ class Transform:
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
+        new_ds = new_ds.reset_index(drop=True)
 
         # Determine input and output columns in dataset
         input_columns = []
@@ -83,40 +84,20 @@ class Transform:
                 isinstance(variable, CategoricalVariable)
                 and categorical_method == "descriptors"
             ):
-                # Add descriptors to the dataset
-                var_descriptor_names = variable.ds.data_columns
-                if all(
-                    np.isin(var_descriptor_names, new_ds.columns.levels[0].to_list())
-                ):
-                    # Make the descriptors columns a metadata column
-                    column_list_1 = new_ds.columns.levels[0].to_list()
-                    ix = [
-                        column_list_1.index(d_name) for d_name in var_descriptor_names
-                    ]
-                    column_codes_2 = list(new_ds.columns.codes[1])
-                    ix_code = [
-                        np.where(new_ds.columns.codes[0] == tmp_ix)[0][0]
-                        for tmp_ix in ix
-                    ]
-                    for ixc in ix_code:
-                        column_codes_2[ixc] = 0
-                    new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
-                else:
-                    indices = new_ds[variable.name].values
-                    descriptors = variable.ds.loc[indices]
-                    descriptors.index = new_ds.index
-                    new_ds = new_ds.join(descriptors, how="inner")
-
-                # Make the original descriptors column a metadata column
-                column_list_1 = new_ds.columns.levels[0].to_list()
-                ix = column_list_1.index(variable.name)
-                column_codes_2 = list(new_ds.columns.codes[1])
-                ix_code = np.where(new_ds.columns.codes[0] == ix)[0][0]
-                column_codes_2[ix_code] = 1
-                new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
-
-                # add descriptors data columns to inputs
-                input_columns.extend(var_descriptor_names)
+                values = new_ds[variable.name].tolist()
+                ds = variable.ds
+                descriptor_values = ds.loc[values, :].reset_index(drop=True)
+                # Drop any columns with the same names
+                for descriptor in ds.data_columns:
+                    if (descriptor in new_ds.data_columns) or (
+                        descriptor in new_ds.metadata_columns
+                    ):
+                        new_ds = new_ds.drop(descriptor, axis=1)
+                new_ds = pd.concat([new_ds, descriptor_values], axis=1)
+                # # Make original categorical column a metadata column
+                # new_ds.drop(variable.name, axis=1)
+                # new_ds[variable.name, "METADATA"] = values
+                input_columns.extend(ds.data_columns)
             elif (
                 isinstance(variable, CategoricalVariable)
                 and categorical_method == "one-hot"
@@ -176,7 +157,7 @@ class Transform:
                 "No output columns in the domain.  Add at least one output column for optimisation."
             )
 
-        # Return the inputs and outputs as separate datasets
+        # Return the inputs and outputs as separate datasetsj
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
 
     def un_transform(self, ds, **kwargs):
