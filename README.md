@@ -31,6 +31,7 @@ To install summit, use the following command:
 
 ## News
 
+* Denali (0.8) is out! Read more about the release [here](https://github.com/sustainable-processes/summit/releases/tag/0.8.0).
 * Kobi ([@marcosfelt](https://github.com/marcosfelt)) gave a tutorial on Summit at the online Autonomous Discovery Symposium on Wednesday 21 April 2021. The tutorial can be found [here](https://colab.research.google.com/drive/1E_KVm-aZMqMm3memvesn3FIzGiXKHwJz#scrollTo=Wxg4TiHLV0Kd&uniqifier=2).
 
 ## Quick Start
