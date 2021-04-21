@@ -139,7 +139,14 @@ def test_runner_mo_integration(strategy, experiment):
         s = strategy(exp.domain, transform=transform)
         iterations = 3
 
-    r = Runner(strategy=s, experiment=exp, max_iterations=iterations, batch_size=1)
+    r = Runner(
+        strategy=s,
+        experiment=exp,
+        max_iterations=iterations,
+        batch_size=1,
+        f_tol=1e-3,
+        max_same=2,
+    )
     r.run()
 
     # Try saving and loading

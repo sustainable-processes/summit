@@ -84,7 +84,7 @@ class NelderMead(Strategy):
         Strategy.__init__(self, domain, transform, **kwargs)
 
         self._x_start = kwargs.get("x_start", [])
-        self.random_start = kwargs.get("random_start", False)
+        self.random_start = kwargs.get("random_start", True)
         self._dx = kwargs.get("dx", 1e-5)
         self._df = kwargs.get("df", 1e-5)
         self._adaptive = kwargs.get("adaptive", False)
@@ -143,7 +143,7 @@ class NelderMead(Strategy):
             inner_prev_param = self.prev_param[0]
             # recover invalid experiments from previous iteration
             if self.prev_param[1] is not None:
-                invalid_res = self.prev_param[1].drop(("constraint", "DATA"), 1)
+                invalid_res = self.prev_param[1].drop(("constraint", "METADATA"), 1)
                 prev_res = pd.concat([prev_res, invalid_res])
 
         ## Generation of new suggested experiments.
@@ -161,12 +161,11 @@ class NelderMead(Strategy):
             )
             # Invalid experiments hidden from data returned to user but stored internally in param
             invalid_experiments = next_experiments.loc[
-                next_experiments[("constraint", "DATA")] == False
+                next_experiments[("constraint", "METADATA")] == False
             ]
             next_experiments = next_experiments.loc[
-                next_experiments[("constraint", "DATA")] != False
+                next_experiments[("constraint", "METADATA")] != False
             ]
-            prev_res = prev_res
             if len(next_experiments) and len(invalid_experiments):
                 valid_next_experiments = True
                 if obj_maximize:
@@ -192,7 +191,7 @@ class NelderMead(Strategy):
             )
 
         # return only valid experiments (invalid experiments are stored in param[1])
-        next_experiments = next_experiments.drop(("constraint", "DATA"), 1)
+        next_experiments = next_experiments.drop(("constraint", "METADATA"), 1)
         objective_dir = -1.0 if obj_maximize else 1.0
         self.fbest = objective_dir * fbest
         self.xbest = xbest
@@ -545,10 +544,10 @@ class NelderMead(Strategy):
 
         if stay_inner:
             # add infinity as
-            next_experiments[("constraint", "DATA")] = False
+            next_experiments[("constraint", "METADATA")] = False
         else:
             # add optimization strategy
-            next_experiments[("constraint", "DATA")] = mask_valid_next_experiments
+            next_experiments[("constraint", "METADATA")] = mask_valid_next_experiments
             next_experiments[("strategy", "METADATA")] = ["Nelder-Mead Simplex"] * len(
                 request
             )

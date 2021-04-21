@@ -158,7 +158,10 @@ class Transform:
             )
 
         # Return the inputs and outputs as separate datasetsj
-        return new_ds[input_columns].copy(), new_ds[output_columns].copy()
+        return (
+            new_ds[input_columns + new_ds.metadata_columns].copy(),
+            new_ds[output_columns].copy(),
+        )
 
     def un_transform(self, ds, **kwargs):
         """Transform data back into its original represetnation
