@@ -29,6 +29,8 @@ class TSEMO(Strategy):
     transform : :class:`~summit.strategies.base.Transform`, optional
         A transform object. By default no transformation will be done
         on the input variables or objectives.
+    use_descriptors : bool, optional
+        Whether to use descriptors of categorical variables. Defaults to False.
     kernel : :class:`~GPy.kern.Kern`, optional
         A GPy kernel class (not instantiated). Must be Exponential,
         Matern32, Matern52 or RBF. Default Exponential.
@@ -112,13 +114,13 @@ class TSEMO(Strategy):
                 lowers += v.ds.min().to_list()
                 uppers += v.ds.max().to_list()
                 self.columns += [c[0] for c in v.ds.columns]
-            elif type(v) == CategoricalVariable and v.ds is None:
-                raise DomainError(
-                    "TSEMO only supports categorical variables with descriptors."
-                )
+
         self.inputs_min = DataSet([lowers], columns=self.columns)
         self.inputs_max = DataSet([uppers], columns=self.columns)
         self.kern_dim = len(self.columns)
+
+        # Categorical method
+        self.use_descriptors = kwargs.get("use_descriptors", False)
 
         # Kernel
         self.kernel = kwargs.get("kernel", Exponential)
@@ -161,9 +163,11 @@ class TSEMO(Strategy):
         from pymoo.factory import get_termination
         import pyrff
 
+        cat_method = "descriptors" if self.use_descriptors else "one-hot"
+
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
-            lhs = LHS(self.domain, categorical_method="descriptors")
+            lhs = LHS(self.domain, categorical_method=cat_method)
             self.iterations += 1
             k = num_experiments if num_experiments > 1 else 2
             return lhs.suggest_experiments(k, criterion="maximin")
@@ -173,7 +177,7 @@ class TSEMO(Strategy):
             self.all_experiments = self.all_experiments.append(prev_res)
 
         if self.all_experiments.shape[0] <= 3:
-            lhs = LHS(self.domain, categorical_method="descriptors")
+            lhs = LHS(self.domain, categorical_method=cat_method)
             self.iterations += 1
             return lhs.suggest_experiments(num_experiments)
 
@@ -200,7 +204,7 @@ class TSEMO(Strategy):
             outputs - self.output_mean.to_numpy()
         ) / self.output_std.to_numpy()
 
-        # train and sample
+        # Train and sample
         n_outputs = len(self.domain.output_variables)
         train_results = [0] * n_outputs
         rmse_train_spectral = np.zeros(n_outputs)
@@ -232,19 +236,22 @@ class TSEMO(Strategy):
         os.makedirs(dp_results, exist_ok=True)
         pyrff.save_rffs(rffs, pathlib.Path(dp_results, "models.h5"))
 
-        # NSGAII internal optimisation with spectral samples
+        # NSGAII internal optimisation on spectrally sampled functions
         self.logger.info("Optimizing models using NSGAII.")
-        optimizer = NSGA2(pop_size=self.pop_size)
-        problem = TSEMOInternalWrapper(
-            pathlib.Path(dp_results, "models.h5"), self.domain, n_var=self.kern_dim
-        )
-        termination = get_termination("n_gen", self.generations)
-        self.internal_res = minimize(
-            problem, optimizer, termination, seed=1, verbose=False
-        )
+        candidate_list, acq_value_list = [], []
+        for combo in categoricals:
+            optimizer = NSGA2(pop_size=self.pop_size)
+            problem = TSEMOInternalWrapper(
+                pathlib.Path(dp_results, "models.h5"), self.domain, n_var=self.kern_dim
+            )
+            termination = get_termination("n_gen", self.generations)
+            self.internal_res = minimize(
+                problem, optimizer, termination, seed=1, verbose=False
+            )
 
-        X = np.atleast_2d(self.internal_res.X)
-        y = np.atleast_2d(self.internal_res.F)
+            X = np.atleast_2d(self.internal_res.X)
+            y = np.atleast_2d(self.internal_res.F)
+
         X = DataSet(X, columns=self.columns)
         y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
 
@@ -267,9 +274,7 @@ class TSEMO(Strategy):
 
             # Do any necessary transformations back
             result[("strategy", "METADATA")] = "TSEMO"
-            result = self.transform.un_transform(
-                result, categorical_method="descriptors"
-            )
+            result = self.transform.un_transform(result, categorical_method=cat_method)
 
             # Add model hyperparameters as metadata columns
             self.iterations += 1
