@@ -1,5 +1,6 @@
 from .base import Strategy
 from .random import LHS
+from .factorial_doe import fullfact
 from summit.domain import *
 from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.dataset import DataSet
@@ -100,7 +101,6 @@ class TSEMO(Strategy):
         from GPy.kern import Exponential
 
         Strategy.__init__(self, domain, transform, **kwargs)
-
         # Input bounds
         lowers = []
         uppers = []
@@ -114,13 +114,21 @@ class TSEMO(Strategy):
                 lowers += v.ds.min().to_list()
                 uppers += v.ds.max().to_list()
                 self.columns += [c[0] for c in v.ds.columns]
-
+            elif type(v) == CategoricalVariable and v.ds is None:
+                raise DomainError(
+                    "TSEMO only supports categorical variables with descriptors."
+                )
         self.inputs_min = DataSet([lowers], columns=self.columns)
         self.inputs_max = DataSet([uppers], columns=self.columns)
-        self.kern_dim = len(self.columns)
-
-        # Categorical method
+        # Categorical variable options
         self.use_descriptors = kwargs.get("use_descriptors", False)
+        n_categoricals = len(
+            [v for v in self.domain.input_variables if v.variable_type == "categorical"]
+        )
+        if n_categoricals > 0:
+            self.categorical_combos = self.domain.get_categorical_combinations()
+        else:
+            self.categorical_combos = None
 
         # Kernel
         self.kernel = kwargs.get("kernel", Exponential)
@@ -183,11 +191,17 @@ class TSEMO(Strategy):
 
         # Get inputs (decision variables) and outputs (objectives)
         inputs, outputs = self.transform.transform_inputs_outputs(
-            self.all_experiments, categorical_method="descriptors"
+            self.all_experiments,
+            categorical_method=cat_method,
+            # min_max_scale_inputs=True,
+            # standardize_outputs=True,
         )
         if inputs.shape[0] < self.domain.num_continuous_dimensions():
             self.logger.warning(
-                f"The number of examples ({inputs.shape[0]}) is less the number of input dimensions ({self.domain.num_continuous_dimensions()}."
+                (
+                    f"""The number of examples ({inputs.shape[0]}) is less the number"""
+                    f"""of input dimensions ({self.domain.num_continuous_dimensions()}."""
+                )
             )
 
         # Scale decision variables [0,1]
@@ -207,19 +221,18 @@ class TSEMO(Strategy):
         # Train and sample
         n_outputs = len(self.domain.output_variables)
         train_results = [0] * n_outputs
+        self.models = [0] * n_outputs
         rmse_train_spectral = np.zeros(n_outputs)
         for i, v in enumerate(self.domain.output_variables):
             # Training
-            train_results[i] = self._train_sample(
-                v.name,
-                inputs_scaled.to_numpy(),
-                outputs_scaled[[v.name]].to_numpy(),
-                n_retries=self.n_retries,
+            self.models[i] = ThompsonSampledModel(v.name)
+            self.models[i].fit(
+                inputs_scaled, outputs_scaled[[v.name]], n_retries=self.n_retries
             )
 
-            # Evaluate spectral samples
+            # Evaluate spectral sampled functions
             rff = train_results[i]["rff"]
-            sample_f = lambda x: np.atleast_2d(rff(x)).T
+            sample_f = lambda x: np.atleast_2d(self.models.rff(x)).T
             rmse_train_spectral[i] = rmse(
                 sample_f(inputs_scaled.to_numpy()),
                 outputs_scaled[[v.name]].to_numpy(),
@@ -230,128 +243,63 @@ class TSEMO(Strategy):
                 f"RMSE train spectral {v.name} = {rmse_train_spectral[i].round(2)}"
             )
 
-        # Save spectral samples
-        rffs = [train_result["rff"] for train_result in train_results]
-        dp_results = get_summit_config_path() / "tsemo" / str(self.uuid_val)
-        os.makedirs(dp_results, exist_ok=True)
-        pyrff.save_rffs(rffs, pathlib.Path(dp_results, "models.h5"))
-
         # NSGAII internal optimisation on spectrally sampled functions
         self.logger.info("Optimizing models using NSGAII.")
-        candidate_list, acq_value_list = [], []
-        for combo in categoricals:
-            optimizer = NSGA2(pop_size=self.pop_size)
-            problem = TSEMOInternalWrapper(
-                pathlib.Path(dp_results, "models.h5"), self.domain, n_var=self.kern_dim
-            )
-            termination = get_termination("n_gen", self.generations)
-            self.internal_res = minimize(
-                problem, optimizer, termination, seed=1, verbose=False
-            )
-
-            X = np.atleast_2d(self.internal_res.X)
-            y = np.atleast_2d(self.internal_res.F)
-
+        X, y = self._nsga_optimize(models_path, generations, pop_size)
         X = DataSet(X, columns=self.columns)
         y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
 
-        # Select points that give maximum hypervolume improvement
         if X.shape[0] != 0 and y.shape[0] != 0:
-            self.hv_imp, indices = self._select_max_hvi(
-                outputs_scaled, y, num_experiments
-            )
-
-            # Unscale data
-            X = (
-                X * (self.inputs_max.to_numpy() - self.inputs_min.to_numpy())
-                + self.inputs_min.to_numpy()
-            )
-            y = y * self.output_std.to_numpy() + self.output_mean.to_numpy()
-
-            # Join to get single dataset with inputs and outputs
-            result = X.join(y)
-            result = result.iloc[indices, :]
-
-            # Do any necessary transformations back
-            result[("strategy", "METADATA")] = "TSEMO"
-            result = self.transform.un_transform(result, categorical_method=cat_method)
-
-            # Add model hyperparameters as metadata columns
-            self.iterations += 1
-            for res in train_results:
-                name = res["model_name"]
-                result[(f"{name}_variance", "METADATA")] = res["outputscale"]
-                result[(f"{name}_noise", "METADATA")] = res["noise"]
-                for var, l in zip(self.domain.input_variables, res["lengthscales"]):
-                    result[(f"{name}_{var.name}_lengthscale", "METADATA")] = l
-            result[("iterations", "METADATA")] = self.iterations
-            return result
-        else:
             self.logger.warning("No suggestions found.")
             self.iterations += 1
             return None
 
-    def _train_sample(self, model_name, X, y, **kwargs):
-        """Train model and take spectral samples"""
-        from botorch.models import SingleTaskGP
-        from botorch.fit import fit_gpytorch_model
-        from gpytorch.mlls.exact_marginal_log_likelihood import (
-            ExactMarginalLogLikelihood,
+        # Select points that give maximum hypervolume improvement
+        self.hv_imp, indices = self._select_max_hvi(outputs_scaled, y, num_experiments)
+
+        # Join to get single dataset with inputs and outputs and get suggestion
+        result = X.join(y)
+        result = result.iloc[indices, :]
+
+        # Do any necessary transformations back
+        result = self.transform.un_transform(
+            result,
+            categorical_method=cat_method,
+            min_max_scale_inputs=True,
+            standardize_outputs=True,
         )
-        import pyrff
-        import torch
 
-        # Convert to tensors
-        X = torch.from_numpy(X)
-        y = torch.from_numpy(y)
+        # Add model hyperparameters as metadata columns
+        self.iterations += 1
+        result[("strategy", "METADATA")] = "TSEMO"
+        for res in train_results:
+            result[(f"{name}_variance", "METADATA")] = res["outputscale"]
+            result[(f"{name}_noise", "METADATA")] = res["noise"]
+            i = 0
+            for var, l in zip(self.domain.input_variables, res["lengthscales"]):
+                result[(f"{var.name}_lengthscale", "METADATA")] = l
+                result[f"rmse_train_spectral", "METADATA"] = rmse_train_spectral[i]
+                i += 1
+        result[("iterations", "METADATA")] = self.iterations
+        return result
 
-        # Train the model
-        model = SingleTaskGP(X, y)
-        mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll)
-
-        # self.logger.info model hyperparameters
-        lengthscales = model.covar_module.base_kernel.lengthscale.detach()[0].numpy()
-        outputscale = model.covar_module.outputscale.detach().numpy()
-        noise = model.likelihood.noise_covar.noise.detach().numpy()[0]
-        self.logger.debug(f"Model {model_name} lengthscales: {lengthscales}")
-        self.logger.debug(f"Model {model_name} variance: {outputscale}")
-        self.logger.debug(f"Model {model_name} noise: {noise}")
-
-        # Spectral sampling
-        n_spectral_points = kwargs.get("n_spectral_points", 1500)
-        n_retries = kwargs.get("n_retries", 10)
-        self.logger.debug(
-            f"Spectral sampling {model_name} with {n_spectral_points} spectral points."
+    def _nsga_optimize(self, models_path, generations, pop_size):
+        X_list, y_list = [], []
+        # for _, combo in self.categorical_combos.items():
+        optimizer = NSGA2(pop_size=self.pop_size)
+        problem = TSEMOInternalWrapper(
+            pathlib.Path(dp_results, "models.h5"), self.domain
         )
-        rff = None
-        nu = model.covar_module.base_kernel.nu
-        for _ in range(n_retries):
-            try:
-                rff = pyrff.sample_rff(
-                    lengthscales=lengthscales,
-                    scaling=np.sqrt(outputscale),
-                    noise=noise,
-                    kernel_nu=nu,
-                    X=X.numpy(),
-                    Y=y[:, 0].numpy(),
-                    M=n_spectral_points,
-                )
-                break
-            except np.linalg.LinAlgError as e:
-                self.logger.error(e)
-            except ValueError as e:
-                self.logger.error(e)
-        if rff is None:
-            raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
-
-        return dict(
-            model_name=model_name,
-            rff=rff,
-            lengthscales=lengthscales,
-            outputscale=outputscale,
-            noise=noise,
+        termination = get_termination("n_gen", self.generations)
+        self.internal_res = minimize(
+            problem, optimizer, termination, seed=1, verbose=False
         )
+
+        X = np.atleast_2d(self.internal_res.X).tolist()
+        y = np.atleast_2d(self.internal_res.F).tolist()
+        # X_list.extend(X)
+        # y_list.extend(y)
+        return X, y
 
     def reset(self):
         """Reset TSEMO state"""
@@ -479,6 +427,105 @@ def rmse(Y_pred, Y_true, mean, std):
     return np.sqrt(np.mean(square_error))
 
 
+class ThompsonSampledModel:
+    def __init__(self, model_name=None):
+        self.model_name = model_name
+        self.input_columns_ordered = None
+        self.output_columns_ordered = None
+        self.logger = logging.getLogger(__name__)
+
+    def fit(self, X: DataSet, y: DataSet, **kwargs):
+        """Train model and take spectral samples"""
+        from botorch.models import SingleTaskGP
+        from botorch.fit import fit_gpytorch_model
+        from gpytorch.mlls.exact_marginal_log_likelihood import (
+            ExactMarginalLogLikelihood,
+        )
+        import pyrff
+        import torch
+
+        self.input_columns_ordered = X.columns
+
+        # Convert to tensors
+        X_np = X.to_numpy()
+        y_np = y.to_numpy()
+        X = torch.from_numpy(X_np)
+        y = torch.from_numpy(y_np)
+
+        # Train the GP model
+        self.model = SingleTaskGP(X, y)
+        mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
+        fit_gpytorch_model(mll)
+
+        # self.logger.info model hyperparameters
+        if self.model_name is None:
+            self.model_name = self.output_columns_ordered[0]
+        self.lengthscales_ = self.model.covar_module.base_kernel.lengthscale.detach()[
+            0
+        ].numpy()
+        self.outputscale_ = self.model.covar_module.outputscale.detach().numpy()
+        self.noise_ = self.model.likelihood.noise_covar.noise.detach().numpy()[0]
+        self.logger.debug(f"Model {self.model_name} lengthscales: {self.lengthscales_}")
+        self.logger.debug(f"Model {self.model_name} variance: {self.outputscale_}")
+        self.logger.debug(f"Model {self.model_name} noise: {self.noise_}")
+
+        # Spectral sampling
+        n_spectral_points = kwargs.get("n_spectral_points", 1500)
+        n_retries = kwargs.get("n_retries", 10)
+        self.logger.debug(
+            f"Spectral sampling {self.model_name} with {n_spectral_points} spectral points."
+        )
+        rff = None
+        nu = self.model.covar_module.base_kernel.nu
+        for _ in range(n_retries):
+            try:
+                import pdb
+
+                pdb.set_trace()
+                self.rff = pyrff.sample_rff(
+                    lengthscales=self.lengthscales_,
+                    scaling=np.sqrt(self.outputscale_),
+                    noise=self.noise_,
+                    kernel_nu=nu,
+                    X=X_np,
+                    Y=y_np[:, 0],
+                    M=n_spectral_points,
+                )
+                break
+            except np.linalg.LinAlgError as e:
+                self.logger.error(e)
+            except ValueError as e:
+                self.logger.error(e)
+        if rff is None:
+            raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
+
+        return dict(
+            rff=self.rff,
+            lengthscales=self.lengthscales_,
+            outputscale=self.outputscale_,
+            noise=self.noise_,
+        )
+
+    def predict(self, X: DataSet, **kwargs):
+        """Predict the values of a """
+        X = X[self.input_columns_ordered]
+        return self.rff(X)
+
+    def save(self, filepath=None):
+        if filepath is None:
+            filepath = get_summit_config_path() / "tsemo" / str(self.uuid_val)
+            os.makedirs(filepath, exist_ok=True)
+            filepath = filepath / "models.h5"
+        pyrff.save_rffs([self.rff], filepath)
+
+    def load(self, filepath=None):
+        if filepath is None:
+            filepath = get_summit_config_path() / "tsemo" / str(self.uuid_val)
+            os.makedirs(filepath, exist_ok=True)
+            filepath = filepath / "models.h5"
+        self.rff = pyrff.load_rffs(filepath)[0]
+
+
 class TSEMOInternalWrapper(Problem):
     """Wrapper for NSGAII internal optimisation
 
@@ -488,34 +535,45 @@ class TSEMOInternalWrapper(Problem):
         Path to a folder containing the rffs
     domain : :class:`~summit.domain.Domain`
         Domain used for optimisation.
+    fixed_variable_names : list, optional
+        A list of variables which should take on fixed values.
     Notes
     -----
     It is assumed that the inputs are scaled between 0 and 1.
 
     """
 
-    def __init__(self, fp: os.PathLike, domain, n_var=None):
+    def __init__(self, models, domain, input_columns, fixed_variables: DataSet = None):
         import pyrff
 
-        self.rffs = pyrff.load_rffs(fp)
+        self.models = models
         self.domain = domain
+        self.fixed_variables = fixed_variables
+        self.input_columns = input_columns
+
         # Number of decision variables
-        if n_var is None:
-            n_var = domain.num_continuous_dimensions()
+        n_var = domain.num_continuous_dimensions()
 
         # Number of objectives
         n_obj = len(domain.output_variables)
+
         # Number of constraints
         n_constr = len(domain.constraints)
 
         super().__init__(n_var=n_var, n_obj=n_obj, n_constr=n_constr, xl=0, xu=1)
 
     def _evaluate(self, X, out, *args, **kwargs):
-        # input_columns = [v.name for v in self.domain.input_variables]
-        # X = DataSet(np.atleast_2d(X), columns=input_columns)
+        # Convert X to a DataSet
+        fixed_columns = self.fixed_variables.columns
+        X = DataSet(np.atleast_2d(X), columns=self.input_columns)
+
+        # Add in any fixed columns
+        if self.fixed_variables is not None:
+            X = pd.concat(X, self.fixed_variables, axis=1)
+
         F = np.zeros([X.shape[0], self.n_obj])
         for i in range(self.n_obj):
-            F[:, i] = self.rffs[i](X)
+            F[:, i] = self.models[i].predict(X)
 
         # Negate objectives that are need to be maximized
         for i, v in enumerate(self.domain.output_variables):

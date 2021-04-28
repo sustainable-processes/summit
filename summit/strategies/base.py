@@ -49,6 +49,11 @@ class Transform:
             Dataset with columns corresponding to the inputs and objectives of the domain.
         copy: bool, optional
             Copy the dataset internally. Defaults to True.
+        min_max_scale_inputs: bool, optional
+            Scale continuous inputs to their bounds. In the case of descriptors,
+            scale to the minimum and maximum of each column in the descriptor set.
+        min_max_scale_outputs: bool, optional
+            Scale continuous ouputs to their bounds.
         standardize_inputs : bool, optional
             Standardize all input continuous variables. Default is False.
         standardize_outputs : bool, optional
@@ -67,8 +72,20 @@ class Transform:
 
         copy = kwargs.get("copy", True)
         categorical_method = kwargs.get("categorical_method")
+        min_max_scale_inputs = kwargs.get("min_max_scale_inputs", False)
+        min_max_scale_outputs = kwargs.get("min_max_scale_outputs", False)
         standardize_inputs = kwargs.get("standardize_inputs", False)
         standardize_outputs = kwargs.get("standardize_outputs", False)
+
+        if min_max_scale_inputs and standardize_inputs:
+            raise ValueError(
+                "Cannot use MinMax scaling and standard scaling simulataneously on the inputs."
+            )
+
+        if min_max_scale_outputs and standardize_outputs:
+            raise ValueError(
+                "Cannot use MinMax scaling and standard scaling simulataneously on the outputs."
+            )
 
         data_columns = ds.data_columns
         new_ds = ds.copy() if copy else ds
@@ -115,6 +132,15 @@ class Transform:
                 column_codes_2[ix_code] = 1
                 new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
 
+                # Normalize descriptors between 0 and 1
+                if min_max_scale_inputs:
+                    for descriptor in var_descriptor_names:
+                        var_max = variable.ds[descriptor].max()
+                        var_min = variable.ds[descriptor].min()
+                        new_ds[descriptor, "DATA"] = (new_ds[descriptor] - var_min) / (
+                            var_max - var_min
+                        )
+
                 # add descriptors data columns to inputs
                 input_columns.extend(var_descriptor_names)
             elif (
@@ -146,6 +172,11 @@ class Transform:
                     self.input_means[variable.name] = mean
                     self.input_stds[variable.name] = std
                     new_ds[variable.name, "DATA"] = values
+                elif min_max_scale_inputs:
+                    var_min, var_max = variable.bounds[0], variable.bounds[1]
+                    new_ds[variable.name, "DATA"] = (
+                        new_ds[variable.name] - var_min
+                    ) / (var_max - var_min)
                 input_columns.append(variable.name)
             else:
                 raise DomainError(
@@ -165,6 +196,11 @@ class Transform:
                     self.output_means[variable.name] = mean
                     self.output_stds[variable.name] = std
                     new_ds[variable.name, "DATA"] = values
+                elif min_max_scale_outputs:
+                    var_min, var_max = variable.bounds[0], variable.bounds[1]
+                    new_ds[variable.name, "DATA"] = (
+                        new_ds[variable.name] - var_min
+                    ) / (var_max - var_min)
                 output_columns.append(variable.name)
                 # Ensure continuous variables are floats
                 new_ds[variable.name] = new_ds[variable.name].astype(np.float)
@@ -206,8 +242,20 @@ class Transform:
         from sklearn.preprocessing import OneHotEncoder
 
         categorical_method = kwargs.get("categorical_method")
+        min_max_scale_inputs = kwargs.get("min_max_scale_inputs", False)
+        min_max_scale_outputs = kwargs.get("min_max_scale_outputs", False)
         standardize_inputs = kwargs.get("standardize_inputs", False)
         standardize_outputs = kwargs.get("standardize_outputs", False)
+
+        if min_max_scale_inputs and standardize_inputs:
+            raise ValueError(
+                "Cannot use MinMax scaling and standard scaling simulataneously on the inputs."
+            )
+
+        if min_max_scale_outputs and standardize_outputs:
+            raise ValueError(
+                "Cannot use MinMax scaling and standard scaling simulataneously on the outputs."
+            )
 
         data_columns = ds.data_columns
 
@@ -219,6 +267,15 @@ class Transform:
                 isinstance(variable, CategoricalVariable)
                 and categorical_method == "descriptors"
             ):
+                # Unnormalize descriptors between 0 and 1
+                if min_max_scale_inputs:
+                    for descriptor in var_descriptor_names:
+                        var_max = variable.ds[descriptor].max()
+                        var_min = variable.ds[descriptor].min()
+                        new_ds[descriptor, "DATA"] = (
+                            new_ds[descriptor] * (var_max - var_min) + var_min
+                        )
+
                 # Add original categorical variable to the dataset
                 var_descriptor_names = variable.ds.data_columns
                 var_descriptor_conditions = ds[var_descriptor_names]
@@ -279,27 +336,34 @@ class Transform:
             # Plain categorical variables
             elif isinstance(variable, CategoricalVariable):
                 pass
+            # Continuous variables
             elif isinstance(variable, ContinuousVariable):
                 if standardize_inputs:
                     mean = self.input_means[variable.name]
                     std = self.input_stds[variable.name]
                     values = new_ds[variable.name]
                     new_ds[variable.name, "DATA"] = values * std + mean
+                elif min_max_scale_inputs:
+                    var_min, var_max = variable.bounds[0], variable.bounds[1]
+                    new_ds[variable.name, "DATA"] = (
+                        new_ds[variable.name] * (var_max - var_min) + var_min
+                    )
                 new_ds[variable.name, "DATA"] = new_ds[variable.name].astype(np.float)
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 
         for variable in self.domain.output_variables:
-            if (
-                variable.name in data_columns
-                and variable.is_objective
-                and standardize_outputs
-            ):
-                mean = self.output_means[variable.name]
-                std = self.output_stds[variable.name]
-                values = new_ds[variable.name]
-                new_ds[variable.name, "DATA"] = values * std + mean
-
+            if variable.name in data_columns and variable.is_objective:
+                if standardize_outputs:
+                    mean = self.output_means[variable.name]
+                    std = self.output_stds[variable.name]
+                    values = new_ds[variable.name]
+                    new_ds[variable.name, "DATA"] = values * std + mean
+                elif min_max_scale_inputs:
+                    var_min, var_max = variable.bounds[0], variable.bounds[1]
+                    new_ds[variable.name, "DATA"] = (
+                        new_ds[variable.name] * (var_max - var_min) + var_min
+                    )
         return new_ds
 
     def to_dict(self, **kwargs):
