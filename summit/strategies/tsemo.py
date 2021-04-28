@@ -50,6 +50,11 @@ class TSEMO(Strategy):
         Population size used in the internal optimisation with NSGAII.
         Default is 100.
 
+    Attributes
+    ----------
+
+
+
     Examples
     --------
 
@@ -102,24 +107,14 @@ class TSEMO(Strategy):
 
         Strategy.__init__(self, domain, transform, **kwargs)
         # Input bounds
-        lowers = []
-        uppers = []
         self.columns = []
         for v in self.domain.input_variables:
             if type(v) == ContinuousVariable:
-                lowers.append(v.bounds[0])
-                uppers.append(v.bounds[1])
                 self.columns.append(v.name)
             elif type(v) == CategoricalVariable and v.ds is not None:
-                lowers += v.ds.min().to_list()
-                uppers += v.ds.max().to_list()
+
                 self.columns += [c[0] for c in v.ds.columns]
-            elif type(v) == CategoricalVariable and v.ds is None:
-                raise DomainError(
-                    "TSEMO only supports categorical variables with descriptors."
-                )
-        self.inputs_min = DataSet([lowers], columns=self.columns)
-        self.inputs_max = DataSet([uppers], columns=self.columns)
+
         # Categorical variable options
         self.use_descriptors = kwargs.get("use_descriptors", False)
         n_categoricals = len(
@@ -166,11 +161,6 @@ class TSEMO(Strategy):
             The noise column is the constant noise in outputs (e.g., assumed uniform experiment error)
 
         """
-        from pymoo.algorithms.nsga2 import NSGA2
-        from pymoo.optimize import minimize
-        from pymoo.factory import get_termination
-        import pyrff
-
         cat_method = "descriptors" if self.use_descriptors else "one-hot"
 
         # Suggest lhs initial design or append new experiments to previous experiments
@@ -193,8 +183,8 @@ class TSEMO(Strategy):
         inputs, outputs = self.transform.transform_inputs_outputs(
             self.all_experiments,
             categorical_method=cat_method,
-            # min_max_scale_inputs=True,
-            # standardize_outputs=True,
+            min_max_scale_inputs=True,
+            standardize_outputs=True,
         )
         if inputs.shape[0] < self.domain.num_continuous_dimensions():
             self.logger.warning(
@@ -204,40 +194,25 @@ class TSEMO(Strategy):
                 )
             )
 
-        # Scale decision variables [0,1]
-        inputs_scaled = (inputs - self.inputs_min.to_numpy()) / (
-            self.inputs_max.to_numpy() - self.inputs_min.to_numpy()
-        )
-
-        # Standardize objectives
-        self.output_mean = outputs.mean()
-        std = outputs.std()
-        std[std < 1e-5] = 1e-5
-        self.output_std = std
-        outputs_scaled = (
-            outputs - self.output_mean.to_numpy()
-        ) / self.output_std.to_numpy()
-
         # Train and sample
         n_outputs = len(self.domain.output_variables)
         train_results = [0] * n_outputs
-        self.models = [0] * n_outputs
+        models = [0] * n_outputs
         rmse_train_spectral = np.zeros(n_outputs)
         for i, v in enumerate(self.domain.output_variables):
             # Training
-            self.models[i] = ThompsonSampledModel(v.name)
-            self.models[i].fit(
-                inputs_scaled, outputs_scaled[[v.name]], n_retries=self.n_retries
+            models[i] = ThompsonSampledModel(v.name)
+            train_results[i] = models[i].fit(
+                inputs, outputs[[v.name]], n_retries=self.n_retries
             )
 
             # Evaluate spectral sampled functions
-            rff = train_results[i]["rff"]
-            sample_f = lambda x: np.atleast_2d(self.models.rff(x)).T
+            sample_f = lambda x: np.atleast_2d(models[i].rff(x)).T
             rmse_train_spectral[i] = rmse(
-                sample_f(inputs_scaled.to_numpy()),
-                outputs_scaled[[v.name]].to_numpy(),
-                mean=self.output_mean[v.name].values[0],
-                std=self.output_std[v.name].values[0],
+                sample_f(inputs.to_numpy()),
+                outputs[[v.name]].to_numpy(),
+                mean=self.transform.output_means[v.name],
+                std=self.transform.output_stds[v.name],
             )
             self.logger.debug(
                 f"RMSE train spectral {v.name} = {rmse_train_spectral[i].round(2)}"
@@ -245,17 +220,17 @@ class TSEMO(Strategy):
 
         # NSGAII internal optimisation on spectrally sampled functions
         self.logger.info("Optimizing models using NSGAII.")
-        X, y = self._nsga_optimize(models_path, generations, pop_size)
+        X, y = self._nsga_optimize(models)
         X = DataSet(X, columns=self.columns)
         y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
 
-        if X.shape[0] != 0 and y.shape[0] != 0:
+        if X.shape[0] == 0 and y.shape[0] == 0:
             self.logger.warning("No suggestions found.")
             self.iterations += 1
             return None
 
         # Select points that give maximum hypervolume improvement
-        self.hv_imp, indices = self._select_max_hvi(outputs_scaled, y, num_experiments)
+        self.hv_imp, indices = self._select_max_hvi(outputs, y, num_experiments)
 
         # Join to get single dataset with inputs and outputs and get suggestion
         result = X.join(y)
@@ -273,23 +248,26 @@ class TSEMO(Strategy):
         self.iterations += 1
         result[("strategy", "METADATA")] = "TSEMO"
         for res in train_results:
-            result[(f"{name}_variance", "METADATA")] = res["outputscale"]
-            result[(f"{name}_noise", "METADATA")] = res["noise"]
+            output_name = res["name"]
+            result[(f"{output_name}_variance", "METADATA")] = res["outputscale"]
+            result[(f"{output_name}_noise", "METADATA")] = res["noise"]
             i = 0
             for var, l in zip(self.domain.input_variables, res["lengthscales"]):
-                result[(f"{var.name}_lengthscale", "METADATA")] = l
+                result[(f"{output_name}_{var.name}_lengthscale", "METADATA")] = l
                 result[f"rmse_train_spectral", "METADATA"] = rmse_train_spectral[i]
                 i += 1
         result[("iterations", "METADATA")] = self.iterations
         return result
 
-    def _nsga_optimize(self, models_path, generations, pop_size):
+    def _nsga_optimize(self, models):
+        from pymoo.algorithms.nsga2 import NSGA2
+        from pymoo.optimize import minimize
+        from pymoo.factory import get_termination
+
         X_list, y_list = [], []
         # for _, combo in self.categorical_combos.items():
         optimizer = NSGA2(pop_size=self.pop_size)
-        problem = TSEMOInternalWrapper(
-            pathlib.Path(dp_results, "models.h5"), self.domain
-        )
+        problem = TSEMOInternalWrapper(models, self.domain)
         termination = get_termination("n_gen", self.generations)
         self.internal_res = minimize(
             problem, optimizer, termination, seed=1, verbose=False
@@ -403,7 +381,9 @@ class TSEMO(Strategy):
 
             # Append current estimate of the pareto front to sample_paretos
             samples_copy = samples_original.copy()
-            samples_copy = samples_copy * self.output_std + self.output_mean
+            mean = self.transform.output_means[v.name]
+            std = self.transform.output_stds[v.name]
+            samples_copy = samples_copy * std + mean
             samples_copy[("hvi", "DATA")] = hv_improvement
             self.samples.append(samples_copy)
 
@@ -475,13 +455,10 @@ class ThompsonSampledModel:
         self.logger.debug(
             f"Spectral sampling {self.model_name} with {n_spectral_points} spectral points."
         )
-        rff = None
+        self.rff = None
         nu = self.model.covar_module.base_kernel.nu
         for _ in range(n_retries):
             try:
-                import pdb
-
-                pdb.set_trace()
                 self.rff = pyrff.sample_rff(
                     lengthscales=self.lengthscales_,
                     scaling=np.sqrt(self.outputscale_),
@@ -496,10 +473,11 @@ class ThompsonSampledModel:
                 self.logger.error(e)
             except ValueError as e:
                 self.logger.error(e)
-        if rff is None:
+        if self.rff is None:
             raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
 
         return dict(
+            name=self.model_name,
             rff=self.rff,
             lengthscales=self.lengthscales_,
             outputscale=self.outputscale_,
@@ -508,7 +486,7 @@ class ThompsonSampledModel:
 
     def predict(self, X: DataSet, **kwargs):
         """Predict the values of a """
-        X = X[self.input_columns_ordered]
+        X = X[self.input_columns_ordered].to_numpy()
         return self.rff(X)
 
     def save(self, filepath=None):
@@ -543,13 +521,22 @@ class TSEMOInternalWrapper(Problem):
 
     """
 
-    def __init__(self, models, domain, input_columns, fixed_variables: DataSet = None):
+    def __init__(
+        self, models, domain, use_descriptors=False, fixed_variables: DataSet = None
+    ):
         import pyrff
 
         self.models = models
         self.domain = domain
         self.fixed_variables = fixed_variables
-        self.input_columns = input_columns
+
+        self.input_columns = []
+        for v in domain.input_variables:
+            if isinstance(v, ContinuousVariable):
+                self.input_columns.append(v.name)
+            if isinstance(v, CategoricalVariable):
+                if v.num_descriptors is not None and use_descriptors:
+                    self.input_columns.extend(v.ds.columns)
 
         # Number of decision variables
         n_var = domain.num_continuous_dimensions()
@@ -564,7 +551,6 @@ class TSEMOInternalWrapper(Problem):
 
     def _evaluate(self, X, out, *args, **kwargs):
         # Convert X to a DataSet
-        fixed_columns = self.fixed_variables.columns
         X = DataSet(np.atleast_2d(X), columns=self.input_columns)
 
         # Add in any fixed columns
