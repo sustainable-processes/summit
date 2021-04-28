@@ -268,6 +268,7 @@ class Transform:
                 isinstance(variable, CategoricalVariable)
                 and categorical_method == "descriptors"
             ):
+                var_descriptor_names = variable.ds.data_columns
                 # Unnormalize descriptors between 0 and 1
                 if min_max_scale_inputs:
                     for descriptor in var_descriptor_names:
@@ -278,7 +279,6 @@ class Transform:
                         )
 
                 # Add original categorical variable to the dataset
-                var_descriptor_names = variable.ds.data_columns
                 var_descriptor_conditions = ds[var_descriptor_names]
                 var_descriptor_orig_data = np.asarray(
                     [

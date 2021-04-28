@@ -8,6 +8,7 @@ from summit import get_summit_config_path
 
 from pymoo.model.problem import Problem
 
+from fastprogress.fastprogress import progress_bar
 from scipy.sparse import issparse
 import pathlib
 import os
@@ -303,7 +304,12 @@ class TSEMO(Strategy):
         X_list, y_list = [], []
 
         # Loop through all combinations of categoricals and run optimization
-        for _, combo in transformed_combos.iterrows():
+        bar = progress_bar(
+            transformed_combos.iterrows(),
+            total=transformed_combos.shape[0],
+            comment="NSGA Mixed Optimization",
+        )
+        for _, combo in bar:
             optimizer = NSGA2(pop_size=self.pop_size)
             problem = TSEMOInternalWrapper(
                 models, self.domain, fixed_variables=combo.to_dict()
