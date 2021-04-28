@@ -294,7 +294,7 @@ class TSEMO(Strategy):
         from pymoo.factory import get_termination
 
         combos = self.categorical_combos
-        tranformed_combos = self._transform_categorical(combos)
+        transformed_combos = self._transform_categorical(combos)
 
         X_list, y_list = [], []
         # Loop through all combinations of categoricals and run optimization
