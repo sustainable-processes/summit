@@ -226,9 +226,7 @@ class TSEMO(Strategy):
 
         # NSGAII internal optimisation on spectrally sampled functions
         self.logger.info("Optimizing models using NSGAII.")
-        import pdb
 
-        pdb.set_trace()
         # Mixed domains
         if self.categorical_combos is not None and len(self.input_columns) > 0:
             X, y = self._nsga_optimize_mixed(models)
