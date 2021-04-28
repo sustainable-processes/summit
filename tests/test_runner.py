@@ -109,21 +109,23 @@ def test_runner_so_integration(strategy, experiment):
 @pytest.mark.parametrize(
     "experiment",
     [
-        get_pretrained_baumgartner_cc_emulator(include_cost=True),
         get_pretrained_reizman_suzuki_emulator(),
+        get_pretrained_baumgartner_cc_emulator(include_cost=True),
         DTLZ2,
         VLMOP2,
         SnarBenchmark,
     ],
 )
 def test_runner_mo_integration(strategy, experiment):
+    """Test Runner with multiobjective optimization strategies and benchmarks"""
     if not isinstance(experiment, ExperimentalEmulator):
         exp = experiment()
     else:
         exp = experiment
 
     if experiment.__class__.__name__ == "ReizmanSuzukiEmulator" and strategy not in [
-        SOBO
+        SOBO,
+        TSEMO,
     ]:
         # only run on strategies that work with categorical variables deireclty
         return

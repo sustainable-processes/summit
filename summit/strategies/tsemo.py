@@ -8,9 +8,11 @@ from summit import get_summit_config_path
 
 from pymoo.model.problem import Problem
 
+from scipy.sparse import issparse
 import pathlib
 import os
 import numpy as np
+import pandas as pd
 import uuid
 import logging
 
@@ -106,14 +108,6 @@ class TSEMO(Strategy):
         from GPy.kern import Exponential
 
         Strategy.__init__(self, domain, transform, **kwargs)
-        # Input bounds
-        self.columns = []
-        for v in self.domain.input_variables:
-            if type(v) == ContinuousVariable:
-                self.columns.append(v.name)
-            elif type(v) == CategoricalVariable and v.ds is not None:
-
-                self.columns += [c[0] for c in v.ds.columns]
 
         # Categorical variable options
         self.use_descriptors = kwargs.get("use_descriptors", False)
@@ -124,6 +118,18 @@ class TSEMO(Strategy):
             self.categorical_combos = self.domain.get_categorical_combinations()
         else:
             self.categorical_combos = None
+
+        # Input columns
+        self.input_columns = []
+        for v in self.domain.input_variables:
+            if type(v) == ContinuousVariable:
+                self.input_columns.append(v.name)
+            elif (
+                type(v) == CategoricalVariable
+                and v.ds is not None
+                and self.use_descriptors
+            ):
+                self.input_columns += [c[0] for c in v.ds.columns]
 
         # Kernel
         self.kernel = kwargs.get("kernel", Exponential)
@@ -161,9 +167,8 @@ class TSEMO(Strategy):
             The noise column is the constant noise in outputs (e.g., assumed uniform experiment error)
 
         """
-        cat_method = "descriptors" if self.use_descriptors else "one-hot"
-
         # Suggest lhs initial design or append new experiments to previous experiments
+        cat_method = "descriptors" if self.use_descriptors else None
         if prev_res is None:
             lhs = LHS(self.domain, categorical_method=cat_method)
             self.iterations += 1
@@ -180,6 +185,7 @@ class TSEMO(Strategy):
             return lhs.suggest_experiments(num_experiments)
 
         # Get inputs (decision variables) and outputs (objectives)
+        cat_method = "descriptors" if self.use_descriptors else "one-hot"
         inputs, outputs = self.transform.transform_inputs_outputs(
             self.all_experiments,
             categorical_method=cat_method,
@@ -221,8 +227,6 @@ class TSEMO(Strategy):
         # NSGAII internal optimisation on spectrally sampled functions
         self.logger.info("Optimizing models using NSGAII.")
         X, y = self._nsga_optimize(models)
-        X = DataSet(X, columns=self.columns)
-        y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
 
         if X.shape[0] == 0 and y.shape[0] == 0:
             self.logger.warning("No suggestions found.")
@@ -245,17 +249,17 @@ class TSEMO(Strategy):
         )
 
         # Add model hyperparameters as metadata columns
-        self.iterations += 1
         result[("strategy", "METADATA")] = "TSEMO"
+        i = 0
         for res in train_results:
             output_name = res["name"]
             result[(f"{output_name}_variance", "METADATA")] = res["outputscale"]
             result[(f"{output_name}_noise", "METADATA")] = res["noise"]
-            i = 0
+            result[f"rmse_train_spectral", "METADATA"] = rmse_train_spectral[i]
+            i += 1
             for var, l in zip(self.domain.input_variables, res["lengthscales"]):
                 result[(f"{output_name}_{var.name}_lengthscale", "METADATA")] = l
-                result[f"rmse_train_spectral", "METADATA"] = rmse_train_spectral[i]
-                i += 1
+        self.iterations += 1
         result[("iterations", "METADATA")] = self.iterations
         return result
 
@@ -264,20 +268,60 @@ class TSEMO(Strategy):
         from pymoo.optimize import minimize
         from pymoo.factory import get_termination
 
-        X_list, y_list = [], []
-        # for _, combo in self.categorical_combos.items():
-        optimizer = NSGA2(pop_size=self.pop_size)
-        problem = TSEMOInternalWrapper(models, self.domain)
-        termination = get_termination("n_gen", self.generations)
-        self.internal_res = minimize(
-            problem, optimizer, termination, seed=1, verbose=False
-        )
+        combos = self.categorical_combos
+        transformed_combos = {}
+        for v in self.domain.input_variables:
+            if v.variable_type == "categorical":
+                values = combos[v.name].to_numpy()
 
-        X = np.atleast_2d(self.internal_res.X).tolist()
-        y = np.atleast_2d(self.internal_res.F).tolist()
-        # X_list.extend(X)
-        # y_list.extend(y)
-        return X, y
+                # Descriptor transformation
+                if self.use_descriptors and v.ds is not None:
+                    transformed_values = v.ds.loc[values]
+
+                    for col in transformed_values:
+                        transformed_combos[(col, "DATA")] = transformed_values[
+                            col
+                        ].tolist()
+                elif self.use_descriptors and v.ds is None:
+                    raise DomainError(
+                        f"use_descriptors is true, but {v.name} has no descriptors."
+                    )
+                # One hot encoding transformation
+                else:
+                    enc = self.transform.encoders[v.name]
+                    one_hot_values = enc.transform(values[:, np.newaxis])
+                    if issparse(one_hot_values):
+                        one_hot_values = one_hot_values.toarray()
+                    for loc, l in enumerate(v.levels):
+                        column_name = f"{v.name}_{l}"
+                        transformed_combos[(column_name, "DATA")] = one_hot_values[
+                            :, loc
+                        ]
+
+        transformed_combos = DataSet(transformed_combos)
+        X_list, y_list = [], []
+        # Loop through all combinations of categoricals and run optimization
+        for _, combo in transformed_combos.iterrows():
+            optimizer = NSGA2(pop_size=self.pop_size)
+            problem = TSEMOInternalWrapper(
+                models, self.domain, fixed_variables=combo.to_dict()
+            )
+            termination = get_termination("n_gen", self.generations)
+            self.internal_res = minimize(
+                problem, optimizer, termination, seed=1, verbose=False
+            )
+
+            X = np.atleast_2d(self.internal_res.X).tolist()
+            y = np.atleast_2d(self.internal_res.F).tolist()
+            X = DataSet(X, columns=problem.X_columns)
+            y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
+            # Add in categorical variables
+            for key, value in combo.to_dict().items():
+                X[key] = value
+            X_list.append(X)
+            y_list.append(y)
+
+        return pd.concat(X_list, axis=0), pd.concat(y_list, axis=0)
 
     def reset(self):
         """Reset TSEMO state"""
@@ -509,8 +553,8 @@ class TSEMOInternalWrapper(Problem):
 
     Parameters
     ----------
-    fp : os.PathLike
-        Path to a folder containing the rffs
+    models : list of :class:`ThompsonSampledModel`
+        The models to optimize
     domain : :class:`~summit.domain.Domain`
         Domain used for optimisation.
     fixed_variable_names : list, optional
@@ -521,25 +565,21 @@ class TSEMOInternalWrapper(Problem):
 
     """
 
-    def __init__(
-        self, models, domain, use_descriptors=False, fixed_variables: DataSet = None
-    ):
+    def __init__(self, models, domain, fixed_variables: dict = None):
         import pyrff
 
         self.models = models
         self.domain = domain
         self.fixed_variables = fixed_variables
 
-        self.input_columns = []
-        for v in domain.input_variables:
-            if isinstance(v, ContinuousVariable):
-                self.input_columns.append(v.name)
-            if isinstance(v, CategoricalVariable):
-                if v.num_descriptors is not None and use_descriptors:
-                    self.input_columns.extend(v.ds.columns)
-
         # Number of decision variables
-        n_var = domain.num_continuous_dimensions()
+        # Categoricals are not optimized by NSGA, hence no descriptors
+        n_var = domain.num_continuous_dimensions(include_descriptors=False)
+        self.X_columns = [
+            v.name
+            for v in self.domain.input_variables
+            if v.variable_type == "continuous"
+        ]
 
         # Number of objectives
         n_obj = len(domain.output_variables)
@@ -551,11 +591,12 @@ class TSEMOInternalWrapper(Problem):
 
     def _evaluate(self, X, out, *args, **kwargs):
         # Convert X to a DataSet
-        X = DataSet(np.atleast_2d(X), columns=self.input_columns)
+        X = DataSet(np.atleast_2d(X), columns=self.X_columns)
 
-        # Add in any fixed columns
+        # Add in any fixed columns (i.e., values for cateogricals)
         if self.fixed_variables is not None:
-            X = pd.concat(X, self.fixed_variables, axis=1)
+            for key, value in self.fixed_variables.items():
+                X[key] = value
 
         F = np.zeros([X.shape[0], self.n_obj])
         for i in range(self.n_obj):

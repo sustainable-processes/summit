@@ -95,6 +95,7 @@ class Transform:
         output_columns = []
         self.input_means, self.input_stds = {}, {}
         self.output_means, self.output_stds = {}, {}
+        self.encoders = {}
         for variable in self.domain.input_variables:
             if (
                 isinstance(variable, CategoricalVariable)
@@ -155,7 +156,7 @@ class Transform:
                     column_name = f"{variable.name}_{l}"
                     new_ds[column_name, "DATA"] = one_hot_values[:, loc]
                     input_columns.append(column_name)
-                variable.enc = enc
+                self.encoders[variable.name] = enc
 
                 # Drop old categorical column, then write as metadata
                 new_ds = new_ds.drop(variable.name, axis=1)
@@ -321,7 +322,7 @@ class Transform:
                 and categorical_method == "one-hot"
             ):
                 # Get one-hot encoder
-                enc = variable.enc
+                enc = self.encoders[variable.name]
 
                 # Get array to be transformed
                 one_hot_names = [f"{variable.name}_{l}" for l in variable.levels]
