@@ -274,6 +274,10 @@ class TSEMO(Strategy):
 
     def _nsga_optimize(self, models):
         """NSGA-II optimization with categorical domains"""
+        from pymoo.algorithms.nsga2 import NSGA2
+        from pymoo.optimize import minimize
+        from pymoo.factory import get_termination
+
         optimizer = NSGA2(pop_size=self.pop_size)
         problem = TSEMOInternalWrapper(models, self.domain)
         termination = get_termination("n_gen", self.generations)
