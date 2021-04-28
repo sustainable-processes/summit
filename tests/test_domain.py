@@ -1,5 +1,6 @@
 from summit.domain import *
 from summit.utils.dataset import DataSet
+import pandas as pd
 import pytest
 
 
@@ -87,7 +88,6 @@ def test_categorical_variable():
     with pytest.raises(ValueError):
         var.remove_level("does_not_exist")
 
-
     # I should probably mock the dataset but I'm lazy
     solvent_ds = DataSet(
         [[5, 81], [-93, 111]],
@@ -149,16 +149,34 @@ def test_domain():
     )
     c = Constraint("flowrate_a+flowrate_b-100", "<=")
 
+    all_combos = DataSet(
+        [
+            ["potassium_hydroxide", "benzene"],
+            ["potassium_hydroxide", "toluene"],
+            ["sodium_hydroxide", "benzene"],
+            ["sodium_hydroxide", "toluene"],
+        ],
+        columns=["base", "solvent"],
+    )
+
     domain = Domain(variables=[var1, var2, var3, var4, var5, var6], constraints=[c])
     input_variables = [var1, var2, var3, var4, var5]
     assert domain.input_variables == input_variables
     assert domain.output_variables == [var6]
-    assert domain.num_variables() == 5 #not including outputs
+    assert domain.num_variables() == 5  # not including outputs
     assert domain.num_variables(include_outputs=True) == 6
-    assert domain.num_continuous_dimensions() == 3 #Not including outputs or descriptors 
+    assert (
+        domain.num_continuous_dimensions() == 3
+    )  # Not including outputs or descriptors
     assert domain.num_continuous_dimensions(include_outputs=True) == 4
     assert domain.num_continuous_dimensions(include_descriptors=True) == 5
-    assert domain.num_continuous_dimensions(include_outputs=True, include_descriptors=True) == 6
+    assert (
+        domain.num_continuous_dimensions(include_outputs=True, include_descriptors=True)
+        == 6
+    )
+    # Check that all combinations is correct()
+    domain_all_combos = domain.get_categorical_combinations()
+    assert pd.merge(all_combos, domain_all_combos, how="inner").equals(all_combos)
     assert domain.constraints == [c]
 
     # Test the adding feature
@@ -169,12 +187,17 @@ def test_domain():
     domain += c
     assert domain.input_variables == input_variables
     assert domain.output_variables == [var6]
-    assert domain.num_variables() == 5 #not including outputs
+    assert domain.num_variables() == 5  # not including outputs
     assert domain.num_variables(include_outputs=True) == 6
-    assert domain.num_continuous_dimensions() == 3 #Not including outputs or descriptors 
+    assert (
+        domain.num_continuous_dimensions() == 3
+    )  # Not including outputs or descriptors
     assert domain.num_continuous_dimensions(include_outputs=True) == 4
     assert domain.num_continuous_dimensions(include_descriptors=True) == 5
-    assert domain.num_continuous_dimensions(include_outputs=True, include_descriptors=True) == 6
+    assert (
+        domain.num_continuous_dimensions(include_outputs=True, include_descriptors=True)
+        == 6
+    )
     assert domain.constraints == [c]
 
     # Test sending wrong type
