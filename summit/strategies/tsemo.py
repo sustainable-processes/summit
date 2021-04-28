@@ -297,6 +297,7 @@ class TSEMO(Strategy):
         transformed_combos = self._transform_categorical(combos)
 
         X_list, y_list = [], []
+
         # Loop through all combinations of categoricals and run optimization
         for _, combo in transformed_combos.iterrows():
             optimizer = NSGA2(pop_size=self.pop_size)
@@ -329,11 +330,8 @@ class TSEMO(Strategy):
                 # Descriptor transformation
                 if self.use_descriptors and v.ds is not None:
                     transformed_values = v.ds.loc[values]
-
                     for col in transformed_values:
-                        transformed_combos[(col, "DATA")] = transformed_values[
-                            col
-                        ].tolist()
+                        transformed_combos[col] = transformed_values[col[0]].tolist()
                 elif self.use_descriptors and v.ds is None:
                     raise DomainError(
                         f"use_descriptors is true, but {v.name} has no descriptors."

@@ -315,7 +315,7 @@ class Transform:
                 ]
                 for ixc in ix_code:
                     column_codes_2[ixc] = 1
-                new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+                new_ds.columns = new_ds.columns.set_codes(column_codes_2, level=1)
             # Categorical variables using one-hot encoding
             elif (
                 isinstance(variable, CategoricalVariable)
