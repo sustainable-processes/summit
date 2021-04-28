@@ -262,6 +262,12 @@ class CategoricalVariable(Variable):
     """
 
     def __init__(self, name, description, **kwargs):
+        """
+
+        Returns
+        -------
+        object
+        """
         Variable.__init__(self, name, description, "categorical", **kwargs)
 
         # Get descriptors DataSet

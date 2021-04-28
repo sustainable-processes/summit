@@ -226,7 +226,18 @@ class TSEMO(Strategy):
 
         # NSGAII internal optimisation on spectrally sampled functions
         self.logger.info("Optimizing models using NSGAII.")
-        X, y = self._nsga_optimize(models)
+        import pdb
+
+        pdb.set_trace()
+        # Mixed domains
+        if self.categorical_combos is not None and len(self.input_columns) > 0:
+            X, y = self._nsga_optimize_mixed(models)
+        # Continous domains
+        elif self.categorical_combos is None and len(self.input_columns) > 0:
+            X, y = self._nsga_optimize(models)
+        # Categorical only domain
+        else:
+            X, y = self._categorical_enumerate(models)
 
         if X.shape[0] == 0 and y.shape[0] == 0:
             self.logger.warning("No suggestions found.")
@@ -264,15 +275,58 @@ class TSEMO(Strategy):
         return result
 
     def _nsga_optimize(self, models):
+        """NSGA-II optimization with categorical domains"""
+        optimizer = NSGA2(pop_size=self.pop_size)
+        problem = TSEMOInternalWrapper(models, self.domain)
+        termination = get_termination("n_gen", self.generations)
+        self.internal_res = minimize(
+            problem, optimizer, termination, seed=1, verbose=False
+        )
+
+        X = np.atleast_2d(self.internal_res.X).tolist()
+        y = np.atleast_2d(self.internal_res.F).tolist()
+        X = DataSet(X, columns=problem.X_columns)
+        y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
+        return X, y
+
+    def _nsga_optimize_mixed(self, models):
+        """NSGA-II optimization with mixed continuous-categorical domains"""
         from pymoo.algorithms.nsga2 import NSGA2
         from pymoo.optimize import minimize
         from pymoo.factory import get_termination
 
         combos = self.categorical_combos
+        tranformed_combos = self._transform_categorical(combos)
+
+        X_list, y_list = [], []
+        # Loop through all combinations of categoricals and run optimization
+        for _, combo in transformed_combos.iterrows():
+            optimizer = NSGA2(pop_size=self.pop_size)
+            problem = TSEMOInternalWrapper(
+                models, self.domain, fixed_variables=combo.to_dict()
+            )
+            termination = get_termination("n_gen", self.generations)
+            self.internal_res = minimize(
+                problem, optimizer, termination, seed=1, verbose=False
+            )
+
+            X = np.atleast_2d(self.internal_res.X).tolist()
+            y = np.atleast_2d(self.internal_res.F).tolist()
+            X = DataSet(X, columns=problem.X_columns)
+            y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
+            # Add in categorical variables
+            for key, value in combo.to_dict().items():
+                X[key] = value
+            X_list.append(X)
+            y_list.append(y)
+
+        return pd.concat(X_list, axis=0), pd.concat(y_list, axis=0)
+
+    def _transform_categorical(self, X):
         transformed_combos = {}
         for v in self.domain.input_variables:
             if v.variable_type == "categorical":
-                values = combos[v.name].to_numpy()
+                values = X[v.name].to_numpy()
 
                 # Descriptor transformation
                 if self.use_descriptors and v.ds is not None:
@@ -297,31 +351,18 @@ class TSEMO(Strategy):
                         transformed_combos[(column_name, "DATA")] = one_hot_values[
                             :, loc
                         ]
+        return DataSet(transformed_combos)
 
-        transformed_combos = DataSet(transformed_combos)
-        X_list, y_list = [], []
-        # Loop through all combinations of categoricals and run optimization
-        for _, combo in transformed_combos.iterrows():
-            optimizer = NSGA2(pop_size=self.pop_size)
-            problem = TSEMOInternalWrapper(
-                models, self.domain, fixed_variables=combo.to_dict()
-            )
-            termination = get_termination("n_gen", self.generations)
-            self.internal_res = minimize(
-                problem, optimizer, termination, seed=1, verbose=False
-            )
-
-            X = np.atleast_2d(self.internal_res.X).tolist()
-            y = np.atleast_2d(self.internal_res.F).tolist()
-            X = DataSet(X, columns=problem.X_columns)
-            y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
-            # Add in categorical variables
-            for key, value in combo.to_dict().items():
-                X[key] = value
-            X_list.append(X)
-            y_list.append(y)
-
-        return pd.concat(X_list, axis=0), pd.concat(y_list, axis=0)
+    def _categorical_enumerate(self, models):
+        """Make predictions on all combinations of categorical domain"""
+        combos = self.categorical_combos
+        X = self._transform_categorical(combos)
+        n_obj = len(self.domain.output_variables)
+        y = np.zeros([X.shape[0], n_obj])
+        for i, v in enumerate(self.domain.output_variables):
+            y[:, i] = models[i].predict(X)
+        y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
+        return X, y
 
     def reset(self):
         """Reset TSEMO state"""
