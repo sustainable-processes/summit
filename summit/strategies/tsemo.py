@@ -238,6 +238,7 @@ class TSEMO(Strategy):
         else:
             X, y = self._categorical_enumerate(models)
 
+        # Return if no suggestiosn found
         if X.shape[0] == 0 and y.shape[0] == 0:
             self.logger.warning("No suggestions found.")
             self.iterations += 1
@@ -305,11 +306,10 @@ class TSEMO(Strategy):
 
         # Loop through all combinations of categoricals and run optimization
         bar = progress_bar(
-            transformed_combos.iterrows(),
-            total=transformed_combos.shape[0],
-            comment="NSGA Mixed Optimization",
+            transformed_combos.iterrows(), total=transformed_combos.shape[0]
         )
         for _, combo in bar:
+            # bar.comment = "NSGA Mixed Optimization"
             optimizer = NSGA2(pop_size=self.pop_size)
             problem = TSEMOInternalWrapper(
                 models, self.domain, fixed_variables=combo.to_dict()

@@ -303,19 +303,10 @@ class Transform:
                 )
 
                 # Make the descriptors columns a metadata column
-                column_list_1 = new_ds.columns.levels[0].to_list()  # all variables
-                ix = [
-                    column_list_1.index(d_name) for d_name in var_descriptor_names
-                ]  # just descriptors variables
-                column_codes_2 = list(
-                    new_ds.columns.codes[1]
-                )  # codes for the variable type
-                ix_code = [
-                    np.where(new_ds.columns.codes[0] == tmp_ix)[0][0] for tmp_ix in ix
-                ]
-                for ixc in ix_code:
-                    column_codes_2[ixc] = 1
-                new_ds.columns = new_ds.columns.set_codes(column_codes_2, level=1)
+                for var in var_descriptor_names:
+                    descriptor = new_ds[var].copy()
+                    new_ds = new_ds.drop(columns=var, level=0)
+                    new_ds[var, "METADATA"] = descriptor
             # Categorical variables using one-hot encoding
             elif (
                 isinstance(variable, CategoricalVariable)
@@ -389,6 +380,25 @@ class Transform:
         std = std if std > 1e-5 else 1e-5
         scaled = (X - mean) / std
         return scaled, mean, std
+
+
+def set_column_types(ds, column_names, column_type):
+    type_map = {0: "DATA", 1: "METADATA"}
+
+
+def map_index_level(index, mapper, level=0):
+    """
+    Returns a new Index or MultiIndex, with the level values being mapped.
+    """
+    assert isinstance(index, pd.Index)
+    if isinstance(index, pd.MultiIndex):
+        new_level = index.levels[level].map(mapper)
+        new_index = index.set_levels(new_level, level=level)
+    else:
+        # Single level index.
+        assert level == 0
+        new_index = index.map(mapper)
+    return new_index
 
 
 def transform_from_dict(d):
