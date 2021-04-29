@@ -262,6 +262,12 @@ class CategoricalVariable(Variable):
     """
 
     def __init__(self, name, description, **kwargs):
+        """
+
+        Returns
+        -------
+        object
+        """
         Variable.__init__(self, name, description, "categorical", **kwargs)
 
         # Get descriptors DataSet
@@ -322,7 +328,7 @@ class CategoricalVariable(Variable):
         self._levels.append(level)
 
     def remove_level(self, level):
-        """Add a level to the discrete variable
+        """Remove a level from the discrete variable
 
         Parameters
         ---------
@@ -482,13 +488,6 @@ class Domain:
     def constraints(self):
         return self._constraints
 
-    # def __getitem__(self, key):
-    #     '''For accessing variables like a dictionary'''
-    #     for v in self.variables:
-    #         if v.name == key:
-    #             return v
-    #     raise KeyError(f'No variable {key} found in the domain.')
-
     # def _ipython_key_completions_(self):
     #     return [v.name for v in self.variables]
 
@@ -511,6 +510,30 @@ class Domain:
             else:
                 pass
         return output_variables
+
+    def get_categorical_combinations(self):
+        """Get all combinations of categoricals using full factorial design
+
+        Returns
+        -------
+        ds: DataSet
+            A dataset containing the combinations of all categorical cvariables.
+        """
+        levels = [
+            len(v.levels)
+            for v in self.input_variables
+            if v.variable_type == "categorical"
+        ]
+        doe = fullfact(levels)
+        i = 0
+        combos = {}
+        for v in self.input_variables:
+            if v.variable_type == "categorical":
+                indices = doe[:, i]
+                indices = indices.astype(int)
+                combos[v.name, "DATA"] = [v.levels[i] for i in indices]
+                i += 1
+        return DataSet(combos)
 
     def _raise_noncontinuous_outputs(self):
         """Raise an error if the outputs are not continuous variables"""
@@ -661,3 +684,42 @@ class Domain:
 
 class DomainError(Exception):
     pass
+
+
+def fullfact(levels):
+    """
+    Create a general full-factorial design
+
+    Parameters
+    ----------
+    levels : array-like
+        An array of integers that indicate the number of levels of each input
+        design factor.
+
+    Returns
+    -------
+    mat : 2d-array
+        The design matrix with coded levels 0 to k-1 for a k-level factor
+
+
+    Notes
+    ------
+    This code is copied from pydoe2: https://github.com/clicumu/pyDOE2/blob/master/pyDOE2/doe_factorial.py
+
+    """
+    n = len(levels)  # number of factors
+    nb_lines = np.prod(levels)  # number of trial conditions
+    H = np.zeros((nb_lines, n))
+
+    level_repeat = 1
+    range_repeat = np.prod(levels)
+    for i in range(n):
+        range_repeat //= levels[i]
+        lvl = []
+        for j in range(levels[i]):
+            lvl += [j] * level_repeat
+        rng = lvl * range_repeat
+        level_repeat *= levels[i]
+        H[:, i] = rng
+
+    return H
