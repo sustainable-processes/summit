@@ -176,7 +176,7 @@ class Transform:
                 elif min_max_scale_inputs:
                     var_min, var_max = variable.bounds[0], variable.bounds[1]
                     new_ds[variable.name, "DATA"] = (
-                        new_ds[variable.name] - var_min
+                        (new_ds[variable.name] - var_min)
                     ) / (var_max - var_min)
                 input_columns.append(variable.name)
             else:
