@@ -341,7 +341,12 @@ class TSEMO(Strategy):
                 if self.use_descriptors and v.ds is not None:
                     transformed_values = v.ds.loc[values]
                     for col in transformed_values:
-                        transformed_combos[col] = transformed_values[col[0]].tolist()
+                        transformed_combos[col] = transformed_values[col[0]].to_numpy()
+                        var_max = v.ds[col[0]].max()
+                        var_min = v.ds[col[0]].min()
+                        transformed_combos[col] = (
+                            transformed_combos[col] - var_min
+                        ) / (var_max - var_min)
                 elif self.use_descriptors and v.ds is None:
                     raise DomainError(
                         f"use_descriptors is true, but {v.name} has no descriptors."
