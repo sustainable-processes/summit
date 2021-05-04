@@ -37,7 +37,7 @@ Summit has a set of extra dependencies for running the code in the experiments f
 
 Additionally, if you want to use the experimental ENTMOOT feature you need to install the ENTMOOT package
 
-.. code-black:: bash
+.. code-block:: bash
 
     # with pip:
     pip install summit[entmoot]
