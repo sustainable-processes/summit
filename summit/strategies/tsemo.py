@@ -422,7 +422,7 @@ class TSEMO(Strategy):
             and the indices of the corresponding points in samples
 
         """
-        samples_original = samples.copy()
+        samples_original, samples_next = samples.copy(), samples.copy()
         samples = samples.copy()
         y = y.copy()
 
@@ -476,12 +476,13 @@ class TSEMO(Strategy):
             indices.append(original_index)
 
             # Append current estimate of the pareto front to sample_paretos
-            samples_copy = samples_original.copy()
+            samples_new = samples_next.copy()
             mean = self.transform.output_means[v.name]
             std = self.transform.output_stds[v.name]
-            samples_copy = samples_copy * std + mean
-            samples_copy[("hvi", "DATA")] = hv_improvement
-            self.samples.append(samples_copy)
+            samples_new = samples_new * std + mean
+            samples_new[("hvi", "DATA")] = hv_improvement
+            self.samples.append(samples_new)
+            samples_next = samples_original.loc[mask]
 
         if len(hv_improvement) == 0:
             hv_imp = 0

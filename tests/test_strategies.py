@@ -695,7 +695,8 @@ def test_mtbo(
         fig, ax = hartmann3D.plot()
 
 
-def test_tsemo(test_num_improve_iter=2, save=False):
+@pytest.mark.parametrize(batch_size, [1, 2, 10])
+def test_tsemo(test_num_improve_iter=2, batch_size=2, save=False):
     num_inputs = 2
     num_objectives = 2
     lab = VLMOP2()
@@ -706,13 +707,13 @@ def test_tsemo(test_num_improve_iter=2, save=False):
 
     num_improve_iter = 0
     best_hv = None
-    pb = progress_bar(range(20))
+    pb = progress_bar(range(20 // batch_size))
     for i in pb:
         # Run experiments
         experiments = lab.run_experiments(experiments)
 
         # Get suggestions
-        experiments = strategy.suggest_experiments(1, experiments)
+        experiments = strategy.suggest_experiments(batch_size, experiments)
 
         if save:
             strategy.save("tsemo_settings.json")
