@@ -695,7 +695,7 @@ def test_mtbo(
         fig, ax = hartmann3D.plot()
 
 
-@pytest.mark.parametrize(batch_size, [1, 2, 10])
+@pytest.mark.parametrize("batch_size", [1, 2, 10])
 def test_tsemo(test_num_improve_iter=2, batch_size=2, save=False):
     num_inputs = 2
     num_objectives = 2
