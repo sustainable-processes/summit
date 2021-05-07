@@ -128,6 +128,8 @@ class ExperimentalEmulator(Experiment):
     >>> # Plot to show the quality of the fit
     >>> fig, ax = exp.parity_plot(include_test=True)
     >>> plt.show()
+    >>> # Get scores on the test set
+    >>> scores = exp.test()
 
     """
 
@@ -217,6 +219,8 @@ class ExperimentalEmulator(Experiment):
         scoring : str or list, optional
             A list of scoring functions or names of them. Defaults to R2 and MSE.
             See here for more https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
+        search_params : dict, optional
+            A dictionary with parameter values to change in a gridsearch.
         regressor_kwargs : dict, optional
             You can pass extra arguments to the regressor here.
         callbacks : None, "disable" or list of Callbacks
@@ -231,6 +235,20 @@ class ExperimentalEmulator(Experiment):
         Returns
         -------
         A dictionary containing the results of the training.
+
+        Examples
+        -------
+        >>> from summit import *
+        >>> import pkg_resources, pathlib
+        >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
+        >>> model_name = f"reizman_suzuki_case_1"
+        >>> domain = ReizmanSuzukiEmulator.setup_domain()
+        >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+        >>> exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
+        >>> # Test grid search cross validation and training
+        >>> params = { "regressor__net__max_epochs": [1, 1000]}
+        >>> exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0)
+
         """
         if self.ds is None:
             raise ValueError("Dataset is required for training.")
@@ -313,6 +331,12 @@ class ExperimentalEmulator(Experiment):
         scoring : str or list, optional
             A list of scoring functions or names of them. Defaults to R2 and MSE.
             See here for more https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
+
+        Returns
+        ------
+        scores_dict : dict
+            A dictionary of scores with test_SCORE as the key and values as an array
+            of scores for each of the models in the ensemble.
 
         """
         scoring = kwargs.get("scoring", ["r2", "neg_root_mean_squared_error"])
@@ -495,6 +519,7 @@ class ExperimentalEmulator(Experiment):
                 "descriptors_features": self.descriptors_features,
                 "output_variable_names": self.output_variable_names,
                 "predictors": predictors,
+                "clip": self.clip,
             }
         )
         return super().to_dict(**experiment_params)

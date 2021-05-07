@@ -66,6 +66,13 @@ def test_train_experimental_emulator():
     # Test saving/loading
     exp.save("test_ee")
     exp_2 = ExperimentalEmulator.load(model_name, "test_ee")
+    assert all(exp.descriptors_features) == all(exp_2.descriptors_features)
+    assert exp.n_examples == exp_2.n_examples
+    assert all(exp.output_variable_names) == all(exp_2.output_variable_names)
+    assert exp.clip == exp_2.clip
+    res = exp_2.test()
+    r2 = res["test_r2"].mean()
+    assert r2 > 0.8
     shutil.rmtree("test_ee")
 
 
