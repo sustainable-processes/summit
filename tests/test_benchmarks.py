@@ -50,10 +50,13 @@ def test_train_experimental_emulator():
     exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
 
     # Test grid search cross validation and training
-    params = {
-        "regressor__net__max_epochs": [1, 1000],
-    }
-    exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0)
+    # params = {
+    #     "regressor__net__max_epochs": [1, 1000],
+    # }
+    params = None
+    exp.train(
+        cv_folds=5, max_epochs=1000, random_state=100, search_params=params, verbose=0
+    )
 
     # Testing
     res = exp.test()
@@ -66,6 +69,20 @@ def test_train_experimental_emulator():
     # Test saving/loading
     exp.save("test_ee")
     exp_2 = ExperimentalEmulator.load(model_name, "test_ee")
+    assert all(exp.descriptors_features) == all(exp_2.descriptors_features)
+    assert exp.n_examples == exp_2.n_examples
+    assert all(exp.output_variable_names) == all(exp_2.output_variable_names)
+    assert exp.clip == exp_2.clip
+    exp_2.X_train, exp_2.y_train, exp_2.X_test, exp_2.y_test = (
+        exp.X_train,
+        exp.y_train,
+        exp.X_test,
+        exp.y_test,
+    )
+    res = exp_2.test(X_test=exp.X_test, y_test=exp.y_test)
+    exp.parity_plot(output_variables="yield", include_test=True)
+    r2 = res["test_r2"].mean()
+    assert r2 > 0.8
     shutil.rmtree("test_ee")
 
 

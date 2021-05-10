@@ -128,6 +128,8 @@ class ExperimentalEmulator(Experiment):
     >>> # Plot to show the quality of the fit
     >>> fig, ax = exp.parity_plot(include_test=True)
     >>> plt.show()
+    >>> # Get scores on the test set
+    >>> scores = exp.test() # doctest: +SKIP
 
     """
 
@@ -217,6 +219,8 @@ class ExperimentalEmulator(Experiment):
         scoring : str or list, optional
             A list of scoring functions or names of them. Defaults to R2 and MSE.
             See here for more https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
+        search_params : dict, optional
+            A dictionary with parameter values to change in a gridsearch.
         regressor_kwargs : dict, optional
             You can pass extra arguments to the regressor here.
         callbacks : None, "disable" or list of Callbacks
@@ -231,6 +235,20 @@ class ExperimentalEmulator(Experiment):
         Returns
         -------
         A dictionary containing the results of the training.
+
+        Examples
+        -------
+        >>> from summit import *
+        >>> import pkg_resources, pathlib
+        >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
+        >>> model_name = f"reizman_suzuki_case_1"
+        >>> domain = ReizmanSuzukiEmulator.setup_domain()
+        >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+        >>> exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
+        >>> # Test grid search cross validation and training
+        >>> params = { "regressor__net__max_epochs": [1, 1000]}
+        >>> exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0) # doctest: +SKIP
+
         """
         if self.ds is None:
             raise ValueError("Dataset is required for training.")
@@ -313,8 +331,24 @@ class ExperimentalEmulator(Experiment):
         scoring : str or list, optional
             A list of scoring functions or names of them. Defaults to R2 and MSE.
             See here for more https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
+        X_test : np.ndarray, optional
+            Test X inputs
+        y_test : np.ndarray, optional
+            Corresponding test labels
+
+        Returns
+        ------
+        scores_dict : dict
+            A dictionary of scores with test_SCORE as the key and values as an array
+            of scores for each of the models in the ensemble.
 
         """
+        X_test = kwargs.get("X_test", self.X_test)
+        y_test = kwargs.get("y_test", self.y_test)
+        if X_test is None:
+            raise ValueError("X_test is not set or passed")
+        if y_test is None:
+            raise ValueError("y_test is not set or passed")
         scoring = kwargs.get("scoring", ["r2", "neg_root_mean_squared_error"])
         scores_list = []
         for predictor in self.predictors:
@@ -324,7 +358,7 @@ class ExperimentalEmulator(Experiment):
                 scorers = check_scoring(predictor, scoring)
             else:
                 scorers = _check_multimetric_scoring(predictor, scoring)
-            scores_list.append(_score(predictor, self.X_test, self.y_test, scorers))
+            scores_list.append(_score(predictor, X_test, y_test, scorers))
         scores_dict = _aggregate_score_dicts(scores_list)
         for name in scoring:
             scores = scores_dict.pop(name)
@@ -495,6 +529,7 @@ class ExperimentalEmulator(Experiment):
                 "descriptors_features": self.descriptors_features,
                 "output_variable_names": self.output_variable_names,
                 "predictors": predictors,
+                "clip": self.clip,
             }
         )
         return super().to_dict(**experiment_params)
@@ -554,6 +589,7 @@ class ExperimentalEmulator(Experiment):
                 params["n_examples"],
                 output_variable_names=params["output_variable_names"],
                 descriptors_features=params["descriptors_features"],
+                verbose=0,
             )
             for predictor_params in predictors_params
         ]
@@ -571,9 +607,12 @@ class ExperimentalEmulator(Experiment):
         exp.n_examples = params["n_examples"]
 
         # One round of training to initialize all variables
-        if exp.ds is None:
+        if dataset is None:
             exp.ds = generate_data(domain, params["n_features"] + 1)
         exp.train(max_epochs=1, verbose=0, initializing=True)
+        if dataset is None:
+            exp.ds = None
+            exp.X_train, exp.y_train, exp.X_test, exp.y_test = None, None, None, None
 
         # Set parameters on predictors
         for predictor, predictor_params in zip(exp.predictors, predictors_params):
@@ -646,10 +685,32 @@ class ExperimentalEmulator(Experiment):
         save_dir : str or pathlib.Path
             The directory used for saving emulator files.
 
+        Notes
+        ------
+        This saves the parameters needed to reproduce results but not the associated data.
+        You can separately save X_test, y_test, X_train, and y_train attributes
+        if you want to be able to reproduce splits, test results and parity plots.
+
+        Examples
+        --------
+        >>> from summit import *
+        >>> import pkg_resources, pathlib
+        >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
+        >>> model_name = f"reizman_suzuki_case_1"
+        >>> domain = ReizmanSuzukiEmulator.setup_domain()
+        >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+        >>> exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
+        >>> res = exp.train(max_epochs=10)
+        >>> exp.save("reizman_test/")
+        >>> #Load data for new experimental emulator
+        >>> exp_new = ExperimentalEmulator.load(model_name, "reizman_test/")
+        >>> exp_new.X_train, exp_new.y_train, exp_new.X_test, exp_new.y_test = exp.X_train, exp.y_train, exp.X_test, exp.y_test
+        >>> res = exp_new.test()
+        >>> fig, ax = exp_new.parity_plot(include_test=True)
+
         """
         save_dir = pathlib.Path(save_dir)
-        if not save_dir.exists():
-            save_dir.mkdir()
+        save_dir.mkdir(exist_ok=True)
         with open(save_dir / f"{self.model_name}.json", "w") as f:
             json.dump(self.to_dict(), f)
         self.save_regressor(save_dir)
@@ -662,6 +723,29 @@ class ExperimentalEmulator(Experiment):
         ----------
         save_dir : str or pathlib.Path
             The directory from which to load emulator files.
+
+        Notes
+        ------
+        This loads the parameters needed to reproduce results but not the associated data.
+        You can separately load X_test, y_test, X_train, and y_train attributes
+        if you want to be able to reproduce splits, test results and parity plots.
+
+        Examples
+        --------
+        >>> from summit import *
+        >>> import pkg_resources, pathlib
+        >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
+        >>> model_name = f"reizman_suzuki_case_1"
+        >>> domain = ReizmanSuzukiEmulator.setup_domain()
+        >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+        >>> exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
+        >>> res = exp.train(max_epochs=10)
+        >>> exp.save("reizman_test")
+        >>> #Load data for new experimental emulator
+        >>> exp_new = ExperimentalEmulator.load(model_name, "reizman_test")
+        >>> exp_new.X_train, exp_new.y_train, exp_new.X_test, exp_new.y_test = exp.X_train, exp.y_train, exp.X_test, exp.y_test
+        >>> res = exp_new.test()
+        >>> fig, ax = exp_new.parity_plot(include_test=True)
 
         """
         save_dir = pathlib.Path(save_dir)
@@ -1424,10 +1508,9 @@ def get_pretrained_reizman_suzuki_emulator(case=1):
     model_path = get_model_path() / model_name
     if not model_path.exists():
         raise NotADirectoryError("Could not initialize from expected path.")
-    exp = ReizmanSuzukiEmulator.load(model_path, case=case)
     data_path = get_data_path()
-    exp.ds = DataSet.read_csv(data_path / f"{model_name}.csv")
-    return exp
+    ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+    return ReizmanSuzukiEmulator.load(model_path, case=case, dataset=ds)
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
@@ -1535,9 +1618,9 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         return domain
 
     @classmethod
-    def load(cls, save_dir, case=1):
+    def load(cls, save_dir, case=1, **kwargs):
         model_name = f"reizman_suzuki_case_{case}"
-        return super().load(model_name, save_dir)
+        return super().load(model_name, save_dir, **kwargs)
 
     def to_dict(self):
         """Serialize the class to a dictionary"""
