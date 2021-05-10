@@ -607,11 +607,12 @@ class ExperimentalEmulator(Experiment):
         exp.n_examples = params["n_examples"]
 
         # One round of training to initialize all variables
-        if exp.ds is None:
+        if dataset is None:
             exp.ds = generate_data(domain, params["n_features"] + 1)
         exp.train(max_epochs=1, verbose=0, initializing=True)
-        exp.ds = None
-        exp.X_train, exp.y_train, exp.X_test, exp.y_test = None, None, None, None
+        if dataset is None:
+            exp.ds = None
+            exp.X_train, exp.y_train, exp.X_test, exp.y_test = None, None, None, None
 
         # Set parameters on predictors
         for predictor, predictor_params in zip(exp.predictors, predictors_params):
