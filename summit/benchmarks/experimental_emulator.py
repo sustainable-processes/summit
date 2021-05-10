@@ -1463,10 +1463,9 @@ def get_pretrained_reizman_suzuki_emulator(case=1):
     model_path = get_model_path() / model_name
     if not model_path.exists():
         raise NotADirectoryError("Could not initialize from expected path.")
-    exp = ReizmanSuzukiEmulator.load(model_path, case=case)
     data_path = get_data_path()
-    exp.ds = DataSet.read_csv(data_path / f"{model_name}.csv")
-    return exp
+    ds = DataSet.read_csv(data_path / f"{model_name}.csv")
+    return ReizmanSuzukiEmulator.load(model_path, case=case, dataset=ds)
 
 
 class ReizmanSuzukiEmulator(ExperimentalEmulator):
