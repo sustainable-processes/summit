@@ -73,7 +73,14 @@ def test_train_experimental_emulator():
     assert exp.n_examples == exp_2.n_examples
     assert all(exp.output_variable_names) == all(exp_2.output_variable_names)
     assert exp.clip == exp_2.clip
+    exp_2.X_train, exp_2.y_train, exp_2.X_test, exp_2.y_test = (
+        exp.X_train,
+        exp.y_train,
+        exp.X_test,
+        exp.y_test,
+    )
     res = exp_2.test(X_test=exp.X_test, y_test=exp.y_test)
+    exp.parity_plot(output_variables="yield", include_test=True)
     r2 = res["test_r2"].mean()
     assert r2 > 0.8
     shutil.rmtree("test_ee")

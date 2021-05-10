@@ -685,10 +685,32 @@ class ExperimentalEmulator(Experiment):
         save_dir : str or pathlib.Path
             The directory used for saving emulator files.
 
+        Notes
+        ------
+        This saves the parameters needed to reproduce results but not the associated data.
+        You can separately save X_test, y_test, X_train, and y_train attributes
+        if you want to be able to reproduce splits, test results and parity plots.
+
+        Examples
+        --------
+        >>> from summit import *
+        >>> import pkg_resources, pathlib
+        >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
+        >>> model_name = f"reizman_suzuki_case_1"
+        >>> domain = ReizmanSuzukiEmulator.setup_domain()
+        >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+        >>> exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
+        >>> res = exp.train(max_epochs=10)
+        >>> exp.save("reizman_test/")
+        >>> #Load data for new experimental emulator
+        >>> exp_new = ExperimentalEmulator.load(model_name, "reizman_test/")
+        >>> exp_new.X_train, exp_new.y_train, exp_new.X_test, exp_new.y_test = exp.X_train, exp.y_train, exp.X_test, exp.y_test
+        >>> res = exp_new.test()
+        >>> fig, ax = exp_new.parity_plot(include_test=True)
+
         """
         save_dir = pathlib.Path(save_dir)
-        if not save_dir.exists():
-            save_dir.mkdir()
+        save_dir.mkdir(exist_ok=True)
         with open(save_dir / f"{self.model_name}.json", "w") as f:
             json.dump(self.to_dict(), f)
         self.save_regressor(save_dir)
@@ -701,6 +723,29 @@ class ExperimentalEmulator(Experiment):
         ----------
         save_dir : str or pathlib.Path
             The directory from which to load emulator files.
+
+        Notes
+        ------
+        This loads the parameters needed to reproduce results but not the associated data.
+        You can separately load X_test, y_test, X_train, and y_train attributes
+        if you want to be able to reproduce splits, test results and parity plots.
+
+        Examples
+        --------
+        >>> from summit import *
+        >>> import pkg_resources, pathlib
+        >>> DATA_PATH = pathlib.Path(pkg_resources.resource_filename("summit", "benchmarks/data"))
+        >>> model_name = f"reizman_suzuki_case_1"
+        >>> domain = ReizmanSuzukiEmulator.setup_domain()
+        >>> ds = DataSet.read_csv(DATA_PATH / f"{model_name}.csv")
+        >>> exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
+        >>> res = exp.train(max_epochs=10)
+        >>> exp.save("reizman_test")
+        >>> #Load data for new experimental emulator
+        >>> exp_new = ExperimentalEmulator.load(model_name, "reizman_test")
+        >>> exp_new.X_train, exp_new.y_train, exp_new.X_test, exp_new.y_test = exp.X_train, exp.y_train, exp.X_test, exp.y_test
+        >>> res = exp_new.test()
+        >>> fig, ax = exp_new.parity_plot(include_test=True)
 
         """
         save_dir = pathlib.Path(save_dir)
@@ -1573,9 +1618,9 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
         return domain
 
     @classmethod
-    def load(cls, save_dir, case=1):
+    def load(cls, save_dir, case=1, **kwargs):
         model_name = f"reizman_suzuki_case_{case}"
-        return super().load(model_name, save_dir)
+        return super().load(model_name, save_dir, **kwargs)
 
     def to_dict(self):
         """Serialize the class to a dictionary"""
