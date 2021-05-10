@@ -129,7 +129,7 @@ class ExperimentalEmulator(Experiment):
     >>> fig, ax = exp.parity_plot(include_test=True)
     >>> plt.show()
     >>> # Get scores on the test set
-    >>> scores = exp.test()
+    >>> scores = exp.test() # doctest: +SKIP
 
     """
 
@@ -247,7 +247,7 @@ class ExperimentalEmulator(Experiment):
         >>> exp = ExperimentalEmulator(model_name, domain, dataset=ds, regressor=ANNRegressor)
         >>> # Test grid search cross validation and training
         >>> params = { "regressor__net__max_epochs": [1, 1000]}
-        >>> exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0)
+        >>> exp.train(cv_folds=5, random_state=100, search_params=params, verbose=0) # doctest: +SKIP
 
         """
         if self.ds is None:
@@ -331,6 +331,10 @@ class ExperimentalEmulator(Experiment):
         scoring : str or list, optional
             A list of scoring functions or names of them. Defaults to R2 and MSE.
             See here for more https://scikit-learn.org/stable/modules/model_evaluation.html#scoring-parameter
+        X_test : np.ndarray, optional
+            Test X inputs
+        y_test : np.ndarray, optional
+            Corresponding test labels
 
         Returns
         ------
@@ -339,6 +343,12 @@ class ExperimentalEmulator(Experiment):
             of scores for each of the models in the ensemble.
 
         """
+        X_test = kwargs.get("X_test", self.X_test)
+        y_test = kwargs.get("y_test", self.y_test)
+        if X_test is None:
+            raise ValueError("X_test is not set or passed")
+        if y_test is None:
+            raise ValueError("y_test is not set or passed")
         scoring = kwargs.get("scoring", ["r2", "neg_root_mean_squared_error"])
         scores_list = []
         for predictor in self.predictors:
@@ -348,7 +358,7 @@ class ExperimentalEmulator(Experiment):
                 scorers = check_scoring(predictor, scoring)
             else:
                 scorers = _check_multimetric_scoring(predictor, scoring)
-            scores_list.append(_score(predictor, self.X_test, self.y_test, scorers))
+            scores_list.append(_score(predictor, X_test, y_test, scorers))
         scores_dict = _aggregate_score_dicts(scores_list)
         for name in scoring:
             scores = scores_dict.pop(name)
@@ -579,6 +589,7 @@ class ExperimentalEmulator(Experiment):
                 params["n_examples"],
                 output_variable_names=params["output_variable_names"],
                 descriptors_features=params["descriptors_features"],
+                verbose=0,
             )
             for predictor_params in predictors_params
         ]
@@ -599,6 +610,8 @@ class ExperimentalEmulator(Experiment):
         if exp.ds is None:
             exp.ds = generate_data(domain, params["n_features"] + 1)
         exp.train(max_epochs=1, verbose=0, initializing=True)
+        exp.ds = None
+        exp.X_train, exp.y_train, exp.X_test, exp.y_test = None, None, None, None
 
         # Set parameters on predictors
         for predictor, predictor_params in zip(exp.predictors, predictors_params):
