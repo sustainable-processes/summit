@@ -1608,7 +1608,7 @@ class ReizmanSuzukiEmulator(ExperimentalEmulator):
 
         des_6 = "Yield"
         domain += ContinuousVariable(
-            name="yield",
+            name="yld",
             description=des_6,
             bounds=[0, 100],
             is_objective=True,
@@ -1793,7 +1793,7 @@ class BaumgartnerCrossCouplingEmulator(ExperimentalEmulator):
 
         des_6 = "Yield"
         domain += ContinuousVariable(
-            name="yield",
+            name="yld",
             description=des_6,
             bounds=[0.0, 1.0],
             is_objective=True,

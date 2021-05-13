@@ -1,4 +1,4 @@
-,catalyst,base,base_equivalents,temperature,t_res,yield
+,catalyst,base,base_equivalents,temperature,t_res,yld
 TYPE,DATA,DATA,DATA,DATA,DATA,DATA
 0,tBuXPhos,DBU,2.183015499,30,328.7178016,0.042832638
 1,tBuXPhos,BTMG,2.190881556,100,73.33119392,0.959689589

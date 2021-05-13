@@ -98,15 +98,55 @@ class Variable(ABC):
 
     @staticmethod
     def _check_name(name: str):
+        # Check string
         if type(name) != str:
             raise ValueError(
                 f"""{name} is not a string. Variable names must be strings."""
             )
 
+        # No spaces
         test_name = name
         if name != test_name.replace(" ", ""):
             raise ValueError(
                 f"""Error with variable name "{name}". Variable names cannot have spaces. Try replacing spaces with _ or -"""
+            )
+
+        # No python keywords
+        kwds = [
+            "as",
+            "assert",
+            "break",
+            "class",
+            "continue",
+            "def",
+            "del",
+            "elif",
+            "else",
+            "except",
+            "False",
+            "finally",
+            "for",
+            "from",
+            "global",
+            "if",
+            "import",
+            "in",
+            "is",
+            "lambda",
+            "None",
+            "nonlocal",
+            "pass",
+            "raise",
+            "return",
+            "True",
+            "try",
+            "while",
+            "with",
+            "yield",
+        ]
+        if name in kwds:
+            raise ValueError(
+                f"Variable names cannot be python keywords ({name}). For a full list of python keywords, see https://www.w3schools.com/python/python_ref_keywords.asp"
             )
 
     def __repr__(self):
