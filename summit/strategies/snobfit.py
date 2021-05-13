@@ -45,7 +45,7 @@ class SNOBFIT(Strategy):
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='flowrate_b', description='flow of reactant b in mL/min', bounds=[0.1, 0.9])
     >>> domain += ContinuousVariable(name="yld", description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
-    >>> d = {'temperature': [50,40,70,30], 'flowrate_a': [0.6,0.3,0.2,0.1], 'flowrate_b': [0.1,0.3,0.2,0.1], yld: [0.7,0.6,0.3,0.1]}
+    >>> d = {'temperature': [50,40,70,30], 'flowrate_a': [0.6,0.3,0.2,0.1], 'flowrate_b': [0.1,0.3,0.2,0.1], 'yld': [0.7,0.6,0.3,0.1]}
     >>> df = pd.DataFrame(data=d)
     >>> initial = DataSet.from_df(df)
     >>> strategy = SNOBFIT(domain)
