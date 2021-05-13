@@ -128,7 +128,7 @@
     {
       "type"        : "ContinuousVariable",
       "is_objective": true,
-      "name"        : "yield",
+      "name"        : "yld",
       "description" : "Yield",
       "units"       : null,
       "bounds"      : [
@@ -162,7 +162,7 @@
         "DATA"
       ],
       [
-        "yield",
+        "yld",
         "DATA"
       ],
       [
@@ -187,7 +187,7 @@
     "n_examples"           : 96,
     "descriptors_features" : [],
     "output_variable_names": [
-      "yield"
+      "yld"
     ],
     "predictors"           : [
       {

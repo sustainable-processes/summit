@@ -1,4 +1,4 @@
-NAME,catalyst,t_res,temperature,catalyst_loading,ton,yield
+NAME,catalyst,t_res,temperature,catalyst_loading,ton,yld
 TYPE,DATA,DATA,DATA,DATA,DATA,DATA
 0,P1-L4,60,30,2.513,0.1,0.2
 1,P1-L1,60,30,0.51,0.3,0.2
