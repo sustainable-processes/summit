@@ -64,7 +64,7 @@ def test_train_experimental_emulator():
     assert r2 > 0.8
 
     # Test plotting
-    fig, ax = exp.parity_plot(output_variables="yield", include_test=True)
+    fig, ax = exp.parity_plot(output_variables="yld", include_test=True)
 
     # Test saving/loading
     exp.save("test_ee")
@@ -80,7 +80,7 @@ def test_train_experimental_emulator():
         exp.y_test,
     )
     res = exp_2.test(X_test=exp.X_test, y_test=exp.y_test)
-    exp.parity_plot(output_variables="yield", include_test=True)
+    exp.parity_plot(output_variables="yld", include_test=True)
     r2 = res["test_r2"].mean()
     assert r2 > 0.8
     shutil.rmtree("test_ee")
@@ -107,7 +107,7 @@ def test_reizman_emulator(show_plots=False):
             assert str(results[name].iloc[0]) == value[0]
         else:
             assert float(results[name].iloc[0]) == value[0]
-    assert np.isclose(float(results["yield"]), 0.6, atol=15)
+    assert np.isclose(float(results["yld"]), 0.6, atol=15)
     assert np.isclose(float(results["ton"]), 1.1, atol=15)
 
     # Test serialization
@@ -142,7 +142,7 @@ def test_baumgartner_CC_emulator(use_descriptors, include_cost, show_plots=False
     assert str(results["base"].iloc[0]) == values["base"][0]
     assert float(results["t_res"]) == values["t_res"][0]
     assert float(results["temperature"]) == values["temperature"][0]
-    assert np.isclose(float(results["yield"]), 0.042832638, atol=0.15)
+    assert np.isclose(float(results["yld"]), 0.042832638, atol=0.15)
 
     # Test serialization
     d = b.to_dict()

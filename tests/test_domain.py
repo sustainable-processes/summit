@@ -141,7 +141,7 @@ def test_domain():
     )
     var5 = CategoricalVariable("solvent", "solvent descriptors", descriptors=solvent_ds)
     var6 = ContinuousVariable(
-        name="yield",
+        name="yld",
         description="yield of reaction",
         bounds=[0, 100],
         is_objective=True,
@@ -209,6 +209,16 @@ def test_domain():
     # Test adding two variables with the same names
     with pytest.raises(ValueError):
         domain = Domain(variables=[var1, var1])
+
+    # Test naming a variable a python keyword
+    with pytest.raises(ValueError):
+        ContinuousVariable(
+            name="yield",
+            description="yield of reaction",
+            bounds=[0, 100],
+            is_objective=True,
+            maximize=True,
+        )
 
     # Test serialization
     domain = Domain(variables=[var1, var2, var3, var4, var5, var6], constraints=[c])
