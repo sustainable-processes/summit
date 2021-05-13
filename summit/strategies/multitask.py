@@ -364,7 +364,7 @@ class STBO(Strategy):
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[0, 1])
     >>> domain += ContinuousVariable(name='flowrate_a', description='flow of reactant a in mL/min', bounds=[0, 1])
-    >>> domain += ContinuousVariable(name=yld, description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
+    >>> domain += ContinuousVariable(name="yld", description='relative conversion to xyz', bounds=[0,100], is_objective=True, maximize=True)
     >>> strategy = NelderMead(domain)
     >>> next_experiments  = strategy.suggest_experiments()
     >>> print(next_experiments)
