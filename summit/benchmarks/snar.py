@@ -105,17 +105,17 @@ class SnarBenchmark(Experiment):
         conditions[("e_factor", "DATA")] = e_factor
         return conditions, {}
 
-    def _integrate_equations(self, tau, equiv_pldn, conc_dfnb, temperature):
+    def _integrate_equations(self, tau, equiv_pldn, conc_dfnb, temperature, **kwargs):
         # Initial Concentrations in mM
         self.C_i = np.zeros(5)
         self.C_i[0] = conc_dfnb
         self.C_i[1] = equiv_pldn * conc_dfnb
 
         # Flowrate and residence time
-        V = 3  # mL
+        V = 5  # mL
         q_tot = V / tau
-        C1_0 = 2.0  # reservoir concentration of 1 is 1 M = 1 mM
-        C2_0 = 4.2  # reservoi concentration of  2 is 2 M = 2 mM
+        C1_0 = kwargs.get("C1_0", 2.0)  # reservoir concentration of 1 is 1 M = 1 mM
+        C2_0 = kwargs.get("C2_0", 4.2)  # reservoir concentration of  2 is 2 M = 2 mM
         q_1 = self.C_i[0] / C1_0 * q_tot  # flowrate of 1 (dfnb)
         q_2 = self.C_i[1] / C2_0 * q_tot  # flowrate of 2 (pldn)
         q_eth = q_tot - q_1 - q_2  # flowrate of ethanol
