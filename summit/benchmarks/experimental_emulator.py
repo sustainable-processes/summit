@@ -336,6 +336,11 @@ class ExperimentalEmulator(Experiment):
         y_test : np.ndarray, optional
             Corresponding test labels
 
+        Notes
+        ------
+        The method loops over the predictors, so the resulting are scores averaged over all objectives for each of the predictors.
+        In contrast, the parity_plot code gives the scores for each objective averaged over the predictors.
+
         Returns
         ------
         scores_dict : dict
