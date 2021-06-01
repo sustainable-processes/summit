@@ -478,6 +478,7 @@ class TSEMO(Strategy):
             # Append current estimate of the pareto front to sample_paretos
             samples_new = samples_next.copy()
             mean = self.transform.output_means[v.name]
+            std = self.transform.output_stds[v.name]
             samples_new = samples_new * std + mean
             samples_new[("hvi", "DATA")] = hv_improvement
             self.samples.append(samples_new)
