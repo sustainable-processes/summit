@@ -37,7 +37,7 @@ class TSEMO(Strategy):
         Whether to use descriptors of categorical variables. Defaults to False.
     kernel : :class:`~GPy.kern.Kern`, optional
         A GPy kernel class (not instantiated). Must be Exponential,
-        Matern32, Matern52 or RBF. Default Exponential.
+        Matern32, Matern52 tsemoor RBF. Default Exponential.
     n_spectral_points : int, optional
         Number of spectral points used in spectral sampling.
         Default is 1500. Note that the Matlab TSEMO version uses 4000
@@ -216,8 +216,8 @@ class TSEMO(Strategy):
             # Evaluate spectral sampled functions
             sample_f = lambda x: np.atleast_2d(models[i].rff(x)).T
             rmse_train_spectral[i] = rmse(
-                sample_f(inputs.to_numpy()),
-                outputs[[v.name]].to_numpy(),
+                sample_f(inputs.to_numpy().astype('float')), #added .astype('float')
+                outputs[[v.name]].to_numpy().astype('float'), #added .astype('float')
                 mean=self.transform.output_means[v.name],
                 std=self.transform.output_stds[v.name],
             )
@@ -422,7 +422,7 @@ class TSEMO(Strategy):
             and the indices of the corresponding points in samples
 
         """
-        samples_original, samples_next = samples.copy(), samples.copy()
+        samples_original = samples.copy()
         samples = samples.copy()
         y = y.copy()
 
@@ -476,13 +476,12 @@ class TSEMO(Strategy):
             indices.append(original_index)
 
             # Append current estimate of the pareto front to sample_paretos
-            samples_new = samples_next.copy()
+            samples_copy = samples_original.copy()
             mean = self.transform.output_means[v.name]
             std = self.transform.output_stds[v.name]
-            samples_new = samples_new * std + mean
-            samples_new[("hvi", "DATA")] = hv_improvement
-            self.samples.append(samples_new)
-            samples_next = samples_original.loc[mask]
+            samples_copy = samples_copy * std + mean
+            samples_copy[("hvi", "DATA")] = hv_improvement
+            self.samples.append(samples_copy)
 
         if len(hv_improvement) == 0:
             hv_imp = 0
@@ -524,8 +523,8 @@ class ThompsonSampledModel:
         self.input_columns_ordered = X.columns
 
         # Convert to tensors
-        X_np = X.to_numpy()
-        y_np = y.to_numpy()
+        X_np = X.to_numpy().astype(float)   #added .astype(float)
+        y_np = y.to_numpy().astype(float)   #added .astype(float)
         X = torch.from_numpy(X_np)
         y = torch.from_numpy(y_np)
 

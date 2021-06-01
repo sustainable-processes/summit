@@ -289,7 +289,7 @@ class Transform:
                 var_categorical_transformed = []
                 for _, dc in var_descriptor_conditions.iterrows():
                     eucl_distance_squ = np.sum(
-                        np.square(np.subtract(var_descriptor_orig_data, dc.to_numpy())),
+                        np.square(np.subtract(var_descriptor_orig_data, new_ds[var_descriptor_names].iloc[_].to_numpy())), #changed dc.to_numpy() which is normalised to new_ds[var_descriptor_names].iloc[_].to_numpy() which is unnormalised
                         axis=1,
                     )
                     cat_level_index = np.where(
