@@ -37,7 +37,7 @@ class TSEMO(Strategy):
         Whether to use descriptors of categorical variables. Defaults to False.
     kernel : :class:`~GPy.kern.Kern`, optional
         A GPy kernel class (not instantiated). Must be Exponential,
-        Matern32, Matern52 tsemoor RBF. Default Exponential.
+        Matern32, Matern52 or RBF. Default Exponential.
     n_spectral_points : int, optional
         Number of spectral points used in spectral sampling.
         Default is 1500. Note that the Matlab TSEMO version uses 4000
