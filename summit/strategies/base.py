@@ -278,8 +278,7 @@ class Transform:
                             new_ds[descriptor] * (var_max - var_min) + var_min
                         )
 
-                # Add original categorical variable to the dataset
-                var_descriptor_conditions = ds[var_descriptor_names]
+                var_descriptor_conditions = new_ds[var_descriptor_names]
                 var_descriptor_orig_data = np.asarray(
                     [
                         variable.ds.loc[[level], :].values[0].tolist()
@@ -287,17 +286,26 @@ class Transform:
                     ]
                 )
                 var_categorical_transformed = []
+                # Find the closest points by euclidean distance
                 for _, dc in var_descriptor_conditions.iterrows():
+                    # Euclidean distance calculation
                     eucl_distance_squ = np.sum(
-                        np.square(np.subtract(var_descriptor_orig_data, new_ds[var_descriptor_names].iloc[_].to_numpy())), #changed dc.to_numpy() which is normalised to new_ds[var_descriptor_names].iloc[_].to_numpy() which is unnormalised
+                        np.square(
+                            np.subtract(
+                                var_descriptor_orig_data,
+                                dc.to_numpy(),
+                            )
+                        ),
                         axis=1,
                     )
+                    # Choose closest point
                     cat_level_index = np.where(
                         eucl_distance_squ == np.min(eucl_distance_squ)
                     )[0][0]
+                    # Find the matching name of the categorical variable
                     cat_level = variable.ds.index[cat_level_index]
+                    # Add the original categorical variables name to the dataset
                     var_categorical_transformed.append(cat_level)
-                dt = {variable.name: var_categorical_transformed}
                 new_ds.insert(
                     loc=i, column=variable.name, value=var_categorical_transformed
                 )
