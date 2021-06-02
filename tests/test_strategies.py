@@ -682,9 +682,9 @@ def test_mtbo(
     print(f"Number of experiments: {data.shape[0]}")
     # Extrema of test function without constraint: glob_min = -3.86 at
     if maximize:
-        assert fbest >= 3.85 and fbest <= 3.87
+        assert fbest >= 3.84 and fbest <= 3.87
     else:
-        assert fbest <= -3.85 and fbest >= -3.87
+        assert fbest <= -3.84 and fbest >= -3.87
 
     # Test saving and loading
     strategy.save("mtbo_test.json")

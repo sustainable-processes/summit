@@ -216,8 +216,8 @@ class TSEMO(Strategy):
             # Evaluate spectral sampled functions
             sample_f = lambda x: np.atleast_2d(models[i].rff(x)).T
             rmse_train_spectral[i] = rmse(
-                sample_f(inputs.to_numpy()),
-                outputs[[v.name]].to_numpy(),
+                sample_f(inputs.to_numpy().astype("float")),
+                outputs[[v.name]].to_numpy().astype("float"),
                 mean=self.transform.output_means[v.name],
                 std=self.transform.output_stds[v.name],
             )
@@ -524,8 +524,8 @@ class ThompsonSampledModel:
         self.input_columns_ordered = X.columns
 
         # Convert to tensors
-        X_np = X.to_numpy()
-        y_np = y.to_numpy()
+        X_np = X.to_numpy().astype(float)
+        y_np = y.to_numpy().astype(float)
         X = torch.from_numpy(X_np)
         y = torch.from_numpy(y_np)
 
