@@ -5,7 +5,7 @@
 <a href='https://gosummit.readthedocs.io/en/latest/?badge=latest'>
     <img src='https://readthedocs.org/projects/gosummit/badge/?version=latest' alt='Documentation Status' />
 </a>
-<a href="https://pypi.org/project/nsummit/"><img alt="PyPI" src="https://img.shields.io/pypi/v/summit"></a>
+<a href="https://pypi.org/project/summit/"><img alt="PyPI" src="https://img.shields.io/pypi/v/summit"></a>
 </p>
 
 Summit is a set of tools for optimising chemical processes. We’ve started by targeting reactions. Go through a tutorial [here](https://colab.research.google.com/drive/1E_KVm-aZMqMm3memvesn3FIzGiXKHwJz#scrollTo=Wxg4TiHLV0Kd&uniqifier=2)!
