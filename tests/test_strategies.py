@@ -636,10 +636,10 @@ def test_sobo(
 @pytest.mark.parametrize(
     "max_num_exp, maximize, constraint",
     [
-        [50, True, True],
-        [50, False, True],
-        [50, True, False],
-        [50, False, False],
+        # [50, True, True],
+        # [50, False, True],
+        [20, True, False],
+        [20, False, False],
     ],
 )
 def test_mtbo(
@@ -647,7 +647,7 @@ def test_mtbo(
     maximize,
     constraint,
     plot=False,
-    n_pretraining=100,
+    n_pretraining=50,
 ):
 
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
@@ -655,17 +655,16 @@ def test_mtbo(
     random = Random(hartmann3D.domain)
     conditions = random.suggest_experiments(n_pretraining)
     results = hartmann3D.run_experiments(conditions)
-    # for v in experiment.domain.output_variables:
-    #     results[v.name] = 1.5 * results[v.name]
+    for v in hartmann3D.domain.output_variables:
+        results[v.name] = 1.5 * results[v.name]
     results["task", "METADATA"] = 0
-    strategy = MTBO(domain=hartmann3D.domain, pretraining_data=results)
+    strategy = MTBO(domain=hartmann3D.domain, pretraining_data=results, task=1)
     batch_size = 1
 
+    hartmann3D.reset()
     r = Runner(
         strategy=strategy,
         experiment=hartmann3D,
-        f_tol=1e-2,
-        max_same=10,
         batch_size=batch_size,
         max_iterations=max_num_exp // batch_size,
     )
