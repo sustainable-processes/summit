@@ -212,7 +212,7 @@ class LHS(Strategy):
 
         # Sampling
         n = self.domain.num_continuous_dimensions(include_descriptors=True)
-        if len(categoricals) < n:
+        if n != 0:
             samples = lhs(
                 n,
                 samples=num_experiments,
