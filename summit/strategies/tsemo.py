@@ -210,7 +210,7 @@ class TSEMO(Strategy):
             # Training
             models[i] = ThompsonSampledModel(v.name)
             train_results[i] = models[i].fit(
-                inputs, outputs[[v.name]], n_retries=self.n_retries
+                inputs, outputs[[v.name]], n_retries=self.n_retries, n_spectral_points=self.n_spectral_points,
             )
 
             # Evaluate spectral sampled functions
