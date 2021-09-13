@@ -127,6 +127,8 @@ class Runner:
 
         Parameters
         ----------
+        prev_res: DataSet, optional
+            Previous results to initialize the optimization
         save_freq : int, optional
             The frequency with which to checkpoint the state of the optimization. Defaults to None.
         save_at_end : bool, optional
@@ -146,7 +148,7 @@ class Runner:
         n_objs = len(self.experiment.domain.output_variables)
         fbest_old = np.zeros(n_objs)
         fbest = np.zeros(n_objs)
-        prev_res = None
+        prev_res = kwargs.get("prev_res")
         self.restarts = 0
 
         if kwargs.get("progress_bar", True):

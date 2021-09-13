@@ -54,8 +54,9 @@ def test_runner_unit(max_iterations, batch_size, max_same, max_restarts, runner)
             pass
 
     exp = MockExperiment()
+    strategy = MockStrategy(exp.domain)
     r = runner(
-        strategy=MockStrategy(exp.domain),
+        strategy=strategy,
         experiment=exp,
         max_iterations=max_iterations,
         batch_size=batch_size,
@@ -76,6 +77,15 @@ def test_runner_unit(max_iterations, batch_size, max_same, max_restarts, runner)
 
     assert r.strategy.iterations == iterations
     assert r.experiment.data.shape[0] == int(batch_size * iterations)
+
+    # Check that reset works
+    r.reset()
+    assert r.experiment.data.shape[0] == 0
+
+    # Check that using previous data works
+    suggestions = strategy.suggest_experiments(num_experiments=10)
+    results = exp.run_experiments(suggestions)
+    r.run(prev_data=results)
 
 
 @pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, NelderMead, Random, LHS])
