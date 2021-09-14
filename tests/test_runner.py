@@ -83,9 +83,12 @@ def test_runner_unit(max_iterations, batch_size, max_same, max_restarts, runner)
     assert r.experiment.data.shape[0] == 0
 
     # Check that using previous data works
-    suggestions = strategy.suggest_experiments(num_experiments=10)
+    r.strategy.iterations = 0
+    suggestions = r.strategy.suggest_experiments(num_experiments=10)
     results = exp.run_experiments(suggestions)
-    r.run(prev_data=results)
+    r.run(prev_res=results)
+    assert r.strategy.iterations == iterations + 1
+    assert r.experiment.data.shape[0] == int(batch_size * iterations + 10)
 
 
 @pytest.mark.parametrize("strategy", [SOBO, SNOBFIT, NelderMead, Random, LHS])
