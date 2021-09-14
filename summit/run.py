@@ -157,7 +157,7 @@ class Runner:
             bar = range(self.max_iterations)
         for i in bar:
             # Get experiment suggestions
-            if i == 0:
+            if i == 0 and prev_res is None:
                 k = self.n_init if self.n_init is not None else self.batch_size
                 next_experiments = self.strategy.suggest_experiments(num_experiments=k)
             else:
