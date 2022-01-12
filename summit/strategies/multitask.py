@@ -173,13 +173,13 @@ class MTBO(Strategy):
             raise ValueError("Pretraining data must have a task for every row.")
         task_data = np.atleast_2d(task_data).T
         inputs_task = np.append(inputs.data_to_numpy(), task_data, axis=1).astype(
-            np.float
+            np.double
         )
 
         # Train model
         model = MultiTaskGP(
-            torch.tensor(inputs_task).float(),
-            torch.tensor(output.data_to_numpy()).float(),
+            torch.tensor(inputs_task).double(),
+            torch.tensor(output.data_to_numpy()).double(),
             task_feature=-1,
             output_tasks=[self.task],
         )
@@ -241,14 +241,14 @@ class MTBO(Strategy):
                 and self.categorical_method == "one-hot"
             ):
                 bounds += [[0, 1] for _ in v.levels]
-        return torch.tensor(bounds).T.float()
+        return torch.tensor(bounds).T.double()
 
     def reset(self):
         """Reset MTBO state"""
         self.all_experiments = None
         self.iterations = 0
         self.fbest = (
-            float("inf") if self.domain.output_variables[0].maximize else -float("inf")
+            double("inf") if self.domain.output_variables[0].maximize else -double("inf")
         )
 
     @staticmethod
@@ -424,8 +424,8 @@ class STBO(Strategy):
 
         # Train model
         model = SingleTaskGP(
-            torch.tensor(inputs.data_to_numpy()).float(),
-            torch.tensor(output.data_to_numpy()).float(),
+            torch.tensor(inputs.data_to_numpy()).double(),
+            torch.tensor(output.data_to_numpy()).double(),
         )
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
         fit_gpytorch_model(mll)
@@ -478,14 +478,14 @@ class STBO(Strategy):
                 and self.categorical_method == "one-hot"
             ):
                 bounds += [[0, 1] for _ in v.levels]
-        return torch.tensor(bounds).T.float()
+        return torch.tensor(bounds).T.double()
 
     def reset(self):
         """Reset MTBO state"""
         self.all_experiments = None
         self.iterations = 0
         self.fbest = (
-            float("inf") if self.domain.output_variables[0].maximize else -float("inf")
+            double("inf") if self.domain.output_variables[0].maximize else -double("inf")
         )
 
     @staticmethod
