@@ -247,9 +247,6 @@ class MTBO(Strategy):
         """Reset MTBO state"""
         self.all_experiments = None
         self.iterations = 0
-        self.fbest = (
-            double("inf") if self.domain.output_variables[0].maximize else -double("inf")
-        )
 
     @staticmethod
     def standardize(X):
@@ -484,10 +481,7 @@ class STBO(Strategy):
         """Reset MTBO state"""
         self.all_experiments = None
         self.iterations = 0
-        self.fbest = (
-            double("inf") if self.domain.output_variables[0].maximize else -double("inf")
-        )
-
+        
     @staticmethod
     def standardize(X):
         mean, std = X.mean(), X.std()
