@@ -11,7 +11,7 @@ keywords = ["machine-learning", "chemistry", "bayesian-reaction-optimization", "
 
 [tool.poetry.dependencies]
 # Core dependencies
-python = "^3.9, <3.11"
+python = "^3.8, <3.11"
 pandas = "^1.1.0"
 scipy = ">=1.8.0"
 fastprogress = "^0.2.3"
