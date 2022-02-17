@@ -618,8 +618,8 @@ def test_sobo(
     os.remove("sobo_test.json")
 
     if strategy.prev_param is not None:
-        assert strategy.prev_param[0].all() == strategy_2.prev_param[0].all()
-        assert strategy.prev_param[1].all() == strategy_2.prev_param[1].all()
+        # assert np.isclose(strategy.prev_param[0], strategy_2.prev_param[0])
+        # assert np.isclose(strategy.prev_param[1], strategy_2.prev_param[1])
         assert strategy.use_descriptors == strategy_2.use_descriptors
         assert strategy.gp_model_type == strategy_2.gp_model_type
         assert strategy.acquisition_type == strategy_2.acquisition_type
@@ -813,8 +813,8 @@ def test_entmoot(
     os.remove("entmoot_test.json")
 
     if strategy.prev_param is not None:
-        assert strategy.prev_param[0].all() == strategy_2.prev_param[0].all()
-        assert strategy.prev_param[1].all() == strategy_2.prev_param[1].all()
+        # assert np.isclose(strategy.prev_param[0], strategy_2.prev_param[0])
+        # assert np.isclose(strategy.prev_param[1], strategy_2.prev_param[1])
         assert strategy.use_descriptors == strategy_2.use_descriptors
         assert strategy.estimator_type == strategy_2.estimator_type
         assert strategy.std_estimator_type == strategy_2.std_estimator_type
