@@ -53,15 +53,3 @@ Singularity (for running Docker containers on the HPC):
 export NEPTUNE_API_TOKEN=
 singularity exec -B `pwd`/:/summit_user docker://marcosfelt/summit:snar_benchmark snar_experiment.py
 ```
-
-### Releases
-
-Below is the old process for building a release. In the future, we will have this automated using Github actions.
-
-1. Install [s3pypi](https://github.com/novemberfiveco/s3pypi) and [dephell](https://dephell.org/docs/installation.html)
-2. Install AWS credentials to upload pypi.rxns.io (Kobi is the one who controls this).
-3. Bump the version in pyproject.toml and then run:
-    ```dephell deps convert --from=pyproject.toml --to=setup.py```
-4. Go into setup.py and delete the lines for extras_install_requires
-4. Upload the package to the private pypi repository:
-    ```s3pypi --bucket pypi.rxns.io``
