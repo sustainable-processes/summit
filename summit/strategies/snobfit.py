@@ -1,3 +1,4 @@
+import pdb
 from .base import Strategy, Transform
 from summit.domain import *
 from summit.utils.dataset import DataSet
@@ -5,7 +6,6 @@ from summit.utils.dataset import DataSet
 import math
 import numpy
 from copy import deepcopy
-import numpy as np
 import pandas as pd
 import warnings
 
@@ -155,10 +155,10 @@ class SNOBFIT(Strategy):
             if len(next_experiments) and len(invalid_experiments):
                 valid_next_experiments = True
                 # pass NaN if at least one constraint is violated
-                invalid_experiments[(obj_name, "DATA")] = np.nan
+                invalid_experiments[(obj_name, "DATA")] = numpy.nan
             elif len(invalid_experiments):
                 # pass NaN if at least one constraint is violated
-                invalid_experiments[(obj_name, "DATA")] = np.nan
+                invalid_experiments[(obj_name, "DATA")] = numpy.nan
                 prev_res = invalid_experiments
             else:
                 valid_next_experiments = True
@@ -201,7 +201,11 @@ class SNOBFIT(Strategy):
         snobfit = super().from_dict(d)
         params = d["strategy_params"]["prev_param"]
         if params is not None:
-            params[0] = (np.array(params[0][0]), params[0][1], np.array(params[0][2]))
+            params[0] = (
+                numpy.array(params[0][0]),
+                params[0][1],
+                numpy.array(params[0][2]),
+            )
             params[1] = [DataSet.from_dict(p) for p in params[1]]
         snobfit.prev_param = params
         return snobfit
@@ -252,7 +256,7 @@ class SNOBFIT(Strategy):
                 elif isinstance(v, CategoricalVariable):
                     if v.ds is not None:
                         descriptor_names = v.ds.data_columns
-                        descriptors = np.asarray(
+                        descriptors = numpy.asarray(
                             [
                                 v.ds.loc[:, [l]].values.tolist()
                                 for l in v.ds.data_columns
@@ -261,7 +265,9 @@ class SNOBFIT(Strategy):
                     else:
                         raise ValueError("No descriptors given for {}".format(v.name))
                     for d in descriptors:
-                        bounds.append([np.min(np.asarray(d)), np.max(np.asarray(d))])
+                        bounds.append(
+                            [numpy.min(numpy.asarray(d)), numpy.max(numpy.asarray(d))]
+                        )
                     input_var_names.extend(descriptor_names)
                 else:
                     raise TypeError(
@@ -269,7 +275,7 @@ class SNOBFIT(Strategy):
                     )
             else:
                 output_var_names.extend(v.name)
-        bounds = np.asarray(bounds, dtype=float)
+        bounds = numpy.asarray(bounds, dtype=float)
 
         # Initialization
         x0 = []
@@ -290,14 +296,14 @@ class SNOBFIT(Strategy):
                 if v.is_objective and v.maximize:
                     outputs[v.name] = -1 * outputs[v.name]
 
-            x0 = inputs.data_to_numpy()
-            y0 = outputs.data_to_numpy()
+            x0 = inputs.data_to_numpy().astype(float)
+            y0 = outputs.data_to_numpy().astype(float)
 
             # Add uncertainties to measurements TODO: include uncertainties in input
             y = []
             for i in range(y0.shape[0]):
                 y.append([y0[i].tolist()[0], math.sqrt(numpy.spacing(1))])
-            y0 = np.asarray(y, dtype=float)
+            y0 = numpy.asarray(y, dtype=float)
         # If no prev_res are given but prev_param -> raise error
         elif prev_param is not None:
             raise ValueError(
@@ -307,8 +313,8 @@ class SNOBFIT(Strategy):
 
         # if no previous results are given initialize with empty lists
         if not len(x0):
-            x0 = np.array(x0).reshape(0, len(bounds))
-            y0 = np.array(y0).reshape(0, 2)
+            x0 = numpy.array(x0).reshape(0, len(bounds)).astype(float)
+            y0 = numpy.array(y0).reshape(0, 2).astype(float)
 
         """ Determine SNOBFIT parameters
           config       structure variable defining the box [u,v] in which the
@@ -320,7 +326,7 @@ class SNOBFIT(Strategy):
                        the program should continue from the values stored in
                        file.mat, the call should have only 4 input parameters!)
                        n-vector (n = dimension of the problem) of minimal
-                       stnp.spacing(1), i.e., two points are considered to be different
+                       stnumpy.spacing(1), i.e., two points are considered to be different
                        if they differ by at least dx(i) in at least one
                        coordinate i
         """
@@ -400,7 +406,7 @@ class SNOBFIT(Strategy):
                     the program should continue from the values stored in
                     file.mat, the call should have only 4 input parameters!)
                     n-vector (n = dimension of the problem) of minimal
-                    stnp.spacing(1), i.e., two points are considered to be different
+                    stnumpy.spacing(1), i.e., two points are considered to be different
                     if they differ by at least dx(i) in at least one
                     coordinate i
         prev_res     results of previous iterations
@@ -573,6 +579,7 @@ class SNOBFIT(Strategy):
 
             nx = len(xnew)
             oldxbest = xbest
+
             xl, xu, x, f, nsplit, small, near, d, np, t, inew, fnan, u, v = snobupdt(
                 xl,
                 xu,
@@ -980,13 +987,13 @@ class SNOBFIT(Strategy):
 
     # Function to check whether a point meets the constraints of the domain
     def check_constraints(self, tmp_next_experiments):
-        constr_mask = np.asarray([True] * len(tmp_next_experiments)).T
+        constr_mask = numpy.asarray([True] * len(tmp_next_experiments)).T
         if len(self.domain.constraints) > 0:
             constr = [c.constraint_type + "0" for c in self.domain.constraints]
             constr_mask = [
                 pd.eval(c.lhs + constr[i], resolvers=[tmp_next_experiments])
                 for i, c in enumerate(self.domain.constraints)
             ]
-            constr_mask = np.asarray([c.tolist() for c in constr_mask]).T
+            constr_mask = numpy.asarray([c.tolist() for c in constr_mask]).T
             constr_mask = constr_mask.all(1)
         return constr_mask

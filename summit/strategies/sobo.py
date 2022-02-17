@@ -311,8 +311,8 @@ class SOBO(Strategy):
             outputs = outputs.to_numpy()
 
             if self.prev_param is not None:
-                X_step = self.prev_param[0]
-                Y_step = self.prev_param[1]
+                X_step = self.prev_param[0].astype(float)
+                Y_step = self.prev_param[1].astype(float)
 
                 X_step = np.vstack((X_step, inputs))
                 Y_step = np.vstack((Y_step, outputs))
@@ -393,7 +393,10 @@ class SOBO(Strategy):
 
     def to_dict(self):
         if self.prev_param is not None:
-            param = [self.prev_param[0].tolist(), self.prev_param[1].tolist()]
+            param = [
+                self.prev_param[0].astype(float).tolist(),
+                self.prev_param[1].astype(float).tolist(),
+            ]
         else:
             param = None
 
