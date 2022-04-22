@@ -13,7 +13,10 @@ jobs:
   #Run pytest and build package
   test_build:
     runs-on: ubuntu-latest
-
+    # strategy:
+    #   matrix:
+    #     # os: [macos-latest, ]
+    #     python: [3.8, 3.9, 3.10]
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -21,10 +24,10 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.7'
+        python-version: ${{ matrix.python }}
 
     - name: Install poetry
-      uses: Gr1N/setup-poetry@v4
+      uses: Gr1N/setup-poetry@v7
 
     - name: Cache poetry dependencies
       uses: actions/cache@v2
@@ -64,19 +67,32 @@ jobs:
    - name: Install poetry
      uses: Gr1N/setup-poetry@v4
 
-   - name: Install toml
-     run: pip install toml
 
    - name: Check for version bump and tag
      id: version_check
-     uses: salsify/action-detect-and-tag-new-version@v2
+     uses: salsify/action-detect-and-tag-new-version@v2.0.1
      with:
        tag-template: "{VERSION}"
        create-tag: ${{ github.ref == 'refs/heads/master' }} # only create new tag on master
        version-command: |
          python get_version.py
 
-   - name: Publish
-     # Only publish if there is a new tag
-     if: ${{ steps.version_check.tag }}
-     run: poetry publish --build -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }}
+  #  - name: Publish to pypi
+  #    uses: JRubics/poetry-publish@v1.10
+  #    if: ${{ steps.version_check.tag }}
+  #    with:
+  #     repository_username: ${{ secrets.PYPI_USERNAME }}
+  #     repository_password: ${{ secrets.PYPI_PASSWORD }}
+  #     repository_name: "summit"
+  #     repository_url: "https://test.pypi.org/legacy/"
+
+  #  - name: Publish
+  #    # Only publish if there is a new tag
+  #    if: startsWith(github.ref, 'refs/tags/')
+  #    run: poetry publish --build -u  -p  --dry-run
+   - name: Publish to pypi
+     uses: coveooss/pypi-publish-with-poetry@main
+     with:
+        project-name: summit
+        pypi-token: ${{ secrets.PYPI_TOKEN }}
+        dry-run: ${{ github.ref != 'refs/heads/main'}}
