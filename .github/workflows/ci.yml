@@ -67,6 +67,8 @@ jobs:
    - name: Install poetry
      uses: Gr1N/setup-poetry@v4
 
+   - name: Install toml
+     run: pip install toml
 
    - name: Check for version bump and tag
      id: version_check
