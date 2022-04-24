@@ -50,6 +50,7 @@ jobs:
       with:
         python-version: '3.9'
         cache: 'pip'
+        cache-dependency-path: "poetry.lock"
 
     - name: Download built package
       uses: actions/download-artifact@v3
