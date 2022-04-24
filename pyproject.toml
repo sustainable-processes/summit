@@ -62,6 +62,9 @@ ipdb = "0.13.4"
 rope = "^0.17.0"
 black = {version = "^20.8b1", allow-prereleases = true}
 
+[tool.poetry.scripts]
+poetry = 'poetry.console:run'
+
 
 [build-system]
 requires = ["poetry>=0.12"]
