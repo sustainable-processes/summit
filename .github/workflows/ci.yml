@@ -61,11 +61,7 @@ jobs:
       run: pip install summit-*.tar.gz pytest
 
     - name: Run tests
-      run: |
-        package_path=$(python -c "import sys;print(sys.prefix)")
-        summit_path="$package_path/site-packages/summit"
-        # pytest $summit_path --ignore=experiments --doctest-modules --disable-warnings
-        ls $summit_path
+      run: ./run_tests
 
   # Publish to pypi on version change
   # This is based on https://github.com/coveooss/pypi-publish-with-poetry
