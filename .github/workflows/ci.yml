@@ -61,9 +61,7 @@ jobs:
       run: pip install summit-*.tar.gz pytest
 
     - name: Run tests
-      run: |
-        chmod +x run_tests.sh
-        ./run_tests.sh 
+      run: summit-tests
 
   # Publish to pypi on version change
   # This is based on https://github.com/coveooss/pypi-publish-with-poetry
