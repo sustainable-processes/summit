@@ -33,7 +33,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: dist
-        path: dist
+        path: dist/
         retention-days: 1
 
   # Run pytest using built package
@@ -56,12 +56,14 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: dist
-    
-    - name: Install summit and pytest
-      run: pip install dist/summit-*.tar.gz pytest
 
-    - name: Run pytest
-      run: pytest --doctest-modules --ignore=experiments --disable-warnings
+    - run: pwd
+    
+    # - name: Install summit and pytest
+    #   run: pip install dist/summit-*.tar.gz pytest
+
+    # - name: Run pytest
+    #   run: pytest --doctest-modules --ignore=experiments --disable-warnings
 
   # Publish to pypi on version change
   # This is based on https://github.com/coveooss/pypi-publish-with-poetry
