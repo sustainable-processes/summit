@@ -59,6 +59,8 @@ You might run into some issues when installing scientific python packages such a
     brew install hdf5
     HDF5_DIR=/opt/homebrew/opt/hdf5 PIP_NO_BINARY="h5py" LLVM_CONFIG="/opt/homebrew/Cellar/llvm@11/11.1.0_3/bin/llvm-config" arch -arm64 poetry install
 
+If this commnad fails, make sure to check the version of LLVM that was actually installed (i.e., run `ls /opt/homebrew/Cellar/llvm@11/` and replace 11.1.0_3 wit the correct version in the third line above.
+
 More resources
 
 * [LLVM isssue](https://github.com/numba/llvmlite/issues/693#issuecomment-909501195)
