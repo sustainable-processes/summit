@@ -57,7 +57,7 @@ jobs:
       with:
         name: dist
 
-    - run: pwd
+    - run: ls
     
     # - name: Install summit and pytest
     #   run: pip install dist/summit-*.tar.gz pytest
