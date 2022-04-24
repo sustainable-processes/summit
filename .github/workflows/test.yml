@@ -10,13 +10,10 @@ on:
     - '**:**'
 
 jobs:
-  #Run pytest and build package
+  # Run pytest and build package
   test_build:
     runs-on: ubuntu-latest
-    # strategy:
-    #   matrix:
-    #     # os: [macos-latest, ]
-    #     python: [3.8, 3.9, 3.10]
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -47,29 +44,3 @@ jobs:
     - name: Build package
       run: poetry build
   
-  # Publish to pypi on version change
-  publish:
-    needs: test_build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Setup python 3.9
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.9
-
-      - name: Publish to pypi
-        uses: ./
-        with:
-          project-name: pypi-publish-with-poetry-dogfood
-          pypi-token: ${{ secrets.PYPI_TOKEN_DOGFOOD }}
-          pyproject-folder: ./pypi-publish-with-poetry-dogfood
-   - name: Publish to pypi
-     uses: coveooss/pypi-publish-with-poetry@main
-     with:
-        project-name: summit
-        pypi-token: ${{ secrets.PYPI_TOKEN }}
-        dry-run: ${{ github.ref != 'refs/heads/main'}}

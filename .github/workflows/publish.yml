@@ -4,9 +4,6 @@ on:
     workflows: [Run Tests]
     types:
       - completed
-  workflow_dispatch
-
-    
 
 jobs:
   # Publish to pypi on version change
@@ -22,7 +19,6 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.9
-
 
       - name: Publish to pypi
         uses: coveooss/pypi-publish-with-poetry@main
