@@ -1,5 +1,5 @@
 import pytest
-from summit import DataSet
+from summit.utils.dataset import DataSet
 
 
 def test_dataset():

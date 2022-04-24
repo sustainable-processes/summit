@@ -21,3 +21,13 @@ from summit.strategies import *
 from summit.benchmarks import *
 from summit.utils.dataset import DataSet
 from summit.utils.multiobjective import pareto_efficient, hypervolume
+
+
+def run_tests():
+    import pytest
+    import importlib.util
+
+    summit_path = importlib.util.find_spec("summit").submodule_search_locations[0]
+    retcode = pytest.main(
+        ["--doctest-modules", "--disable-warnings", "--pyargs", "summit"]
+    )
