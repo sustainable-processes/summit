@@ -1,4 +1,4 @@
-name: Test
+name: Test and Publish
 on:
   push:
   pull_request:
@@ -44,4 +44,25 @@ jobs:
     # # Check that the build process works correctly
     # - name: Build package
     #   run: poetry build
+
+  # Publish to pypi on version change
+  publish:
+    needs: test_build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Setup python 3.9
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+
+    - name: Publish to pypi
+      uses: coveooss/pypi-publish-with-poetry@main
+      with:
+          project-name: summit
+          pypi-token: ${{ secrets.PYPI_TOKEN }}
+          dry-run: ${{ github.ref != 'refs/heads/main'}}
   
