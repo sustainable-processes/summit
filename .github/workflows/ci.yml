@@ -94,9 +94,10 @@ jobs:
     - name: Determine the version for this release from the build
       id: current
       run: |
-        str="ls summit-*.tar.gz"
-        if [[ $str =~ (summit-)([^,][0-9.]{4}) ]]; then
+        BUILD_VER="ls dist/summit-*.tar.gz"
+        if [[ $BUILD_VER =~ (summit-)([^,][0-9.]{4}) ]]; then
             echo "::set-output name=version::${BASH_REMATCH[2]}"
+            echo "Version of build: $BUILD_VERx"
         else
             echo "No version found found"
         fi
@@ -105,8 +106,9 @@ jobs:
     - name: Get latest published version
       id: published
       run: |
-        RELEASE="$(pypi current-version summit)"
-        echo "::set-output name=version::$RELEASE"
+        PUB_VER="$(pypi current-version summit)"
+        echo "::set-output name=version::$PUB_VER"
+        echo "Latest published version: $PUB_VER"
 
     - name: Publish to pypi if new version on master
       if: (steps.outputs.currrent.version != steps.outputs.published.version) && ( steps.outputs.currrent.version != null )
