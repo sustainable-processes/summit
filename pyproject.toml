@@ -60,7 +60,6 @@ experiments = ["neptune-client", "hiplot", "paramiko", "pyrecorder", "xlrd", "st
 docs = ["sphinx", "nbsphinx", "sphinx-rtd-theme", "sphinx-reredirects"]
 
 [tool.poetry.dev-dependencies]
-
 ipdb = "0.13.4"
 rope = "^0.17.0"
 black = {version = "^20.8b1", allow-prereleases = true}

@@ -60,109 +60,77 @@ jobs:
     - name: Install summit and pytest
       run: pip install summit-*.tar.gz pytest
 
-    - name: Run tests
-      run: summit-tests
+    # - name: Run tests
+    #   run: summit-tests
 
   # Publish to pypi on version change
   # This is based on https://github.com/coveooss/pypi-publish-with-poetry
-  # publish:
-  #   needs: test_build
-  #   runs-on: ubuntu-latest
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
 
-  #   steps:
-    # - name: Install python
-    #   uses: actions/setup-python@v2
-    #   with:
-    #     python-version: '3.9'
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-    # - name: Install poetry
-    #   uses: Gr1N/setup-poetry@v7
-  
-    # - name: Cache poetry dependencies
-    #   uses: actions/cache@v2
-    #   with:
-    #     path: ~/.cache/pypoetry/virtualenvs
-    #     key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
-    #     restore-keys: |
-    #       ${{ runner.os }}-poetry-
+    - name: Install python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
 
-    # - name: Install coveo-pypi-cli
-    #   shell: bash
-    #   run: pipx install coveo-pypi-cli${{ inputs.pypi-cli-version }}
+    - name: Download built package
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
 
-    # - name: Determine the minimum version for this release (the one in the pyproject.toml file)
-    #   id: get-minimum-version
-    #   shell: bash
-    #   working-directory: ${{ inputs.pyproject-folder }}
-    #   run: echo "::set-output name=minimum-version::$(python $GITHUB_ACTION_PATH/get-minimum-version.py)"
+    - name: Install poetry
+      uses: Gr1N/setup-poetry@v7
 
-    # - name: Compute the release and prerelease versions
-    #   id: get-versions
-    #   shell: bash
-    #   run: |
-    #     RELEASE="$(pypi next-version ${{ inputs.project-name }} --minimum-version ${{ steps.get-minimum-version.outputs.minimum-version }})"
-    #     PRERELEASE="$(pypi next-version ${{ inputs.project-name }} --prerelease --minimum-version ${{ steps.get-minimum-version.outputs.minimum-version }})"
-    #     echo "::set-output name=release::$RELEASE"
-    #     echo "Next release: $RELEASE"
-    #     echo "::set-output name=prerelease::$PRERELEASE"
-    #     echo "Next prerelease: $PRERELEASE"
-    # - name: Determine the version to publish.
-    #   shell: bash
-    #   id: get-next-version
-    #   run: |
-    #     if [[ ${{ inputs.pre-release }} == true ]]; then
-    #       echo "::set-output name=version::${{ steps.get-versions.outputs.prerelease }}"
-    #     else
-    #       echo "::set-output name=version::${{ steps.get-versions.outputs.release }}"
-    #     fi
-    # - name: Setup poetry for publish
-    #   working-directory: ${{ inputs.pyproject-folder }}
-    #   shell: bash
-    #   run: |
-    #     poetry version ${{ steps.get-next-version.outputs.version }}
-    #     poetry build
-    #     poetry config pypi-token.pypi ${{ inputs.pypi-token }}
-    # - name: Publish to pypi.org
-    #   working-directory: ${{ inputs.pyproject-folder }}
-    #   shell: bash
-    #   run: |
-    #     if [[ ${{ inputs.dry-run }} == false ]]; then
-    #       poetry publish --no-interaction
-    #     else
-    #       echo "Just a dry run; we're not actually publishing"
-    #     fi
-    # - name: Tag repository
-    #   shell: bash
-    #   id: get-next-tag
-    #   run: |
-    #     TAG_NAME=${{ inputs.tag-prefix }}${{ steps.get-next-version.outputs.version }}
-    #     echo "::set-output name=tag-name::$TAG_NAME"
-    #     echo "This release will be tagged as $TAG_NAME"
-    #     git config user.name "github-actions"
-    #     git config user.email "actions@users.noreply.github.com"
-    #     git tag --annotate --message="Automated tagging system" $TAG_NAME ${{ github.sha }}
-    # - name: Push the tag
-    #   shell: bash
-    #   env:
-    #     TAG_NAME: ${{ steps.get-next-tag.outputs.tag-name }}
-    #   run: |
-    #     if [[ ${{ inputs.dry-run }} == false && ${{ inputs.disable-repository-tags }} != true ]]; then
-    #       git push origin $TAG_NAME
-    #     else
-    #       echo "If this wasn't a dry run, I would push this new tag named $TAG_NAME"
-    #     fi
-    # - name: Checkout repository
-    #   uses: actions/checkout@v2
+    - name: Install coveo-pypi-cli
+      run: pip install coveo-pypi-cli
 
-    # - name: Setup python 3.9
-    #   uses: actions/setup-python@v2
-    #   with:
-    #     python-version: 3.9
+    - name: Determine the version for this release from the build
+      id: current
+      run: |
+        summit_build="ls summit-*.tar.gz"
+        echo "::set-output name=version::$($summit_build =~ (summit-)([^,][0-9.]{4}))"
 
-    # - name: Publish to pypi
-    #   uses: coveooss/pypi-publish-with-poetry@main
-    #   with:
-    #       project-name: summit
-    #       pypi-token: ${{ secrets.PYPI_TOKEN }}
-    #       dry-run: ${{ github.ref != 'refs/heads/main'}}
-  
+    - name: Get latest published version
+      id: published
+      run: |
+        RELEASE="$(pypi current-version summit)"
+        echo "::set-output name=version::$RELEASE"
+
+    - name: Publish to pypi if new version on master
+      if: ${{ steps.outputs.currrent.version != steps.outputs.published.version }}
+      run: |
+        poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+        if  [[ ${{ github.ref_name }} == "master"]]; then
+          poetry publish 
+        else
+          poetry publish --dry-run
+        fi
+
+    - name: Tag repository
+      shell: bash
+      id: get-next-tag
+      if: ${{ steps.outputs.currrent.version != steps.outputs.published.version }}
+      run: |
+        TAG_NAME=${{ steps.outputs.currrent.version }}
+        echo "::set-output name=tag-name::$TAG_NAME"
+        echo "This release will be tagged as $TAG_NAME"
+        git config user.name "github-actions"
+        git config user.email "actions@users.noreply.github.com"
+        git tag --annotate --message="Automated tagging system" $TAG_NAME ${{ github.sha }}
+
+    - name: Push the tag
+      shell: bash
+      env:
+        TAG_NAME: ${{ steps.get-next-tag.outputs.tag-name }}
+      run: |
+        if  [[ ${{ github.ref_name }} == "master"]]; then
+          git push origin $TAG_NAME
+        else
+          echo "If this was the master branch, I would push this new tag named $TAG_NAME"
+        fi
