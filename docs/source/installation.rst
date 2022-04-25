@@ -1,6 +1,8 @@
 Installation
 ============
 
+Note that Summit only works with python 3.8 and 3.9 currently. We are waiting on pytorch to add python 3.10 support.
+
 The easiest way to install Summit is using pip or a depedency manager that supports pip:
 
 
@@ -55,11 +57,14 @@ Notes about installing on Apple M1
 You might run into some issues when installing scientific python packages such as Summit on Apple M1. Follow the steps below to install via pip:
 
 .. code-block:: bash
+    
     arch -arm64 brew install llvm@11 
     brew install hdf5
     HDF5_DIR=/opt/homebrew/opt/hdf5 PIP_NO_BINARY="h5py" LLVM_CONFIG="/opt/homebrew/Cellar/llvm@11/11.1.0_3/bin/llvm-config" arch -arm64 poetry install
 
-More resources
+If this commnad fails, make sure to check the version of LLVM that was actually installed (i.e., run `ls /opt/homebrew/Cellar/llvm@11/`) and replace 11.1.0_3 in the third line above with the correct version.   
+
+More resources:
 
 * [LLVM isssue](https://github.com/numba/llvmlite/issues/693#issuecomment-909501195)
 * [Installing H5py (for numpy)](https://docs.h5py.org/en/stable/build.html#custom-installation)
