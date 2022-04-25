@@ -131,7 +131,7 @@ jobs:
       shell: bash
       id: get-next-tag
       if: (steps.currrent.outputs.version != steps.published.outputs.version)
-      run:
+      run: |
         TAG_NAME=${{ steps.currrent.outputs.version }}
         echo "::set-output name=tag-name::$TAG_NAME"
         echo "This release will be tagged as $TAG_NAME"
