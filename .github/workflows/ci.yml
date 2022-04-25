@@ -117,6 +117,7 @@ jobs:
 
     - name: Publish to pypi if new version
       if: (steps.currrent.outputs.version != steps.published.outputs.version)
+      shell: bash
       run: |
         poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
         if  [[ ${{ github.ref_name }} == 'master' ]]; then
