@@ -64,7 +64,7 @@ jobs:
       shell: bash
       run: |
         WHL_NAME=$(ls summit-*.whl)
-        pip install ${WHL_NAME}[experiments] pytest
+        pip install ${WHL_NAME}[experiments,entmoot] pytest
 
     - name: Run tests
       shell: bash
