@@ -37,37 +37,40 @@ jobs:
         retention-days: 1
 
   # Run pytest using built package
-  # test:
-  #   needs: build
-  #   runs-on: ubuntu-latest
+  test:
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: [3.8, 3.9, 3.10]
 
-  #   steps:
-  #   - name: Checkout repository
-  #     uses: actions/checkout@v2
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-  #   - name: Install python
-  #     uses: actions/setup-python@v2
-  #     with:
-  #       python-version: '3.9'
-  #       cache: 'pip'
-  #       cache-dependency-path: "poetry.lock"
+    - name: Install python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+        cache: 'pip'
+        cache-dependency-path: "poetry.lock"
 
-  #   - name: Download built package
-  #     uses: actions/download-artifact@v3
-  #     with:
-  #       name: dist
+    - name: Download built package
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
     
-  #   - name: Install summit and pytest
-  #     run: pip install summit-*.tar.gz pytest
+    - name: Install summit and pytest
+      run: pip install summit-*.tar.gz pytest
 
-    # - name: Run tests
-    #   run: summit-tests
+    - name: Run tests
+      run: summit-tests
 
   # Publish to pypi on version change
   # This is based on https://github.com/coveooss/pypi-publish-with-poetry
   publish:
-    # needs: test
-    needs: build
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
