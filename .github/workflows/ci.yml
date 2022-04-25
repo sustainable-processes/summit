@@ -94,7 +94,7 @@ jobs:
     - name: Determine the version for this release from the build
       id: current
       run: |
-        BUILD_VER="$(ls dist/summit-0.8.4.tar.gz)"
+        BUILD_VER="$(ls dist/summit-*.tar.gz)"
         echo "Path: $BUILD_VER"
         if [[ $BUILD_VER =~ (summit-)([^,][0-9.]{4}) ]]; then
             echo "::set-output name=version::${BASH_REMATCH[2]}"
