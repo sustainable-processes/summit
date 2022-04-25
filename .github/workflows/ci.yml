@@ -112,8 +112,8 @@ jobs:
         echo "Latest published version: $PUB_VER"
     
     - run: |
-        echo "$Current: {{ steps.outputs.currrent.version }}"
-        echo "$Published {{ steps.outputs.published.version }}"
+        echo "Current: ${{ steps.outputs.currrent.version }}"
+        echo "Published ${{ steps.outputs.published.version }}"
 
     - name: Publish to pypi if new version
       if: steps.outputs.currrent.version != steps.outputs.published.version
