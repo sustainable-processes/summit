@@ -123,6 +123,7 @@ jobs:
         if [[ '${{ github.ref_name }}' == 'master' ]]; then
           poetry publish 
         else
+          echo "Dry run of publishing the package"
           poetry publish --dry-run
         fi
 
@@ -131,7 +132,7 @@ jobs:
       id: get-next-tag
       if: (steps.currrent.outputs.version != steps.published.outputs.version)
       run:
-        TAG_NAME=${{ steps.outputs.currrent.version }}
+        TAG_NAME=${{ steps.currrent.outputs.version }}
         echo "::set-output name=tag-name::$TAG_NAME"
         echo "This release will be tagged as $TAG_NAME"
         git config user.name "github-actions"
@@ -143,7 +144,7 @@ jobs:
       env:
         TAG_NAME: ${{ steps.get-next-tag.outputs.tag-name }}
       run: |
-        if  [[ ${{ github.ref_name }} == "master"]]; then
+        if [[ ${{ github.ref_name }} == 'master' ]]; then
           git push origin $TAG_NAME
         else
           echo "If this was the master branch, I would push this new tag named $TAG_NAME"
