@@ -899,11 +899,11 @@ testing = ["Django (<3.1)", "colorama", "docopt", "pytest (<7.0.0)"]
 
 [[package]]
 name = "jinja2"
-version = "3.1.1"
+version = "3.0.3"
 description = "A very fast and expressive template engine."
 category = "main"
 optional = true
-python-versions = ">=3.7"
+python-versions = ">=3.6"
 
 [package.dependencies]
 MarkupSafe = ">=2.0"
@@ -2465,14 +2465,14 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 
 [extras]
 bnn = []
-docs = ["sphinx", "nbsphinx", "sphinx-rtd-theme", "sphinx-reredirects"]
+docs = ["sphinx", "jinja2", "nbsphinx", "sphinx-rtd-theme", "sphinx-reredirects"]
 entmoot = ["entmoot"]
 experiments = ["neptune-client", "hiplot", "paramiko", "pyrecorder", "xlrd", "streamlit"]
 
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8, <3.10"
-content-hash = "de8a9a8b0a9c11e3dfe0504c051201b192dc2fb267d8d09739d0854ab70851cd"
+content-hash = "a3598322385f9bf7c9119e1e5ceaa12f9f0c4b65239d12dd5c720c670526d1b5"
 
 [metadata.files]
 alabaster = [
@@ -2994,8 +2994,8 @@ jedi = [
     {file = "jedi-0.18.1.tar.gz", hash = "sha256:74137626a64a99c8eb6ae5832d99b3bdd7d29a3850fe2aa80a4126b2a7d949ab"},
 ]
 jinja2 = [
-    {file = "Jinja2-3.1.1-py3-none-any.whl", hash = "sha256:539835f51a74a69f41b848a9645dbdc35b4f20a3b601e2d9a7e22947b15ff119"},
-    {file = "Jinja2-3.1.1.tar.gz", hash = "sha256:640bed4bb501cbd17194b3cace1dc2126f5b619cf068a726b98192a0fde74ae9"},
+    {file = "Jinja2-3.0.3-py3-none-any.whl", hash = "sha256:077ce6014f7b40d03b47d1f1ca4b0fc8328a692bd284016f806ed0eaca390ad8"},
+    {file = "Jinja2-3.0.3.tar.gz", hash = "sha256:611bb273cd68f3b993fabdc4064fc858c5b47a973cb5aa7999ec1ba405c87cd7"},
 ]
 jmespath = [
     {file = "jmespath-1.0.0-py3-none-any.whl", hash = "sha256:e8dcd576ed616f14ec02eed0005c85973b5890083313860136657e24784e4c04"},
