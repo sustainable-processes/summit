@@ -95,9 +95,10 @@ jobs:
       id: current
       run: |
         BUILD_VER="ls dist/summit-*.tar.gz"
+        echo "Path: $BUILD_VER"
         if [[ $BUILD_VER =~ (summit-)([^,][0-9.]{4}) ]]; then
             echo "::set-output name=version::${BASH_REMATCH[2]}"
-            echo "Version of build: $BUILD_VERx"
+            echo "Version of build: ${BASH_REMATCH[2]}"
         else
             echo "No version found found"
         fi
