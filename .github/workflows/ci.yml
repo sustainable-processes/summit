@@ -1,4 +1,4 @@
-name: Test & Publish
+name: Test and Publish
 on:
   push:
   pull_request:
@@ -10,8 +10,8 @@ on:
     - '**:**'
 
 jobs:
-  #Run pytest and build package
-  test_build:
+  # Build the package
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,62 +21,133 @@ jobs:
     - name: Install python
       uses: actions/setup-python@v2
       with:
-        python-version: '3.8'
+        python-version: '3.9'
 
     - name: Install poetry
-      uses: Gr1N/setup-poetry@v4
+      uses: Gr1N/setup-poetry@v7
 
-    - name: Cache poetry dependencies
-      uses: actions/cache@v2
-      with:
-        path: ~/.cache/pypoetry/virtualenvs
-        key: ${{ runner.os }}-poetry-${{ hashFiles('poetry.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-poetry-
-    
-    - name: Install dependencies
-      run: poetry install -E experiments -E entmoot
-
-    - name: Run pytest
-      run: poetry run pytest --doctest-modules --ignore=experiments --disable-warnings
-
-    # Check that the build process works correctly
     - name: Build package
       run: poetry build
-  
+
+    - name: Upload built package
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist
+        path: dist/
+        retention-days: 1
+
+  # Run pytest using built package
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.8", "3.9"]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install python
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+        cache: 'pip'
+        cache-dependency-path: "poetry.lock"
+
+    - name: Download built package
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+    
+    - name: Install summit and pytest
+      shell: bash
+      run: |
+        WHL_NAME=$(ls summit-*.whl)
+        pip install ${WHL_NAME}[experiments,entmoot] pytest
+
+    - name: Run tests
+      shell: bash
+      run: summit-tests
+
   # Publish to pypi on version change
+  # This is based on https://github.com/coveooss/pypi-publish-with-poetry
   publish:
-   needs: test_build
-   runs-on: ubuntu-latest
+    needs: test
+    runs-on: ubuntu-latest
 
-   steps:
-   - uses: actions/checkout@v2
-     with:
-       # Make sure to fetch the last two commits
-       # Needed forthe version bump and tag
-       fetch-depth: 2
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-   - name: Install python
-     uses: actions/setup-python@v2
-     with:
-       python-version: '3.8'
+    - name: Install python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
 
-   - name: Install poetry
-     uses: Gr1N/setup-poetry@v4
+    - name: Download built package
+      uses: actions/download-artifact@v3
+      with:
+        name: dist
+        path: dist/
 
-   - name: Install toml
-     run: pip install toml
+    - name: Install poetry
+      uses: Gr1N/setup-poetry@v7
 
-   - name: Check for version bump and tag
-     id: version_check
-     uses: salsify/action-detect-and-tag-new-version@v2
-     with:
-       tag-template: "{VERSION}"
-       create-tag: ${{ github.ref == 'refs/heads/master' }} # only create new tag on master
-       version-command: |
-         python get_version.py
+    - name: Install coveo-pypi-cli
+      run: pip install coveo-pypi-cli
 
-   - name: Publish
-     # Only publish if there is a new tag
-     if: ${{ steps.version_check.tag }}
-     run: poetry publish --build -u ${{ secrets.PYPI_USERNAME }} -p ${{ secrets.PYPI_PASSWORD }}
+    - name: Determine the version for this release from the build
+      id: current
+      run: |
+        BUILD_VER="$(ls dist/summit-*.tar.gz)"
+        echo "Path: $BUILD_VER"
+        if [[ $BUILD_VER =~ (summit-)([^,][0-9.]{4}) ]]; then
+            echo "::set-output name=version::${BASH_REMATCH[2]}"
+            echo "Version of build: ${BASH_REMATCH[2]}"
+        else
+            echo "No version found found"
+        fi
+        
+    - name: Get latest published version
+      id: published
+      run: |
+        PUB_VER="$(pypi current-version summit)"
+        echo "::set-output name=version::$PUB_VER"
+        echo "Latest published version: $PUB_VER"
+    
+
+    - name: Publish to pypi if new version
+      if: (steps.current.outputs.version != steps.published.outputs.version)
+      shell: bash
+      run: |
+        poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+        if [[ '${{ github.ref_name }}' == 'master' ]]; then
+          poetry publish 
+        else
+          echo "Dry run of publishing the package"
+          poetry publish --dry-run
+        fi
+
+    - name: Tag repository
+      shell: bash
+      id: get-next-tag
+      if: (steps.current.outputs.version != steps.published.outputs.version)
+      run: |
+        TAG_NAME=${{ steps.current.outputs.version }}
+        echo "::set-output name=tag-name::$TAG_NAME"
+        echo "This release will be tagged as $TAG_NAME"
+        git config user.name "github-actions"
+        git config user.email "actions@users.noreply.github.com"
+        git tag --annotate --message="Automated tagging system" $TAG_NAME ${{ github.sha }}
+
+    - name: Push the tag
+      if: (steps.current.outputs.version != steps.published.outputs.version)
+      env:
+        TAG_NAME: ${{ steps.current.outputs.version }}
+      run: |
+        if [[ ${{ github.ref_name }} == 'master' ]]; then
+          git push origin $TAG_NAME
+        else
+          echo "If this was the master branch, I would push a new tag named $TAG_NAME"
+        fi
