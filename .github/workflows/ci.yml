@@ -62,9 +62,11 @@ jobs:
         name: dist
     
     - name: Install summit and pytest
+      shell: bash
       run: pip install summit-*.tar.gz pytest
 
     - name: Run tests
+      shell: bash
       run: summit-tests
 
   # Publish to pypi on version change
