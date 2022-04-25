@@ -103,7 +103,6 @@ jobs:
             echo "No version found found"
         fi
         
-
     - name: Get latest published version
       id: published
       run: |
@@ -111,12 +110,9 @@ jobs:
         echo "::set-output name=version::$PUB_VER"
         echo "Latest published version: $PUB_VER"
     
-    - run: |
-        echo "Current: ${{ steps.currrent.outputs.version }}"
-        echo "Published ${{ steps.published.outputs.version }}"
 
     - name: Publish to pypi if new version
-      if: (steps.currrent.outputs.version != steps.published.outputs.version)
+      if: (steps.current.outputs.version != steps.published.outputs.version)
       shell: bash
       run: |
         poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
@@ -130,9 +126,9 @@ jobs:
     - name: Tag repository
       shell: bash
       id: get-next-tag
-      if: (steps.currrent.outputs.version != steps.published.outputs.version)
+      if: (steps.current.outputs.version != steps.published.outputs.version)
       run: |
-        TAG_NAME=${{ steps.currrent.outputs.version }}
+        TAG_NAME=${{ steps.current.outputs.version }}
         echo "::set-output name=tag-name::$TAG_NAME"
         echo "This release will be tagged as $TAG_NAME"
         git config user.name "github-actions"
@@ -140,12 +136,10 @@ jobs:
         git tag --annotate --message="Automated tagging system" $TAG_NAME ${{ github.sha }}
 
     - name: Push the tag
-      if: (steps.currrent.outputs.version != steps.published.outputs.version)
-      env:
-        TAG_NAME: ${{ steps.get-next-tag.outputs.tag-name }}
+      if: (steps.current.outputs.version != steps.published.outputs.version)
       run: |
         if [[ ${{ github.ref_name }} == 'master' ]]; then
-          git push origin $TAG_NAME
+          git push origin ${{ steps.current.outputs.version }}
         else
           echo "If this was the master branch, I would push this new tag named $TAG_NAME"
         fi
