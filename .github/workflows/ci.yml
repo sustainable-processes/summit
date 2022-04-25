@@ -39,10 +39,9 @@ jobs:
   # Run pytest using built package
   test:
     needs: build
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         python: ["3.8", "3.9"]
 
     steps:
@@ -65,7 +64,7 @@ jobs:
       shell: bash
       run: |
         WHL_NAME=$(ls summit-*.whl)
-        pip install ${WHL_NAME}[experiments,entmoot] pytest
+        pip install ${WHL_NAME}[experiments] pytest
 
     - name: Run tests
       shell: bash
