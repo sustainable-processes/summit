@@ -137,9 +137,11 @@ jobs:
 
     - name: Push the tag
       if: (steps.current.outputs.version != steps.published.outputs.version)
+      env:
+        TAG_NAME: ${{ steps.current.outputs.version }}
       run: |
         if [[ ${{ github.ref_name }} == 'master' ]]; then
-          git push origin ${{ steps.current.outputs.version }}
+          git push origin $TAG_NAME
         else
-          echo "If this was the master branch, I would push this new tag named $TAG_NAME"
+          echo "If this was the master branch, I would push a new tag named $TAG_NAME"
         fi
