@@ -38,7 +38,7 @@ jobs:
       run: poetry install -E experiments -E entmoot
 
     - name: Run pytest
-      run: poetry run pytest --doctest-modules --ignore=experiments --disable-warnings
+      run: summit-tests
 
     # Check that the build process works correctly
     - name: Build package
