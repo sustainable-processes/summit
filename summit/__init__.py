@@ -25,9 +25,10 @@ from summit.utils.multiobjective import pareto_efficient, hypervolume
 
 def run_tests():
     import pytest
-    import importlib.util
+    from pytest import ExitCode
+    import sys
 
-    summit_path = importlib.util.find_spec("summit").submodule_search_locations[0]
     retcode = pytest.main(
         ["--doctest-modules", "--disable-warnings", "--pyargs", "summit"]
     )
+    sys.exit(retcode)
