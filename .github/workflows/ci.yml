@@ -110,9 +110,13 @@ jobs:
         PUB_VER="$(pypi current-version summit)"
         echo "::set-output name=version::$PUB_VER"
         echo "Latest published version: $PUB_VER"
+    
+    - run: |
+        echo "$Current: {{ steps.outputs.currrent.version }}"
+        echo "$Published {{ steps.outputs.published.version }}"
 
-    - name: Publish to pypi if new version on master
-      if: (steps.outputs.currrent.version != steps.outputs.published.version)
+    - name: Publish to pypi if new version
+      if: steps.outputs.currrent.version != steps.outputs.published.version
       run: |
         poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
         if  [[ ${{ github.ref_name }} == "master"]]; then
