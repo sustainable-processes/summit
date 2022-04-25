@@ -94,9 +94,13 @@ jobs:
     - name: Determine the version for this release from the build
       id: current
       run: |
-        summit_build="ls summit-*.tar.gz"
-        $summit_build =~ (summit-)([^,][0-9.]{4})
-        echo "::set-output name=version::${BASH_REMATCH[2]}"
+      str="ls summit-*.tar.gz"
+      if [[ $str =~ (summit-)([^,][0-9.]{4}) ]]; then
+          echo "::set-output name=version::${BASH_REMATCH[2]}"
+      else
+          echo "No version found found"
+      fi
+        
 
     - name: Get latest published version
       id: published
