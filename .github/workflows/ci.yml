@@ -94,7 +94,8 @@ jobs:
       id: current
       run: |
         summit_build="ls summit-*.tar.gz"
-        echo "::set-output name=version::$($summit_build =~ (summit-)([^,][0-9.]{4}))"
+        $summit_build =~ (summit-)([^,][0-9.]{4}))
+        echo "::set-output name=version::${BASH_REMATCH[2]}"
 
     - name: Get latest published version
       id: published
