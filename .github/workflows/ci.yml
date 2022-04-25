@@ -99,7 +99,6 @@ jobs:
             echo "::set-output name=version::${BASH_REMATCH[2]}"
         else
             echo "No version found found"
-            echo "::set-output name=version::"" 
         fi
         
 
