@@ -119,7 +119,7 @@ jobs:
       if: (steps.currrent.outputs.version != steps.published.outputs.version)
       run: |
         poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-        if  [[ ${{ github.ref_name }} == "master"]]; then
+        if  [[ ${{ github.ref_name }} == 'master' ]]; then
           poetry publish 
         else
           poetry publish --dry-run
