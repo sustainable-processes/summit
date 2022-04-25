@@ -44,6 +44,7 @@ neptune-client = {version= "^0.4.115", optional = true}
 hiplot = {version= "^0.1.12", optional = true}
 paramiko = {version="^2.7.1", optional=true}    
 sphinx = {version="^3.2.1", optional=true}
+jinja2 = {version="<3.1.0", optional=true}
 nbsphinx = {version="^0.8.5", optional=true}
 sphinx-rtd-theme = {version="^0.5.0", optional=true}
 pyrecorder = {version="^0.1.8", optional=true}
@@ -54,7 +55,7 @@ sphinx-reredirects = {version="^0.0.0", optional=true}
 bnn = ["blitz-bayesian-pytorch"]
 entmoot = ["entmoot"]
 experiments = ["neptune-client", "hiplot", "paramiko", "pyrecorder", "xlrd", "streamlit"]
-docs = ["sphinx", "nbsphinx", "sphinx-rtd-theme", "sphinx-reredirects"]
+docs = ["sphinx", "jinja2", "nbsphinx", "sphinx-rtd-theme", "sphinx-reredirects"]
 
 [tool.poetry.dev-dependencies]
 pytest = "^3.0"
