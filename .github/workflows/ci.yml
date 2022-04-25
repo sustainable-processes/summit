@@ -64,8 +64,7 @@ jobs:
     - name: Install summit and pytest
       shell: bash
       run: |
-        pip install summit-*.tar.gz -e experiments
-        pip install pytest
+        pip install summit-*.tar.gz[experiments] pytest
 
     - name: Run tests
       shell: bash
