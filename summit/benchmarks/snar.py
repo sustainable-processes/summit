@@ -172,7 +172,7 @@ class SnarBenchmark(Experiment):
         r[0] = -(k_a + k_b) * C[0] * C[1]
         r[1] = -(k_a + k_b) * C[0] * C[1] - k_c * C[1] * C[2] - k_d * C[1] * C[3]
         r[2] = k_a * C[0] * C[1] - k_c * C[1] * C[2]
-        r[3] = k_a * C[0] * C[1] - k_d * C[1] * C[3]
+        r[3] = k_b * C[0] * C[1] - k_d * C[1] * C[3]
         r[4] = k_c * C[1] * C[2] + k_d * C[1] * C[3]
 
         # Deltas
