@@ -18,7 +18,7 @@ from sklearn.model_selection import (
     GridSearchCV,
     ParameterGrid,
 )
-from sklearn.model_selection._search import BaseSearchCV, _check_param_grid
+from sklearn.model_selection._search import BaseSearchCV
 from sklearn.base import (
     BaseEstimator,
     RegressorMixin,
