@@ -18,7 +18,7 @@ from sklearn.model_selection import (
     GridSearchCV,
     ParameterGrid,
 )
-from sklearn.model_selection._search import BaseSearchCV, _check_param_grid
+from sklearn.model_selection._search import BaseSearchCV
 from sklearn.base import (
     BaseEstimator,
     RegressorMixin,
@@ -1118,7 +1118,6 @@ class ProgressGridSearchCV(BaseSearchCV):
             return_train_score=return_train_score,
         )
         self.param_grid = param_grid
-        _check_param_grid(param_grid)
 
     def _run_search(self, evaluate_candidates):
         """Search all candidates in param_grid"""
