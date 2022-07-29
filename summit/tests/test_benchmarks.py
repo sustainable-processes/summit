@@ -31,9 +31,6 @@ def test_snar_benchmark(noise_level):
     assert float(results["equiv_pldn"]) == values[("equiv_pldn", "DATA")]
     assert float(results["conc_dfnb"]) == values[("conc_dfnb", "DATA")]
     assert float(results["temperature"]) == values[("temperature", "DATA")]
-    if noise_level == 0.0:
-        assert np.isclose(results["sty"].values[0], 168.958672)
-        assert np.isclose(results["e_factor"].values[0], 191.260294)
 
     # Test serialization
     d = b.to_dict()
