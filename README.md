@@ -41,7 +41,7 @@ Below, we show how to use the Nelder-Mead  strategy to optimise a benchmark repr
 ```python
 # Import summit
 from summit.benchmarks import SnarBenchmark
-from summit.strategies import NelderMead, MultitoSingleObjective
+from summit.strategies import SOBO, MultitoSingleObjective
 from summit.run import Runner
 
 # Instantiate the benchmark
@@ -53,14 +53,22 @@ transform = MultitoSingleObjective(
 )
 
 # Set up the strategy, passing in the optimisation domain and transform
-nm = NelderMead(exp.domain, transform=transform)
+nm = SOBO(exp.domain, transform=transform)
 
 # Use the runner to run closed loop experiments
 r = Runner(
     strategy=nm, experiment=exp,max_iterations=50
 )
 r.run()
+
+# Make a pareto plot comparing both objectives
+r.experiment.pareto_plot(ax=ax)
 ```
+
+<p align="center">
+<img src="static/pareto.png", alt='Documentation Status' />
+</p>
+
 
 ## Documentation
 
