@@ -1,5 +1,3 @@
-from multiprocessing.sharedctypes import Value
-from re import M
 from .base import Strategy, Transform
 from .random import LHS
 from summit.domain import *
@@ -7,9 +5,7 @@ from summit.utils.dataset import DataSet
 from summit.utils.thompson_sampling import ThompsonSampledModel
 from scipy import optimize
 import numpy as np
-from typing import Type, Tuple, Union, Optional
-from torch import Tensor
-import torch
+from typing import Callable, Tuple, Union, Optional
 
 
 class CBBO(Strategy):
@@ -42,8 +38,6 @@ class CBBO(Strategy):
 
     References
     ----------
-
-    .. [Swersky] K. Swersky et al., in `NIPS Proceedings <http://papers.neurips.cc/paper/5086-multi-task-bayesian-optimization>`_, 2013, pp. 2004–2012.
 
     Examples
     --------
@@ -131,22 +125,25 @@ class CBBO(Strategy):
             maximize = False
 
         def f_opt(X, models, m, q):
-            import pdb
-
-            pdb.set_trace()
-            X = X.reshape((q, m))
+            X = np.reshape(X, (q, m))
             f = np.sum([model.rff(xs) for xs, model in zip(X, models)])
             if maximize:
                 f *= -1.0
             return f
 
-        bounds = np.concatenate(self._get_bounds() * q)
-        import pdb
-
-        pdb.set_trace()
+        bounds = self._get_bounds() * q
+        restarts = 50
+        x0s = [
+            [b[0] + np.random.rand() * (b[1] - b[0]) for b in bounds]
+            for _ in range(restarts)
+        ]
         m = len(self.domain.input_variables)
-        res = optimize.brute(f_opt, ranges=bounds, args=(models, m, q), Ns=10)
-        results = res.reshape((q, m))
+        # res = optimize.brute(f_opt, ranges=bounds, args=(models, m, q), Ns=10)
+        # res = optimize.fmin(f_opt, x0, args=(models, m, q))
+        res_x, res_y = multi_start_optimize(
+            f_opt, x0s, func_args=(models, m, q), bounds=bounds
+        )
+        results = res_x.reshape((q, m))
 
         # Convert result to datset
         result = DataSet(
@@ -190,3 +187,32 @@ class CBBO(Strategy):
         std[std < 1e-5] = 1e-5
         scaled = (X - mean.to_numpy()) / std.to_numpy()
         return scaled.to_numpy(), mean, std
+
+
+def multi_start_optimize(
+    fun: Callable[[np.ndarray], float], x0s: np.ndarray, func_args, **kwargs
+) -> Tuple[np.ndarray, float]:
+    """
+    Helper function to run fmin-optimization from many start points.
+    Parameters
+    ----------
+    fun : callable
+        the function to minimize
+    x0s : numpy.ndarray
+        (N_starts, D) array of initial guesses
+    Returns
+    -------
+    x_best : numpy.ndarray
+        (D,) coordinate of the found minimum
+    y_best : float
+        function value at the minimum
+
+    Notes
+    ------
+    Copied from pyrff
+
+    """
+    x_peaks = [optimize.minimize(fun, x0=x0, args=func_args, **kwargs).x for x0 in x0s]
+    y_peaks = [fun(x, *func_args) for x in x_peaks]
+    ibest = np.argmin(y_peaks)
+    return x_peaks[ibest], y_peaks[ibest]
