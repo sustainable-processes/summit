@@ -689,7 +689,7 @@ class Domain:
         html = ["<table id='domain' width=100%>"]
 
         # Table header
-        columns = ["Name", "Type", "Description", "Values"]
+        columns = ["Name", "Type", "Description", "Bounds/Levels"]
         header = "<tr>"
         header += "".join(map(lambda l: "<td><b>{0}</b></td>".format(l), columns))
         header += "</tr>"

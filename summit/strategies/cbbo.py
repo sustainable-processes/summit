@@ -1,3 +1,5 @@
+import pdb
+from summit.strategies.factorial_doe import fullfact
 from .base import Strategy, Transform
 from .random import LHS
 from summit.domain import *
@@ -5,7 +7,7 @@ from summit.utils.dataset import DataSet
 from summit.utils.thompson_sampling import ThompsonSampledModel
 from scipy import optimize
 import numpy as np
-from typing import Callable, Tuple, Union, Optional
+from typing import Callable, Dict, List, Tuple, Union, Optional
 
 
 class CBBO(Strategy):
@@ -62,6 +64,7 @@ class CBBO(Strategy):
     def __init__(
         self,
         domain: Domain,
+        levels_dict: Dict[str, int],
         transform: Transform = None,
         categorical_method: str = "one-hot",
         **kwargs,
@@ -72,6 +75,7 @@ class CBBO(Strategy):
             raise ValueError(
                 "categorical_method must be one of 'one-hot' or 'descriptors'."
             )
+        self.levels_dict = levels_dict
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
@@ -110,38 +114,47 @@ class CBBO(Strategy):
                 inputs,
                 output,
                 n_retries=10,
-                # CHANGE BACK TO 1500
                 n_spectral_points=1500,
             )
             models.append(model)
 
-        # Optimize Thompson sampled function
+        # Optimize Thompson sampled functions
         # q is batch size
         # m is the input space dimension
-        objective = self.domain.output_variables[0]
-        if objective.maximize:
-            maximize = True
-        else:
-            maximize = False
-
-        def f_opt(X, models, m, q):
-            X = np.reshape(X, (q, m))
-            f = np.sum([model.rff(xs) for xs, model in zip(X, models)])
-            if maximize:
-                f *= -1.0
-            return f
-
-        bounds = self._get_bounds() * q
+        levels_list = [self.levels_dict[v.name] for v in self.domain.input_variables]
+        design_ind = fullfact(levels_list).astype(int)
+        maximize = True if self.domain.output_variables[0].maximize else False
         restarts = 50
-        x0s = [
-            [b[0] + np.random.rand() * (b[1] - b[0]) for b in bounds]
-            for _ in range(restarts)
-        ]
+        x0s = np.zeros((restarts, sum(levels_list)))
+        var_to_X = []
+        bounds = np.zeros((sum(levels_list), 2))
+        k = 0
+        for v in self.domain.input_variables:
+            n_levels = self.levels_dict[v.name]
+            if isinstance(v, ContinuousVariable):
+                b = np.array(v.bounds)
+                bounds[k : k + n_levels, :] = b
+            elif isinstance(v, CategoricalVariable):
+                raise DomainError("Categorical variables not supported yet")
+            var_to_X.append(np.arange(k, k + n_levels))
+            x0s[:, k : k + n_levels] = b[0] + np.random.rand(restarts, n_levels) * (
+                b[1] - b[0]
+            )
+            k += n_levels
+
         m = len(self.domain.input_variables)
-        res_x, res_y = multi_start_optimize(
-            f_opt, x0s, func_args=(models, m, q), bounds=bounds
+        res_x, _ = multi_start_optimize(
+            f_opt,
+            x0s,
+            func_args=(models, m, var_to_X, design_ind, maximize),
+            bounds=bounds,
         )
-        results = res_x.reshape((q, m))
+        results = np.zeros_like(design_ind, dtype=float)
+        for i in range(m):
+            # xi are the levels of the ith decision variable
+            xi = res_x[var_to_X[i]]
+            # design_ind[:, i] is the indices ith column of the design
+            results[:, i] = xi[design_ind[:, i]]
 
         # Convert result to datset
         result = DataSet(
@@ -174,17 +187,21 @@ class CBBO(Strategy):
                 bounds += [[0, 1] for _ in v.levels]
         return bounds
 
+    def _get_levels_dict(self, init_levels_dict: Dict[str, int] = None):
+        """Get the levels dictionary"""
+        if init_levels_dict is None:
+            levels_dict = {}
+        else:
+            levels_dict = init_levels_dict
+        for v in self.domain.input_variables:
+            if v.name not in levels_dict:
+                levels_dict[v.name] = None
+        return levels_dict
+
     def reset(self):
         """Reset MTBO state"""
         self.all_experiments = None
         self.iterations = 0
-
-    @staticmethod
-    def standardize(X):
-        mean, std = X.mean(), X.std()
-        std[std < 1e-5] = 1e-5
-        scaled = (X - mean.to_numpy()) / std.to_numpy()
-        return scaled.to_numpy(), mean, std
 
 
 def multi_start_optimize(
@@ -214,3 +231,44 @@ def multi_start_optimize(
     y_peaks = [fun(x, *func_args) for x in x_peaks]
     ibest = np.argmin(y_peaks)
     return x_peaks[ibest], y_peaks[ibest]
+
+
+def f_opt(
+    X,
+    models: List[ThompsonSampledModel],
+    m: int,
+    var_to_X: np.ndarray,
+    design_ind: np.ndarray,
+    maximize: bool,
+):
+    """Objective function for Thompson sampling
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Decision variables
+    models : list of ThompsonSampledModel
+        List of models to use for Thompson sampling
+    m : int
+        Number of decision variables
+    var_to_X : np.ndarray
+        Mapping from variable index to indices in X
+    design_ind : np.ndarray
+        Enumeration of full factorial design
+    maximize : bool
+        Whether to maximize or minimize the objective.
+
+    """
+    # Generate design
+    design = np.zeros_like(design_ind, dtype=float)
+    for i in range(m):
+        # xi are the levels of the ith decision variable
+        xi = X[var_to_X[i]]
+        # design_ind[:, i] is the indices ith column of the design
+        design[:, i] = xi[design_ind[:, i]]
+
+    # Calculate objecitve
+    f = np.sum([model.rff(xs) for xs, model in zip(design, models)])
+    if maximize:
+        f *= -1.0
+    return f
