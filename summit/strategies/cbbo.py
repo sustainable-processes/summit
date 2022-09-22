@@ -140,7 +140,7 @@ class CBBO(Strategy):
                 f *= -1.0
             return f
 
-        bounds = np.array([self._get_bounds()] * q).flatten()
+        bounds = np.concatenate(self._get_bounds() * q)
         import pdb
 
         pdb.set_trace()
