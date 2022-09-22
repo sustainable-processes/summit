@@ -9,6 +9,7 @@ from .sobo import SOBO
 from .multitask import MTBO, STBO
 from .deep_reaction_optimizer import DRO
 from .entmoot import ENTMOOT
+from .cbbo import CBBO
 
 __all__ = [
     "Random",

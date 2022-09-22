@@ -694,6 +694,61 @@ def test_mtbo(
         fig, ax = hartmann3D.plot()
 
 
+@pytest.mark.parametrize(
+    "max_num_exp, maximize, constraint",
+    [
+        # [50, True, True],
+        # [50, False, True],
+        [20, True, False],
+        [20, False, False],
+    ],
+)
+def test_cbbo(
+    max_num_exp,
+    maximize,
+    constraint,
+    plot=False,
+    n_pretraining=50,
+):
+
+    hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
+
+    strategy = CBBO(domain=hartmann3D.domain)
+    batch_size = 1
+
+    hartmann3D.reset()
+    r = Runner(
+        strategy=strategy,
+        experiment=hartmann3D,
+        batch_size=batch_size,
+        max_iterations=max_num_exp // batch_size,
+    )
+    r.run()
+
+    objective = hartmann3D.domain.output_variables[0]
+    data = hartmann3D.data
+    if objective.maximize:
+        fbest = data[objective.name].max()
+    else:
+        fbest = data[objective.name].min()
+
+    fbest = np.around(fbest, decimals=2)
+    print(f"Number of experiments: {data.shape[0]}")
+    # Extrema of test function without constraint: glob_min = -3.86 at
+    if maximize:
+        assert fbest >= 3.84 and fbest <= 3.87
+    else:
+        assert fbest <= -3.84 and fbest >= -3.87
+
+    # Test saving and loading
+    strategy.save("cbbo_test.json")
+    strategy_2 = MTBO.load("cbbo_test.json")
+    os.remove("cbbo_test.json")
+
+    if plot:
+        fig, ax = hartmann3D.plot()
+
+
 @pytest.mark.parametrize("batch_size", [1, 2, 10])
 def test_tsemo(batch_size, test_num_improve_iter=2, save=False):
     num_inputs = 2
