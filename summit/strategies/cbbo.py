@@ -104,18 +104,18 @@ class CBBO(Strategy):
         # Train and sample model
         samples = []
         models = []
-        for i in range(num_experiments):
-            model = ThompsonSampledModel("test_model")
+        for j in range(q):
+            model = ThompsonSampledModel("test_model_{j}")
             model.fit(
                 inputs,
                 output,
                 n_retries=10,
                 # CHANGE BACK TO 1500
-                n_spectral_points=50,
+                n_spectral_points=1500,
             )
             models.append(model)
 
-        # Optimize thomposon
+        # Optimize Thompson sampled function
         # q is batch size
         # m is the input space dimension
         objective = self.domain.output_variables[0]
@@ -138,8 +138,6 @@ class CBBO(Strategy):
             for _ in range(restarts)
         ]
         m = len(self.domain.input_variables)
-        # res = optimize.brute(f_opt, ranges=bounds, args=(models, m, q), Ns=10)
-        # res = optimize.fmin(f_opt, x0, args=(models, m, q))
         res_x, res_y = multi_start_optimize(
             f_opt, x0s, func_args=(models, m, q), bounds=bounds
         )
