@@ -1,6 +1,9 @@
-from .base import Strategy
-from summit.utils.dataset import DataSet
+from .base import Strategy, Transform
+from .random import LHS
 from summit.domain import *
+from summit.utils.dataset import DataSet
+
+from botorch.acquisition import ExpectedImprovement as EI
 from botorch.models import SingleTaskGP
 from botorch.fit import fit_gpytorch_model
 from botorch.optim import optimize_acqf
@@ -8,8 +11,14 @@ from torch import tensor
 from gpytorch.mlls.exact_marginal_log_likelihood import (
     ExactMarginalLogLikelihood,
 )
-import torch
+
+# from botorch.acquisition import qExpectedImprovement as qEI
+
 import numpy as np
+from typing import Type, Tuple, Union, Optional
+
+from torch import Tensor
+import torch
 
 
 class CBBO(Strategy):
@@ -81,14 +90,6 @@ class CBBO(Strategy):
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
-        from botorch.models import SingleTaskGP
-        from botorch.fit import fit_gpytorch_model
-        from botorch.optim import optimize_acqf
-        from torch import tensor
-        from gpytorch.mlls.exact_marginal_log_likelihood import (
-            ExactMarginalLogLikelihood,
-        )
-
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
@@ -117,7 +118,7 @@ class CBBO(Strategy):
             torch.tensor(output.data_to_numpy()).double(),
         )
         mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll)
+        fit_gpytorch_model(mll, max_retries=30)
 
         # Create acquisition function
         objective = self.domain.output_variables[0]
@@ -127,15 +128,15 @@ class CBBO(Strategy):
         else:
             fbest_scaled = output.min()[objective.name]
             maximize = False
-        ei = CategoricalEI(self.domain, model, best_f=fbest_scaled, maximize=maximize)
+        ei = EI(model, best_f=fbest_scaled, maximize=maximize)
 
         # Optimize acquisition function
         results, acq_values = optimize_acqf(
             acq_function=ei,
             bounds=self._get_bounds(),
-            num_restarts=20,
+            num_restarts=100,
             q=num_experiments,
-            raw_samples=100,
+            raw_samples=2000,
         )
 
         # Convert result to datset

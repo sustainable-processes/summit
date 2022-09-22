@@ -8,6 +8,7 @@ import numpy as np
 import os
 import warnings
 import pkg_resources
+import matplotlib.pyplot as plt
 
 
 def test_strategy():
@@ -697,18 +698,15 @@ def test_mtbo(
 @pytest.mark.parametrize(
     "max_num_exp, maximize, constraint",
     [
-        # [50, True, True],
-        # [50, False, True],
-        [20, True, False],
-        [20, False, False],
+        [30, True, False],
+        [30, False, False],
     ],
 )
 def test_cbbo(
     max_num_exp,
     maximize,
     constraint,
-    plot=False,
-    n_pretraining=50,
+    plot=True,
 ):
 
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
@@ -742,11 +740,11 @@ def test_cbbo(
 
     # Test saving and loading
     strategy.save("cbbo_test.json")
-    strategy_2 = MTBO.load("cbbo_test.json")
     os.remove("cbbo_test.json")
 
     if plot:
         fig, ax = hartmann3D.plot()
+        plt.show()
 
 
 @pytest.mark.parametrize("batch_size", [1, 2, 10])

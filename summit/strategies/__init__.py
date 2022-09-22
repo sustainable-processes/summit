@@ -23,6 +23,7 @@ __all__ = [
     "STBO",
     "SOBO",
     "DRO",
+    "CBBO",
     "strategy_from_dict",
 ] + base_all
 
