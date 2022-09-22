@@ -1,22 +1,13 @@
+from multiprocessing.sharedctypes import Value
+from re import M
 from .base import Strategy, Transform
 from .random import LHS
 from summit.domain import *
 from summit.utils.dataset import DataSet
-
-from botorch.acquisition import ExpectedImprovement as EI
-from botorch.models import SingleTaskGP
-from botorch.fit import fit_gpytorch_model
-from botorch.optim import optimize_acqf
-from torch import tensor
-from gpytorch.mlls.exact_marginal_log_likelihood import (
-    ExactMarginalLogLikelihood,
-)
-
-# from botorch.acquisition import qExpectedImprovement as qEI
-
+from summit.utils.thompson_sampling import ThompsonSampledModel
+from scipy import optimize
 import numpy as np
 from typing import Type, Tuple, Union, Optional
-
 from torch import Tensor
 import torch
 
@@ -90,6 +81,10 @@ class CBBO(Strategy):
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
+        q = num_experiments
+        if q < 2:
+            raise ValueError("CBBO requires at least 2 experiments")
+
         # Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
@@ -112,36 +107,50 @@ class CBBO(Strategy):
             standardize_outputs=True,
         )
 
-        # Train model
-        model = SingleTaskGP(
-            torch.tensor(inputs.data_to_numpy()).double(),
-            torch.tensor(output.data_to_numpy()).double(),
-        )
-        mll = ExactMarginalLogLikelihood(model.likelihood, model)
-        fit_gpytorch_model(mll, max_retries=30)
+        # Train and sample model
+        samples = []
+        models = []
+        for i in range(num_experiments):
+            model = ThompsonSampledModel("test_model")
+            model.fit(
+                inputs,
+                output,
+                n_retries=10,
+                # CHANGE BACK TO 1500
+                n_spectral_points=50,
+            )
+            models.append(model)
 
-        # Create acquisition function
+        # Optimize thomposon
+        # q is batch size
+        # m is the input space dimension
         objective = self.domain.output_variables[0]
         if objective.maximize:
-            fbest_scaled = output.max()[objective.name]
             maximize = True
         else:
-            fbest_scaled = output.min()[objective.name]
             maximize = False
-        ei = EI(model, best_f=fbest_scaled, maximize=maximize)
 
-        # Optimize acquisition function
-        results, acq_values = optimize_acqf(
-            acq_function=ei,
-            bounds=self._get_bounds(),
-            num_restarts=100,
-            q=num_experiments,
-            raw_samples=2000,
-        )
+        def f_opt(X, models, m, q):
+            import pdb
+
+            pdb.set_trace()
+            X = X.reshape((q, m))
+            f = np.sum([model.rff(xs) for xs, model in zip(X, models)])
+            if maximize:
+                f *= -1.0
+            return f
+
+        bounds = np.array([self._get_bounds()] * q).flatten()
+        import pdb
+
+        pdb.set_trace()
+        m = len(self.domain.input_variables)
+        res = optimize.brute(f_opt, ranges=bounds, args=(models, m, q), Ns=10)
+        results = res.reshape((q, m))
 
         # Convert result to datset
         result = DataSet(
-            results.detach().numpy(),
+            results,
             columns=inputs.data_columns,
         )
 
@@ -168,7 +177,7 @@ class CBBO(Strategy):
                 and self.categorical_method == "one-hot"
             ):
                 bounds += [[0, 1] for _ in v.levels]
-        return torch.tensor(bounds).T.double()
+        return bounds
 
     def reset(self):
         """Reset MTBO state"""

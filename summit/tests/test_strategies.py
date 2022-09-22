@@ -696,14 +696,15 @@ def test_mtbo(
 
 
 @pytest.mark.parametrize(
-    "max_num_exp, maximize, constraint",
+    "max_num_exp, batch_size, maximize, constraint",
     [
-        [30, True, False],
-        [30, False, False],
+        [30, 5, True, False],
+        [30, 5, False, False],
     ],
 )
 def test_cbbo(
     max_num_exp,
+    batch_size,
     maximize,
     constraint,
     plot=True,
@@ -712,7 +713,7 @@ def test_cbbo(
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
 
     strategy = CBBO(domain=hartmann3D.domain)
-    batch_size = 1
+    # batch_size = 1
 
     hartmann3D.reset()
     r = Runner(
