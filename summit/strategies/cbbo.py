@@ -83,7 +83,7 @@ class CBBO(Strategy):
         if q < 2:
             raise ValueError("CBBO requires at least 2 experiments")
 
-        # Suggest lhs initial design or append new experiments to previous experiments
+        ## Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
             self.iterations += 1
@@ -97,7 +97,7 @@ class CBBO(Strategy):
         self.iterations += 1
         data = self.all_experiments
 
-        # Get inputs (decision variables) and outputs (objectives)
+        ## Get inputs (decision variables) and outputs (objectives)
         inputs, output = self.transform.transform_inputs_outputs(
             data,
             categorical_method=self.categorical_method,
@@ -105,7 +105,7 @@ class CBBO(Strategy):
             standardize_outputs=True,
         )
 
-        # Train and sample model
+        ## Train and sample model
         samples = []
         models = []
         for j in range(q):
@@ -118,9 +118,7 @@ class CBBO(Strategy):
             )
             models.append(model)
 
-        # Optimize Thompson sampled functions
-        # q is batch size
-        # m is the input space dimension
+        ## Optimize Thompson sampled functions
         levels_list = [self.levels_dict[v.name] for v in self.domain.input_variables]
         design_ind = fullfact(levels_list).astype(int)
         maximize = True if self.domain.output_variables[0].maximize else False
@@ -129,6 +127,7 @@ class CBBO(Strategy):
         var_to_X = []
         bounds = np.zeros((sum(levels_list), 2))
         k = 0
+        # Calculate bounds and initial gusses
         for v in self.domain.input_variables:
             n_levels = self.levels_dict[v.name]
             if isinstance(v, ContinuousVariable):
@@ -141,7 +140,6 @@ class CBBO(Strategy):
                 b[1] - b[0]
             )
             k += n_levels
-
         m = len(self.domain.input_variables)
         res_x, _ = multi_start_optimize(
             f_opt,
@@ -149,14 +147,15 @@ class CBBO(Strategy):
             func_args=(models, m, var_to_X, design_ind, maximize),
             bounds=bounds,
         )
+
+        ## Finish up
+        #  Convert result to datset
         results = np.zeros_like(design_ind, dtype=float)
         for i in range(m):
             # xi are the levels of the ith decision variable
             xi = res_x[var_to_X[i]]
             # design_ind[:, i] is the indices ith column of the design
             results[:, i] = xi[design_ind[:, i]]
-
-        # Convert result to datset
         result = DataSet(
             results,
             columns=inputs.data_columns,
