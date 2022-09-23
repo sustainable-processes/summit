@@ -386,7 +386,7 @@ class CategoricalVariable(Variable):
             raise ValueError(f"Level {level} is not in the list of levels.")
 
     def to_dict(self):
-        """ Return json encoding of the variable"""
+        """Return json encoding of the variable"""
         variable_dict = super().to_dict()
         ds = self.ds.to_dict() if self.ds is not None else None
         variable_dict.update(dict(levels=self.levels, ds=ds))
@@ -564,16 +564,19 @@ class Domain:
             for v in self.input_variables
             if v.variable_type == "categorical"
         ]
-        doe = fullfact(levels)
-        i = 0
-        combos = {}
-        for v in self.input_variables:
-            if v.variable_type == "categorical":
-                indices = doe[:, i]
-                indices = indices.astype(int)
-                combos[v.name, "DATA"] = [v.levels[i] for i in indices]
-                i += 1
-        return DataSet(combos)
+        if len(levels) > 0:
+            doe = fullfact(levels)
+            i = 0
+            combos = {}
+            for v in self.input_variables:
+                if v.variable_type == "categorical":
+                    indices = doe[:, i]
+                    indices = indices.astype(int)
+                    combos[v.name, "DATA"] = [v.levels[i] for i in indices]
+                    i += 1
+            return DataSet(combos)
+        else:
+            return DataSet()
 
     def _raise_noncontinuous_outputs(self):
         """Raise an error if the outputs are not continuous variables"""

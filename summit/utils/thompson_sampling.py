@@ -22,7 +22,7 @@ class ThompsonSampledModel:
     def fit(self, X: DataSet, y: DataSet, **kwargs):
         """Train model and take spectral samples"""
 
-        self.input_columns_ordered = X.columns
+        self.input_columns_ordered = [col[0] for col in X.columns]
 
         # Convert to tensors
         X_np = X.to_numpy().astype(float)
@@ -83,7 +83,7 @@ class ThompsonSampledModel:
         )
 
     def predict(self, X: DataSet, **kwargs):
-        """Predict the values of a """
+        """Predict the values of a"""
         X = X[self.input_columns_ordered].to_numpy()
         return self.rff(X)
 

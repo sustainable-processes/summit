@@ -28,7 +28,7 @@ cython = "^0.29.21"
 GPy = "^1.9"
 gpyopt = "^1.2.6"
 pyrff = "^2.0.1"
-pymoo = "^0.4.1"
+pymoo = "^0.6."
 
 # Dependencies for Snobfit
 SQSnobFit = "^0.4.3"

@@ -1,3 +1,4 @@
+from matplotlib import use
 from summit.domain import *
 from summit.utils.dataset import DataSet
 
@@ -62,6 +63,8 @@ class Transform:
             The method for transforming categorical variables. Either None,
             "one-hot" or "descriptors". Descriptors must be included in the
             categorical variables for the later. Defaults to one-hot.
+        use_existing: bool, optional
+            Use existing transforms if they exist. Defaults to False.
 
         Returns
         -------
@@ -76,6 +79,7 @@ class Transform:
         min_max_scale_outputs = kwargs.get("min_max_scale_outputs", False)
         standardize_inputs = kwargs.get("standardize_inputs", False)
         standardize_outputs = kwargs.get("standardize_outputs", False)
+        use_existing = kwargs.get("use_existing", False)
 
         if min_max_scale_inputs and standardize_inputs:
             raise ValueError(
@@ -93,9 +97,10 @@ class Transform:
         # Determine input and output columns in dataset
         input_columns = []
         output_columns = []
-        self.input_means, self.input_stds = {}, {}
-        self.output_means, self.output_stds = {}, {}
-        self.encoders = {}
+        if not use_existing:
+            self.input_means, self.input_stds = {}, {}
+            self.output_means, self.output_stds = {}, {}
+            self.encoders = {}
         for variable in self.domain.input_variables:
             if (
                 isinstance(variable, CategoricalVariable)
@@ -166,12 +171,19 @@ class Transform:
             ):
                 input_columns.append(variable.name)
             elif isinstance(variable, ContinuousVariable):
-                if standardize_inputs:
+                if standardize_inputs and not use_existing:
                     values, mean, std = self.standardize_column(
                         new_ds[variable.name].astype(np.float)
                     )
                     self.input_means[variable.name] = mean
                     self.input_stds[variable.name] = std
+                    new_ds[variable.name, "DATA"] = values
+                elif standardize_inputs and use_existing:
+                    values, _, _ = self.standardize_column(
+                        new_ds[variable.name].astype(np.float),
+                        self.input_means[variable.name],
+                        self.input_stds[variable.name],
+                    )
                     new_ds[variable.name, "DATA"] = values
                 elif min_max_scale_inputs:
                     var_min, var_max = variable.bounds[0], variable.bounds[1]
@@ -205,13 +217,15 @@ class Transform:
                 output_columns.append(variable.name)
                 # Ensure continuous variables are floats
                 new_ds[variable.name] = new_ds[variable.name].astype(np.float)
-            else:
+            elif not use_existing:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 
-        if output_columns is None:
+        if output_columns is None and not use_existing:
             raise DomainError(
                 "No output columns in the domain.  Add at least one output column for optimisation."
             )
+        elif output_columns is None and use_existing:
+            output_columns = []
 
         # Return the inputs and outputs as separate datasets
         return new_ds[input_columns].copy(), new_ds[output_columns].copy()
@@ -367,7 +381,7 @@ class Transform:
         return new_ds
 
     def to_dict(self, **kwargs):
-        """ Output a dictionary representation of the transform"""
+        """Output a dictionary representation of the transform"""
         return dict(
             transform_domain=self.transform_domain.to_dict(),
             name=self.__class__.__name__,
@@ -382,9 +396,12 @@ class Transform:
         return t
 
     @staticmethod
-    def standardize_column(X):
+    def standardize_column(X, mean: float = None, std: float = None):
         X = X.to_numpy()
-        mean, std = X.mean(), X.std()
+        if mean is None:
+            mean = X.mean()
+        if std is None:
+            std = X.std()
         std = std if std > 1e-5 else 1e-5
         scaled = (X - mean) / std
         return scaled, mean, std
@@ -514,7 +531,7 @@ class MultitoSingleObjective(Transform):
         return inputs, outputs
 
     def to_dict(self):
-        """ Output a dictionary representation of the transform"""
+        """Output a dictionary representation of the transform"""
         transform_params = dict(expression=self.expression, maximize=self.maximize)
         d = super().to_dict(**transform_params)
         return d
@@ -1195,7 +1212,7 @@ def _closest_point_index(design_point, candidate_matrix):
 
 
 def _design_distances(design_point, candidate_matrix):
-    """ Return the distances between a design_point and all candidates"""
+    """Return the distances between a design_point and all candidates"""
     diff = design_point - candidate_matrix
     squared = np.power(diff, 2)
     summed = np.sum(squared, axis=1)

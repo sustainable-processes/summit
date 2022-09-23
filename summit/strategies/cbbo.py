@@ -5,9 +5,16 @@ from .random import LHS
 from summit.domain import *
 from summit.utils.dataset import DataSet
 from summit.utils.thompson_sampling import ThompsonSampledModel
+from pymoo.core.problem import ElementwiseProblem
+from pymoo.core.variable import Real, Choice
+from pymoo.core.mixed import MixedVariableGA
+from pymoo.algorithms.soo.nonconvex.pattern import PatternSearch
+from pymoo.optimize import minimize
+from pymoo.factory import get_termination
 from scipy import optimize
+from fastprogress.fastprogress import progress_bar
 import numpy as np
-from typing import Callable, Dict, List, Tuple, Union, Optional
+from typing import Callable, Dict, List, Tuple
 
 
 class CBBO(Strategy):
@@ -79,10 +86,6 @@ class CBBO(Strategy):
         self.reset()
 
     def suggest_experiments(self, num_experiments, prev_res: DataSet = None, **kwargs):
-        q = num_experiments
-        if q < 2:
-            raise ValueError("CBBO requires at least 2 experiments")
-
         ## Suggest lhs initial design or append new experiments to previous experiments
         if prev_res is None:
             lhs = LHS(self.domain)
@@ -97,6 +100,12 @@ class CBBO(Strategy):
         self.iterations += 1
         data = self.all_experiments
 
+        n_experiments_expected = np.prod(self.levels_dict.values())
+        if prev_res is None and num_experiments != n_experiments_expected:
+            raise ValueError(
+                f"Number of experiments expected to be {n_experiments_expected}."
+            )
+
         ## Get inputs (decision variables) and outputs (objectives)
         inputs, output = self.transform.transform_inputs_outputs(
             data,
@@ -106,96 +115,94 @@ class CBBO(Strategy):
         )
 
         ## Train and sample model
-        samples = []
-        models = []
-        for j in range(q):
-            model = ThompsonSampledModel("test_model_{j}")
+        models = [None] * num_experiments
+        for j in range(num_experiments):
+            model = ThompsonSampledModel(f"test_model_{j}")
             model.fit(
                 inputs,
                 output,
                 n_retries=10,
-                n_spectral_points=1500,
+                # CHANGE BACK TO 1500
+                n_spectral_points=50,
             )
-            models.append(model)
+            models[j] = model
 
-        ## Optimize Thompson sampled functions
-        levels_list = [self.levels_dict[v.name] for v in self.domain.input_variables]
-        design_ind = fullfact(levels_list).astype(int)
-        maximize = True if self.domain.output_variables[0].maximize else False
-        restarts = 50
-        x0s = np.zeros((restarts, sum(levels_list)))
-        var_to_X = []
-        bounds = np.zeros((sum(levels_list), 2))
-        k = 0
-        # Calculate bounds and initial gusses
-        for v in self.domain.input_variables:
-            n_levels = self.levels_dict[v.name]
-            if isinstance(v, ContinuousVariable):
-                b = np.array(v.bounds)
-                bounds[k : k + n_levels, :] = b
-            elif isinstance(v, CategoricalVariable):
-                raise DomainError("Categorical variables not supported yet")
-            var_to_X.append(np.arange(k, k + n_levels))
-            x0s[:, k : k + n_levels] = b[0] + np.random.rand(restarts, n_levels) * (
-                b[1] - b[0]
-            )
-            k += n_levels
-        m = len(self.domain.input_variables)
-        res_x, _ = multi_start_optimize(
-            f_opt,
-            x0s,
-            func_args=(models, m, var_to_X, design_ind, maximize),
-            bounds=bounds,
-        )
+        ## Optimize Thompson sampled functions using a GA
+        X, y = self._optimize(models)
+        result = X.join(y)
 
         ## Finish up
         #  Convert result to datset
-        results = np.zeros_like(design_ind, dtype=float)
-        for i in range(m):
-            # xi are the levels of the ith decision variable
-            xi = res_x[var_to_X[i]]
-            # design_ind[:, i] is the indices ith column of the design
-            results[:, i] = xi[design_ind[:, i]]
         result = DataSet(
-            results,
+            result,
             columns=inputs.data_columns,
         )
 
         # Untransform
         result = self.transform.un_transform(
-            result, categorical_method=self.categorical_method, standardize_inputs=True
+            result,
+            categorical_method=self.categorical_method,
+            standardize_inputs=True,
+            standardize_outputs=True,
         )
 
         # Add metadata
-        result[("strategy", "METADATA")] = "STBO"
+        result[("strategy", "METADATA")] = "CBBO"
         return result
 
-    def _get_bounds(self):
-        bounds = []
-        for v in self.domain.input_variables:
-            if isinstance(v, ContinuousVariable):
-                mean = self.transform.input_means[v.name]
-                std = self.transform.input_stds[v.name]
-                v_bounds = np.array(v.bounds)
-                v_bounds = (v_bounds - mean) / std
-                bounds.append(v_bounds)
-            elif (
-                isinstance(v, CategoricalVariable)
-                and self.categorical_method == "one-hot"
-            ):
-                bounds += [[0, 1] for _ in v.levels]
-        return bounds
+    def _optimize(self, models):
+        """Pymoo optimization"""
+        ##  Set up problem
+        # Only continuous
+        if (
+            self.domain.num_continuous_dimensions() > 0
+            and self.domain.get_categorical_combinations().shape[0] == 0
+        ):
+            optimizer = PatternSearch()
+        # Mixed domain
+        elif (
+            self.domain.num_continuous_dimensions() > 0
+            and self.domain.get_categorical_combinations().shape[0] > 0
+        ):
+            optimizer = MixedVariableGA(pop_size=10)
+        problem = CBBOInternalWrapper(
+            models=models,
+            domain=self.domain,
+            levels_dict=self.levels_dict,
+            transform=self.transform,
+            categorical_method=self.categorical_method,
+        )
+        termination = get_termination("n_gen", 100)
 
-    def _get_levels_dict(self, init_levels_dict: Dict[str, int] = None):
-        """Get the levels dictionary"""
-        if init_levels_dict is None:
-            levels_dict = {}
-        else:
-            levels_dict = init_levels_dict
-        for v in self.domain.input_variables:
-            if v.name not in levels_dict:
-                levels_dict[v.name] = None
-        return levels_dict
+        # Optimize
+        self.internal_res = minimize(
+            problem, optimizer, termination, seed=1, verbose=False
+        )
+
+        # Extract batch design
+        X = np.atleast_2d(self.internal_res.X)
+        levels_list = [self.levels_dict[v.name] for v in self.domain.input_variables]
+        self.design_ind = fullfact(levels_list).astype(int)
+        design = np.zeros_like(self.design_ind, dtype=float)
+        for i, v in enumerate(self.domain.input_variables):
+            n_levels = self.levels_dict[v.name]
+            xi = [X[f"{v.name}_{j}"] for j in range(n_levels)]
+            design[:, i] = xi[self.design_ind[:, i]]
+
+        # Transform into model space
+        design = DataSet(design, columns=self.domain.input_variables)
+        X_transformed, _ = self.transform.transform_inputs_outputs(
+            design,
+            categorical_method=self.categorical_method,
+            standardize_inputs=True,
+            standardize_outputs=True,
+            use_existing=True,
+        )
+
+        # Evaluate models
+        y = [model.predict(design_i) for model, design_i in zip(models, X_transformed)]
+
+        return X_transformed, y
 
     def reset(self):
         """Reset MTBO state"""
@@ -271,3 +278,99 @@ def f_opt(
     if maximize:
         f *= -1.0
     return f
+
+
+class CBBOInternalWrapper(ElementwiseProblem):
+    """Wrapper for Pymoo internal optimization
+
+    Parameters
+    ----------
+    models : list of :class:`ThompsonSampledModel`
+        The models to optimize
+    domain : :class:`~summit.domain.Domain`
+        Domain used for optimisation.
+    fixed_variable_names : list, optional
+        A list of variables which should take on fixed values.
+    Notes
+    -----
+    It is assumed that the inputs are scaled between 0 and 1.
+
+    """
+
+    def __init__(
+        self,
+        models: List[ThompsonSampledModel],
+        domain: Domain,
+        levels_dict: Dict[str, int],
+        transform: Transform,
+        categorical_method: str,
+        **kwargs,
+    ):
+        self.models = models
+        self.domain = domain
+        self.summit_transform = transform
+        self.levels_dict = levels_dict
+        self.categorical_method = categorical_method
+
+        # Set up design
+        levels_list = [levels_dict[v.name] for v in self.domain.input_variables]
+        self.design_ind = fullfact(levels_list).astype(int)
+
+        # Create variables
+        pymoo_vars = {}
+        for v in self.domain.input_variables:
+            n_levels = self.levels_dict[v.name]
+            if isinstance(v, ContinuousVariable):
+                for j in range(n_levels):
+                    pymoo_vars[f"{v.name}_{j}"] = Real(bounds=tuple(v.bounds))
+            elif isinstance(v, CategoricalVariable):
+                for j in range(n_levels):
+                    pymoo_vars[f"{v.name}_{j}"] = Choice(options=v.levels)
+
+        # Objective direction
+        self.maximize = True if self.domain.output_variables[0].maximize else False
+        # Number of constraints
+        # n_constr = len(domain.constraints)
+        super().__init__(
+            vars=pymoo_vars, n_obj=1, elementwise_evaluation=True, **kwargs
+        )
+
+    def _evaluate(self, X, out, *args, **kwargs):
+
+        # Extract batch design
+        design = [[0] * self.design_ind.shape[1]] * self.design_ind.shape[0]
+        design = np.zeros_like(self.design_ind, dtype=object)
+        for i, v in enumerate(self.domain.input_variables):
+            n_levels = self.levels_dict[v.name]
+            xi = np.array([X[f"{v.name}_{j}"] for j in range(n_levels)])
+            designs_col_i = xi[self.design_ind[:, i]]
+            for j, design_col_ij in enumerate(designs_col_i):
+                design[j][i] = design_col_ij
+
+        # Transform into model space
+        design = DataSet(design, columns=[v.name for v in self.domain.input_variables])
+
+        design_transformed, _ = self.summit_transform.transform_inputs_outputs(
+            design,
+            categorical_method=self.categorical_method,
+            standardize_inputs=True,
+            standardize_outputs=True,
+            use_existing=True,
+        )
+
+        # Evaluate the models
+        F = 0
+        for i, model in enumerate(self.models):
+            F += model.predict(design_transformed.loc[0, :])
+
+        # Negate if needs to be maximized
+        if self.maximize:
+            F *= -1
+        out["F"] = F
+
+        # Add constraints if necessary
+        # if self.domain.constraints:
+        #     constraint_res = [
+        #         X.eval(c.lhs, resolvers=[X]) for c in self.domain.constraints
+        #     ]
+        #     out["G"] = [c.tolist()[0] for c in constraint_res]

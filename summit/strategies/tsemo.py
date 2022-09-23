@@ -6,7 +6,7 @@ from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
 
-from pymoo.model.problem import Problem
+from pymoo.core.problem import Problem
 
 from fastprogress.fastprogress import progress_bar
 from scipy.sparse import issparse
@@ -210,7 +210,10 @@ class TSEMO(Strategy):
             # Training
             models[i] = ThompsonSampledModel(v.name)
             train_results[i] = models[i].fit(
-                inputs, outputs[[v.name]], n_retries=self.n_retries, n_spectral_points=self.n_spectral_points,
+                inputs,
+                outputs[[v.name]],
+                n_retries=self.n_retries,
+                n_spectral_points=self.n_spectral_points,
             )
 
             # Evaluate spectral sampled functions
@@ -276,7 +279,7 @@ class TSEMO(Strategy):
 
     def _nsga_optimize(self, models):
         """NSGA-II optimization with categorical domains"""
-        from pymoo.algorithms.nsga2 import NSGA2
+        from pymoo.algorithms.moo.nsga2 import NSGA2
         from pymoo.optimize import minimize
         from pymoo.factory import get_termination
 
@@ -582,7 +585,7 @@ class ThompsonSampledModel:
         )
 
     def predict(self, X: DataSet, **kwargs):
-        """Predict the values of a """
+        """Predict the values of a"""
         X = X[self.input_columns_ordered].to_numpy()
         return self.rff(X)
 
