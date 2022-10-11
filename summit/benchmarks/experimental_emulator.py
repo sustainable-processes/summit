@@ -449,7 +449,7 @@ class ExperimentalEmulator(Experiment):
 
     @staticmethod
     def _create_input_preprocessor(domain, **kwargs):
-        """Create feature preprocessors """
+        """Create feature preprocessors"""
         transformers = []
         # Numeric transforms
         numeric_features = [
@@ -507,7 +507,7 @@ class ExperimentalEmulator(Experiment):
 
     @staticmethod
     def _create_output_preprocessor(output_variable_names):
-        """"Create target preprocessors"""
+        """ "Create target preprocessors"""
         transformers = [
             ("scale", StandardScaler(), output_variable_names),
             ("dst", FunctionTransformer(numpy_to_tensor), output_variable_names),
@@ -869,13 +869,13 @@ def make_parity_plot(
     handles = []
     r2_train = r2_score(y_train, y_train_pred)
     r2_train_patch = mpatches.Patch(
-        label=f"Train R2 = {r2_train:.2f}", color=train_color
+        label=r"Train $R^2$ =" + f"{r2_train:.2f}", color=train_color
     )
     handles.append(r2_train_patch)
     if y_test is not None:
         r2_test = r2_score(y_test, y_test_pred)
         r2_test_patch = mpatches.Patch(
-            label=f"Test R2 = {r2_test:.2f}", color=test_color
+            label=r"Test $R^2$ =" + f"{r2_test:.2f}", color=test_color
         )
         handles.append(r2_test_patch)
 
@@ -892,7 +892,7 @@ def make_parity_plot(
 
 
 def numpy_to_tensor(X):
-    """Convert datasets into """
+    """Convert datasets into"""
     if issparse(X):
         X = X.todense()
     return torch.tensor(X).float()
