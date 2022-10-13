@@ -6,7 +6,7 @@ The :class:`~summit.experiment.Experiment` class provides a generic way of repre
 Here, we present the already implemented benchmarks and show you how to create new onces.
 
 .. _here: ../tutorials/new_benchmarks.ipynb
-.. _tutorial: ../tutorials/tutorial.ipynb
+.. _tutorial: ../tutorials/intro.ipynb
 
 .. toctree::
     implemented_benchmarks
