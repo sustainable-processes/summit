@@ -72,7 +72,7 @@ class TSEMO(Strategy):
     >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
     >>> previous_results = DataSet([values], columns=columns)
     >>> strategy = TSEMO(domain)
-    >>> result = strategy.suggest_experiments(5)
+    >>> result = strategy.suggest_experiments(5, prev_res=previous_results)
 
     Notes
     -----
