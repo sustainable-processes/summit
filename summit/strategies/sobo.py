@@ -52,7 +52,6 @@ class SOBO(Strategy):
     --------
     >>> from summit.domain import *
     >>> from summit.strategies import SOBO
-    >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
     >>> domain += CategoricalVariable(name='flowrate_a', description='flow of reactant a in mL/min', levels=[1,2,3,4,5])
