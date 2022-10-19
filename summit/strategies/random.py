@@ -132,7 +132,7 @@ class LHS(Strategy):
     Examples
     --------
     >>> from summit.domain import Domain, ContinuousVariable
-    >>> from summit.strategies import Random
+    >>> from summit.strategies import LHS
     >>> import numpy as np
     >>> domain = Domain()
     >>> domain += ContinuousVariable(name='temperature', description='reaction temperature in celsius', bounds=[50, 100])
