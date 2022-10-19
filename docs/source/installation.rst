@@ -1,7 +1,7 @@
 Installation
 ============
 
-Note that Summit only works with python 3.8 and 3.9 currently. We are waiting on pytorch to add python 3.10 support.
+Note that Summit only works with python 3.8, 3.9 and 3.10 currently.
 
 The easiest way to install Summit is using pip or a depedency manager that supports pip:
 
