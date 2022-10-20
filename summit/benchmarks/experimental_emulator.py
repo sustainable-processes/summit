@@ -151,6 +151,10 @@ class ExperimentalEmulator(Experiment):
             [v.name for v in self.domain.output_variables],
         )
 
+        # check there is at least one objective
+        if len(self.domain.output_variables) == 0:
+            raise DomainError("No objectives found in domain")
+
         # Create the regressor
         self.regressor = kwargs.get("regressor", ANNRegressor)
         self.predictors = kwargs.get("predictors")

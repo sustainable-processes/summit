@@ -1,4 +1,5 @@
 import pytest
+from summit.domain import *
 from summit.benchmarks import *
 from summit.utils.dataset import DataSet
 import numpy as np
@@ -157,3 +158,11 @@ def test_dltz2_benchmark(num_inputs):
     data = b.data
     assert np.isclose(data["y_0"].iloc[0], 0.7071)
     assert np.isclose(data["y_1"].iloc[0], 0.7071)
+
+
+def test_no_objectives():
+    domain = Domain()
+    domain += ContinuousVariable("x", "", bounds=[0, 1])
+
+    with pytest.raises(DomainError):
+        ExperimentalEmulator("test", domain)
