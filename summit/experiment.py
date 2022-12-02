@@ -87,9 +87,9 @@ class Experiment(ABC):
         for i, condition in conditions.iterrows():
             start = time.time()
             res, extras = self._run(condition, **kwargs)
-            # res = add_metadata_columns(res, conditions[conditions.metadata_columns])
             experiment_time = time.time() - start
-            self._data = self._data.append(res)
+            res = DataSet(res).T
+            self._data = pd.concat([self._data, res], axis=0)
             self._data["experiment_t"].iat[-1] = float(experiment_time)
             self._data["computation_t"].iat[-1] = float(diff)
             if condition.get("strategy") is not None:

@@ -178,7 +178,7 @@ class TSEMO(Strategy):
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
-            self.all_experiments = self.all_experiments.append(prev_res)
+            self.all_experiments = pd.concat([self.all_experiments, prev_res], axis=0)
 
         if self.all_experiments.shape[0] <= 3:
             lhs = LHS(self.domain, categorical_method=cat_method)
@@ -210,7 +210,10 @@ class TSEMO(Strategy):
             # Training
             models[i] = ThompsonSampledModel(v.name)
             train_results[i] = models[i].fit(
-                inputs, outputs[[v.name]], n_retries=self.n_retries, n_spectral_points=self.n_spectral_points,
+                inputs,
+                outputs[[v.name]],
+                n_retries=self.n_retries,
+                n_spectral_points=self.n_spectral_points,
             )
 
             # Evaluate spectral sampled functions
@@ -582,7 +585,7 @@ class ThompsonSampledModel:
         )
 
     def predict(self, X: DataSet, **kwargs):
-        """Predict the values of a """
+        """Predict the values of a"""
         X = X[self.input_columns_ordered].to_numpy()
         return self.rff(X)
 
