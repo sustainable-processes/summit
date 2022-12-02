@@ -231,15 +231,17 @@ class TSEMO(Strategy):
         # NSGAII internal optimisation on spectrally sampled functions
         self.logger.info("Optimizing models using NSGAII.")
 
+        # Categorical only domain
+        if (self.domain.num_continuous_dimensions() == 0) and (
+            self.domain.num_categorical_variables() == 1
+        ):
+            X, y = self._categorical_enumerate(models)
         # Mixed domains
-        if self.categorical_combos is not None and len(self.input_columns) > 0:
+        elif self.categorical_combos is not None and len(self.input_columns) > 1:
             X, y = self._nsga_optimize_mixed(models)
         # Continous domains
         elif self.categorical_combos is None and len(self.input_columns) > 0:
             X, y = self._nsga_optimize(models)
-        # Categorical only domain
-        else:
-            X, y = self._categorical_enumerate(models)
 
         # Return if no suggestiosn found
         if X.shape[0] == 0 and y.shape[0] == 0:

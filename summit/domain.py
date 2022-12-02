@@ -551,6 +551,13 @@ class Domain:
                 pass
         return output_variables
 
+    def num_categorical_variables(self):
+        k = 0
+        for v in self.variables:
+            if v.variable_type == "categorical":
+                k += 1
+        return k
+
     def get_categorical_combinations(self):
         """Get all combinations of categoricals using full factorial design
 
