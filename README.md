@@ -62,7 +62,7 @@ r = Runner(
 r.run()
 
 # Make a pareto plot comparing both objectives
-r.experiment.pareto_plot(ax=ax)
+r.experiment.pareto_plot()
 ```
 
 <p align="center">
