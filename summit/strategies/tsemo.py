@@ -382,7 +382,6 @@ class TSEMO(Strategy):
         """Reset TSEMO state"""
         self.all_experiments = None
         self.iterations = 0
-        self.samples = []  # Samples drawn using NSGA-II
         self.sample_fs = [0 for i in range(len(self.domain.output_variables))]
         self.uuid_val = uuid.uuid4()
 
@@ -477,15 +476,6 @@ class TSEMO(Strategy):
             Ynew = np.append(Ynew, new_point, axis=0)
             mask[original_index] = False
             indices.append(original_index)
-
-            # Append current estimate of the pareto front to sample_paretos
-            samples_new = samples_next.copy()
-            mean = self.transform.output_means[v.name]
-            std = self.transform.output_stds[v.name]
-            samples_new = samples_new * std + mean
-            samples_new[("hvi", "DATA")] = hv_improvement
-            self.samples.append(samples_new)
-            samples_next = samples_original.loc[mask]
 
         if len(hv_improvement) == 0:
             hv_imp = 0
