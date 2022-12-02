@@ -143,7 +143,7 @@ class NelderMead(Strategy):
             inner_prev_param = self.prev_param[0]
             # recover invalid experiments from previous iteration
             if self.prev_param[1] is not None:
-                invalid_res = self.prev_param[1].drop(("constraint", "DATA"), 1)
+                invalid_res = self.prev_param[1].drop(("constraint", "DATA"), axis=1)
                 prev_res = pd.concat([prev_res, invalid_res])
 
         ## Generation of new suggested experiments.
@@ -192,7 +192,7 @@ class NelderMead(Strategy):
             )
 
         # return only valid experiments (invalid experiments are stored in param[1])
-        next_experiments = next_experiments.drop(("constraint", "DATA"), 1)
+        next_experiments = next_experiments.drop(("constraint", "DATA"), axis=1)
         objective_dir = -1.0 if obj_maximize else 1.0
         self.fbest = objective_dir * fbest
         self.xbest = xbest

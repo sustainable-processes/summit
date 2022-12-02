@@ -6,8 +6,6 @@ import GPy
 from fastprogress.fastprogress import progress_bar
 import numpy as np
 import os
-import warnings
-import pkg_resources
 
 
 def test_strategy():
