@@ -6,7 +6,7 @@ from summit.utils.dataset import DataSet
 from botorch.acquisition import ExpectedImprovement as EI
 
 # from botorch.acquisition import qExpectedImprovement as qEI
-
+import pandas as pd
 import numpy as np
 from typing import Type, Tuple, Union, Optional
 
@@ -149,7 +149,7 @@ class MTBO(Strategy):
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
-            self.all_experiments = self.all_experiments.append(prev_res)
+            self.all_experiments = pd.concat([self.all_experiments, prev_res], axis=0)
         self.iterations += 1
 
         # Combine pre-training and experiment data
@@ -157,7 +157,7 @@ class MTBO(Strategy):
             raise ValueError(
                 """The pretraining data must have a METADATA column called "task" with the task number."""
             )
-        data = self.all_experiments.append(self.pretraining_data)
+        data = pd.concat([self.all_experiments, self.pretraining_data], axis=0)
 
         # Get inputs (decision variables) and outputs (objectives)
         inputs, output = self.transform.transform_inputs_outputs(
@@ -407,7 +407,7 @@ class STBO(Strategy):
         elif prev_res is not None and self.all_experiments is None:
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
-            self.all_experiments = self.all_experiments.append(prev_res)
+            self.all_experiments = pd.concat([self.all_experiments, prev_res], axis=0)
         self.iterations += 1
         data = self.all_experiments
 
@@ -481,7 +481,7 @@ class STBO(Strategy):
         """Reset MTBO state"""
         self.all_experiments = None
         self.iterations = 0
-        
+
     @staticmethod
     def standardize(X):
         mean, std = X.mean(), X.std()

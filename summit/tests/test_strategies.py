@@ -6,9 +6,6 @@ import GPy
 from fastprogress.fastprogress import progress_bar
 import numpy as np
 import os
-import warnings
-import pkg_resources
-
 
 def test_strategy():
     class MockStrategy(Strategy):
@@ -701,8 +698,6 @@ def test_tsemo(batch_size, test_num_improve_iter=2, save=False):
     lab = VLMOP2()
     strategy = TSEMO(lab.domain)
     experiments = strategy.suggest_experiments(5 * num_inputs)
-    warnings.filterwarnings("ignore", category=RuntimeWarning)
-    warnings.filterwarnings("ignore", category=DeprecationWarning)
 
     num_improve_iter = 0
     best_hv = None
