@@ -168,7 +168,7 @@ class Transform:
             elif isinstance(variable, ContinuousVariable):
                 if standardize_inputs:
                     values, mean, std = self.standardize_column(
-                        new_ds[variable.name].astype(np.float)
+                        new_ds[variable.name].astype(float)
                     )
                     self.input_means[variable.name] = mean
                     self.input_stds[variable.name] = std
@@ -192,7 +192,7 @@ class Transform:
                     )
                 if standardize_outputs:
                     values, mean, std = self.standardize_column(
-                        new_ds[variable.name].astype(np.float)
+                        new_ds[variable.name].astype(float)
                     )
                     self.output_means[variable.name] = mean
                     self.output_stds[variable.name] = std
@@ -204,7 +204,7 @@ class Transform:
                     ) / (var_max - var_min)
                 output_columns.append(variable.name)
                 # Ensure continuous variables are floats
-                new_ds[variable.name] = new_ds[variable.name].astype(np.float)
+                new_ds[variable.name] = new_ds[variable.name].astype(float)
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 
@@ -348,7 +348,7 @@ class Transform:
                     new_ds[variable.name, "DATA"] = (
                         new_ds[variable.name] * (var_max - var_min) + var_min
                     )
-                new_ds[variable.name, "DATA"] = new_ds[variable.name].astype(np.float)
+                new_ds[variable.name, "DATA"] = new_ds[variable.name].astype(float)
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 

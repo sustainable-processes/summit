@@ -74,7 +74,7 @@ class FullFactorial(Strategy):
         doe = fullfact(levels)
         for i, v in enumerate(self.domain.input_variables):
             indices = doe[:, i]
-            indices = indices.astype(np.int)
+            indices = indices.astype(int)
             values = np.array([levels_dict[v.name][i] for i in indices])
             values = np.atleast_2d(values)
             design.add_variable(v.name, values, indices=indices[:, np.newaxis])
