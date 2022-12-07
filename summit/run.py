@@ -133,7 +133,7 @@ class Runner:
             The frequency with which to checkpoint the state of the optimization. Defaults to None.
         save_at_end : bool, optional
             Save the state of the optimization at the end of a run, even if it is stopped early.
-            Default is True.
+            Default is False.
         save_dir : str, optional
             The directory to save checkpoints locally. Defaults to not saving locally.
         """
@@ -147,7 +147,7 @@ class Runner:
             raise ValueError("save_dir must be specified if save_at_end is specified")
         if save_dir is not None and not os.path.isdir(save_dir):
             os.makedirs(save_dir)
-        save_at_end = kwargs.get("save_at_end", True)
+        save_at_end = kwargs.get("save_at_end", False)
 
         n_objs = len(self.experiment.domain.output_variables)
         fbest_old = np.zeros(n_objs)
@@ -328,7 +328,7 @@ class NeptuneRunner(Runner):
             The frequency with which to checkpoint the state of the optimization. Defaults to None.
         save_at_end : bool, optional
             Save the state of the optimization at the end of a run, even if it is stopped early.
-            Default is True.
+            Default is False.
         save_dir : str, optional
             The directory to save checkpoints locally. Defaults to `~/.summit/runner`.
         """
@@ -350,7 +350,7 @@ class NeptuneRunner(Runner):
             raise ValueError("save_dir must be specified if save_at_end is specified")
         if save_dir is not None and not os.path.isdir(save_dir):
             os.makedirs(save_dir)
-        save_at_end = kwargs.get("save_at_end", True)
+        save_at_end = kwargs.get("save_at_end", False)
 
         # Create neptune experiment
         from neptune.sessions import Session, HostedNeptuneBackend
