@@ -138,10 +138,14 @@ class Runner:
             The directory to save checkpoints locally. Defaults to not saving locally.
         """
         save_freq = kwargs.get("save_freq")
-        save_dir = kwargs.get("save_dir", str(get_summit_config_path()))
+        save_dir = kwargs.get("save_dir")
         self.uuid_val = uuid.uuid4()
         save_dir = pathlib.Path(save_dir) / "runner" / str(self.uuid_val)
-        if not os.path.isdir(save_dir):
+        if save_freq is not None and save_dir is None:
+            raise ValueError("save_dir must be specified if save_freq is specified")
+        if save_at_end is not None and save_dir is None:
+            raise ValueError("save_dir must be specified if save_at_end is specified")
+        if save_dir is not None and not os.path.isdir(save_dir):
             os.makedirs(save_dir)
         save_at_end = kwargs.get("save_at_end", True)
 
