@@ -650,13 +650,14 @@ class DTLZ2(Experiment):
 
 
 class VLMOP2(Experiment):
-    def __init__(self, **kwargs):
-        domain = self._setup_domain(2, 2)
+    def __init__(self, maximize: bool = False, **kwargs):
+        domain = self._setup_domain(2, 2, maximize)
         self.nvars = 2
         self.nobjs = 2
+        self.maximize= maximize
         super().__init__(domain)
 
-    def _setup_domain(self, nobjs, nvars):
+    def _setup_domain(self, nobjs, nvars, maximize):
         variables = [
             ContinuousVariable(f"x_{i}", f"Decision variable {i}", bounds=[-2, 2])
             for i in range(nvars)
@@ -667,7 +668,7 @@ class VLMOP2(Experiment):
                 f"Objective {i}",
                 bounds=[-2, 2],
                 is_objective=True,
-                maximize=False,
+                maximize=maximize,
             )
             for i in range(nobjs)
         ]
@@ -685,6 +686,9 @@ class VLMOP2(Experiment):
         y1 = 1 - np.exp(-1 * part1)
         y2 = 1 - np.exp(-1 * part2)
         f = np.hstack((y1, y2))
+
+        if self.maximize:
+            f *= -1.0
 
         # Convert to dataset
         for i in range(self.nobjs):

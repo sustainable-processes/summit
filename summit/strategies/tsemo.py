@@ -106,8 +106,6 @@ class TSEMO(Strategy):
     """
 
     def __init__(self, domain, transform=None, **kwargs):
-        from GPy.kern import Exponential
-
         Strategy.__init__(self, domain, transform, **kwargs)
 
         # Categorical variable options
@@ -134,11 +132,11 @@ class TSEMO(Strategy):
 
 
         # Spectral sampling settings
-        self.n_spectral_points = kwargs.get("n_spectral_points", 1500)
+        self.n_spectral_points = kwargs.get("n_spectral_points", 4000)
         self.n_retries = kwargs.get("n_retries", 10)
 
         # NSGA-II tsemo_settings
-        self.generations = kwargs.get("generations", 100)
+        self.generations = kwargs.get("generations", 1000)
         self.pop_size = kwargs.get("pop_size", 100)
 
         self.logger = kwargs.get("logger", logging.getLogger(__name__))
@@ -329,6 +327,9 @@ class TSEMO(Strategy):
             y = np.atleast_2d(self.internal_res.F).tolist()
             X = DataSet(X, columns=problem.X_columns)
             y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
+            for v in self.domain.output_variables:
+                if v.maximize:
+                    y[v.name] = -y[v.name]
             # Add in categorical variables
             for key, value in combo.to_dict().items():
                 X[key] = value
