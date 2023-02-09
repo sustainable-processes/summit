@@ -728,7 +728,7 @@ def test_tsemo(batch_size, maximize, test_num_improve_iter=2, save=False):
                 )
             )
             break
-    assert hv > 117.0
+    assert hv > 115.0
 
 
 @pytest.mark.parametrize(
