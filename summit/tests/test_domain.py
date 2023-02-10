@@ -22,9 +22,9 @@ def test_continuous_variable():
         description="reaction temperature",
         bounds=[1, 100],
         is_objective=True,
-        maximize=True,
+        maximize=False,
     )
-    assert var.maximize == True
+    assert var.maximize == False
     assert var.is_objective == True
 
     # Test serialization
@@ -33,7 +33,7 @@ def test_continuous_variable():
         description="reaction temperature",
         bounds=[1, 100],
         is_objective=True,
-        maximize=True,
+        maximize=False,
     )
     ser = var.to_dict()
     new_var = ContinuousVariable.from_dict(ser)
