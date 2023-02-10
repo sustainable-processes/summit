@@ -132,8 +132,6 @@ class TSEMO(Strategy):
             ):
                 self.input_columns += [c[0] for c in v.ds.columns]
 
-        # Kernel
-        self.kernel = kwargs.get("kernel", Exponential)
 
         # Spectral sampling settings
         self.n_spectral_points = kwargs.get("n_spectral_points", 1500)
@@ -179,7 +177,7 @@ class TSEMO(Strategy):
             self.all_experiments = prev_res
         elif prev_res is not None and self.all_experiments is not None:
             self.all_experiments = pd.concat([self.all_experiments, prev_res], axis=0)
-
+        
         if self.all_experiments.shape[0] <= 3:
             lhs = LHS(self.domain, categorical_method=cat_method)
             self.iterations += 1
@@ -235,25 +233,25 @@ class TSEMO(Strategy):
         if (self.domain.num_continuous_dimensions() == 0) and (
             self.domain.num_categorical_variables() == 1
         ):
-            X, y = self._categorical_enumerate(models)
+            X, yhat = self._categorical_enumerate(models)
         # Mixed domains
         elif self.categorical_combos is not None and len(self.input_columns) > 1:
-            X, y = self._nsga_optimize_mixed(models)
+            X, yhat = self._nsga_optimize_mixed(models)
         # Continous domains
         elif self.categorical_combos is None and len(self.input_columns) > 0:
-            X, y = self._nsga_optimize(models)
+            X, yhat = self._nsga_optimize(models)
 
         # Return if no suggestiosn found
-        if X.shape[0] == 0 and y.shape[0] == 0:
+        if X.shape[0] == 0 and yhat.shape[0] == 0:
             self.logger.warning("No suggestions found.")
             self.iterations += 1
             return None
 
         # Select points that give maximum hypervolume improvement
-        self.hv_imp, indices = self._select_max_hvi(outputs, y, num_experiments)
+        self.hv_imp, indices = self._select_max_hvi(y=outputs, yhat=yhat, num_evals=num_experiments)
 
         # Join to get single dataset with inputs and outputs and get suggestion
-        result = X.join(y)
+        result = X.join(yhat)
         result = result.iloc[indices, :]
 
         # Do any necessary transformations back
@@ -296,6 +294,9 @@ class TSEMO(Strategy):
         y = np.atleast_2d(self.internal_res.F).tolist()
         X = DataSet(X, columns=problem.X_columns)
         y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
+        for v in self.domain.output_variables:
+            if v.maximize:
+                y[v.name] = -y[v.name]
         return X, y
 
     def _nsga_optimize_mixed(self, models):
@@ -409,7 +410,7 @@ class TSEMO(Strategy):
             tsemo.all_experiments = DataSet.from_dict(ae)
         return tsemo
 
-    def _select_max_hvi(self, y, samples, num_evals=1):
+    def _select_max_hvi(self, y, yhat, num_evals=1):
         """Returns the point(s) that maximimize hypervolume improvement
 
         Parameters
@@ -426,18 +427,17 @@ class TSEMO(Strategy):
             and the indices of the corresponding points in samples
 
         """
-        samples_original, samples_next = samples.copy(), samples.copy()
-        samples = samples.copy()
+        yhat = yhat.copy()
         y = y.copy()
 
         # Set up maximization and minimization
-        for v in self.domain.variables:
-            if v.is_objective and v.maximize:
+        for v in self.domain.output_variables:
+            if v.maximize:
                 y[v.name] = -1 * y[v.name]
-                samples[v.name] = -1 * samples[v.name]
+                yhat[v.name] = -1 * yhat[v.name]
 
         # samples, mean, std = samples.standardize(return_mean=True, return_std=True)
-        samples = samples.data_to_numpy()
+        yhat = yhat.data_to_numpy()
         Ynew = y.data_to_numpy()
 
         # Reference
@@ -447,12 +447,12 @@ class TSEMO(Strategy):
         )
 
         indices = []
-        n = samples.shape[1]
-        mask = np.ones(samples.shape[0], dtype=bool)
-        samples_indices = np.arange(0, samples.shape[0])
+        n = yhat.shape[1]
+        mask = np.ones(yhat.shape[0], dtype=bool)
+        samples_indices = np.arange(0, yhat.shape[0])
 
         for i in range(num_evals):
-            masked_samples = samples[mask, :]
+            masked_samples = yhat[mask, :]
             Yfront, _ = pareto_efficient(Ynew, maximize=False)
             if len(Yfront) == 0:
                 raise ValueError("Pareto front length too short")
@@ -474,7 +474,7 @@ class TSEMO(Strategy):
 
             # Housekeeping: find the max HvI point and mask out for next round
             original_index = samples_indices[mask][masked_index]
-            new_point = samples[original_index, :].reshape(1, n)
+            new_point = yhat[original_index, :].reshape(1, n)
             Ynew = np.append(Ynew, new_point, axis=0)
             mask[original_index] = False
             indices.append(original_index)
@@ -486,9 +486,8 @@ class TSEMO(Strategy):
             hv_imp = 0
         else:
             # Total hypervolume improvement
-            # Includes all points added to batch (hvY + last hv_improvement)
-            # Subtracts hypervolume without any points added (hvY0)
-            hv_imp = hv_improvement[masked_index] + hvY - hvY0
+            Yfront, _ = pareto_efficient(Ynew, maximize=False)
+            hv_imp =  hypervolume(Yfront, r) - hvY0
         return hv_imp, indices
 
 

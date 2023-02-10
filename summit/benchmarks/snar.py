@@ -79,7 +79,7 @@ class SnarBenchmark(Experiment):
         domain += ContinuousVariable(
             name="sty",
             description=des_5,
-            bounds=[0, 100],
+            bounds=[0, 13000],
             is_objective=True,
             maximize=True,
         )
@@ -88,7 +88,7 @@ class SnarBenchmark(Experiment):
         domain += ContinuousVariable(
             name="e_factor",
             description=des_6,
-            bounds=[0, 10],
+            bounds=[0, 500],
             is_objective=True,
             maximize=False,
         )
