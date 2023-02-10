@@ -5,13 +5,13 @@ The `train_emulators.py` script will train emulators and create this report.
 This is the data from training of the reizman suzuki benchmark for 1000 epochs with 5 cross-validation folds.
 | case   |   avg_fit_time |   avg_val_r2 |   avg_val_RMSE |   avg_test_r2 |   avg_test_RMSE |
 |:-------|---------------:|-------------:|---------------:|--------------:|----------------:|
-| case_1 |           8.63 |         0.82 |          11.14 |          0.93 |            7.54 |
-| case_2 |           8.8  |         0.61 |           5.38 |          0.66 |            4.99 |
-| case_3 |           8.24 |         0.78 |          12.91 |          0.84 |           11.9  |
-| case_4 |           8.31 |         0.7  |          15.67 |          0.73 |           14.06 |
+| case_1 |           3.52 |         0.81 |          11.21 |          0.93 |            7.66 |
+| case_2 |           3.58 |         0.59 |           5.54 |          0.67 |            4.91 |
+| case_3 |           3.61 |         0.76 |          13.11 |          0.84 |           12.04 |
+| case_4 |           3.6  |         0.7  |          15.99 |          0.74 |           13.8  |
 ## Baumgartner C-N Cross Cross Coupling 
 This is the data from training of the Baumgartner C-N aniline cross-coupling benchmark for 1000 epochs with 5 cross-validation folds.
 | case        |   avg_fit_time |   avg_val_r2 |   avg_val_RMSE |   avg_test_r2 |   avg_test_RMSE |
 |:------------|---------------:|-------------:|---------------:|--------------:|----------------:|
-| one-hot     |           8.17 |         0.8  |           0.18 |          0.89 |            0.13 |
-| descriptors |           8.19 |         0.86 |           0.15 |          0.91 |            0.11 |
+| one-hot     |           3.54 |         0.79 |           0.18 |          0.88 |            0.13 |
+| descriptors |           3.52 |         0.84 |           0.16 |          0.9  |            0.12 |
