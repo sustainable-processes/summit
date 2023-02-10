@@ -69,8 +69,7 @@ jobs:
 
     - name: Run tests
       shell: bash
-      run: |
-      pytest --doctest-modules  --disable-warnings --ignore=experiments --splits 5 --group ${{ matrix.group }} 
+      run: pytest --doctest-modules  --disable-warnings --ignore=experiments --splits 5 --group ${{ matrix.group }} 
 
   # Publish to pypi on version change
   # This is based on https://github.com/coveooss/pypi-publish-with-poetry
