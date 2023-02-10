@@ -69,7 +69,8 @@ jobs:
 
     - name: Run tests
       shell: bash
-      run: pytest \
+      run: |
+      pytest \
       --doctest-modules \
       --disable-warnings \
       --ignore=experiments \
