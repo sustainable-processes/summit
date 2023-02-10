@@ -24,7 +24,7 @@ def test_continuous_variable():
         is_objective=True,
         maximize=False,
     )
-    assert var.maximize == True
+    assert var.maximize == False
     assert var.is_objective == True
 
     # Test serialization

@@ -128,9 +128,9 @@ def test_baumgartner_CC_emulator(use_descriptors, include_cost, show_plots=False
     values = {
         "catalyst": ["tBuXPhos"],
         "base": ["DBU"],
-        "t_res": [328.717801570892],
-        "temperature": [30],
-        "base_equivalents": [2.18301549894049],
+        "t_res": [496.9924],
+        "temperature": [100],
+        "base_equivalents": [1.038478817],
     }
     conditions = pd.DataFrame(values)
     conditions = DataSet.from_df(conditions)
@@ -140,7 +140,7 @@ def test_baumgartner_CC_emulator(use_descriptors, include_cost, show_plots=False
     assert str(results["base"].iloc[0]) == values["base"][0]
     assert float(results["t_res"]) == values["t_res"][0]
     assert float(results["temperature"]) == values["temperature"][0]
-    assert np.isclose(float(results["yld"]), 0.042832638, atol=0.15)
+    assert np.isclose(float(results["yld"]), 0.15, atol=0.15)
 
     # Test serialization
     d = b.to_dict()
