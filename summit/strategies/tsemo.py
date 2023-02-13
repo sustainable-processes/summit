@@ -106,8 +106,6 @@ class TSEMO(Strategy):
     """
 
     def __init__(self, domain, transform=None, **kwargs):
-        from GPy.kern import Exponential
-
         Strategy.__init__(self, domain, transform, **kwargs)
 
         # Categorical variable options
@@ -138,7 +136,7 @@ class TSEMO(Strategy):
         self.n_retries = kwargs.get("n_retries", 10)
 
         # NSGA-II tsemo_settings
-        self.generations = kwargs.get("generations", 100)
+        self.generations = kwargs.get("generations", 1000)
         self.pop_size = kwargs.get("pop_size", 100)
 
         self.logger = kwargs.get("logger", logging.getLogger(__name__))
@@ -202,12 +200,12 @@ class TSEMO(Strategy):
         # Train and sample
         n_outputs = len(self.domain.output_variables)
         train_results = [0] * n_outputs
-        models = [0] * n_outputs
+        self.models = [0] * n_outputs
         rmse_train_spectral = np.zeros(n_outputs)
         for i, v in enumerate(self.domain.output_variables):
             # Training
-            models[i] = ThompsonSampledModel(v.name)
-            train_results[i] = models[i].fit(
+            self.models[i] = ThompsonSampledModel(v.name)
+            train_results[i] = self.models[i].fit(
                 inputs,
                 outputs[[v.name]],
                 n_retries=self.n_retries,
@@ -215,7 +213,7 @@ class TSEMO(Strategy):
             )
 
             # Evaluate spectral sampled functions
-            sample_f = lambda x: np.atleast_2d(models[i].rff(x)).T
+            sample_f = lambda x: np.atleast_2d(self.models[i].rff(x)).T
             rmse_train_spectral[i] = rmse(
                 sample_f(inputs.to_numpy().astype("float")),
                 outputs[[v.name]].to_numpy().astype("float"),
@@ -233,13 +231,13 @@ class TSEMO(Strategy):
         if (self.domain.num_continuous_dimensions() == 0) and (
             self.domain.num_categorical_variables() == 1
         ):
-            X, yhat = self._categorical_enumerate(models)
+            X, yhat = self._categorical_enumerate(self.models)
         # Mixed domains
         elif self.categorical_combos is not None and len(self.input_columns) > 1:
-            X, yhat = self._nsga_optimize_mixed(models)
+            X, yhat = self._nsga_optimize_mixed(self.models)
         # Continous domains
         elif self.categorical_combos is None and len(self.input_columns) > 0:
-            X, yhat = self._nsga_optimize(models)
+            X, yhat = self._nsga_optimize(self.models)
 
         # Return if no suggestiosn found
         if X.shape[0] == 0 and yhat.shape[0] == 0:
@@ -329,6 +327,9 @@ class TSEMO(Strategy):
             y = np.atleast_2d(self.internal_res.F).tolist()
             X = DataSet(X, columns=problem.X_columns)
             y = DataSet(y, columns=[v.name for v in self.domain.output_variables])
+            for v in self.domain.output_variables:
+                if v.maximize:
+                    y[v.name] = -y[v.name]
             # Add in categorical variables
             for key, value in combo.to_dict().items():
                 X[key] = value
@@ -581,6 +582,7 @@ class ThompsonSampledModel:
         return self.rff(X)
 
     def save(self, filepath=None):
+        import pyrff
         if filepath is None:
             filepath = get_summit_config_path() / "tsemo" / str(self.uuid_val)
             os.makedirs(filepath, exist_ok=True)
@@ -588,6 +590,7 @@ class ThompsonSampledModel:
         pyrff.save_rffs([self.rff], filepath)
 
     def load(self, filepath=None):
+        import pyrff
         if filepath is None:
             filepath = get_summit_config_path() / "tsemo" / str(self.uuid_val)
             os.makedirs(filepath, exist_ok=True)
