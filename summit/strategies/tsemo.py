@@ -6,7 +6,7 @@ from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
 
-from pymoo.model.problem import Problem
+from pymoo.core.problem import Problem
 
 from fastprogress.fastprogress import progress_bar
 from scipy.sparse import issparse
