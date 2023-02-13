@@ -33,21 +33,20 @@ fastprogress = "^0.2.3"
 matplotlib = "^3.2.2"
 scikit-learn = "^1.0"
 torch = "^1.11.0"
-skorch = "^0.9.0"
+skorch = "^0.11.0"
 cython = "^0.29.21"
 
 # Dependencies for TSEMO and SOBO
 GPy = "^1.9"
 gpyopt = "^1.2.6"
 pyrff = "^2.0.1"
-pymoo = "^0.4.1"
+pymoo = "^0.6.0"
 
 # Dependencies for Snobfit
 SQSnobFit = "^0.4.3"
 
 # Dependencies for MTBO
-botorch = "^0.7.0"
-gpytorch = "^1.5.0"
+botorch = "^0.8.0"
 
 # Tests
 pytest = "^6.2.5"
