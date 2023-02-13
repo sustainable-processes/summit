@@ -6,7 +6,7 @@ from summit.utils.multiobjective import pareto_efficient, hypervolume
 from summit.utils.dataset import DataSet
 from summit import get_summit_config_path
 
-from pymoo.model.problem import Problem
+from pymoo.core.problem import Problem
 
 from fastprogress.fastprogress import progress_bar
 from scipy.sparse import issparse
@@ -279,7 +279,7 @@ class TSEMO(Strategy):
 
     def _nsga_optimize(self, models):
         """NSGA-II optimization with categorical domains"""
-        from pymoo.algorithms.nsga2 import NSGA2
+        from pymoo.algorithms.moo.nsga2 import NSGA2
         from pymoo.optimize import minimize
         from pymoo.factory import get_termination
 
@@ -301,7 +301,7 @@ class TSEMO(Strategy):
 
     def _nsga_optimize_mixed(self, models):
         """NSGA-II optimization with mixed continuous-categorical domains"""
-        from pymoo.algorithms.nsga2 import NSGA2
+        from pymoo.algorithms.moo.nsga2 import NSGA2
         from pymoo.optimize import minimize
         from pymoo.factory import get_termination
 
