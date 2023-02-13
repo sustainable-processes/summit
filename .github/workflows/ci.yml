@@ -69,7 +69,7 @@ jobs:
 
     - name: Run tests
       shell: bash
-      run: PY_IGNORE_IMPORTMISMATCH=1 pytest --doctest-modules  --disable-warnings --ignore=experiments --splits 5 --group ${{ matrix.group }} 
+      run: PY_IGNORE_IMPORTMISMATCH=1 pytest --doctest-modules  --disable-warnings --ignore=experiments --splits 5 --group ${{ matrix.group }} --split-algorithm least_duration
 
   # Publish to pypi on version change
   # This is based on https://github.com/coveooss/pypi-publish-with-poetry
