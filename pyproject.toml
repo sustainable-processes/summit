@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "summit"
-version = "0.8.8"
+version = "0.8.9"
 description = "Tools for optimizing chemical processes"
 authors = ["Kobi Felton <kobi.c.f@gmail.com>"]
 license = "MIT"
