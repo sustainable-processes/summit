@@ -693,7 +693,7 @@ def test_mtbo(
 
 @pytest.mark.parametrize("batch_size", [1, 2, 10])
 @pytest.mark.parametrize("maximize", [True, False])
-def test_tsemo(batch_size, maximize, test_num_improve_iter=2, save=False):
+def test_tsemo(batch_size, maximize, test_num_improve_iter=5, save=False):
     num_inputs = 2
     lab = VLMOP2(maximize=maximize)
     strategy = TSEMO(lab.domain)
