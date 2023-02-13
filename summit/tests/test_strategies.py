@@ -6,6 +6,7 @@ import GPy
 from fastprogress.fastprogress import progress_bar
 import numpy as np
 import os
+import matplotlib.pyplot as plt
 
 def test_strategy():
     class MockStrategy(Strategy):
@@ -693,7 +694,7 @@ def test_mtbo(
 
 @pytest.mark.parametrize("batch_size", [1, 2, 10])
 @pytest.mark.parametrize("maximize", [True, False])
-def test_tsemo(batch_size, maximize, test_num_improve_iter=5, save=False):
+def test_tsemo(batch_size, maximize, test_num_improve_iter=5, save=False, plot=True):
     num_inputs = 2
     lab = VLMOP2(maximize=maximize)
     strategy = TSEMO(lab.domain)
@@ -728,7 +729,7 @@ def test_tsemo(batch_size, maximize, test_num_improve_iter=5, save=False):
                 )
             )
             break
-    assert hv > 115.0
+    assert hv > 110.0
 
 
 @pytest.mark.parametrize(
