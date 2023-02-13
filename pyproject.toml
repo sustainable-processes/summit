@@ -2,7 +2,7 @@
 name = "summit"
 version = "0.8.8"
 description = "Tools for optimizing chemical processes"
-authors = ["Kobi Felton <kobi.c.f@gmail.com>", "Jan Rittig"]
+authors = ["Kobi Felton <kobi.c.f@gmail.com>"]
 license = "MIT"
 readme = 'README.md'
 repository = "https://github.com/sustainable-processes/summit"
@@ -85,13 +85,14 @@ docs = [
     "sphinx-reredirects",
 ]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.scripts]
+summit-tests = 'summit:run_tests'
+
+[tool.poetry.group.dev.dependencies]
+pytest-split = "^0.8.0"
 ipdb = "0.13.4"
 rope = "^0.17.0"
 black = { version = "^20.8b1", allow-prereleases = true }
-
-[tool.poetry.scripts]
-summit-tests = 'summit:run_tests'
 
 [build-system]
 requires = ["poetry>=0.12"]

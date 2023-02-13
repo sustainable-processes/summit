@@ -102,7 +102,6 @@ def _train_baumgartner(use_descriptors=False, show_plots=False, save_plots=True)
         domain,
         dataset=ds,
         regressor=ANNRegressor,
-        output_variable_names=["yield"],
         descriptors_features=["catalyst", "base"] if use_descriptors else [],
     )
     res = exp.train(

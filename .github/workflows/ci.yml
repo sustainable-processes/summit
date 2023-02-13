@@ -43,6 +43,7 @@ jobs:
     strategy:
       matrix:
         python: ["3.8", "3.9", "3.10"]
+        group: [1, 2, 3, 4, 5]
 
     steps:
     - name: Checkout repository
@@ -64,11 +65,11 @@ jobs:
       shell: bash
       run: |
         WHL_NAME=$(ls summit-*.whl)
-        pip install ${WHL_NAME}[experiments,entmoot] pytest
+        pip install ${WHL_NAME}[experiments,entmoot] pytest pytest-split
 
     - name: Run tests
       shell: bash
-      run: summit-tests
+      run: PY_IGNORE_IMPORTMISMATCH=1 pytest --doctest-modules  --disable-warnings --ignore=experiments --splits 5 --group ${{ matrix.group }} 
 
   # Publish to pypi on version change
   # This is based on https://github.com/coveooss/pypi-publish-with-poetry
