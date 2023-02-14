@@ -123,7 +123,7 @@ jobs:
       shell: bash
       run: |
         poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-        if [[ '${{ github.ref_name }}' == 'master' ]]; then
+        if [[ '${{ github.ref_name }}' == 'main' ]]; then
           poetry publish 
         else
           echo "Dry run of publishing the package"
@@ -147,8 +147,8 @@ jobs:
       env:
         TAG_NAME: ${{ steps.current.outputs.version }}
       run: |
-        if [[ ${{ github.ref_name }} == 'master' ]]; then
+        if [[ ${{ github.ref_name }} == 'main' ]]; then
           git push origin $TAG_NAME
         else
-          echo "If this was the master branch, I would push a new tag named $TAG_NAME"
+          echo "If this was the main branch, I would push a new tag named $TAG_NAME"
         fi
