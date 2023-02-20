@@ -537,78 +537,32 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
 @pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint",
     [
-        [1, 1, True, True],
-        [1, 200, True, True],
+        [1, 75, True, True],
         [4, 200, False, True],
         [1, 200, True, False],
         [4, 200, False, False],
     ],
 )
 def test_sobo(
-    batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False
+    batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=15, plot=False
 ):
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = SOBO(domain=hartmann3D.domain, kernel=GPy.kern.Matern32(3))
 
     # run SOBO loop for fixed <num_iter> number of iteration
-    num_iter = max_num_exp // batch_size  # maximum number of iterations
-    max_stop = (
-        80 // batch_size
-    )  # allowed number of consecutive iterations w/o improvement
-    min_stop = (
-        20 // batch_size
-    )  # minimum number of iterations before algorithm is stopped
-    nstop = 0
+    r = Runner(strategy=strategy, experiment=hartmann3D, batch_size=batch_size,max_iterations=max_num_exp, max_same=test_num_improve_iter)
+    r.run()
 
-    num_improve_iter = 0
-    fbestold = float("inf")
-    next_experiments = None
-    pb = progress_bar(range(num_iter))
-    for i in pb:
-        next_experiments = strategy.suggest_experiments(
-            num_experiments=batch_size, prev_res=next_experiments
-        )
-
-        # This is the part where experiments take place
-        next_experiments = hartmann3D.run_experiments(next_experiments)
-
-        fbest = strategy.fbest * -1.0 if maximize else strategy.fbest
-        xbest = strategy.xbest
-        if fbest < fbestold:
-            if fbest < 0.99 * fbestold or i < min_stop:
-                nstop = 0
-                num_improve_iter += 1
-            else:
-                nstop += 1
-            fbestold = fbest
-            pb.comment = f"Best f value: {fbest} at point: {xbest}"
-            print("\n")
-        else:
-            nstop += 1
-        if nstop >= max_stop:
-            print(
-                "Stopping criterion reached. No improvement in last "
-                + str(max_stop)
-                + " iterations."
-            )
-            break
-        if fbest < -3.85:
-            print("Stopping criterion reached. Function value below -3.85.")
-            break
-        if num_improve_iter >= test_num_improve_iter:
-            print(
-                "Requirement to improve fbest in at least {} satisfied, test stopped.".format(
-                    test_num_improve_iter
-                )
-            )
-            break
-
-    # xbest = np.around(xbest, decimals=3)
-    # fbest = np.around(fbest, decimals=3)
-    # print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    xbest = strategy.xbest
+    fbest = strategy.fbest
+    xbest = np.round(xbest.astype(float), decimals=3)
+    fbest = np.round(fbest, decimals=3)
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-    # if check_convergence:
-    #    assert (fbest <= -3.85 and fbest >= -3.87)
+    if maximize:
+        assert (fbest >= 3.85 and fbest <= 3.87)
+    else:
+        assert (fbest <= -3.85 and fbest >= -3.87)
 
     # Test saving and loading
     strategy.save("sobo_test.json")
@@ -629,6 +583,7 @@ def test_sobo(
         assert strategy.standardize_outputs == strategy_2.standardize_outputs
     if plot:
         fig, ax = hartmann3D.plot()
+        plt.show()
 
 
 @pytest.mark.parametrize(
@@ -796,12 +751,11 @@ def test_entmoot(
             )
             break
 
-    # xbest = np.around(xbest, decimals=3)
-    # fbest = np.around(fbest, decimals=3)
-    # print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
+    xbest = np.around(xbest, decimals=3)
+    fbest = np.around(fbest, decimals=3)
+    print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-    # if check_convergence:
-    #    assert (fbest <= -3.85 and fbest >= -3.87)
+    assert (fbest <= -3.85 and fbest >= -3.87)
 
     # Test saving and loading
     strategy.save("entmoot_test.json")
