@@ -567,7 +567,7 @@ class ThompsonSampledModel:
                 self.logger.error(e)
             except ValueError as e:
                 self.logger.error(e)
-            except SystemError:
+            except SystemError as e:
                 self.logger.error(e)
         if self.rff is None:
             raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")
