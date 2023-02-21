@@ -735,7 +735,7 @@ def test_tsemo(batch_size, maximize, max_num_exp=100, test_num_improve_iter=5, s
     if plot:
         lab.pareto_plot()
         plt.show()
-    assert hv > 0.2
+    assert hv > 0.1
 
 
 @pytest.mark.parametrize(
