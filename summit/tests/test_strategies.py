@@ -545,7 +545,7 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
     ],
 )
 def test_sobo(
-    batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=2, plot=False
+    batch_size, max_num_exp, maximize, constraint, test_num_improve_iter=15, plot=False
 ):
     hartmann3D = Hartmann3D(maximize=maximize, constraints=constraint)
     strategy = SOBO(domain=hartmann3D.domain, kernel=GPy.kern.Matern32(3))
