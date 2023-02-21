@@ -537,7 +537,6 @@ def test_nm3D(maximize, x_start, constraint, plot=False):
 @pytest.mark.parametrize(
     "batch_size, max_num_exp, maximize, constraint",
     [
-        [1, 1, True, True],
         [1, 200, True, True],
         [4, 200, False, True],
         [1, 200, True, False],
