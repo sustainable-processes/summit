@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 import uuid
 import logging
-
+import warnings
 
 class TSEMO(Strategy):
     """Thompson-Sampling for Efficient Multiobjective Optimization (TSEMO)
@@ -513,6 +513,7 @@ class ThompsonSampledModel:
         from gpytorch.mlls.exact_marginal_log_likelihood import (
             ExactMarginalLogLikelihood,
         )
+        from botorch.exceptions import InputDataWarning
         import pyrff
         import torch
 
@@ -527,6 +528,7 @@ class ThompsonSampledModel:
         # Train the GP model
         self.model = SingleTaskGP(X, y)
         mll = ExactMarginalLogLikelihood(self.model.likelihood, self.model)
+        warnings.simplefilter("ignore", InputDataWarning)
         fit_gpytorch_model(mll)
 
         # self.logger.info model hyperparameters
@@ -564,6 +566,8 @@ class ThompsonSampledModel:
             except np.linalg.LinAlgError as e:
                 self.logger.error(e)
             except ValueError as e:
+                self.logger.error(e)
+            except SystemError as e:
                 self.logger.error(e)
         if self.rff is None:
             raise RuntimeError(f"Spectral sampling failed after {n_retries} retries.")

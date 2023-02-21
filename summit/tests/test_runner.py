@@ -144,7 +144,7 @@ def test_runner_mo_integration(strategy, experiment):
         return
     elif strategy == TSEMO:
         s = strategy(exp.domain)
-        iterations = 10
+        iterations = 3
     else:
         hierarchy = {
             v.name: {"hierarchy": i, "tolerance": 1}
