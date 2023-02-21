@@ -607,10 +607,7 @@ def test_sobo(
     fbest = np.around(fbest, decimals=3)
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
-    if maximize:
-        assert fbest >= 3.84 and fbest <= 3.87
-    else:
-        assert fbest <= -3.84 and fbest >= -3.87
+    assert fbest <= -3.84 and fbest >= -3.87
 
     # Test saving and loading
     strategy.save("sobo_test.json")
