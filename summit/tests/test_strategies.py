@@ -603,7 +603,7 @@ def test_sobo(
             )
             break
 
-    xbest = np.around(xbest, decimals=3)
+    xbest = np.around(xbest.astype(float), decimals=3)
     fbest = np.around(fbest, decimals=3)
     print("Optimal setting: " + str(xbest) + " with outcome: " + str(fbest))
     # Extrema of test function without constraint: glob_min = -3.86 at (0.114,0.556,0.853)
