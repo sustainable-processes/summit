@@ -284,3 +284,41 @@ def test_dro_thc(num_experiments, maximize, constraint, plot=False):
 
 #test_dro_thc(1, False, False, True)
 
+def test_tsemo_thc(num_experiments, maximize, constraint, plot=False):
+
+    thcamel = test_functions.ThreeHumpCamel(maximize=maximize, constraints=constraint)
+    strategy = TSEMO(domain=thcamel.domain)
+
+    # Uncomment to start algorithm with pre-defined initial experiments
+    initial_exp = None
+    # Uncomment to create test case which results in reduction dimension and dimension recovery
+    #columns = ['x_1', 'x_2']
+    #values = [[1,1],[1.1,1],[1.2,1]]
+    #values = np.array(values)
+    #values = np.atleast_2d(values)
+    #conditions = DataSet(values, columns=columns)
+    #initial_exp = thcamel.run_experiments(conditions)
+
+    # run TSEMO loop for fixed <num_iter> number of iteration
+    num_iter = 10
+
+    if initial_exp is not None:
+        next_experiments = initial_exp
+    else:
+        next_experiments = None
+
+    param = None
+    for i in range(num_iter):
+        next_experiments = \
+            strategy.suggest_experiments(num_experiments=num_experiments, prev_res=next_experiments)
+
+        # This is the part where experiments take place
+        next_experiments = thcamel.run_experiments(next_experiments)
+        print(next_experiments)  # show next experiments
+        print("\n")
+
+    if plot:
+        fig, ax = thcamel.plot()
+        plt.show()
+
+#test_tsemo_thc(1, False, False, True)
