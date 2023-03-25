@@ -306,7 +306,7 @@ class SOBO(Strategy):
                             inputs[v.name], v.levels
                         )
 
-            inputs = inputs.to_numpy()
+            inputs = inputs.to_numpy().astype(float)
             outputs = outputs.to_numpy()
 
             if self.prev_param is not None:
