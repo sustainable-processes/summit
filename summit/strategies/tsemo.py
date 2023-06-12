@@ -225,11 +225,11 @@ class TSEMO(Strategy):
             )
 
         # NSGAII internal optimisation on spectrally sampled functions
-        self.logger.info("Optimizing models using NSGAII.")
+        self.logger.info("Optimizing acquisition function")
 
         # Categorical only domain
         if (self.domain.num_continuous_dimensions() == 0) and (
-            self.domain.num_categorical_variables() == 1
+            self.domain.num_categorical_variables() == len(self.domain.input_variables)
         ):
             X, yhat = self._categorical_enumerate(self.models)
         # Mixed domains
@@ -238,6 +238,8 @@ class TSEMO(Strategy):
         # Continous domains
         elif self.categorical_combos is None and len(self.input_columns) > 0:
             X, yhat = self._nsga_optimize(self.models)
+        else:
+            raise ValueError("No valid domain found.")
 
         # Return if no suggestiosn found
         if X.shape[0] == 0 and yhat.shape[0] == 0:
