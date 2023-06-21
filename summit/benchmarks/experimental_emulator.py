@@ -204,8 +204,8 @@ class ExperimentalEmulator(Experiment):
                 y_pred[:, :, i] = np.clip(y_pred[:, :, i], v.lower_bound, v.upper_bound)
 
         return y_pred.mean(axis=0), y_pred.std(axis=0)
-
-    def train(self, **kwargs):
+if self.predictors is not None:
+    return
         """Train the model on the dataset
 
         This will automatically do a train-test split and then train via
