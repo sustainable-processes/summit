@@ -96,7 +96,7 @@ class Transform:
         self.input_means, self.input_stds = {}, {}
         self.output_means, self.output_stds = {}, {}
         self.encoders = {}
-        for variable in self.domain.input_variables:
+for variable in self.transform_domain.input_variables:
             if (
                 isinstance(variable, CategoricalVariable)
                 and categorical_method == "descriptors"
@@ -262,7 +262,7 @@ class Transform:
 
         # Determine input and output columns in dataset
         new_ds = ds.copy()
-        for i, variable in enumerate(self.domain.input_variables):
+for i, variable in enumerate(self.transform_domain.input_variables):
             # Categorical variables with descriptors
             if (
                 isinstance(variable, CategoricalVariable)
