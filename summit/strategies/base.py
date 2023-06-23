@@ -184,7 +184,7 @@ class Transform:
                     f"Variable {variable.name} is not a continuous or categorical variable."
                 )
 
-        for variable in self.domain.output_variables:
+        for variable in self.transform_domain.output_variables:
             if variable.name in data_columns and variable.is_objective:
                 if isinstance(variable, CategoricalVariable):
                     raise DomainError(
@@ -262,7 +262,7 @@ class Transform:
 
         # Determine input and output columns in dataset
         new_ds = ds.copy()
-        for i, variable in enumerate(self.domain.input_variables):
+        for i, variable in enumerate(self.transform_domain.input_variables):
             # Categorical variables with descriptors
             if (
                 isinstance(variable, CategoricalVariable)
@@ -352,7 +352,7 @@ class Transform:
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 
-        for variable in self.domain.output_variables:
+        for variable in self.transform_domain.output_variables:
             if variable.name in data_columns and variable.is_objective:
                 if standardize_outputs:
                     mean = self.output_means[variable.name]
