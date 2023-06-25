@@ -36,9 +36,7 @@ torch = "^1.11.0"
 skorch = "^0.11.0"
 cython = "^0.29.21"
 
-# Dependencies for TSEMO and SOBO
-GPy = "^1.9"
-gpyopt = "^1.2.6"
+# Dependencies for TSEMO
 pyrff = "^2.0.1"
 pymoo = "^0.6.0"
 
