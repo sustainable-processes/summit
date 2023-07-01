@@ -159,7 +159,7 @@ class Transform:
                 self.encoders[variable.name] = enc
 
                 # Drop old categorical column, then write as metadata
-                new_ds = new_ds.drop(variable.name, axis=1)
+                new_ds = new_ds.drop(variable.name, axis=1, level=0)
                 new_ds[variable.name, "METADATA"] = values
             elif (
                 isinstance(variable, CategoricalVariable) and categorical_method == None
@@ -331,7 +331,7 @@ class Transform:
                 values = enc.inverse_transform(one_hot)
 
                 # Add to dataset and drop one-hot encoding
-                new_ds = new_ds.drop(one_hot_names, axis=1)
+                new_ds = new_ds.drop(one_hot_names, axis=1, level=0)
                 new_ds[variable.name, "DATA"] = values
             # Plain categorical variables
             elif isinstance(variable, CategoricalVariable):
