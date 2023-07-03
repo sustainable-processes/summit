@@ -96,10 +96,10 @@ class Transform:
         self.input_means, self.input_stds = {}, {}
         self.output_means, self.output_stds = {}, {}
         self.encoders = {}
-        for variable in self.transform_domain.input_variables:
+        for variable in self.domain.input_variables:
             if (
                 isinstance(variable, CategoricalVariable)
-                and categorical_method == "descriptors"
+                and (categorical_method == "descriptors" or (categorical_method == "mixed" and variable.ds is not None))
             ):
                 # Add descriptors to the dataset
                 var_descriptor_names = variable.ds.data_columns
@@ -118,7 +118,7 @@ class Transform:
                     ]
                     for ixc in ix_code:
                         column_codes_2[ixc] = 0
-                    new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+                    new_ds.columns = new_ds.columns.set_codes(column_codes_2, level=1)
                 else:
                     indices = new_ds[variable.name].values
                     descriptors = variable.ds.loc[indices]
@@ -131,7 +131,7 @@ class Transform:
                 column_codes_2 = list(new_ds.columns.codes[1])
                 ix_code = np.where(new_ds.columns.codes[0] == ix)[0][0]
                 column_codes_2[ix_code] = 1
-                new_ds.columns.set_codes(column_codes_2, level=1, inplace=True)
+                new_ds.columns =  new_ds.columns.set_codes(column_codes_2, level=1)
 
                 # Normalize descriptors between 0 and 1
                 if min_max_scale_inputs:
@@ -146,7 +146,7 @@ class Transform:
                 input_columns.extend(var_descriptor_names)
             elif (
                 isinstance(variable, CategoricalVariable)
-                and categorical_method == "one-hot"
+                and (categorical_method == "one-hot" or categorical_method == "mixed" and variable.ds is None)
             ):
                 # Create one-hot encoding columns & insert to DataSet
                 enc = OneHotEncoder(categories=[variable.levels])
@@ -184,7 +184,7 @@ class Transform:
                     f"Variable {variable.name} is not a continuous or categorical variable."
                 )
 
-        for variable in self.transform_domain.output_variables:
+        for variable in self.domain.output_variables:
             if variable.name in data_columns and variable.is_objective:
                 if isinstance(variable, CategoricalVariable):
                     raise DomainError(
@@ -262,11 +262,11 @@ class Transform:
 
         # Determine input and output columns in dataset
         new_ds = ds.copy()
-        for i, variable in enumerate(self.transform_domain.input_variables):
+        for i, variable in enumerate(self.domain.input_variables):
             # Categorical variables with descriptors
             if (
                 isinstance(variable, CategoricalVariable)
-                and categorical_method == "descriptors"
+                and ((categorical_method == "descriptors") or (categorical_method == "mixed" and variable.ds is not None))
             ):
                 var_descriptor_names = variable.ds.data_columns
                 # Unnormalize descriptors between 0 and 1
@@ -318,7 +318,7 @@ class Transform:
             # Categorical variables using one-hot encoding
             elif (
                 isinstance(variable, CategoricalVariable)
-                and categorical_method == "one-hot"
+                and ((categorical_method == "one-hot") or (categorical_method == "mixed" and variable.ds is None))
             ):
                 # Get one-hot encoder
                 enc = self.encoders[variable.name]
@@ -352,7 +352,7 @@ class Transform:
             else:
                 raise DomainError(f"Variable {variable.name} is not in the dataset.")
 
-        for variable in self.transform_domain.output_variables:
+        for variable in self.domain.output_variables:
             if variable.name in data_columns and variable.is_objective:
                 if standardize_outputs:
                     mean = self.output_means[variable.name]
