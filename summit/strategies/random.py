@@ -1,9 +1,12 @@
-from .base import Strategy, Design, Transform
-from summit.domain import *
-from summit.utils.dataset import DataSet
+from typing import Tuple
+
 import numpy as np
 import pandas as pd
-from typing import Tuple
+
+from summit.domain import *
+from summit.utils.dataset import DataSet
+
+from .base import Design, Strategy, Transform
 
 
 class Random(Strategy):
@@ -170,11 +173,9 @@ class LHS(Strategy):
         domain: Domain,
         transform: Transform = None,
         random_state: np.random.RandomState = None,
-        categorical_method: str = None,
     ):
         super().__init__(domain, transform)
         self._rstate = random_state if random_state else np.random.RandomState()
-        self.categorical_method = categorical_method
 
     def suggest_experiments(
         self, num_experiments, criterion="center", exclude=[], **kwargs
@@ -283,9 +284,7 @@ class LHS(Strategy):
             # design.add_variable(variable.name, values, indices=indices)
         design = DataSet.from_df(design)
         design[("strategy", "METADATA")] = "LHS"
-        return self.transform.un_transform(
-            design, categorical_method=self.categorical_method
-        )
+        return self.transform.un_transform(design, categorical_method=None)
 
     def reset(self):
         pass
