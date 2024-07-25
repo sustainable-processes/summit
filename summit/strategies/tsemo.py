@@ -281,7 +281,7 @@ class TSEMO(Strategy):
         """NSGA-II optimization with categorical domains"""
         from pymoo.algorithms.moo.nsga2 import NSGA2
         from pymoo.optimize import minimize
-        from pymoo.factory import get_termination
+        from pymoo.termination import get_termination
 
         optimizer = NSGA2(pop_size=self.pop_size)
         problem = TSEMOInternalWrapper(models, self.domain)
@@ -303,7 +303,7 @@ class TSEMO(Strategy):
         """NSGA-II optimization with mixed continuous-categorical domains"""
         from pymoo.algorithms.moo.nsga2 import NSGA2
         from pymoo.optimize import minimize
-        from pymoo.factory import get_termination
+        from pymoo.termination import get_termination
 
         combos = self.categorical_combos
         transformed_combos = self._transform_categorical(combos)
