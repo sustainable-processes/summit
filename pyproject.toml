@@ -36,9 +36,7 @@ torch = "^1.11.0"
 skorch = "^0.11.0"
 cython = "^0.29.21"
 
-# Dependencies for TSEMO and SOBO
-GPy = "^1.9"
-gpyopt = "^1.2.6"
+# Dependencies for TSEMO
 pyrff = "^2.0.1"
 pymoo = "^0.6.0"
 
@@ -94,5 +92,5 @@ rope = "^0.17.0"
 black = { version = "^20.8b1", allow-prereleases = true }
 
 [build-system]
-requires = ["poetry>=0.12"]
-build-backend = "poetry.masonry.api"
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
