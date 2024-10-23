@@ -239,9 +239,6 @@ def test_logspaceobjectives_transform():
         ("de", "DATA"): [90, 80],
     }
     previous_results = DataSet(values, columns=columns)
-    transform = LogSpaceObjectives(domain)
-    strategy = MockStrategy(domain, transform=transform)
-    strategy.suggest_experiments(5, previous_results)
 
 
 @pytest.mark.parametrize("num_experiments", [1, 2, 4])

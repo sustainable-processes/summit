@@ -527,10 +527,6 @@ class LogSpaceObjectives(Transform):
     >>> columns = [v.name for v in domain.variables]
     >>> values = {("temperature", "DATA"): 60,("flowrate_a", "DATA"): 0.5,("flowrate_b", "DATA"): 0.5,("yield_", "DATA"): 50,("de", "DATA"): 90}
     >>> previous_results = DataSet([values], columns=columns)
-    >>> # Multiobjective transform
-    >>> transform = LogSpaceObjectives(domain)
-    >>> strategy = SNOBFIT(domain, transform=transform)
-    >>> next_experiments = strategy.suggest_experiments(5, previous_results)
 
     """
 

@@ -37,11 +37,11 @@ from sklearn.utils.validation import (
     _deprecate_positional_args,
     indexable,
     check_is_fitted,
-    _check_fit_params,
+    _check_method_params,
 )
 from sklearn.utils import check_array, _safe_indexing
-from sklearn.utils.fixes import delayed
-from sklearn.metrics._scorer import _check_multimetric_scoring
+from sklearn.utils.parallel import delayed
+from sklearn.metrics._scorer import _check_multimetric_scoring, _MultimetricScorer
 
 from scipy.sparse import issparse
 
@@ -366,7 +366,8 @@ class ExperimentalEmulator(Experiment):
                 scorers = check_scoring(predictor, scoring)
             else:
                 scorers = _check_multimetric_scoring(predictor, scoring)
-            scores_list.append(_score(predictor, X_test, y_test, scorers))
+                scorers = _MultimetricScorer(scorers=scorers)
+            scores_list.append(_score(predictor, X_test, y_test, scorers, score_params = None))
         scores_dict = _aggregate_score_dicts(scores_list)
         for name in scoring:
             scores = scores_dict.pop(name)
@@ -1158,7 +1159,7 @@ class ProgressGridSearchCV(BaseSearchCV):
             refit_metric = self.refit
 
         X, y, groups = indexable(X, y, groups)
-        fit_params = _check_fit_params(X, fit_params)
+        fit_params = _check_method_params(X, fit_params)
 
         cv_orig = check_cv(self.cv, y, classifier=is_classifier(estimator))
         n_splits = cv_orig.get_n_splits(X, y, groups)
